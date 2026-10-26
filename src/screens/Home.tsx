@@ -1,8 +1,8 @@
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { Caption, Delta, Empty, Header, Help, Icon, ThemeCycle, useTick } from '../components/ui';
-import { gameResults, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
-import { duration, money, shortDate, stakesLabel } from '../lib/format';
+import { gameResults, openTransfers, playerStatus, totalBuyInUnits, totalPotMoney } from '../lib/calc';
+import { buyInsEquivalent, duration, money, shortDate, stakesLabel } from '../lib/format';
 import { filterGames, leaderboard } from '../lib/stats';
 
 export default function Home() {
@@ -32,8 +32,8 @@ export default function Home() {
               <p className="sat-small sat-muted">{stakesLabel(g)}</p>
               <div className="sat-split" style={{ alignItems: 'flex-end', marginTop: 4 }}>
                 <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
-                  <Caption q={g.currency}>{g.type === 'cash' ? 'In play' : 'Prize pool'}</Caption>
-                  <span className="sat-kpi">{money(totalPotMoney(g), '')}</span>
+                  {g.type === 'cash' ? <Caption q="buy-ins">In play</Caption> : <Caption q={g.currency}>Prize pool</Caption>}
+                  <span className="sat-kpi">{g.type === 'cash' ? buyInsEquivalent(g, totalBuyInUnits(g)) : money(totalPotMoney(g), '')}</span>
                 </div>
                 <span className="sat-small sat-muted">{seated} playing, {g.hands.length} hands</span>
               </div>

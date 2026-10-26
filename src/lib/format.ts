@@ -48,7 +48,7 @@ export function ago(t: number, now = Date.now()): string {
 
 export function stakesLabel(g: Game): string {
   if (g.type === 'tournament') return `${money(g.tournament?.buyIn ?? 0, g.currency)} tournament`;
-  return `${g.sb}/${g.bb} cash, 1 unit = ${money(g.unitValue, g.currency)}`;
+  return `${g.sb}/${g.bb} cash, multiplier ${money(g.unitValue, g.currency)}`;
 }
 
 export function initials(name: string): string {
@@ -58,4 +58,11 @@ export function initials(name: string): string {
 /** Colour class for a result: up, down, or neutral at break-even. */
 export function tone(n: number): string {
   return n > 0.004 ? 'up' : n < -0.004 ? 'down' : '';
+}
+
+/** Units bought so far, counted in default buy-ins (e.g. 9 or 9.5). Used while a game is live. */
+export function buyInsEquivalent(g: Game, totalUnits: number): string {
+  if (!g.defaultBuyIn) return '0';
+  const v = totalUnits / g.defaultBuyIn;
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }

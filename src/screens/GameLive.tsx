@@ -1,19 +1,21 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Cards, Empty, Header, Help, Icon, Sheet, num, toast, useTick } from '../components/ui';
+import { Avatar, Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light } from '../components/ui';
+import { NameEntry, PlayerChip } from '../components/players';
 import { StepChart } from '../components/charts';
 import {
   buyInCount, buyInTimeline, buyInUnits, cashOutUnits, handStats, hasCashedOut, playerStatus,
   timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
-import { ago, dateLabel, duration, inBB, money, timeLabel, units } from '../lib/format';
+import { ago, buyInsEquivalent, dateLabel, duration, inBB, money, timeLabel, units } from '../lib/format';
 import type { Game, ID } from '../types';
 
 type SheetKind =
   | { k: 'rebuy'; pid: ID }
   | { k: 'clockout'; pid: ID }
   | { k: 'menu'; pid: ID }
+  | { k: 'back'; pid: ID }
   | { k: 'add' }
   | { k: 'seats' }
   | { k: 'edit' }
@@ -58,17 +60,17 @@ export default function GameLive({ gameId }: { gameId: string }) {
 
         <section className="sat-glass sat-card sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
           <div className="sat-split">
-            <Caption q={g.currency} tip="inPlay">{closed ? 'Final total' : isCash ? 'In play' : 'Prize pool'}</Caption>
+            {isCash ? <Caption q="buy-ins" tip="inPlay">{closed ? 'Bought in' : 'In play'}</Caption> : <Caption q={g.currency} tip="inPlay">Prize pool</Caption>}
             {!closed && <span className="sat-small sat-muted"><span className="felt-dot" />{duration(Date.now() - g.startedAt)}</span>}
           </div>
-          <span className="sat-kpi">{money(totalPotMoney(g), '')}</span>
+          <span className="sat-kpi">{isCash ? buyInsEquivalent(g, totalBuyInUnits(g)) : money(totalPotMoney(g), '')}</span>
           <p className="sat-small sat-muted">
-            {isCash ? `${units(totalBuyInUnits(g))} units (${inBB(g, totalBuyInUnits(g))}), ${g.buyIns.length} buy-ins` : `${g.buyIns.length} entries`}
+            {isCash ? `${units(totalBuyInUnits(g))} units from ${g.buyIns.length} buy-ins of ${units(g.defaultBuyIn)}` : `${g.buyIns.length} entries`}
             {lastBuy ? `, last ${ago(lastBuy)}` : ''}
           </p>
           <figure style={{ marginTop: 'var(--sat-space-2)' }}>
             <StepChart points={buyInTimeline(g)} endTime={now} />
-            <figcaption className="sat-figcaption"><b>{isCash ? 'In play' : 'Pool'} = {money(totalPotMoney(g), g.currency)}</b> after {duration(now - g.startedAt)}, {inPlayers.length} still playing.</figcaption>
+            <figcaption className="sat-figcaption"><b>{isCash ? `In play = ${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins (${units(totalBuyInUnits(g))} units)` : `Pool = ${money(totalPotMoney(g), g.currency)}`}</b> after {duration(now - g.startedAt)}, {inPlayers.length} still playing.</figcaption>
             <p className="sat-source" style={{ marginTop: 'var(--sat-space-1)' }}>Source: Felt buy-in log ({timeLabel(g.startedAt)} to {timeLabel(now)}).</p>
           </figure>
           <hr className="sat-rule" />
@@ -98,7 +100,14 @@ export default function GameLive({ gameId }: { gameId: string }) {
             {shown.map((pid) => (
               <PlayerTile key={pid} g={g} pid={pid} name={name(pid)} wins={hs.handsWon[pid] ?? 0}
                 onRebuy={() => st.addBuyIn(g.id, pid, isCash ? g.defaultBuyIn : g.tournament!.buyIn)}
-                onOut={() => isCash ? setSheet({ k: 'clockout', pid }) : st.bust(g.id, pid)}
+                onLight={(v) => {
+                  const cur = playerStatus(g, pid);
+                  if (v === cur) return;
+                  if (v === 'out') { if (isCash) setSheet({ k: 'clockout', pid }); else st.bust(g.id, pid); return; }
+                  if (cur === 'out') { setSheet({ k: 'back', pid }); return; }
+                  st.setStatus(g.id, pid, v);
+                  toast(v === 'away' ? `${name(pid)} is away. Clock paused.` : `${name(pid)} is back. Clock running.`);
+                }}
                 onMenu={() => setSheet({ k: 'menu', pid })} />
             ))}
             {shown.length === 0 && (sub === 'in'
@@ -119,9 +128,10 @@ export default function GameLive({ gameId }: { gameId: string }) {
 
       {sheet?.k === 'rebuy' && <AmountSheet g={g} title={`${isCash ? 'Buy-in' : 'Entry'} for ${name(sheet.pid)}`} initial={isCash ? g.defaultBuyIn : g.tournament!.buyIn}
         isMoney={!isCash} onClose={() => setSheet(null)} onSave={(v) => { st.addBuyIn(g.id, sheet.pid, v); setSheet(null); }} />}
-      {sheet?.k === 'clockout' && <AmountSheet g={g} title={`Clock out ${name(sheet.pid)}`} sub="Chips they leave with, in units." initial={null}
+      {sheet?.k === 'clockout' && <AmountSheet g={g} title={`Clock out ${name(sheet.pid)}`} label="Chips at clock-out (units)" tip="clockOut" initial={null}
         cta="Clock out" onClose={() => setSheet(null)} onSave={(v) => { st.clockOut(g.id, sheet.pid, v); setSheet(null); toast(`${name(sheet.pid)} clocked out with ${units(v)} units`); }} />}
       {sheet?.k === 'menu' && <PlayerMenu g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
+      {sheet?.k === 'back' && <BackInSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'add' && <AddPlayerSheet g={g} onClose={() => setSheet(null)} />}
       {sheet?.k === 'seats' && <SeatDrawSheet g={g} onClose={() => setSheet(null)} />}
       {sheet?.k === 'edit' && <EditGameSheet g={g} onClose={() => setSheet(null)} />}
@@ -129,9 +139,9 @@ export default function GameLive({ gameId }: { gameId: string }) {
   );
 }
 
-function PlayerTile({ g, pid, name, wins, onRebuy, onOut, onMenu }: {
+function PlayerTile({ g, pid, name, wins, onRebuy, onLight, onMenu }: {
   g: Game; pid: ID; name: string; wins: number;
-  onRebuy: () => void; onOut: () => void; onMenu: () => void;
+  onRebuy: () => void; onLight: (v: Light) => void; onMenu: () => void;
 }) {
   const isCash = g.type === 'cash';
   const status = playerStatus(g, pid);
@@ -147,32 +157,50 @@ function PlayerTile({ g, pid, name, wins, onRebuy, onOut, onMenu }: {
           <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
             <span className="felt-tile-name">{name}</span>
             <Caption>Seat {g.seats[pid] ?? '-'}</Caption>
-            {status === 'away' && <span className="sat-badge sat-badge--muted">Sitting out</span>}
             {!isCash && place && <span className="sat-badge">{place === 1 ? 'Winner' : `Place ${place}`}</span>}
           </div>
           <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-            <span className="sat-well felt-amount"><span className="sat-num" style={{ fontSize: '1.125rem', fontWeight: 600 }}>{isCash ? money(bi * g.unitValue, g.currency) : money(bi, g.currency)}</span></span>
-            <span className="sat-small sat-muted">{isCash ? `${units(bi)} units, ${n} buy-in${n === 1 ? '' : 's'}` : `${n} entr${n === 1 ? 'y' : 'ies'}`}</span>
+            <span className="sat-well felt-amount">
+              <span className="sat-num" style={{ fontSize: '1.125rem', fontWeight: 600 }}>{isCash ? units(bi) : money(bi, g.currency)}</span>
+              {isCash && <span className="sat-small sat-muted">units</span>}
+            </span>
+            <span className="sat-small sat-muted">{isCash ? `${n} buy-in${n === 1 ? '' : 's'}` : `${n} entr${n === 1 ? 'y' : 'ies'}`}</span>
           </div>
-          <p className="sat-small sat-muted">
-            {duration(timePlayed(g, pid))} played, {wins} hand{wins === 1 ? '' : 's'} won{isCash && hasCashedOut(g, pid) ? `, left with ${units(cashOutUnits(g, pid))} units` : ''}
-          </p>
         </div>
+      </div>
+      <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)', marginTop: 'var(--sat-space-3)', flexWrap: 'nowrap' }}>
+        {!closed && <StatusLight value={status} onChange={onLight} name={name} outLabel={isCash ? 'Clocked out' : 'Busted'} />}
+        <p className="sat-small sat-muted felt-grow">
+          <span className="sat-num">{duration(timePlayed(g, pid))}</span> played{status === 'away' ? ' (paused)' : ''}, {wins} hand{wins === 1 ? '' : 's'} won
+          {isCash && hasCashedOut(g, pid) ? `, left with ${units(cashOutUnits(g, pid))}` : ''}
+        </p>
       </div>
       {!closed && (
         <div className="felt-tile-actions">
-          {status !== 'out' ? (
-            <>
-              <button className="sat-btn felt-grow" onClick={onRebuy}>{isCash ? `Rebuy ${units(g.defaultBuyIn)}` : 'Re-enter'}</button>
-              <button className="sat-btn felt-grow" onClick={onOut}><Icon name={isCash ? 'logout' : 'skull'} /> {isCash ? 'Clock out' : 'Bust'}</button>
-            </>
-          ) : (
-            <button className="sat-btn felt-grow" onClick={onRebuy}>{isCash ? `Buy back in for ${units(g.defaultBuyIn)}` : 'Re-enter'}</button>
-          )}
+          <button className="sat-btn felt-grow" onClick={onRebuy}>{status === 'out' ? (isCash ? `Buy back in for ${units(g.defaultBuyIn)}` : 'Re-enter') : isCash ? `Rebuy ${units(g.defaultBuyIn)}` : 'Re-enter'}</button>
           <button className="sat-btn sat-iconbtn" onClick={onMenu} aria-label={`More for ${name}`}><Icon name="settings" /></button>
         </div>
       )}
     </div>
+  );
+}
+
+/** Green tapped on a clocked-out or busted player: undo, or buy back in. */
+function BackInSheet({ g, pid, name, onClose }: { g: Game; pid: ID; name: string; onClose: () => void }) {
+  const st = useStore();
+  const isCash = g.type === 'cash';
+  return (
+    <Sheet open onClose={onClose} title={`${name} back in`}>
+      <p className="sat-small sat-muted">{isCash ? `Left with ${units(cashOutUnits(g, pid))} units.` : 'Busted.'} Choose how they rejoin.</p>
+      <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => { st.addBuyIn(g.id, pid, isCash ? g.defaultBuyIn : g.tournament!.buyIn); toast(`${name} bought back in`); onClose(); }}>
+        {isCash ? `Buy back in for ${units(g.defaultBuyIn)}` : 'Re-enter'}
+      </button>
+      <button className="sat-btn sat-btn--block" onClick={() => {
+        if (isCash) { st.setCashOut(g.id, pid, null); st.setStatus(g.id, pid, 'playing'); } else st.unbust(g.id, pid);
+        toast(isCash ? 'Clock-out undone' : 'Bust undone');
+        onClose();
+      }}><Icon name="undo" /> {isCash ? 'Undo clock-out (wrong tap)' : 'Undo bust (wrong tap)'}</button>
+    </Sheet>
   );
 }
 
@@ -194,15 +222,13 @@ function HandList({ g, name }: { g: Game; name: (id: ID) => string }) {
           <div className="sat-split" style={{ marginTop: 'var(--sat-space-2)' }}>
             {h.boardNA ? <span className="sat-badge sat-badge--muted">No board</span> : h.board.length ? <Cards cards={h.board} size="sm" /> : <span className="sat-small sat-muted">Won before the flop</span>}
             <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
-              {h.allIn && <span className="sat-badge sat-badge--muted">All-in</span>}
-              {h.straddle && <span className="sat-badge sat-badge--muted">Straddle</span>}
+              {(h.pots?.length ?? 1) > 1 && <span className="sat-badge sat-badge--muted">{h.pots!.length} pots</span>}
               {h.shown.length > 0 && <span className="sat-badge">{h.shown.length} shown</span>}
             </div>
           </div>
-          {(h.tags.length > 0 || h.dealerId) && (
-            <div className="sat-cluster sat-small sat-muted" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', marginTop: 'var(--sat-space-2)' }}>
-              {h.dealerId && <span className="sat-cluster" style={{ ['--sat-gap' as string]: '4px' }}><span className="felt-dealer" style={{ width: 15, height: 15, fontSize: 8 }}>D</span>{name(h.dealerId)}</span>}
-              {h.tags.map((t) => <span key={t} className="sat-badge sat-badge--muted">{t}</span>)}
+          {h.dealerId && (
+            <div className="sat-cluster sat-small sat-muted" style={{ ['--sat-gap' as string]: '4px', marginTop: 'var(--sat-space-2)' }}>
+              <span className="felt-dealer" style={{ width: 15, height: 15, fontSize: 8 }} aria-label="Button">D</span>{name(h.dealerId)}
             </div>
           )}
         </button>
@@ -211,22 +237,22 @@ function HandList({ g, name }: { g: Game; name: (id: ID) => string }) {
   );
 }
 
-function AmountSheet({ g, title, sub, initial, isMoney, cta = 'Add', onClose, onSave }: {
-  g: Game; title: string; sub?: string; initial: number | null; isMoney?: boolean; cta?: string;
+function AmountSheet({ g, title, label, tip, initial, isMoney, cta = 'Add', onClose, onSave }: {
+  g: Game; title: string; label?: string; tip?: 'clockOut'; initial: number | null; isMoney?: boolean; cta?: string;
   onClose: () => void; onSave: (v: number) => void;
 }) {
   const [v, setV] = useState(initial === null ? '' : String(initial));
   const n = num(v);
   const bad = n === null || n < 0;
   return (
-    <Sheet open onClose={onClose} title={title} sub={sub}>
+    <Sheet open onClose={onClose} title={title}>
       <div className="sat-field">
-        <label htmlFor="amt">{isMoney ? `Amount (${g.currency})` : 'Amount (units)'}</label>
+        <label htmlFor="amt">{label ?? (isMoney ? `Amount (${g.currency})` : 'Amount (units)')}{tip && <> <Help k={tip} /></>}</label>
         <input id="amt" className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }} autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="0" aria-invalid={v !== '' && bad} />
-        {!isMoney && n !== null && <span className="sat-hint">{inBB(g, n)} = {money(n * g.unitValue, g.currency)}</span>}
+        {!isMoney && n !== null && <span className="sat-hint">{inBB(g, n)}</span>}
         {v !== '' && bad && <span className="sat-error">Use numbers only (e.g. 200).</span>}
       </div>
-      {!isMoney && g.type === 'cash' && (
+      {!isMoney && g.type === 'cash' && initial !== null && (
         <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
           {[0.5, 1, 1.5, 2].map((m) => {
             const amt = Math.round(g.defaultBuyIn * m);
@@ -241,7 +267,6 @@ function AmountSheet({ g, title, sub, initial, isMoney, cta = 'Add', onClose, on
 
 function PlayerMenu({ g, pid, name, onClose }: { g: Game; pid: ID; name: string; onClose: () => void }) {
   const st = useStore();
-  const status = playerStatus(g, pid);
   const [seat, setSeat] = useState(String(g.seats[pid] ?? ''));
   const [custom, setCustom] = useState(false);
   const buyIns = g.buyIns.filter((b) => b.playerId === pid);
@@ -253,15 +278,6 @@ function PlayerMenu({ g, pid, name, onClose }: { g: Game; pid: ID; name: string;
     <Sheet open onClose={onClose} title={name}>
       <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
         <button className="sat-btn sat-btn--block" onClick={() => setCustom(true)}><Icon name="plus" /> {isCash ? 'Buy in for another amount' : 'Add an entry'}</button>
-        {status !== 'out' && (
-          <button className="sat-btn sat-btn--block" onClick={() => { st.setStatus(g.id, pid, status === 'away' ? 'playing' : 'away'); onClose(); }}>
-            <Icon name={status === 'away' ? 'play' : 'pause'} /> {status === 'away' ? 'Back at the table' : 'Sit out'}
-          </button>
-        )}
-        {!isCash && status === 'out' && <button className="sat-btn sat-btn--block" onClick={() => { st.unbust(g.id, pid); onClose(); }}><Icon name="undo" /> Undo bust</button>}
-        {isCash && hasCashedOut(g, pid) && status === 'out' && (
-          <button className="sat-btn sat-btn--block" onClick={() => { st.setCashOut(g.id, pid, null); st.setStatus(g.id, pid, 'playing'); onClose(); }}><Icon name="undo" /> Undo clock out</button>
-        )}
       </div>
       <div className="sat-cluster" style={{ alignItems: 'flex-end', flexWrap: 'nowrap', ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
         <div className="sat-field felt-grow">
@@ -284,7 +300,7 @@ function PlayerMenu({ g, pid, name, onClose }: { g: Game; pid: ID; name: string;
         {buyIns.length === 0 && <p className="sat-small sat-muted">None yet.</p>}
         {buyIns.map((b) => (
           <div key={b.id} className="felt-row" style={{ minHeight: 48, padding: '4px 0' }}>
-            <span className="felt-grow sat-num">{isCash ? `${units(b.amount)} = ${money(b.amount * g.unitValue, g.currency)}` : money(b.amount, g.currency)}</span>
+            <span className="felt-grow sat-num">{isCash ? `${units(b.amount)} units` : money(b.amount, g.currency)}</span>
             <span className="sat-small sat-muted sat-mono">{timeLabel(b.at)}</span>
             <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => st.removeBuyIn(g.id, b.id)} aria-label={`Remove buy-in at ${timeLabel(b.at)}`}><Icon name="trash" /></button>
           </div>
@@ -296,41 +312,31 @@ function PlayerMenu({ g, pid, name, onClose }: { g: Game; pid: ID; name: string;
 
 function AddPlayerSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   const st = useStore();
-  const roster = useStore((s) => s.players).filter((p) => !p.archived && !g.playerIds.includes(p.id));
+  const allPlayers = useStore((s) => s.players);
   const [sel, setSel] = useState<ID[]>([]);
-  const [nm, setNm] = useState('');
   const isCash = g.type === 'cash';
   const [amt, setAmt] = useState(String(isCash ? g.defaultBuyIn : g.tournament!.buyIn));
+  const roster = allPlayers.filter((p) => !p.archived && (!g.playerIds.includes(p.id) || sel.includes(p.id)));
   const add = () => {
-    const ids = [...sel];
-    if (nm.trim()) {
-      const ex = useStore.getState().players.find((p) => p.name.toLowerCase() === nm.trim().toLowerCase());
-      ids.push((ex ?? st.addPlayer(nm)).id);
-    }
-    if (!ids.length) return;
+    if (!sel.length) { toast('Pick or type a player first.'); return; }
     const a = num(amt) ?? 0;
-    for (const id of ids) st.addPlayerToGame(g.id, id, a);
-    toast(ids.length === 1 ? 'Player added to the game' : `${ids.length} players added to the game`);
+    for (const id of sel) st.addPlayerToGame(g.id, id, a);
+    toast(sel.length === 1 ? 'Player added to the game' : `${sel.length} players added to the game`);
     onClose();
   };
   return (
     <Sheet open onClose={onClose} title="Add players">
+      <NameEntry exclude={g.playerIds} onPick={(p) => setSel((v) => (v.includes(p.id) ? v : [...v, p.id]))} />
       {roster.length > 0 && (
         <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-          {roster.map((p) => (
-            <button key={p.id} className="sat-chip" aria-pressed={sel.includes(p.id)} onClick={() => setSel((v) => v.includes(p.id) ? v.filter((x) => x !== p.id) : [...v, p.id])}>{p.name}</button>
-          ))}
+          {roster.map((p) => <PlayerChip key={p.id} player={p} pressed={sel.includes(p.id)} onTap={() => setSel((v) => v.includes(p.id) ? v.filter((x) => x !== p.id) : [...v, p.id])} />)}
         </div>
       )}
-      <div className="sat-field">
-        <label htmlFor="np">New player</label>
-        <input id="np" className="sat-input" placeholder="Name (e.g. Priya)" value={nm} onChange={(e) => setNm(e.target.value)} />
-      </div>
       <div className="sat-field">
         <label htmlFor="na">{isCash ? 'Buy-in (units)' : `Entry (${g.currency})`}</label>
         <input id="na" className="sat-input sat-num" inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} />
       </div>
-      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!sel.length && !nm.trim()} onClick={add}>Add to game</button>
+      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!sel.length} onClick={add}>Add {sel.length > 1 ? `${sel.length} players` : 'to game'}</button>
     </Sheet>
   );
 }
@@ -375,7 +381,7 @@ function SeatDrawSheet({ g, onClose }: { g: Game; onClose: () => void }) {
             x.seats = next;
             if (button) x.firstDealer = button;
           });
-          toast('Seats saved to the game');
+          toast(button ? 'Seats and button saved to the game' : 'Seats saved to the game');
           onClose();
         }}>Use these seats</button>
       </div>
@@ -395,7 +401,7 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
       <div className="sat-field"><label htmlFor="eg-n">Game name</label><input id="eg-n" className="sat-input" value={nm} onChange={(e) => setNm(e.target.value)} /></div>
       {g.type === 'cash' && (
         <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-          <div className="sat-field"><label htmlFor="eg-u">1 unit ({g.currency})</label><input id="eg-u" className="sat-input sat-num" inputMode="decimal" value={uv} onChange={(e) => setUv(e.target.value)} /></div>
+          <div className="sat-field"><label htmlFor="eg-u">Multiplier ({g.currency}) <Help k="unitValue" /></label><input id="eg-u" className="sat-input sat-num" inputMode="decimal" value={uv} onChange={(e) => setUv(e.target.value)} /></div>
           <div className="sat-field"><label htmlFor="eg-b">Rebuy (units)</label><input id="eg-b" className="sat-input sat-num" inputMode="numeric" value={bi} onChange={(e) => setBi(e.target.value)} /></div>
         </div>
       )}

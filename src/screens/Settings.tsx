@@ -25,15 +25,14 @@ export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [usage, setUsage] = useState<string>('');
   const [erase, setErase] = useState(0);
-  const [newTag, setNewTag] = useState('');
 
   useEffect(() => {
     navigator.storage?.estimate?.().then((e) => setUsage(`${((e.usage ?? 0) / 1024).toFixed(0)} KB`)).catch(() => {});
   }, [games]);
 
-  const numField = (id: string, label: string, key: keyof S, hint?: string) => (
+  const numField = (id: string, label: string, key: keyof S, hint?: string, tip?: 'unitValue') => (
     <div className="sat-field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>{label}{tip && <> <Help k={tip} /></>}</label>
       <input id={id} className="sat-input sat-num" inputMode="decimal" defaultValue={String(settings[key])}
         onBlur={(e) => { const v = num(e.target.value); if (v !== null && v >= 0) update({ [key]: v } as Partial<S>); else toast('Use numbers only (e.g. 200).'); }} />
       {hint && <span className="sat-hint">{hint}</span>}
@@ -88,12 +87,12 @@ export default function Settings() {
           <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ...gap(3) }}>
             {numField('s-sb', 'Small blind (units)', 'sb')}
             {numField('s-bb', 'Big blind (units)', 'bb')}
-            {numField('s-uv', `1 unit (${settings.currency})`, 'unitValue', 'e.g. 0.1')}
             <div className="sat-field">
               <label htmlFor="s-cur">Currency</label>
               <input id="s-cur" className="sat-input" defaultValue={settings.currency} onBlur={(e) => update({ currency: e.target.value.trim() || 'S$' })} />
               <span className="sat-hint">Symbol (e.g. S$)</span>
             </div>
+            {numField('s-uv', `Multiplier (${settings.currency})`, 'unitValue', 'Per unit (e.g. 0.1)', 'unitValue')}
             {numField('s-bi', 'Buy-in (units)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} big blinds`)}
             {numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
             {numField('s-ss', 'Starting stack (chips)', 'startingStack')}
@@ -101,26 +100,10 @@ export default function Settings() {
         </section>
 
         <section className="sat-glass sat-card sat-stack">
-          <h2 className="sat-h2">Hand details</h2>
-          <div className="sat-stack" style={gap(1)}>
-            {([['dealer', 'Track the dealer', 'Moves one seat clockwise after each hand.'], ['allIn', 'Mark all-ins', 'Adds an All-in marker to the hand form.'],
-              ['straddle', 'Mark straddles', 'Adds a Straddle marker to the hand form.'], ['tags', 'Tags and notes', 'Label hands, for example "Bad beat".']] as const).map(([k, l, d]) => (
-              <div key={k} className="sat-switch-row">
-                <span><span style={{ display: 'block' }}>{l}</span><span className="sat-small sat-muted">{d}</span></span>
-                <Toggle on={settings.markers[k]} onChange={(v) => setMarker(k, v)} label={l} />
-              </div>
-            ))}
-          </div>
-          <hr className="sat-rule" style={{ margin: 0 }} />
-          <Caption q="tap to remove">Tags</Caption>
-          <div className="sat-cluster" style={gap(2)}>
-            {settings.tags.map((t) => (
-              <button key={t} className="sat-chip" aria-pressed="true" onClick={() => update({ tags: settings.tags.filter((x) => x !== t) })} aria-label={`Remove tag ${t}`}>{t}</button>
-            ))}
-          </div>
-          <div className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
-            <input className="sat-input" aria-label="New tag" placeholder="New tag (e.g. Cooler)" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
-            <button className="sat-btn" aria-disabled={!newTag.trim()} onClick={() => { if (!newTag.trim()) return; update({ tags: [...new Set([...settings.tags, newTag.trim()])] }); setNewTag(''); }}>Add tag</button>
+          <h2 className="sat-h2">Hands</h2>
+          <div className="sat-switch-row">
+            <span><span style={{ display: 'block' }}>Track the button</span><span className="sat-small sat-muted">Moves one seat clockwise after each hand. Sets who gets odd chips in a split pot.</span></span>
+            <Toggle on={settings.markers.dealer} onChange={(v) => setMarker('dealer', v)} label="Track the button" />
           </div>
         </section>
 

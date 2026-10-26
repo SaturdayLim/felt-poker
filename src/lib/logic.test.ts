@@ -48,3 +48,54 @@ describe('settlement', () => {
     expect(suggestTransfers(gameResults(g))).toEqual([{ from: 'b', to: 'a', amount: 30 }]);
   });
 });
+
+import { buildPots, positionSplit, timePlayed } from './calc';
+
+const table = (over: Partial<Game> = {}) => ({
+  id: 't', type: 'cash', sb: 1, bb: 2, unitValue: 0.1,
+  playerIds: ['btn', 'sb', 'bb', 'utg'], seats: { btn: 1, sb: 2, bb: 3, utg: 4 },
+  buyIns: [], cashOuts: [], expenses: [], hands: [], statusEvents: [], transfers: [], ...over,
+}) as unknown as Game;
+
+describe('positionSplit', () => {
+  it('gives odd chips to the winners closest to the left of the button', () => {
+    expect(positionSplit(table(), 5, ['btn', 'sb', 'bb'], 'btn')).toEqual({ sb: 2, bb: 2, btn: 1 });
+    expect(positionSplit(table(), 7, ['utg', 'btn'], 'btn')).toEqual({ utg: 4, btn: 3 });
+    expect(positionSplit(table(), 6, ['utg', 'btn'], 'btn')).toEqual({ utg: 3, btn: 3 });
+  });
+  it('rounds to the small blind step', () => {
+    expect(positionSplit(table({ sb: 25 }), 150, ['sb', 'bb', 'btn'], 'btn')).toEqual({ sb: 50, bb: 50, btn: 50 });
+    expect(positionSplit(table({ sb: 25 }), 175, ['sb', 'bb', 'btn'], 'btn')).toEqual({ sb: 75, bb: 50, btn: 50 });
+  });
+});
+
+describe('buildPots', () => {
+  it('makes a main pot and side pots from all-in amounts', () => {
+    const pots = buildPots([
+      { playerId: 'a', putIn: 50, folded: false },
+      { playerId: 'b', putIn: 120, folded: false },
+      { playerId: 'c', putIn: 120, folded: false },
+      { playerId: 'd', putIn: 30, folded: true },
+    ]);
+    expect(pots).toEqual([
+      { amount: 180, eligible: ['a', 'b', 'c'] },
+      { amount: 140, eligible: ['b', 'c'] },
+    ]);
+  });
+  it('merges pots with the same contenders', () => {
+    expect(buildPots([{ playerId: 'a', putIn: 40, folded: false }, { playerId: 'b', putIn: 40, folded: false }, { playerId: 'c', putIn: 80, folded: true }]))
+      .toEqual([{ amount: 160, eligible: ['a', 'b'] }]);
+  });
+});
+
+describe('timePlayed', () => {
+  it('pauses while away', () => {
+    const g = table({ statusEvents: [
+      { playerId: 'sb', status: 'playing', at: 0 },
+      { playerId: 'sb', status: 'away', at: 60_000 },
+      { playerId: 'sb', status: 'playing', at: 180_000 },
+      { playerId: 'sb', status: 'out', at: 240_000 },
+    ] } as Partial<Game>);
+    expect(timePlayed(g, 'sb')).toBe(120_000);
+  });
+});

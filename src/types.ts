@@ -49,14 +49,26 @@ export interface ShownHand {
   cards: Card[];
 }
 
+/** One pot in a hand: the main pot or a side pot. */
+export interface Pot {
+  /** Units. */
+  amount: number;
+  /** Players who can win this pot (they matched its level). */
+  eligible: ID[];
+  winners: Winner[];
+}
+
 export interface Hand {
   id: ID;
   n: number;
   at: number;
   dealerId?: ID;
-  /** Pot size in units. */
+  /** Total of all pots, in units. */
   pot: number;
+  /** Total won per player across all pots. */
   winners: Winner[];
+  /** Main pot first, then side pots. Older hands have none (one pot = pot/winners). */
+  pots?: Pot[];
   /** Up to 5 cards. Ignored when boardNA. */
   board: Card[];
   /** Board not tracked (bomb pot, side game, etc.). */

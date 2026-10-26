@@ -217,15 +217,20 @@ export function Delta({ value, format, vs, className }: { value: number; format:
 export function PlayingCard({ card, size, target, onClick, placeholder }: {
   card?: Card | null; size?: 'sm' | 'lg'; target?: boolean; onClick?: () => void; placeholder?: string;
 }) {
+  const removable = !!(onClick && card && target);
   const cls = `felt-card ${size ?? ''} ${card ? '' : 'empty'} ${target ? 'target' : ''}`;
   const inner = card ? (
     <>
       <span className="r" style={{ color: SUIT_COLOR[card[1]] }}>{rankLabel(card)}</span>
       <span className="s" style={{ color: SUIT_COLOR[card[1]] }}>{SUIT_SYMBOL[card[1]]}</span>
+      {removable && <span className="felt-card-x" aria-hidden="true" />}
     </>
   ) : <span className="s">{placeholder ?? ''}</span>;
   if (onClick)
-    return <button type="button" className={cls} onClick={onClick} aria-label={card ? cardText(card) : `Empty ${placeholder ?? ''} slot`}>{inner}</button>;
+    return (
+      <button type="button" className={cls} onClick={onClick}
+        aria-label={card ? `${cardText(card)}${removable ? ', tap again to remove' : ''}` : `Empty ${placeholder ?? ''} slot`}>{inner}</button>
+    );
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
 }
 
@@ -286,4 +291,25 @@ export function num(v: string): number | null {
   if (v.trim() === '') return null;
   const n = Number(v.replace(/,/g, ''));
   return Number.isFinite(n) ? n : null;
+}
+
+/* ------------------------------- status light ------------------------------- */
+
+export type Light = 'playing' | 'away' | 'out';
+
+/** Traffic light: green = playing (clock runs), amber = away (clock paused), red = clocked out. */
+export function StatusLight({ value, onChange, name, outLabel = 'Clocked out' }: {
+  value: Light; onChange: (v: Light) => void; name: string; outLabel?: string;
+}) {
+  const lamps: { k: Light; label: string }[] = [
+    { k: 'playing', label: 'Playing' }, { k: 'away', label: 'Away from the table' }, { k: 'out', label: outLabel },
+  ];
+  return (
+    <div className="felt-light sat-well" role="radiogroup" aria-label={`${name} status`}>
+      {lamps.map((l) => (
+        <button key={l.k} type="button" role="radio" aria-checked={value === l.k} aria-label={l.label} title={l.label}
+          className={`felt-lamp felt-lamp--${l.k}`} onClick={() => onChange(l.k)} />
+      ))}
+    </div>
+  );
 }

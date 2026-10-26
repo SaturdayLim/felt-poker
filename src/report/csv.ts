@@ -60,12 +60,13 @@ export function handsCsv(games: Game[], name: NameFn): string {
         h.winners.length > 1 ? 1 : 0, board,
         h.boardNA ? 'NA' : h.board.slice(0, 3).join(' '), h.boardNA ? 'NA' : h.board[3] ?? '', h.boardNA ? 'NA' : h.board[4] ?? '',
         shown, ranks, h.allIn ? 1 : 0, h.straddle ? 1 : 0, h.tags.join('; '), h.note ?? '',
+        (h.pots ?? []).map((p, i) => `${i ? `side${i}` : 'main'}:${p.amount}:${p.winners.map((w) => `${name(w.playerId)}=${w.amount}`).join('+')}`).join('; '),
       ]);
     }
   }
   return toCsv([
-    'game_id', 'game', 'date', 'hand', 'time', 'dealer', 'pot_units', 'pot_money', 'winners', 'winner_amounts',
-    'split', 'board', 'flop', 'turn', 'river', 'shown_cards', 'shown_hand_ranks', 'all_in', 'straddle', 'tags', 'note',
+    'game_id', 'game', 'date', 'hand', 'time', 'button', 'pot_units', 'pot_money', 'winners', 'winner_amounts',
+    'split', 'board', 'flop', 'turn', 'river', 'shown_cards', 'shown_hand_ranks', 'all_in', 'straddle', 'tags', 'note', 'pots',
   ], rows);
 }
 

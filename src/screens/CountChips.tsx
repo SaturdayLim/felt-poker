@@ -3,7 +3,7 @@ import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
 import { Caption, Delta, Empty, Header, Icon, num, toast } from '../components/ui';
 import { buyInUnits, cashOutUnits, hasCashedOut, totalBuyInUnits } from '../lib/calc';
-import { money, units } from '../lib/format';
+import { units } from '../lib/format';
 import type { ID } from '../types';
 
 export default function CountChips({ gameId }: { gameId: string }) {
@@ -82,7 +82,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
               </div>
               <div className="sat-split sat-small"><span className="sat-muted">Bought in</span><span className="sat-num">{units(selIn)}</span></div>
               <div className="sat-split sat-small"><span className="sat-muted">Result</span>
-                {selOut !== null ? <Delta value={(selOut - selIn) * g.unitValue} format={(a) => money(a, g.currency)} /> : <span className="sat-muted">-</span>}
+                {selOut !== null ? <Delta value={selOut - selIn} format={(a) => `${units(a)} units`} /> : <span className="sat-muted">-</span>}
               </div>
               <hr className="sat-rule" style={{ margin: 0 }} />
               <div className="sat-stack" style={gap(1)}>

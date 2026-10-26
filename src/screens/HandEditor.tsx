@@ -1,32 +1,40 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Caption, Empty, Header, Help, Icon, PlayingCard, num, toast } from '../components/ui';
-import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand } from '../lib/cards';
-import { playerStatus } from '../lib/calc';
-import { inBB, money, units } from '../lib/format';
+import { Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, num, toast } from '../components/ui';
+import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand, type HandValue } from '../lib/cards';
+import { buildPots, fromSmallBlind, playerStatus, positionSplit, round2 } from '../lib/calc';
+import { inBB, units } from '../lib/format';
 import { uid } from '../lib/ids';
 import type { Card, Game, Hand, ID } from '../types';
 
 type Target = { kind: 'board'; i: number } | { kind: 'shown'; idx: number; ci: number } | null;
 
+interface PotDraft {
+  amount: string;
+  eligible: ID[];
+  winners: ID[];
+  split: Record<ID, string>;
+  custom: boolean;
+}
+
 interface Draft {
   id: string;
   n: number;
   at: number;
-  dealerId?: ID;
-  pot: string;
-  winners: ID[];
-  split: Record<ID, string>;
-  customSplit: boolean;
+  buttonId?: ID;
+  pots: PotDraft[];
   board: (Card | null)[];
   boardNA: boolean;
   shown: { playerId: ID; cards: (Card | null)[] }[];
+  note: string;
+  // kept from older hands so editing does not drop them; no longer edited here
   allIn: boolean;
   straddle: boolean;
   tags: string[];
-  note: string;
 }
+
+const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
 function seatOrder(g: Game, onlyActive: boolean): ID[] {
   return [...g.playerIds]
@@ -34,7 +42,7 @@ function seatOrder(g: Game, onlyActive: boolean): ID[] {
     .sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99));
 }
 
-function nextDealer(g: Game, prev?: ID): ID | undefined {
+function nextButton(g: Game, prev?: ID): ID | undefined {
   const order = seatOrder(g, true);
   if (!order.length) return undefined;
   if (!prev) return g.firstDealer && order.includes(g.firstDealer) ? g.firstDealer : order[0];
@@ -42,39 +50,33 @@ function nextDealer(g: Game, prev?: ID): ID | undefined {
   return order.find((p) => (g.seats[p] ?? 0) > prevSeat) ?? order[0];
 }
 
+const emptyPot = (eligible: ID[]): PotDraft => ({ amount: '', eligible, winners: [], split: {}, custom: false });
+
 function blank(g: Game): Draft {
   const last = g.hands[g.hands.length - 1];
   return {
-    id: uid(), n: (last?.n ?? 0) + 1, at: Date.now(), dealerId: nextDealer(g, last?.dealerId),
-    pot: '', winners: [], split: {}, customSplit: false, board: [null, null, null, null, null], boardNA: false,
-    shown: [], allIn: false, straddle: false, tags: [], note: '',
+    id: uid(), n: (last?.n ?? 0) + 1, at: Date.now(), buttonId: nextButton(g, last?.dealerId),
+    pots: [emptyPot(seatOrder(g, true))], board: [null, null, null, null, null], boardNA: false,
+    shown: [], note: '', allIn: false, straddle: false, tags: [],
   };
 }
 
-function fromHand(h: Hand): Draft {
+function fromHand(g: Game, h: Hand): Draft {
+  const pots = h.pots?.length ? h.pots : [{ amount: h.pot, eligible: seatOrder(g, false), winners: h.winners }];
   return {
-    id: h.id, n: h.n, at: h.at, dealerId: h.dealerId, pot: String(h.pot),
-    winners: h.winners.map((w) => w.playerId),
-    split: Object.fromEntries(h.winners.map((w) => [w.playerId, String(w.amount)])),
-    customSplit: h.winners.length > 1 && new Set(h.winners.map((w) => w.amount)).size > 1,
+    id: h.id, n: h.n, at: h.at, buttonId: h.dealerId,
+    pots: pots.map((p) => {
+      const even = positionSplit(g, p.amount, p.winners.map((w) => w.playerId), h.dealerId);
+      return {
+        amount: String(p.amount), eligible: p.eligible, winners: p.winners.map((w) => w.playerId),
+        split: Object.fromEntries(p.winners.map((w) => [w.playerId, String(w.amount)])),
+        custom: p.winners.some((w) => Math.abs((even[w.playerId] ?? 0) - w.amount) > 0.004),
+      };
+    }),
     board: [0, 1, 2, 3, 4].map((i) => h.board[i] ?? null), boardNA: h.boardNA,
     shown: h.shown.map((s) => ({ playerId: s.playerId, cards: [s.cards[0] ?? null, s.cards[1] ?? null] })),
-    allIn: h.allIn, straddle: h.straddle, tags: [...h.tags], note: h.note ?? '',
+    note: h.note ?? '', allIn: h.allIn, straddle: h.straddle, tags: [...h.tags],
   };
-}
-
-/** Even split; odd chips go to the first winners. */
-function evenSplit(pot: number, winners: ID[]): Record<ID, number> {
-  const out: Record<ID, number> = {};
-  if (!winners.length) return out;
-  const base = Math.floor((pot / winners.length) * 100) / 100;
-  let rest = Math.round((pot - base * winners.length) * 100) / 100;
-  for (const w of winners) {
-    const add = rest > 0 ? Math.min(rest, 1) : 0;
-    out[w] = Math.round((base + add) * 100) / 100;
-    rest = Math.round((rest - add) * 100) / 100;
-  }
-  return out;
 }
 
 export default function HandEditor({ gameId, handId }: { gameId: string; handId?: string }) {
@@ -82,13 +84,12 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
   const settings = useStore((s) => s.settings);
   const saveHand = useStore((s) => s.saveHand);
   const deleteHand = useStore((s) => s.deleteHand);
-  const updateSettings = useStore((s) => s.updateSettings);
   const name = usePlayerName();
   const existing = g?.hands.find((h) => h.id === handId);
-  const [d, setD] = useState<Draft | null>(() => (g ? (existing ? fromHand(existing) : blank(g)) : null));
+  const [d, setD] = useState<Draft | null>(() => (g ? (existing ? fromHand(g, existing) : blank(g)) : null));
   const [target, setTarget] = useState<Target>(existing ? null : { kind: 'board', i: 0 });
-  const [newTag, setNewTag] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
+  const [allInSheet, setAllInSheet] = useState(false);
 
   const used = useMemo(() => {
     const s = new Set<Card>();
@@ -99,21 +100,84 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
   }, [d]);
 
   if (!g || !d) return <div className="felt-page"><Header back={() => go('')} title="Hand" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
-  const m = settings.markers;
+  const trackButton = settings.markers.dealer;
   const set = (patch: Partial<Draft>) => setD({ ...d, ...patch });
-  const potN = num(d.pot) ?? 0;
+  const setPot = (i: number, patch: Partial<PotDraft>) => setD({ ...d, pots: d.pots.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
   const order = seatOrder(g, false);
   const active = seatOrder(g, true);
   const boardCards = d.board.filter(Boolean) as Card[];
   const boardDone = !d.boardNA && boardCards.length === 5;
+  const button = trackButton ? d.buttonId : undefined;
 
-  const shownValues = d.shown.map((s) => {
+  const shownValues: (HandValue | null)[] = d.shown.map((s) => {
     const cs = s.cards.filter(Boolean) as Card[];
     return boardDone && cs.length === 2 ? bestHand([...cs, ...boardCards]) : null;
   });
+  const valueOf = (pid: ID) => {
+    const i = d.shown.findIndex((s) => s.playerId === pid);
+    return i >= 0 ? shownValues[i] : null;
+  };
   const bestScore = Math.max(-1, ...shownValues.map((v) => v?.score ?? -1));
 
+  /* --------- pots --------- */
+  const potAmount = (p: PotDraft) => num(p.amount) ?? 0;
+  const allocation = (p: PotDraft): Record<ID, number> => (p.custom
+    ? Object.fromEntries(p.winners.map((w) => [w, num(p.split[w] ?? '') ?? 0]))
+    : positionSplit(g, potAmount(p), p.winners, button));
+  const potOk = (p: PotDraft) => {
+    if (potAmount(p) > 0 && !p.winners.length) return false;
+    if (!p.custom) return true;
+    const sum = Object.values(allocation(p)).reduce((a, b) => a + b, 0);
+    return Math.abs(sum - potAmount(p)) < 0.005;
+  };
+  const total = round2(d.pots.reduce((a, p) => a + potAmount(p), 0));
+  const multi = d.pots.length > 1;
+
+  const toggleWinner = (i: number, pid: ID) => {
+    const p = d.pots[i];
+    const w = p.winners.includes(pid) ? p.winners.filter((x) => x !== pid) : [...p.winners, pid];
+    setPot(i, { winners: w, custom: w.length > 1 ? p.custom : false });
+  };
+  const toggleEligible = (i: number, pid: ID) => {
+    const p = d.pots[i];
+    const e = p.eligible.includes(pid) ? p.eligible.filter((x) => x !== pid) : [...p.eligible, pid];
+    setPot(i, { eligible: e, winners: p.winners.filter((w) => e.includes(w)) });
+  };
+  const addSidePot = () => {
+    const last = d.pots[d.pots.length - 1];
+    setD({ ...d, pots: [...d.pots, emptyPot([...last.eligible])] });
+  };
+  const removePot = (i: number) => setD({ ...d, pots: d.pots.filter((_, j) => j !== i) });
+
+  /** For each pot, the best shown hand among its contenders wins; ties split. */
+  const pickWinners = () => {
+    let changed = 0;
+    const pots = d.pots.map((p) => {
+      const scored = p.eligible.map((pid) => ({ pid, v: valueOf(pid) })).filter((x) => x.v);
+      if (!scored.length) return p;
+      const top = Math.max(...scored.map((x) => x.v!.score));
+      changed++;
+      return { ...p, winners: scored.filter((x) => x.v!.score === top).map((x) => x.pid), custom: false };
+    });
+    if (!changed) { toast('No shown hands in these pots. Add shown cards first.'); return; }
+    setD({ ...d, pots });
+    toast(changed > 1 ? `Winners picked for ${changed} pots` : 'Winner picked from the shown cards');
+  };
+
   /* --------- card targeting --------- */
+  const advance = (nd: Draft, t: Exclude<Target, null>): Target => {
+    const slots: Exclude<Target, null>[] = [];
+    if (!nd.boardNA) for (let i = 0; i < 5; i++) slots.push({ kind: 'board', i });
+    nd.shown.forEach((_, idx) => { slots.push({ kind: 'shown', idx, ci: 0 }, { kind: 'shown', idx, ci: 1 }); });
+    const isEmpty = (s: Exclude<Target, null>) => (s.kind === 'board' ? !nd.board[s.i] : !nd.shown[s.idx].cards[s.ci]);
+    const start = slots.findIndex((s) => JSON.stringify(s) === JSON.stringify(t));
+    for (let k = start + 1; k < slots.length; k++) {
+      const s = slots[k];
+      if (s.kind !== t.kind || (s.kind === 'shown' && t.kind === 'shown' && s.idx !== t.idx)) break;
+      if (isEmpty(s)) return s;
+    }
+    return null;
+  };
   const pick = (c: Card) => {
     if (!target) return;
     const nd = structuredClone(d);
@@ -122,37 +186,15 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
     setD(nd);
     setTarget(advance(nd, target));
   };
-  const clearTarget = (t: Exclude<Target, null>) => {
-    const nd = structuredClone(d);
-    if (t.kind === 'board') nd.board[t.i] = null;
-    else nd.shown[t.idx].cards[t.ci] = null;
-    setD(nd);
+  const isTarget = (t: Exclude<Target, null>) => !!target && JSON.stringify(target) === JSON.stringify(t);
+  const tapSlot = (t: Exclude<Target, null>, filled: boolean) => {
+    if (isTarget(t) && filled) {
+      const nd = structuredClone(d);
+      if (t.kind === 'board') nd.board[t.i] = null; else nd.shown[t.idx].cards[t.ci] = null;
+      setD(nd);
+    }
     setTarget(t);
   };
-  const tapSlot = (t: Exclude<Target, null>, filled: boolean) => {
-    const same = target && target.kind === t.kind && JSON.stringify(target) === JSON.stringify(t);
-    if (same && filled) clearTarget(t);
-    else setTarget(t);
-  };
-  const isTarget = (t: Exclude<Target, null>) => !!target && JSON.stringify(target) === JSON.stringify(t);
-
-  /* --------- winners --------- */
-  const toggleWinner = (p: ID) => {
-    const w = d.winners.includes(p) ? d.winners.filter((x) => x !== p) : [...d.winners, p];
-    set({ winners: w, customSplit: w.length > 1 ? d.customSplit : false });
-  };
-  const amounts: Record<ID, number> = d.customSplit
-    ? Object.fromEntries(d.winners.map((w) => [w, num(d.split[w] ?? '') ?? 0]))
-    : evenSplit(potN, d.winners);
-  const splitSum = Object.values(amounts).reduce((a, b) => a + b, 0);
-  const splitOk = !d.customSplit || Math.abs(splitSum - potN) < 0.005;
-
-  const autoWinner = () => {
-    const ws = d.shown.filter((_, i) => shownValues[i] && shownValues[i]!.score === bestScore).map((s) => s.playerId);
-    if (ws.length) set({ winners: ws, customSplit: false });
-  };
-
-  /* --------- shown hands --------- */
   const addShown = (p: ID) => {
     const nd = structuredClone(d);
     nd.shown.push({ playerId: p, cards: [null, null] });
@@ -166,18 +208,32 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
     setTarget(null);
   };
 
-  const valid = potN >= 0 && d.winners.length > 0 && splitOk;
-
-  const toHand = (): Hand => ({
-    id: d.id, n: d.n, at: d.at, dealerId: m.dealer ? d.dealerId : undefined, pot: potN,
-    winners: d.winners.map((w) => ({ playerId: w, amount: amounts[w] ?? 0 })),
-    board: d.boardNA ? [] : (d.board.filter(Boolean) as Card[]), boardNA: d.boardNA,
-    shown: d.shown.map((s) => ({ playerId: s.playerId, cards: s.cards.filter(Boolean) as Card[] })).filter((s) => s.cards.length),
-    allIn: d.allIn, straddle: d.straddle, tags: d.tags, note: d.note.trim() || undefined,
-  });
-
+  /* --------- save --------- */
+  const valid = d.pots.every(potOk) && d.pots.some((p) => p.winners.length > 0);
+  const toHand = (): Hand => {
+    const pots = d.pots.filter((p) => potAmount(p) > 0 || p.winners.length).map((p) => {
+      const a = allocation(p);
+      return { amount: potAmount(p), eligible: p.eligible, winners: p.winners.map((w) => ({ playerId: w, amount: a[w] ?? 0 })) };
+    });
+    const sums: Record<ID, number> = {};
+    for (const p of pots) for (const w of p.winners) sums[w.playerId] = round2((sums[w.playerId] ?? 0) + w.amount);
+    return {
+      id: d.id, n: d.n, at: d.at, dealerId: button, pot: total,
+      winners: fromSmallBlind(g, button, Object.keys(sums)).map((pid) => ({ playerId: pid, amount: sums[pid] })),
+      pots,
+      board: d.boardNA ? [] : (d.board.filter(Boolean) as Card[]), boardNA: d.boardNA,
+      shown: d.shown.map((s) => ({ playerId: s.playerId, cards: s.cards.filter(Boolean) as Card[] })).filter((s) => s.cards.length),
+      allIn: d.allIn || multi, straddle: d.straddle, tags: d.tags, note: d.note.trim() || undefined,
+    };
+  };
   const save = (next: boolean) => {
-    if (!valid) { toast(d.winners.length ? 'Split amounts do not add up to the pot. Check each share.' : 'No winner picked. Tap a name under Winner.'); return; }
+    if (!valid) {
+      const bad = d.pots.findIndex((p) => !potOk(p));
+      const which = multi ? `${bad <= 0 ? 'Main pot' : `Side pot ${bad}`}: ` : '';
+      const p = d.pots[Math.max(0, bad)];
+      toast(p && p.winners.length && p.custom ? `${which}custom split does not add up to the pot. Check each share.` : `${which}no winner picked. Tap a name under Winner.`);
+      return;
+    }
     saveHand(g.id, toHand());
     if (next) {
       const fresh = useStore.getState().games.find((x) => x.id === g.id)!;
@@ -190,9 +246,7 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
     }
   };
 
-  const tagPool = [...new Set([...settings.tags, ...d.tags])];
-
-  const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
+  const potTitle = (i: number) => (i === 0 ? 'Main pot' : `Side pot ${i}`);
 
   return (
     <div className="felt-page">
@@ -205,54 +259,40 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
         ) : undefined} />
 
       <div className="sat-stack" style={gap(5)}>
-        {m.dealer && (
+        {trackButton && (
           <section className="sat-stack" style={gap(2)}>
-            <Caption tip="dealer">Dealer</Caption>
+            <Caption tip="dealer">Button</Caption>
             <div className="felt-scroll">
               {active.map((p) => (
-                <button key={p} className="sat-chip" aria-pressed={d.dealerId === p} onClick={() => set({ dealerId: p })}>{name(p)}</button>
+                <button key={p} className="sat-chip" aria-pressed={d.buttonId === p} onClick={() => set({ buttonId: p })}>{name(p)}</button>
               ))}
             </div>
           </section>
         )}
 
-        <section className="sat-field">
-          <label htmlFor="pot">Pot (units) <Help k="pot" /></label>
-          <input id="pot" className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }} inputMode="decimal" placeholder="0" value={d.pot} onChange={(e) => set({ pot: e.target.value })} />
-          {potN > 0 && <span className="sat-hint">{inBB(g, potN)}{g.type === 'cash' && <> = {money(potN * g.unitValue, g.currency)}</>}</span>}
-        </section>
-
-        <section className="sat-stack" style={gap(2)}>
+        <section className="sat-stack" style={gap(3)}>
           <div className="sat-split">
-            <Caption>{d.winners.length > 1 ? 'Winners (split pot)' : 'Winner'}</Caption>
-            {d.shown.length >= 2 && boardDone && <button className="sat-btn sat-btn--sm" onClick={autoWinner}><Icon name="bolt" /> Pick best hand</button>}
+            <Caption q="units" tip={multi ? 'sidePots' : 'pot'}>{multi ? `Pots (${d.pots.length})` : 'Pot'}</Caption>
+            {multi && <span className="sat-small sat-muted">Total <span className="sat-num" style={{ color: 'var(--sat-text)', fontWeight: 600 }}>{units(total)}</span></span>}
           </div>
+
+          {d.pots.map((p, i) => (
+            <PotEditor key={i} g={g} title={multi ? potTitle(i) : undefined} pot={p} order={order} name={name}
+              allocation={allocation(p)} button={button} showEligible={multi}
+              onAmount={(v) => setPot(i, { amount: v })}
+              onWinner={(pid) => toggleWinner(i, pid)}
+              onEligible={(pid) => toggleEligible(i, pid)}
+              onCustom={() => setPot(i, { custom: !p.custom, split: Object.fromEntries(p.winners.map((w) => [w, String(allocation(p)[w] ?? 0)])) })}
+              onShare={(pid, v) => setPot(i, { split: { ...p.split, [pid]: v } })}
+              onRemove={i > 0 ? () => removePot(i) : undefined} />
+          ))}
+
           <div className="sat-cluster" style={gap(2)}>
-            {order.map((p) => (
-              <button key={p} className="sat-chip" aria-pressed={d.winners.includes(p)} onClick={() => toggleWinner(p)}>{name(p)}</button>
-            ))}
+            <button className="sat-btn sat-btn--sm" onClick={addSidePot}><Icon name="plus" /> Side pot</button>
+            <button className="sat-btn sat-btn--sm" onClick={() => setAllInSheet(true)}>Work out from all-ins</button>
+            {boardDone && d.shown.length > 0 && <button className="sat-btn sat-btn--sm" onClick={pickWinners}><Icon name="bolt" /> Pick winners</button>}
+            <Help k={boardDone && d.shown.length ? 'bestHands' : 'sidePots'} />
           </div>
-          {d.winners.length > 1 && (
-            <div className="sat-glass-2 felt-list">
-              {d.winners.map((w) => (
-                <div key={w} className="felt-row" style={{ minHeight: 48, padding: '4px 0' }}>
-                  <span className="felt-grow" style={{ fontWeight: 600 }}>{name(w)}</span>
-                  {d.customSplit ? (
-                    <input className="sat-input sat-num" style={{ width: 110 }} inputMode="decimal" aria-label={`${name(w)} share (units)`} value={d.split[w] ?? ''}
-                      onChange={(e) => set({ split: { ...d.split, [w]: e.target.value } })} />
-                  ) : <span className="sat-num">{units(amounts[w] ?? 0)}</span>}
-                </div>
-              ))}
-              <div className="felt-row" style={{ minHeight: 48 }}>
-                <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => set({
-                  customSplit: !d.customSplit,
-                  split: Object.fromEntries(d.winners.map((w) => [w, String(amounts[w] ?? 0)])),
-                })}>{d.customSplit ? 'Split evenly' : 'Set amounts'}</button>
-                <span className="felt-grow" />
-                {d.customSplit && <span className={`sat-small sat-num ${splitOk ? 'felt-up' : 'felt-down'}`}>{units(splitSum)} of {units(potN)}</span>}
-              </div>
-            </div>
-          )}
         </section>
 
         <section className="sat-stack" style={gap(2)}>
@@ -266,7 +306,7 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
           {d.boardNA ? (
             <p className="sat-small sat-muted">The board is not recorded for this hand.</p>
           ) : (
-            <div className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
+            <div className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap', paddingTop: 6 }}>
               {d.board.map((c, i) => (
                 <span key={i} style={{ marginRight: i === 2 || i === 3 ? 6 : 0 }}>
                   <PlayingCard card={c} size="lg" target={isTarget({ kind: 'board', i })} placeholder={i < 3 ? 'FLOP' : i === 3 ? 'TURN' : 'RIVER'}
@@ -285,7 +325,7 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
                 const v = shownValues[idx];
                 const top = v && v.score === bestScore;
                 return (
-                  <div key={s.playerId} className="felt-row">
+                  <div key={s.playerId} className="felt-row" style={{ paddingTop: 14 }}>
                     <div className="felt-row-main">
                       <div className="felt-row-title">{name(s.playerId)}</div>
                       {v && <div className={`felt-row-sub ${top ? 'felt-up' : ''}`}>{v.name}{top ? ' (best hand)' : ''}</div>}
@@ -329,37 +369,6 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
           </div>
         )}
 
-        {(m.allIn || m.straddle) && (
-          <section className="sat-stack" style={gap(2)}>
-            <Caption>Markers</Caption>
-            <div className="sat-cluster" style={gap(2)}>
-              {m.allIn && <button className="sat-chip" aria-pressed={d.allIn} onClick={() => set({ allIn: !d.allIn })}>All-in</button>}
-              {m.straddle && <button className="sat-chip" aria-pressed={d.straddle} onClick={() => set({ straddle: !d.straddle })}>Straddle</button>}
-            </div>
-          </section>
-        )}
-
-        {m.tags && (
-          <section className="sat-stack" style={gap(2)}>
-            <Caption>Tags</Caption>
-            <div className="sat-cluster" style={gap(2)}>
-              {tagPool.map((t) => (
-                <button key={t} className="sat-chip" aria-pressed={d.tags.includes(t)} onClick={() => set({ tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] })}>{t}</button>
-              ))}
-            </div>
-            <div className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
-              <input className="sat-input" aria-label="New tag" placeholder="New tag (e.g. Cooler)" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
-              <button className="sat-btn" aria-disabled={!newTag.trim()} onClick={() => {
-                const t = newTag.trim();
-                if (!t) return;
-                if (!settings.tags.includes(t)) updateSettings({ tags: [...settings.tags, t] });
-                set({ tags: [...new Set([...d.tags, t])] });
-                setNewTag('');
-              }}>Add tag</button>
-            </div>
-          </section>
-        )}
-
         <section className="sat-field">
           <label htmlFor="note">Note</label>
           <textarea id="note" className="sat-input" placeholder="Optional" value={d.note} onChange={(e) => set({ note: e.target.value })} />
@@ -370,24 +379,132 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
         {!existing && <button className="sat-btn sat-btn--lg" aria-disabled={!valid} onClick={() => save(true)}>Save, next hand</button>}
         <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!valid} onClick={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</button>
       </div>
+
+      {allInSheet && (
+        <AllInSheet g={g} players={active} name={name} onClose={() => setAllInSheet(false)}
+          onBuild={(pots) => {
+            setD({ ...d, pots: pots.map((p) => ({ ...emptyPot(p.eligible), amount: String(p.amount) })) });
+            setAllInSheet(false);
+            toast(pots.length > 1 ? `${pots.length} pots built: main pot and ${pots.length - 1} side pot${pots.length > 2 ? 's' : ''}` : 'One pot built');
+          }} />
+      )}
     </div>
   );
 }
 
-/** Move the picker to the next empty slot after filling one. */
+/* ------------------------------- one pot ------------------------------- */
 
-function advance(d: Draft, t: Exclude<Target, null>): Target {
-  const slots: Exclude<Target, null>[] = [];
-  if (!d.boardNA) for (let i = 0; i < 5; i++) slots.push({ kind: 'board', i });
-  d.shown.forEach((_, idx) => { slots.push({ kind: 'shown', idx, ci: 0 }, { kind: 'shown', idx, ci: 1 }); });
-  const isEmpty = (s: Exclude<Target, null>) => (s.kind === 'board' ? !d.board[s.i] : !d.shown[s.idx].cards[s.ci]);
-  const start = slots.findIndex((s) => JSON.stringify(s) === JSON.stringify(t));
-  for (let k = start + 1; k < slots.length; k++) {
-    // only auto-advance within the same group (board, or the same player's hand)
-    const s = slots[k];
-    if (s.kind !== t.kind || (s.kind === 'shown' && t.kind === 'shown' && s.idx !== t.idx)) break;
-    if (isEmpty(s)) return s;
-  }
-  return null;
+function PotEditor({ g, title, pot, order, name, allocation, button, showEligible, onAmount, onWinner, onEligible, onCustom, onShare, onRemove }: {
+  g: Game; title?: string; pot: PotDraft; order: ID[]; name: (id: ID) => string; allocation: Record<ID, number>; button?: ID;
+  showEligible: boolean;
+  onAmount: (v: string) => void; onWinner: (pid: ID) => void; onEligible: (pid: ID) => void;
+  onCustom: () => void; onShare: (pid: ID, v: string) => void; onRemove?: () => void;
+}) {
+  const amount = num(pot.amount) ?? 0;
+  const contenders = showEligible ? order.filter((p) => pot.eligible.includes(p)) : order;
+  const sum = Object.values(allocation).reduce((a, b) => a + b, 0);
+  const split = pot.winners.length > 1;
+  const fieldId = `pot-${(title ?? 'main').replace(/\s+/g, '-').toLowerCase()}`;
+  const body = (
+    <div className="sat-stack" style={gap(3)}>
+      <div className="sat-field">
+        {title && <label htmlFor={fieldId}>{title} (units)</label>}
+        <input id={fieldId} aria-label={title ? undefined : 'Pot (units)'} className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }}
+          inputMode="decimal" placeholder="0" value={pot.amount} onChange={(e) => onAmount(e.target.value)} />
+        {amount > 0 && <span className="sat-hint">{inBB(g, amount)}</span>}
+      </div>
+
+      {showEligible && (
+        <div className="sat-stack" style={gap(2)}>
+          <Caption>In this pot</Caption>
+          <div className="sat-cluster" style={gap(2)}>
+            {order.map((p) => <button key={p} className="sat-chip" aria-pressed={pot.eligible.includes(p)} onClick={() => onEligible(p)}>{name(p)}</button>)}
+          </div>
+        </div>
+      )}
+
+      <div className="sat-stack" style={gap(2)}>
+        <Caption>{split ? 'Winners (split pot)' : 'Winner'}</Caption>
+        <div className="sat-cluster" style={gap(2)}>
+          {contenders.map((p) => (
+            <button key={p} className="sat-chip" aria-pressed={pot.winners.includes(p)} onClick={() => onWinner(p)}>{name(p)}</button>
+          ))}
+        </div>
+        {!split && <p className="sat-small sat-muted">Tap 2 or more names to split the pot.</p>}
+      </div>
+
+      {split && (
+        <div className="sat-well felt-split" style={{ borderRadius: 'var(--sat-radius-md)' }}>
+          <div className="sat-split" style={{ minHeight: 40 }}>
+            <span className="sat-cluster" style={gap(1)}><Caption>Split pot</Caption><Help k="split" /></span>
+            <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={onCustom}>{pot.custom ? 'Split evenly' : 'Custom split'}</button>
+          </div>
+          {fromSmallBlind(g, button, pot.winners).map((w) => (
+            <div key={w} className="felt-row" style={{ minHeight: 44, padding: '4px 0' }}>
+              <span className="felt-row-main felt-row-title">{name(w)}{w === button ? <span className="felt-dealer" style={{ marginLeft: 6 }}>D</span> : null}</span>
+              {pot.custom ? (
+                <input className="sat-input sat-num" style={{ width: 104 }} inputMode="decimal" aria-label={`${name(w)} share (units)`} value={pot.split[w] ?? ''} onChange={(e) => onShare(w, e.target.value)} />
+              ) : <span className="sat-num" style={{ fontWeight: 600 }}>{units(allocation[w] ?? 0)}</span>}
+            </div>
+          ))}
+          {pot.custom && (
+            <p className={`sat-small ${Math.abs(sum - amount) < 0.005 ? 'felt-up' : 'felt-down'}`} style={{ paddingBottom: 6 }}>
+              Shares = {units(sum)} of {units(amount)}{Math.abs(sum - amount) < 0.005 ? '' : ` (${units(round2(amount - sum))} left)`}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+  if (!title) return body;
+  return (
+    <div className="sat-glass sat-card felt-pot">
+      {onRemove && (
+        <div className="sat-split" style={{ marginBottom: 'var(--sat-space-2)', marginTop: -8 }}>
+          <span />
+          <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={onRemove}><Icon name="close" /> Remove</button>
+        </div>
+      )}
+      {body}
+    </div>
+  );
 }
 
+/* ------------------------------- all-ins ------------------------------- */
+
+function AllInSheet({ g, players, name, onClose, onBuild }: {
+  g: Game; players: ID[]; name: (id: ID) => string; onClose: () => void;
+  onBuild: (pots: { amount: number; eligible: ID[] }[]) => void;
+}) {
+  const [putIn, setPutIn] = useState<Record<ID, string>>({});
+  const [folded, setFolded] = useState<ID[]>([]);
+  const entries = players.map((p) => ({ playerId: p, putIn: num(putIn[p] ?? '') ?? 0, folded: folded.includes(p) }));
+  const pots = buildPots(entries);
+  return (
+    <Sheet open onClose={onClose} title="Work out from all-ins">
+      <p className="sat-small sat-muted">Enter the chips each player put in this hand, in units. Leave blank if they put in nothing. Mark players who folded.</p>
+      <div className="sat-glass-2 felt-list">
+        {players.map((p) => (
+          <div key={p} className="felt-row" style={{ minHeight: 52 }}>
+            <span className="felt-row-main felt-row-title">{name(p)}</span>
+            <button className="sat-chip" aria-pressed={folded.includes(p)} onClick={() => setFolded((f) => f.includes(p) ? f.filter((x) => x !== p) : [...f, p])}>Folded</button>
+            <input className="sat-input sat-num" style={{ width: 96 }} inputMode="decimal" placeholder="0" aria-label={`${name(p)} put in (units)`}
+              value={putIn[p] ?? ''} onChange={(e) => setPutIn({ ...putIn, [p]: e.target.value })} />
+          </div>
+        ))}
+      </div>
+      {pots.length > 0 && (
+        <div className="sat-stack" style={gap(1)}>
+          <Caption q="units">Pots</Caption>
+          {pots.map((pt, i) => (
+            <p key={i} className="sat-small"><b>{i === 0 ? 'Main pot' : `Side pot ${i}`} = <span className="sat-num">{units(pt.amount)}</span></b>, {pt.eligible.map(name).join(', ')}</p>
+          ))}
+        </div>
+      )}
+      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!pots.length} onClick={() => pots.length && onBuild(pots)}>
+        {pots.length > 1 ? `Use ${pots.length} pots` : 'Use this pot'}
+      </button>
+      {g.sb > 1 && <p className="sat-small sat-muted">Shares round to the small blind ({g.sb}).</p>}
+    </Sheet>
+  );
+}

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Delta, Empty, Header, Icon, Sheet, toast } from '../components/ui';
+import { Avatar, Delta, Empty, Header, Icon, toast } from '../components/ui';
+import { PlayerEditSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
 import { money } from '../lib/format';
 import type { Player } from '../types';
@@ -18,7 +19,7 @@ export default function Players() {
   const list = players.filter((p) => showArchived || !p.archived).sort((a, b) => a.name.localeCompare(b.name));
 
   const add = () => {
-    const n = nm.trim();
+    const n = titleCase(nm);
     if (!n) return;
     if (players.some((p) => p.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already on the list. Use a different name.`); return; }
     addPlayer(n);
@@ -61,29 +62,7 @@ export default function Players() {
         )}
         {list.length > 0 && <p className="sat-source">Source: Felt game log ({closed.length} closed games). Net result in {currency}.</p>}
       </div>
-      {edit && <EditPlayer p={edit} onClose={() => setEdit(null)} />}
+      {edit && <PlayerEditSheet p={edit} onClose={() => setEdit(null)} />}
     </div>
-  );
-}
-
-function EditPlayer({ p, onClose }: { p: Player; onClose: () => void }) {
-  const st = useStore();
-  const [nm, setNm] = useState(p.name);
-  const [confirm, setConfirm] = useState(false);
-  const inGames = st.games.filter((g) => g.playerIds.includes(p.id)).length;
-  return (
-    <Sheet open onClose={onClose} title={p.name} sub={inGames ? `In ${inGames} game${inGames === 1 ? '' : 's'}.` : 'Not in any games yet.'}>
-      <div className="sat-field"><label htmlFor="pn">Name</label><input id="pn" className="sat-input" value={nm} onChange={(e) => setNm(e.target.value)} /></div>
-      <button className="sat-btn sat-btn--primary sat-btn--block" aria-disabled={!nm.trim()} onClick={() => { if (!nm.trim()) return; st.renamePlayer(p.id, nm); toast('Name saved'); onClose(); }}>Save name</button>
-      <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
-        <button className="sat-btn sat-btn--block" onClick={() => { st.setPlayerArchived(p.id, !p.archived); onClose(); }}>{p.archived ? 'Restore player' : 'Archive player'}</button>
-        {!p.archived && <p className="sat-small sat-muted">Archived players keep their history but are left out of new games.</p>}
-      </div>
-      {!inGames && (
-        <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }} onClick={() => { if (!confirm) { setConfirm(true); return; } st.deletePlayer(p.id); onClose(); }}>
-          <Icon name="trash" /> {confirm ? 'Tap again to delete' : 'Delete player'}
-        </button>
-      )}
-    </Sheet>
   );
 }

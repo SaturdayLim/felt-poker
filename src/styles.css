@@ -124,3 +124,26 @@ button.felt-row { color: inherit; }
 
 .felt-up { color: var(--sat-pos); }
 .felt-down { color: var(--sat-neg); }
+
+/* Selected card on the board: a small red bar says "tap again to remove" */
+.felt-card { position: relative; }
+.felt-card-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--sat-neg); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.felt-card-x::after { content: ''; position: absolute; left: 4px; right: 4px; top: 8px; height: 2px; border-radius: 1px; background: #fff; }
+
+/* Press and hold chips: no iOS callout or text selection while holding */
+.felt-hold { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+
+/* Traffic light status (green playing, amber away, red out). 44px hit area per lamp. */
+.felt-light { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--sat-radius-pill); flex: none; }
+.felt-lamp { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.felt-lamp::before { content: ''; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; opacity: 0.45; transition: all var(--sat-dur-fast) var(--sat-ease); }
+.felt-lamp::after { content: ''; position: absolute; inset: -7px -2px; }
+.felt-lamp--playing { color: var(--sat-pos); }
+.felt-lamp--away { color: var(--sat-warn); }
+.felt-lamp--out { color: var(--sat-neg); }
+.felt-lamp[aria-checked="true"]::before { background: currentColor; opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
+.felt-lamp:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 1px; border-radius: 50%; }
+
+/* Pots in the hand form */
+.felt-pot { padding: var(--sat-space-4); }
+.felt-split { padding: var(--sat-space-1) var(--sat-space-3); }

@@ -1,20 +1,19 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { back, go } from '../router';
-import { Caption, Header, Help, Icon, Toggle, num, toast } from '../components/ui';
+import { Caption, Header, Help, Toggle, num, toast } from '../components/ui';
+import { NameEntry, PlayerChip } from '../components/players';
 import { money } from '../lib/format';
 import type { GameType, ID } from '../types';
 
 export default function NewGame({ type }: { type: GameType }) {
   const s = useStore((x) => x.settings);
   const players = useStore((x) => x.players).filter((p) => !p.archived);
-  const addPlayer = useStore((x) => x.addPlayer);
   const createGame = useStore((x) => x.createGame);
 
   const day = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
   const [name, setName] = useState(type === 'cash' ? `${day} cash` : `${day} tournament`);
   const [sel, setSel] = useState<ID[]>([]);
-  const [newName, setNewName] = useState('');
   const [currency, setCurrency] = useState(s.currency);
   const [unitValue, setUnitValue] = useState(String(s.unitValue));
   const [sb, setSb] = useState(String(s.sb));
@@ -25,15 +24,6 @@ export default function NewGame({ type }: { type: GameType }) {
   const [stack, setStack] = useState(String(s.startingStack));
 
   const toggle = (id: ID) => setSel((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
-  const quickAdd = () => {
-    const n = newName.trim();
-    if (!n) return;
-    const existing = players.find((p) => p.name.toLowerCase() === n.toLowerCase());
-    const p = existing ?? addPlayer(n);
-    setSel((v) => (v.includes(p.id) ? v : [...v, p.id]));
-    setNewName('');
-  };
-
   const uv = num(unitValue) ?? 0, bi = num(buyIn) ?? 0, bbN = num(bb) ?? 0;
   const valid = type === 'cash' ? uv > 0 && bi >= 0 && bbN > 0 && (num(sb) ?? 0) > 0 : (num(tBuyIn) ?? -1) >= 0;
 
@@ -73,14 +63,17 @@ export default function NewGame({ type }: { type: GameType }) {
             </div>
             <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
               <div className="sat-field">
-                <label htmlFor="g-uv">1 unit = <Help k="unitValue" /></label>
-                <input id="g-uv" className="sat-input sat-num" inputMode="decimal" value={unitValue} onChange={(e) => setUnitValue(e.target.value)} />
-                <span className="sat-hint">In {currency || 'S$'} (e.g. 0.1)</span>
-              </div>
-              <div className="sat-field">
                 <label htmlFor="g-cur">Currency</label>
                 <input id="g-cur" className="sat-input" value={currency} onChange={(e) => setCurrency(e.target.value)} />
                 <span className="sat-hint">Symbol (e.g. S$)</span>
+              </div>
+              <div className="sat-field">
+                <label htmlFor="g-uv">Multiplier <Help k="unitValue" /></label>
+                <div style={{ position: 'relative' }}>
+                  <span className="sat-muted" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>{currency || 'S$'}</span>
+                  <input id="g-uv" className="sat-input sat-num" style={{ paddingLeft: `${Math.max(2, (currency || 'S$').length) * 10 + 18}px` }} inputMode="decimal" value={unitValue} onChange={(e) => setUnitValue(e.target.value)} />
+                </div>
+                <span className="sat-hint">Per unit (e.g. 0.1)</span>
               </div>
             </div>
             {field('g-bi', 'Buy-in (units)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} big blinds` : '-'} = ${money(bi * uv, currency)}` })}
@@ -110,15 +103,11 @@ export default function NewGame({ type }: { type: GameType }) {
               {players.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setSel(sel.length === players.length ? [] : players.map((p) => p.id))}>{sel.length === players.length ? 'Clear' : 'Pick all'}</button>}
             </div>
           </div>
-          <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
-            <input className="sat-input" aria-label="New player name" placeholder="New player (e.g. Keven)" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && quickAdd()} enterKeyHint="done" />
-            <button className="sat-btn sat-iconbtn" onClick={quickAdd} aria-disabled={!newName.trim()} aria-label="Add player"><Icon name="plus" /></button>
-          </div>
+          <NameEntry onPick={(p) => setSel((v) => (v.includes(p.id) ? v : [...v, p.id]))} />
           <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-            {players.map((p) => (
-              <button key={p.id} className="sat-chip" aria-pressed={sel.includes(p.id)} onClick={() => toggle(p.id)}>{p.name}</button>
-            ))}
+            {players.map((p) => <PlayerChip key={p.id} player={p} pressed={sel.includes(p.id)} onTap={() => toggle(p.id)} />)}
           </div>
+          {players.length > 0 && <p className="sat-small sat-muted">Tap to pick. Press and hold a name to edit or delete it.</p>}
           {players.length === 0 && <p className="sat-small sat-muted">Players you add are saved for later games.</p>}
         </section>
       </div>

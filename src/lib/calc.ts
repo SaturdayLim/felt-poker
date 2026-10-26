@@ -10,21 +10,73 @@ export function playerStatus(g: Game, pid: ID): PlayerStatus {
   return s;
 }
 
-/** Milliseconds a player spent at the table (playing or away). */
+/** Milliseconds a player spent playing. Time away from the table (amber) does not count. */
 export function timePlayed(g: Game, pid: ID, now = Date.now()): number {
   let total = 0;
   let since: number | null = null;
   for (const e of g.statusEvents) {
     if (e.playerId !== pid) continue;
-    if (e.status === 'out') {
-      if (since !== null) total += e.at - since;
+    if (e.status === 'playing') {
+      if (since === null) since = e.at;
+    } else if (since !== null) {
+      total += e.at - since;
       since = null;
-    } else if (since === null) {
-      since = e.at;
     }
   }
   if (since !== null) total += (g.endedAt ?? now) - since;
   return total;
+}
+
+/** Seats clockwise starting with the seat left of the button (small blind first).
+    Without a button, seat 1 goes first. */
+export function fromSmallBlind(g: Game, buttonId: ID | undefined, ids: ID[]): ID[] {
+  const bySeat = [...g.playerIds].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99));
+  const n = bySeat.length;
+  const bi = buttonId ? bySeat.indexOf(buttonId) : -1;
+  const dist = (p: ID) => {
+    const i = bySeat.indexOf(p);
+    return bi < 0 ? i : (i - bi - 1 + n) % n;
+  };
+  return [...ids].sort((a, b) => dist(a) - dist(b));
+}
+
+/** Even split rounded to the chip step (the small blind). Odd chips go one step at a time to the
+    winners closest to the left of the button. 3 winners of 5 chips: SB 2, BB 2, Button 1. */
+export function positionSplit(g: Game, pot: number, winners: ID[], buttonId?: ID): Record<ID, number> {
+  const out: Record<ID, number> = {};
+  if (!winners.length) return out;
+  const step = g.sb > 0 ? g.sb : 1;
+  const order = fromSmallBlind(g, buttonId, winners);
+  const k = order.length;
+  const base = Math.floor(pot / step / k) * step;
+  let rest = round2(pot - base * k);
+  for (const w of order) out[w] = base;
+  for (const w of order) {
+    if (rest < step - 1e-9) break;
+    out[w] = round2(out[w] + step);
+    rest = round2(rest - step);
+  }
+  if (rest > 0) out[order[0]] = round2(out[order[0]] + rest); // less than one step left over
+  return out;
+}
+
+/** Build the main pot and side pots from what each player put in.
+    Folded players add chips but cannot win. Pots with the same contenders are merged. */
+export function buildPots(entries: { playerId: ID; putIn: number; folded: boolean }[]): { amount: number; eligible: ID[] }[] {
+  const live = entries.filter((e) => !e.folded && e.putIn > 0);
+  const levels = [...new Set(live.map((e) => e.putIn))].sort((a, b) => a - b);
+  const pots: { amount: number; eligible: ID[] }[] = [];
+  let prev = 0;
+  levels.forEach((lvl, i) => {
+    const top = i === levels.length - 1 ? Infinity : lvl;
+    const amount = entries.reduce((a, e) => a + Math.max(0, Math.min(e.putIn, top) - prev), 0);
+    const eligible = live.filter((e) => e.putIn >= lvl).map((e) => e.playerId);
+    const last = pots[pots.length - 1];
+    if (last && last.eligible.length === eligible.length && last.eligible.every((p) => eligible.includes(p))) last.amount = round2(last.amount + amount);
+    else if (amount > 0) pots.push({ amount: round2(amount), eligible });
+    prev = lvl;
+  });
+  return pots;
 }
 
 export const buyInUnits = (g: Game, pid: ID) =>

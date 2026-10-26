@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { back, go } from '../router';
-import { Help, Icon, Toggle, num, toast } from '../components/ui';
+import { Caption, Header, Help, Icon, Toggle, num, toast } from '../components/ui';
 import { money } from '../lib/format';
 import type { GameType, ID } from '../types';
 
@@ -11,7 +11,7 @@ export default function NewGame({ type }: { type: GameType }) {
   const addPlayer = useStore((x) => x.addPlayer);
   const createGame = useStore((x) => x.createGame);
 
-  const day = new Date().toLocaleDateString('en-SG', { weekday: 'long' });
+  const day = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
   const [name, setName] = useState(type === 'cash' ? `${day} cash` : `${day} tournament`);
   const [sel, setSel] = useState<ID[]>([]);
   const [newName, setNewName] = useState('');
@@ -38,7 +38,7 @@ export default function NewGame({ type }: { type: GameType }) {
   const valid = type === 'cash' ? uv > 0 && bi >= 0 && bbN > 0 && (num(sb) ?? 0) > 0 : (num(tBuyIn) ?? -1) >= 0;
 
   const start = () => {
-    if (!valid) { toast('Check the blinds and buy-in'); return; }
+    if (!valid) { toast('Use numbers only (e.g. 200).'); return; }
     const g = createGame({
       type, name, playerIds: sel, currency: currency.trim() || 'S$',
       unitValue: uv, sb: num(sb) ?? 1, bb: bbN, defaultBuyIn: bi,
@@ -47,83 +47,87 @@ export default function NewGame({ type }: { type: GameType }) {
     go(`game/${g.id}`, true);
   };
 
+  const field = (id: string, label: string, value: string, set: (v: string) => void, opts: { decimal?: boolean; hint?: string } = {}) => (
+    <div className="sat-field">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} className="sat-input sat-num" inputMode={opts.decimal ? 'decimal' : 'numeric'} value={value} onChange={(e) => set(e.target.value)} />
+      {opts.hint && <span className="sat-hint">{opts.hint}</span>}
+    </div>
+  );
+
   return (
-    <div className="screen">
-      <div className="topbar">
-        <button className="icon-btn" onClick={() => back()} aria-label="Back"><Icon name="back" /></button>
-        <div className="titles"><h1>{type === 'cash' ? 'New cash game' : 'New tournament'}</h1></div>
-        <span style={{ width: 44 }} />
+    <div className="felt-page">
+      <Header back={() => back()} title={type === 'cash' ? 'New Cash Game' : 'New Tournament'} sub="Texas Hold'em" />
+      <div className="sat-stack">
+        <div className="sat-field">
+          <label htmlFor="g-name">Game name</label>
+          <input id="g-name" className="sat-input" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+
+        {type === 'cash' ? (
+          <section className="sat-glass sat-card sat-stack">
+            <div className="sat-split"><h2 className="sat-h3">Blinds and buy-in</h2><Help k="units" /></div>
+            <div className="sat-grid" style={{ ['--sat-min' as string]: '90px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+              {field('g-sb', 'Small blind (units)', sb, setSb, { decimal: true })}
+              {field('g-bb', 'Big blind (units)', bb, setBb, { decimal: true })}
+            </div>
+            <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+              <div className="sat-field">
+                <label htmlFor="g-uv">1 unit = <Help k="unitValue" /></label>
+                <input id="g-uv" className="sat-input sat-num" inputMode="decimal" value={unitValue} onChange={(e) => setUnitValue(e.target.value)} />
+                <span className="sat-hint">In {currency || 'S$'} (e.g. 0.1)</span>
+              </div>
+              <div className="sat-field">
+                <label htmlFor="g-cur">Currency</label>
+                <input id="g-cur" className="sat-input" value={currency} onChange={(e) => setCurrency(e.target.value)} />
+                <span className="sat-hint">Symbol (e.g. S$)</span>
+              </div>
+            </div>
+            {field('g-bi', 'Buy-in (units)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} big blinds` : '-'} = ${money(bi * uv, currency)}` })}
+            <div className="sat-switch-row">
+              <span>Buy everyone in now <Help k="autoBuyIn" /></span>
+              <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Buy everyone in now" />
+            </div>
+          </section>
+        ) : (
+          <section className="sat-glass sat-card sat-stack">
+            <div className="sat-split"><h2 className="sat-h3">Entry and blinds</h2><Help k="payouts" /></div>
+            <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+              {field('t-fee', `Entry fee (${currency})`, tBuyIn, setTBuyIn, { decimal: true })}
+              {field('t-stack', 'Starting stack', stack, setStack)}
+              {field('t-sb', 'Small blind', sb, setSb, { decimal: true })}
+              {field('t-bb', 'Big blind', bb, setBb, { decimal: true })}
+            </div>
+            <p className="sat-small sat-muted">Payouts are set when the tournament ends.</p>
+          </section>
+        )}
+
+        <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)', marginTop: 'var(--sat-space-2)' }}>
+          <div className="sat-split">
+            <h2 className="sat-h2">Players</h2>
+            <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+              <Caption>{sel.length} picked</Caption>
+              {players.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setSel(sel.length === players.length ? [] : players.map((p) => p.id))}>{sel.length === players.length ? 'Clear' : 'Pick all'}</button>}
+            </div>
+          </div>
+          <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
+            <input className="sat-input" aria-label="New player name" placeholder="New player (e.g. Keven)" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && quickAdd()} enterKeyHint="done" />
+            <button className="sat-btn sat-iconbtn" onClick={quickAdd} aria-disabled={!newName.trim()} aria-label="Add player"><Icon name="plus" /></button>
+          </div>
+          <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+            {players.map((p) => (
+              <button key={p.id} className="sat-chip" aria-pressed={sel.includes(p.id)} onClick={() => toggle(p.id)}>{p.name}</button>
+            ))}
+          </div>
+          {players.length === 0 && <p className="sat-small sat-muted">Players you add are saved for later games.</p>}
+        </section>
       </div>
 
-      <label className="field">
-        <span className="label">Name</span>
-        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
-
-      {type === 'cash' ? (
-        <div className="panel" style={{ marginTop: 18 }}>
-          <div className="row between" style={{ marginBottom: 12 }}><span className="label">Blinds, in units</span><Help k="units" /></div>
-          <div className="grid3">
-            <label className="field"><span className="label tiny">Small</span><input className="input" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></label>
-            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Big</span><input className="input" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></label>
-            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Currency</span><input className="input" value={currency} onChange={(e) => setCurrency(e.target.value)} /></label>
-          </div>
-          <div className="grid2" style={{ marginTop: 14 }}>
-            <label className="field"><span className="label tiny row" style={{ gap: 4 }}>1 unit is worth <Help k="unitValue" /></span>
-              <div className="input-wrap"><span className="prefix">{currency}</span><input className="input" inputMode="decimal" value={unitValue} onChange={(e) => setUnitValue(e.target.value)} /></div>
-            </label>
-            <label className="field" style={{ marginTop: 0 }}><span className="label tiny" style={{ display: 'block', minHeight: 23 }}>Buy-in, units</span>
-              <input className="input" inputMode="numeric" value={buyIn} onChange={(e) => setBuyIn(e.target.value)} />
-            </label>
-          </div>
-          <div className="small muted" style={{ marginTop: 12 }}>
-            Buy-in is {bbN ? `${(bi / bbN).toFixed(0)} big blinds` : '—'}, or <b className="num">{money(bi * uv, currency)}</b>. Blinds are {money((num(sb) ?? 0) * uv, currency)}/{money(bbN * uv, currency)}.
-          </div>
-          <div className="row between" style={{ marginTop: 16 }}>
-            <div className="row" style={{ gap: 4 }}><span style={{ fontWeight: 700 }}>Buy everyone in</span><Help k="autoBuyIn" /></div>
-            <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Buy everyone in" />
-          </div>
-        </div>
-      ) : (
-        <div className="panel" style={{ marginTop: 18 }}>
-          <div className="grid2">
-            <label className="field"><span className="label tiny">Entry fee</span>
-              <div className="input-wrap"><span className="prefix">{currency}</span><input className="input" inputMode="decimal" value={tBuyIn} onChange={(e) => setTBuyIn(e.target.value)} /></div>
-            </label>
-            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Starting stack</span>
-              <input className="input" inputMode="numeric" value={stack} onChange={(e) => setStack(e.target.value)} />
-            </label>
-          </div>
-          <div className="grid2" style={{ marginTop: 14 }}>
-            <label className="field"><span className="label tiny">Small blind</span><input className="input" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></label>
-            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Big blind</span><input className="input" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></label>
-          </div>
-          <div className="row" style={{ gap: 4, marginTop: 12 }}><span className="small muted">Payouts are set when the tournament ends.</span><Help k="payouts" /></div>
-        </div>
-      )}
-
-      <div className="section">
-        <div className="section-head"><h2>Players<span className="count">{sel.length} picked</span></h2>
-          {players.length > 0 && <button className="btn xs" onClick={() => setSel(sel.length === players.length ? [] : players.map((p) => p.id))}>{sel.length === players.length ? 'Clear' : 'Everyone'}</button>}
-        </div>
-        <div className="row">
-          <input className="input grow" placeholder="Add a new player" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && quickAdd()} enterKeyHint="done" />
-          <button className="btn" style={{ minHeight: 48 }} onClick={quickAdd} disabled={!newName.trim()} aria-label="Add player"><Icon name="plus" /></button>
-        </div>
-        <div className="chips" style={{ marginTop: 14 }}>
-          {players.map((p) => (
-            <button key={p.id} className="chip" aria-pressed={sel.includes(p.id)} onClick={() => toggle(p.id)}>
-              {sel.includes(p.id) && <Icon name="check" size={14} />}{p.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="fab-bar"><div className="inner glass">
-        <button className="btn primary lg" onClick={start} disabled={!valid}>
-          Start {type === 'cash' ? 'game' : 'tournament'}{sel.length ? ` with ${sel.length}` : ''}
+      <div className="sat-bottombar sat-glass-2">
+        <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={start} aria-disabled={!valid}>
+          Start {type === 'cash' ? 'game' : 'tournament'}{sel.length ? ` with ${sel.length} players` : ''}
         </button>
-      </div></div>
+      </div>
     </div>
   );
 }

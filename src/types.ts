@@ -135,7 +135,7 @@ export interface Markers {
   tags: boolean;
 }
 
-export type ThemePref = 'system' | 'light' | 'dark';
+export type ThemePref = 'auto' | 'light' | 'dark';
 
 export interface Settings {
   theme: ThemePref;

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Empty, Help, Icon, PlayingCard, num, toast } from '../components/ui';
+import { Caption, Empty, Header, Help, Icon, PlayingCard, num, toast } from '../components/ui';
 import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand } from '../lib/cards';
 import { playerStatus } from '../lib/calc';
 import { inBB, money, units } from '../lib/format';
@@ -98,7 +98,7 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
     return s;
   }, [d]);
 
-  if (!g || !d) return <div className="screen plain"><Empty icon="cards">This game doesn't exist any more.</Empty></div>;
+  if (!g || !d) return <div className="felt-page"><Header back={() => go('')} title="Hand" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
   const m = settings.markers;
   const set = (patch: Partial<Draft>) => setD({ ...d, ...patch });
   const potN = num(d.pot) ?? 0;
@@ -177,14 +177,14 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
   });
 
   const save = (next: boolean) => {
-    if (!valid) { toast(d.winners.length ? 'The split has to add up to the pot' : 'Pick who won'); return; }
+    if (!valid) { toast(d.winners.length ? 'Split amounts do not add up to the pot. Check each share.' : 'No winner picked. Tap a name under Winner.'); return; }
     saveHand(g.id, toHand());
     if (next) {
       const fresh = useStore.getState().games.find((x) => x.id === g.id)!;
       setD(blank(fresh));
       setTarget({ kind: 'board', i: 0 });
       window.scrollTo(0, 0);
-      toast(`Hand ${d.n} saved`);
+      toast(`Hand ${d.n} saved to the game`);
     } else {
       back(`game/${g.id}`);
     }
@@ -192,190 +192,190 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
 
   const tagPool = [...new Set([...settings.tags, ...d.tags])];
 
+  const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
+
   return (
-    <div className="screen">
-      <div className="topbar">
-        <button className="icon-btn" onClick={() => back(`game/${g.id}`)} aria-label="Back"><Icon name="back" /></button>
-        <div className="titles"><h1>Hand {d.n}</h1><div className="sub">{g.name}</div></div>
-        {existing ? (
-          <button className="icon-btn danger" style={confirmDel ? { background: 'var(--seal)', color: 'var(--on-seal)' } : undefined} aria-label="Delete hand"
-            onClick={() => { if (!confirmDel) { setConfirmDel(true); toast('Tap again to delete'); return; } deleteHand(g.id, d.id); go(`game/${g.id}`, true); }}>
+    <div className="felt-page">
+      <Header back={() => back(`game/${g.id}`)} title={`Hand ${d.n}`} sub={g.name}
+        right={existing ? (
+          <button className="sat-btn sat-btn--ghost sat-iconbtn" style={confirmDel ? { color: 'var(--sat-neg)' } : undefined} aria-label={confirmDel ? 'Tap again to delete this hand' : 'Delete hand'}
+            onClick={() => { if (!confirmDel) { setConfirmDel(true); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, d.id); go(`game/${g.id}`, true); }}>
             <Icon name="trash" />
           </button>
-        ) : <span style={{ width: 44 }} />}
-      </div>
+        ) : undefined} />
 
-      {m.dealer && (
-        <div>
-          <div className="row" style={{ gap: 4, marginBottom: 8 }}><span className="label">Dealer</span><Help k="dealer" /></div>
-          <div className="chips scroll">
-            {active.map((p) => (
-              <button key={p} className="chip" aria-pressed={d.dealerId === p} onClick={() => set({ dealerId: p })}>
-                {d.dealerId === p && <span className="dealer-btn">D</span>}{name(p)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="section" style={{ marginTop: 16 }}>
-        <div className="row" style={{ gap: 4, marginBottom: 8 }}><span className="label">Pot</span><Help k="pot" /></div>
-        <div className="input-wrap">
-          <input className="input big" inputMode="decimal" placeholder="0" value={d.pot} onChange={(e) => set({ pot: e.target.value })} />
-          <span className="suffix">units</span>
-        </div>
-        {potN > 0 && <div className="small muted" style={{ marginTop: 6 }}>{inBB(g, potN)}{g.type === 'cash' && <>, or {money(potN * g.unitValue, g.currency)}</>}</div>}
-      </div>
-
-      <div className="section" style={{ marginTop: 18 }}>
-        <div className="row between" style={{ marginBottom: 8 }}>
-          <span className="label">{d.winners.length > 1 ? 'Winners, split pot' : 'Winner'}</span>
-          {d.shown.length >= 2 && boardDone && <button className="btn xs" onClick={autoWinner}><Icon name="bolt" /> Best hand wins</button>}
-        </div>
-        <div className="chips">
-          {order.map((p) => (
-            <button key={p} className="chip" aria-pressed={d.winners.includes(p)} onClick={() => toggleWinner(p)}>
-              {d.winners.includes(p) && <Icon name="trophy" size={14} />}{name(p)}
-            </button>
-          ))}
-        </div>
-        {d.winners.length > 1 && (
-          <div className="card" style={{ marginTop: 12, padding: '4px 12px' }}>
-            {d.winners.map((w) => (
-              <div key={w} className="list-row" style={{ padding: '8px 0' }}>
-                <span className="grow" style={{ fontWeight: 600 }}>{name(w)}</span>
-                {d.customSplit ? (
-                  <input className="input num" style={{ width: 110, minHeight: 40, fontSize: 15 }} inputMode="decimal" value={d.split[w] ?? ''}
-                    onChange={(e) => set({ split: { ...d.split, [w]: e.target.value } })} />
-                ) : <span className="num">{units(amounts[w] ?? 0)}</span>}
-              </div>
-            ))}
-            <div className="row between" style={{ padding: '8px 0' }}>
-              <button className="btn xs" onClick={() => set({
-                customSplit: !d.customSplit,
-                split: Object.fromEntries(d.winners.map((w) => [w, String(amounts[w] ?? 0)])),
-              })}>{d.customSplit ? 'Split evenly' : 'Set amounts'}</button>
-              {d.customSplit && <span className={`small num ${splitOk ? 'up' : 'down'}`}>{units(splitSum)} of {units(potN)}</span>}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="section" style={{ marginTop: 18 }}>
-        <div className="row between" style={{ marginBottom: 8 }}>
-          <span className="label">Board</span>
-          <span className="row" style={{ gap: 4 }}>
-            <button className="chip sm amber" aria-pressed={d.boardNA} onClick={() => { set({ boardNA: !d.boardNA }); setTarget(null); }}>
-              {d.boardNA ? <Icon name="check" size={13} /> : null} No board
-            </button>
-            <Help k="boardNA" />
-          </span>
-        </div>
-        {d.boardNA ? (
-          <div className="small muted">The board isn't recorded for this hand.</div>
-        ) : (
-          <div className="row" style={{ gap: 8 }}>
-            {d.board.map((c, i) => (
-              <span key={i} style={{ marginRight: i === 2 || i === 3 ? 6 : 0 }}>
-                <PlayingCard card={c} size="lg" target={isTarget({ kind: 'board', i })} placeholder={i < 3 ? 'F' : i === 3 ? 'T' : 'R'}
-                  onClick={() => tapSlot({ kind: 'board', i }, !!c)} />
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="section" style={{ marginTop: 18 }}>
-        <div className="row" style={{ gap: 4, marginBottom: 8 }}><span className="label">Shown cards</span><Help k="shown" /></div>
-        {d.shown.map((s, idx) => {
-          const v = shownValues[idx];
-          const top = v && v.score === bestScore;
-          return (
-            <div key={s.playerId} className="row" style={{ padding: '8px 0' }}>
-              <span className="grow" style={{ fontWeight: 700 }}>{name(s.playerId)}
-                {v && <div className={`tiny ${top ? 'up' : 'muted'}`}>{v.name}{top ? ', best hand' : ''}</div>}
-              </span>
-              {s.cards.map((c, ci) => (
-                <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', idx, ci })} onClick={() => tapSlot({ kind: 'shown', idx, ci }, !!c)} />
+      <div className="sat-stack" style={gap(5)}>
+        {m.dealer && (
+          <section className="sat-stack" style={gap(2)}>
+            <Caption tip="dealer">Dealer</Caption>
+            <div className="felt-scroll">
+              {active.map((p) => (
+                <button key={p} className="sat-chip" aria-pressed={d.dealerId === p} onClick={() => set({ dealerId: p })}>{name(p)}</button>
               ))}
-              <button className="icon-btn" onClick={() => removeShown(idx)} aria-label={`Remove ${name(s.playerId)}'s cards`}><Icon name="close" /></button>
             </div>
-          );
-        })}
-        <div className="chips" style={{ marginTop: 10 }}>
-          {order.filter((p) => !d.shown.some((s) => s.playerId === p)).map((p) => (
-            <button key={p} className="chip sm" onClick={() => addShown(p)}><Icon name="plus" size={12} />{name(p)}</button>
-          ))}
-        </div>
-      </div>
+          </section>
+        )}
 
-      {target && (
-        <div className="glass picker-shell">
-          <div className="row between" style={{ marginBottom: 8 }}>
-            <span className="small" style={{ fontWeight: 700 }}>
-              {target.kind === 'board' ? ['Flop, card 1', 'Flop, card 2', 'Flop, card 3', 'Turn', 'River'][target.i] : `${name(d.shown[target.idx]?.playerId)}, card ${target.ci + 1}`}
-            </span>
-            <button className="btn xs" onClick={() => setTarget(null)}>Done</button>
-          </div>
-          <div className="picker">
-            {SUITS.flatMap((s) => RANKS.map((r) => {
-              const c = r + s;
-              const current = target.kind === 'board' ? d.board[target.i] : d.shown[target.idx]?.cards[target.ci];
-              return (
-                <button key={c} disabled={used.has(c) && c !== current} onClick={() => pick(c)} aria-label={c}>
-                  <span className="r" style={{ color: SUIT_COLOR[s] }}>{r === 'T' ? '10' : r}</span>
-                  <span className="s" style={{ color: SUIT_COLOR[s] }}>{SUIT_SYMBOL[s]}</span>
-                </button>
-              );
-            }))}
-          </div>
-        </div>
-      )}
+        <section className="sat-field">
+          <label htmlFor="pot">Pot (units) <Help k="pot" /></label>
+          <input id="pot" className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }} inputMode="decimal" placeholder="0" value={d.pot} onChange={(e) => set({ pot: e.target.value })} />
+          {potN > 0 && <span className="sat-hint">{inBB(g, potN)}{g.type === 'cash' && <> = {money(potN * g.unitValue, g.currency)}</>}</span>}
+        </section>
 
-      {(m.allIn || m.straddle) && (
-        <div className="section" style={{ marginTop: 18 }}>
-          <div className="label" style={{ marginBottom: 8 }}>Markers</div>
-          <div className="chips">
-            {m.allIn && <button className="chip seal" aria-pressed={d.allIn} onClick={() => set({ allIn: !d.allIn })}>All-in</button>}
-            {m.straddle && <button className="chip" aria-pressed={d.straddle} onClick={() => set({ straddle: !d.straddle })}>Straddle</button>}
+        <section className="sat-stack" style={gap(2)}>
+          <div className="sat-split">
+            <Caption>{d.winners.length > 1 ? 'Winners (split pot)' : 'Winner'}</Caption>
+            {d.shown.length >= 2 && boardDone && <button className="sat-btn sat-btn--sm" onClick={autoWinner}><Icon name="bolt" /> Pick best hand</button>}
           </div>
-        </div>
-      )}
-
-      {m.tags && (
-        <div className="section" style={{ marginTop: 18 }}>
-          <div className="label" style={{ marginBottom: 8 }}>Tags</div>
-          <div className="chips">
-            {tagPool.map((t) => (
-              <button key={t} className="chip amber" aria-pressed={d.tags.includes(t)} onClick={() => set({ tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] })}>{t}</button>
+          <div className="sat-cluster" style={gap(2)}>
+            {order.map((p) => (
+              <button key={p} className="sat-chip" aria-pressed={d.winners.includes(p)} onClick={() => toggleWinner(p)}>{name(p)}</button>
             ))}
           </div>
-          <div className="row" style={{ marginTop: 10 }}>
-            <input className="input grow" style={{ minHeight: 42, fontSize: 15 }} placeholder="New tag" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
-            <button className="btn sm" style={{ minHeight: 42 }} disabled={!newTag.trim()} onClick={() => {
-              const t = newTag.trim();
-              if (!settings.tags.includes(t)) updateSettings({ tags: [...settings.tags, t] });
-              set({ tags: [...new Set([...d.tags, t])] });
-              setNewTag('');
-            }}>Add</button>
+          {d.winners.length > 1 && (
+            <div className="sat-glass-2 felt-list">
+              {d.winners.map((w) => (
+                <div key={w} className="felt-row" style={{ minHeight: 48, padding: '4px 0' }}>
+                  <span className="felt-grow" style={{ fontWeight: 600 }}>{name(w)}</span>
+                  {d.customSplit ? (
+                    <input className="sat-input sat-num" style={{ width: 110 }} inputMode="decimal" aria-label={`${name(w)} share (units)`} value={d.split[w] ?? ''}
+                      onChange={(e) => set({ split: { ...d.split, [w]: e.target.value } })} />
+                  ) : <span className="sat-num">{units(amounts[w] ?? 0)}</span>}
+                </div>
+              ))}
+              <div className="felt-row" style={{ minHeight: 48 }}>
+                <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => set({
+                  customSplit: !d.customSplit,
+                  split: Object.fromEntries(d.winners.map((w) => [w, String(amounts[w] ?? 0)])),
+                })}>{d.customSplit ? 'Split evenly' : 'Set amounts'}</button>
+                <span className="felt-grow" />
+                {d.customSplit && <span className={`sat-small sat-num ${splitOk ? 'felt-up' : 'felt-down'}`}>{units(splitSum)} of {units(potN)}</span>}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="sat-stack" style={gap(2)}>
+          <div className="sat-split">
+            <Caption>Board</Caption>
+            <span className="sat-cluster" style={gap(2)}>
+              <button className="sat-chip" aria-pressed={d.boardNA} onClick={() => { set({ boardNA: !d.boardNA }); setTarget(null); }}>No board</button>
+              <Help k="boardNA" />
+            </span>
           </div>
-        </div>
-      )}
+          {d.boardNA ? (
+            <p className="sat-small sat-muted">The board is not recorded for this hand.</p>
+          ) : (
+            <div className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
+              {d.board.map((c, i) => (
+                <span key={i} style={{ marginRight: i === 2 || i === 3 ? 6 : 0 }}>
+                  <PlayingCard card={c} size="lg" target={isTarget({ kind: 'board', i })} placeholder={i < 3 ? 'FLOP' : i === 3 ? 'TURN' : 'RIVER'}
+                    onClick={() => tapSlot({ kind: 'board', i }, !!c)} />
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
 
-      <label className="field section" style={{ marginTop: 18 }}>
-        <span className="label">Note</span>
-        <textarea className="input" placeholder="Optional" value={d.note} onChange={(e) => set({ note: e.target.value })} />
-      </label>
+        <section className="sat-stack" style={gap(2)}>
+          <Caption tip="shown">Shown cards</Caption>
+          {d.shown.length > 0 && (
+            <div className="sat-glass-2 felt-list">
+              {d.shown.map((s, idx) => {
+                const v = shownValues[idx];
+                const top = v && v.score === bestScore;
+                return (
+                  <div key={s.playerId} className="felt-row">
+                    <div className="felt-row-main">
+                      <div className="felt-row-title">{name(s.playerId)}</div>
+                      {v && <div className={`felt-row-sub ${top ? 'felt-up' : ''}`}>{v.name}{top ? ' (best hand)' : ''}</div>}
+                    </div>
+                    {s.cards.map((c, ci) => (
+                      <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', idx, ci })} onClick={() => tapSlot({ kind: 'shown', idx, ci }, !!c)} />
+                    ))}
+                    <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => removeShown(idx)} aria-label={`Remove cards for ${name(s.playerId)}`}><Icon name="close" /></button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="sat-cluster" style={gap(2)}>
+            {order.filter((p) => !d.shown.some((s) => s.playerId === p)).map((p) => (
+              <button key={p} className="sat-btn sat-btn--sm" onClick={() => addShown(p)}><Icon name="plus" />{name(p)}</button>
+            ))}
+          </div>
+        </section>
 
-      <div className="fab-bar"><div className="inner glass">
-        {!existing && <button className="btn lg" style={{ flex: '0 0 auto' }} disabled={!valid} onClick={() => save(true)}>Save, next hand</button>}
-        <button className="btn primary lg" disabled={!valid} onClick={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</button>
-      </div></div>
+        {target && (
+          <div className="sat-glass-2 felt-picker-shell">
+            <div className="sat-split" style={{ marginBottom: 'var(--sat-space-2)' }}>
+              <Caption>
+                {target.kind === 'board' ? ['Flop card 1', 'Flop card 2', 'Flop card 3', 'Turn', 'River'][target.i] : `${name(d.shown[target.idx]?.playerId)}, card ${target.ci + 1}`}
+              </Caption>
+              <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
+            </div>
+            <div className="felt-picker">
+              {SUITS.flatMap((s) => RANKS.map((r) => {
+                const c = r + s;
+                const current = target.kind === 'board' ? d.board[target.i] : d.shown[target.idx]?.cards[target.ci];
+                return (
+                  <button key={c} disabled={used.has(c) && c !== current} onClick={() => pick(c)} aria-label={c}>
+                    <span className="r" style={{ color: SUIT_COLOR[s] }}>{r === 'T' ? '10' : r}</span>
+                    <span className="s" style={{ color: SUIT_COLOR[s] }}>{SUIT_SYMBOL[s]}</span>
+                  </button>
+                );
+              }))}
+            </div>
+          </div>
+        )}
+
+        {(m.allIn || m.straddle) && (
+          <section className="sat-stack" style={gap(2)}>
+            <Caption>Markers</Caption>
+            <div className="sat-cluster" style={gap(2)}>
+              {m.allIn && <button className="sat-chip" aria-pressed={d.allIn} onClick={() => set({ allIn: !d.allIn })}>All-in</button>}
+              {m.straddle && <button className="sat-chip" aria-pressed={d.straddle} onClick={() => set({ straddle: !d.straddle })}>Straddle</button>}
+            </div>
+          </section>
+        )}
+
+        {m.tags && (
+          <section className="sat-stack" style={gap(2)}>
+            <Caption>Tags</Caption>
+            <div className="sat-cluster" style={gap(2)}>
+              {tagPool.map((t) => (
+                <button key={t} className="sat-chip" aria-pressed={d.tags.includes(t)} onClick={() => set({ tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] })}>{t}</button>
+              ))}
+            </div>
+            <div className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
+              <input className="sat-input" aria-label="New tag" placeholder="New tag (e.g. Cooler)" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
+              <button className="sat-btn" aria-disabled={!newTag.trim()} onClick={() => {
+                const t = newTag.trim();
+                if (!t) return;
+                if (!settings.tags.includes(t)) updateSettings({ tags: [...settings.tags, t] });
+                set({ tags: [...new Set([...d.tags, t])] });
+                setNewTag('');
+              }}>Add tag</button>
+            </div>
+          </section>
+        )}
+
+        <section className="sat-field">
+          <label htmlFor="note">Note</label>
+          <textarea id="note" className="sat-input" placeholder="Optional" value={d.note} onChange={(e) => set({ note: e.target.value })} />
+        </section>
+      </div>
+
+      <div className="sat-bottombar sat-glass-2">
+        {!existing && <button className="sat-btn sat-btn--lg" aria-disabled={!valid} onClick={() => save(true)}>Save, next hand</button>}
+        <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!valid} onClick={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</button>
+      </div>
     </div>
   );
 }
 
 /** Move the picker to the next empty slot after filling one. */
+
 function advance(d: Draft, t: Exclude<Target, null>): Target {
   const slots: Exclude<Target, null>[] = [];
   if (!d.boardNA) for (let i = 0; i < 5; i++) slots.push({ kind: 'board', i });

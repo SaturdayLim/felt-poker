@@ -1,46 +1,48 @@
 import { rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
 
+/* Canvas drawing for the shareable report images, in the Saturday Signature style:
+   mesh background, glass-2 panels, Instrument Serif titles and KPIs (never bold), Geist text,
+   Geist Mono for deltas and times, uppercase tracked captions. Colours mirror
+   src/saturday/tokens/tokens.json (skins.saturday.light / .dark); keep them in step. */
+
 export const W = 1080;
 export const PAD = 56;
 export const INNER = W - PAD * 2;
 
-/** Report palettes, taken from the Vaela tokens (src/design/tokens.css). */
 const LIGHT = {
-  ground: '#DCE1DE', groundDeep: '#C8D0CB', paper: '#F8F7F3', edge: '#D6DAD4', edgeStrong: '#6F7B76',
-  ink: '#1D2327', inkSoft: '#47525A', inkFaint: '#56626A',
-  accent: '#335E9E', up: '#2A6E40', down: '#A8322A', amber: '#7A5512', amberFill: '#B98226', onAmber: '#1D2327',
-  line: 'rgba(58, 102, 168, 0.10)', glow: 'rgba(116, 87, 168, 0.12)',
+  bg: '#EEF2F1', mesh1: 'rgba(143,216,203,0.6)', mesh2: 'rgba(141,180,232,0.6)', mesh3: 'rgba(183,228,218,0.6)',
+  text: '#10201F', muted: '#4A5B59', line: 'rgba(16,32,31,0.12)', lineStrong: 'rgba(16,32,31,0.22)',
+  glass: 'rgba(255,255,255,0.78)', glassEdge: 'rgba(255,255,255,0.75)', well: 'rgba(16,32,31,0.06)',
+  accent: '#1F8A84', accentText: '#11625D', accentSoft: 'rgba(31,138,132,0.14)', mark: '#8C7440',
+  pos: '#17663D', neg: '#A3342A', shadow: 'rgba(16,32,31,0.14)',
 };
 const DARK: typeof LIGHT = {
-  ground: '#1E2326', groundDeep: '#15191B', paper: '#272D31', edge: '#343C41', edgeStrong: '#6E7B76',
-  ink: '#E5E9E7', inkSoft: '#B5BEBA', inkFaint: '#97A29D',
-  accent: '#86A9DE', up: '#6CC08A', down: '#EE7B70', amber: '#E0B060', amberFill: '#E0B060', onAmber: '#15191B',
-  line: 'rgba(134, 169, 222, 0.08)', glow: 'rgba(180, 155, 221, 0.10)',
+  bg: '#0A0F12', mesh1: 'rgba(31,138,132,0.32)', mesh2: 'rgba(35,70,127,0.32)', mesh3: 'rgba(43,168,159,0.32)',
+  text: '#ECF3F2', muted: '#A3B4B2', line: 'rgba(236,243,242,0.10)', lineStrong: 'rgba(236,243,242,0.20)',
+  glass: 'rgba(18,26,31,0.84)', glassEdge: 'rgba(255,255,255,0.09)', well: 'rgba(0,0,0,0.28)',
+  accent: '#4FC1B8', accentText: '#5CC8BE', accentSoft: 'rgba(79,193,184,0.16)', mark: '#CDB98A',
+  pos: '#6FD39A', neg: '#FF8F80', shadow: 'rgba(0,0,0,0.5)',
 };
 export type ReportTheme = 'light' | 'dark';
 export let C = DARK;
 export function setReportTheme(t: ReportTheme) { C = t === 'light' ? LIGHT : DARK; }
 
-const UI = '"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-const DISPLAY = 'Fraunces, "Iowan Old Style", Georgia, serif';
-const DATA = '"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
+const UI = 'Geist, "Segoe UI", system-ui, -apple-system, sans-serif';
+const DISPLAY = '"Instrument Serif", "Iowan Old Style", Georgia, serif';
+const MONO = '"Geist Mono", ui-monospace, Consolas, monospace';
 
-/** kind: false/'ui' = Atkinson, true/'data' = Plex Mono (numbers), 'display' = Fraunces (titles). */
-export const font = (weight: number, size: number, kind: boolean | 'ui' | 'data' | 'display' = false) => {
-  if (kind === true || kind === 'data') return `${Math.min(600, Math.max(400, weight))} ${size}px ${DATA}`;
-  if (kind === 'display') return `${Math.min(700, weight)} ${size}px ${DISPLAY}`;
-  return `${weight >= 600 ? 700 : 400} ${size}px ${UI}`;
-};
+/** kind: 'ui' (Geist), 'mono' (Geist Mono), 'display' (Instrument Serif, always 400). */
+export const font = (weight: number, size: number, kind: 'ui' | 'mono' | 'display' = 'ui') =>
+  kind === 'display' ? `400 ${size}px ${DISPLAY}` : `${weight} ${size}px ${kind === 'mono' ? MONO : UI}`;
 
 /** Canvas only uses a web font once it has loaded, so load the report faces first. */
 export async function loadReportFonts() {
   if (!document.fonts?.load) return;
   await Promise.all([
-    document.fonts.load(`600 40px ${DISPLAY}`),
+    document.fonts.load(`400 40px ${DISPLAY}`),
     document.fonts.load(`400 20px ${UI}`),
-    document.fonts.load(`700 20px ${UI}`),
-    document.fonts.load(`500 20px ${DATA}`),
-    document.fonts.load(`600 20px ${DATA}`),
+    document.fonts.load(`600 20px ${UI}`),
+    document.fonts.load(`500 20px ${MONO}`),
   ]).catch(() => {});
 }
 
@@ -99,6 +101,41 @@ export function textWidth(s: string, f: string): number {
   return ctx.measureText(s).width;
 }
 
+/** Tracked text (letter-spacing) drawn glyph by glyph, so it works where ctx.letterSpacing does not. */
+function tracked(ctx: Ctx, s: string, x: number, y: number, f: string, color: string, track: number, align: 'left' | 'right') {
+  ctx.font = f;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  const width = [...s].reduce((a, ch) => a + ctx.measureText(ch).width + track, -track);
+  let cx = align === 'right' ? x - width : x;
+  for (const ch of s) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + track; }
+  return width;
+}
+
+/** Kit caption: Geist 600 uppercase, 0.14em tracking, muted; the bracketed qualifier keeps its case. */
+export function caption(ctx: Ctx, label: string, x: number, y: number, opts: { q?: string; size?: number; color?: string; align?: 'left' | 'right' } = {}) {
+  const size = opts.size ?? 22;
+  const color = opts.color ?? C.muted;
+  const f = font(600, size);
+  const q = opts.q ? `(${opts.q})` : '';
+  const space = size * 0.4;
+  if (opts.align === 'right') {
+    const qw = q ? tracked(ctx, q, x, y, f, color, size * 0.02, 'right') + space : 0;
+    tracked(ctx, label.toUpperCase(), x - qw, y, f, color, size * 0.14, 'right');
+  } else {
+    const w = tracked(ctx, label.toUpperCase(), x, y, f, color, size * 0.14, 'left');
+    if (q) tracked(ctx, q, x + w + space, y, f, color, size * 0.02, 'left');
+  }
+}
+
+/** Kit delta: arrow + value + colour. Flat is grey 0. Returns the colour used. */
+export function deltaText(n: number, fmt: (abs: number) => string): { s: string; color: string } {
+  if (n > 0.004) return { s: `▲ ${fmt(n)}`, color: C.pos };
+  if (n < -0.004) return { s: `▼ ${fmt(-n)}`, color: C.neg };
+  return { s: fmt(0), color: C.muted };
+}
+
 export function rrect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, fill?: string | CanvasGradient, stroke?: string, lw = 2) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
@@ -106,16 +143,22 @@ export function rrect(ctx: Ctx, x: number, y: number, w: number, h: number, r: n
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
 }
 
-/** Paper card (radius scaled from --r-paper). */
-export function panel(ctx: Ctx, x: number, y: number, w: number, h: number) {
-  rrect(ctx, x, y, w, h, 12, C.paper, C.edge, 2);
+/** Glass-2 panel (data sits on glass-2): tint, light edge, soft shadow. Radius 22 (cards) scaled to 2x. */
+export function panel(ctx: Ctx, x: number, y: number, w: number, h: number, r = 36) {
+  ctx.save();
+  ctx.shadowColor = C.shadow;
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 14;
+  rrect(ctx, x, y, w, h, r, C.glass);
+  ctx.restore();
+  rrect(ctx, x, y, w, h, r, undefined, C.glassEdge, 2);
 }
 
 export function playingCard(ctx: Ctx, x: number, y: number, card: string, w = 52) {
   const h = Math.round(w * 1.36);
-  rrect(ctx, x, y, w, h, w * 0.16, '#FBFBF8', 'rgba(29,35,39,0.18)', 1.5);
+  rrect(ctx, x, y, w, h, w * 0.16, '#FBFCFC', 'rgba(16,32,31,0.18)', 1.5);
   const col = SUIT_COLOR[card[1]];
-  text(ctx, rankLabel(card), x + w / 2, y + h * 0.48, font(700, Math.round(w * 0.46)), col, 'center');
+  text(ctx, rankLabel(card), x + w / 2, y + h * 0.48, font(600, Math.round(w * 0.46)), col, 'center');
   text(ctx, SUIT_SYMBOL[card[1]], x + w / 2, y + h * 0.86, `${Math.round(w * 0.38)}px system-ui, sans-serif`, col, 'center');
   return w;
 }
@@ -125,46 +168,63 @@ export function cardsRow(ctx: Ctx, x: number, y: number, cards: string[], w = 52
   return cards.length ? cards.length * (w + gap) - gap : 0;
 }
 
-export function avatar(ctx: Ctx, cx: number, cy: number, r: number, name: string, color?: string) {
+export function avatar(ctx: Ctx, cx: number, cy: number, r: number, name: string) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = C.edge;
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = C.lineStrong;
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.textBaseline = 'middle';
-  ctx.font = font(600, Math.round(r * 0.95), 'display');
-  ctx.fillStyle = color ?? C.inkSoft;
+  ctx.font = font(400, Math.round(r * 1.05), 'display');
+  ctx.fillStyle = C.muted;
   ctx.textAlign = 'center';
-  ctx.fillText((name.trim()[0] ?? '?').toUpperCase(), cx, cy + 1);
+  ctx.fillText((name.trim()[0] ?? '?').toUpperCase(), cx, cy + 2);
   ctx.textBaseline = 'alphabetic';
 }
 
-export function pill(ctx: Ctx, x: number, y: number, label: string, color: string, size = 20): number {
-  const f = font(700, size);
-  const w = textWidth(label.toUpperCase(), f) + size * 1.4;
-  const h = size * 1.7;
-  rrect(ctx, x, y, w, h, h / 2, undefined, C.edge, 2);
-  text(ctx, label.toUpperCase(), x + w / 2, y + h * 0.68, f, color, 'center');
+/** Kit badge: pill, accent-soft fill and accent text (or muted on a well). */
+export function badge(ctx: Ctx, x: number, y: number, label: string, muted = false, size = 20): number {
+  const f = font(600, size);
+  const w = textWidth(label, f) + size * 1.2;
+  const h = size * 1.6;
+  rrect(ctx, x, y, w, h, h / 2, muted ? C.well : C.accentSoft);
+  text(ctx, label, x + w / 2, y + h * 0.7, f, muted ? C.muted : C.accentText, 'center');
   return w;
-}
-
-export function hexA(hex: string, a: number): string {
-  if (!hex.startsWith('#')) return hex;
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
 export function dealerChip(ctx: Ctx, cx: number, cy: number, r = 14) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#FBFBF8';
+  ctx.fillStyle = '#FBFCFC';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(29,35,39,0.3)';
+  ctx.strokeStyle = 'rgba(16,32,31,0.3)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.textBaseline = 'middle';
-  text(ctx, 'D', cx, cy + 1, font(700, r * 1.1), '#1D2327', 'center');
+  text(ctx, 'D', cx, cy + 1, font(600, r * 1.1), '#10201F', 'center');
   ctx.textBaseline = 'alphabetic';
+}
+
+/** Felt mark (two stacked chips) at (x, y) with the given height, in the mark colour. */
+export function feltMark(ctx: Ctx, x: number, y: number, h: number) {
+  const s = h / 104;
+  ctx.save();
+  ctx.translate(x + 2 * s, y + 2 * s);
+  ctx.scale(s, s);
+  ctx.strokeStyle = C.mark;
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
+  for (const cy of [26, 74]) {
+    for (const r of [24, 15]) { ctx.beginPath(); ctx.arc(32, cy, r, 0, Math.PI * 2); ctx.stroke(); }
+    for (const a of [45, 135, 225, 315]) {
+      const t = (a * Math.PI) / 180;
+      ctx.beginPath();
+      ctx.moveTo(32 + 18.6 * Math.cos(t), cy + 18.6 * Math.sin(t));
+      ctx.lineTo(32 + 22.4 * Math.cos(t), cy + 22.4 * Math.sin(t));
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 /** Lay blocks onto one or more canvases no taller than maxH. */
@@ -198,28 +258,20 @@ export function paginate(blocks: Block[], opts: { maxH: number; top: (page: numb
     canvas.width = W;
     canvas.height = Math.ceil(total);
     const ctx = canvas.getContext('2d')!;
-    const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    bg.addColorStop(0, C.ground);
-    bg.addColorStop(1, C.groundDeep);
-    ctx.fillStyle = bg;
+    // The mesh: three soft colour fields, as body.sat::before in the kit
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, canvas.height);
-    const glow = ctx.createRadialGradient(W * 0.85, 0, 10, W * 0.85, 0, 760);
-    glow.addColorStop(0, C.glow);
-    glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, Math.min(canvas.height, 800));
-    // the faint diagonal lines from the ground pattern
-    ctx.save();
-    ctx.strokeStyle = C.line;
-    ctx.lineWidth = 2;
-    const step = 92, slope = Math.tan((25 * Math.PI) / 180);
-    for (let x0 = -canvas.height * slope; x0 < W; x0 += step) {
-      ctx.beginPath();
-      ctx.moveTo(x0, canvas.height);
-      ctx.lineTo(x0 + canvas.height * slope, 0);
-      ctx.stroke();
-    }
-    ctx.restore();
+    const vmax = Math.max(W, Math.min(canvas.height, 1920));
+    const field = (fx: number, fy: number, r: number, color: string) => {
+      const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, r);
+      g.addColorStop(0, color);
+      g.addColorStop(0.7, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, canvas.height);
+    };
+    field(W * 0.08, Math.min(canvas.height, 1920) * 0.04, 0.42 * vmax * 1.4, C.mesh1);
+    field(W * 0.96, canvas.height * 0.92, 0.46 * vmax * 1.4, C.mesh2);
+    field(W * 0.7, Math.min(canvas.height, 1920) * 0.18, 0.3 * vmax * 1.4, C.mesh3);
     let y = 0;
     for (const b of page) { b.draw(ctx, y); y += b.h; }
     foot.draw(ctx, y);
@@ -229,13 +281,14 @@ export function paginate(blocks: Block[], opts: { maxH: number; top: (page: numb
 
 export const spacer = (h: number): Block => ({ h, draw: () => {} });
 
+/** Section title: H2 in Instrument Serif, sentence case, with an optional muted note on the right. */
 export function sectionTitle(label: string, right?: string): Block {
   return {
-    h: 84,
+    h: 92,
     keepWithNext: true,
     draw: (ctx, y) => {
-      text(ctx, label, PAD, y + 54, font(600, 34, 'display'), C.ink);
-      if (right) text(ctx, right, W - PAD, y + 54, font(400, 23), C.inkFaint, 'right');
+      text(ctx, label, PAD, y + 62, font(400, 48, 'display'), C.text);
+      if (right) text(ctx, right, W - PAD, y + 60, font(400, 24), C.muted, 'right');
     },
   };
 }

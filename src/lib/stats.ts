@@ -2,12 +2,21 @@ import type { Game, GameType, ID } from '../types';
 import { handStats, playerResult, round2 } from './calc';
 
 export type TypeFilter = 'all' | GameType;
-export type RangeFilter = 'all' | 'year' | '90d' | '30d';
+/** all, FYTD (financial year from 1 July), CYTD (from 1 January), L90D, L30D. */
+export type RangeFilter = 'all' | 'fy' | 'cy' | '90d' | '30d';
+
+/** Start of the financial year (July to June) that contains t. */
+export function fyStart(t: number): number {
+  const d = new Date(t);
+  const y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+  return new Date(y, 6, 1).getTime();
+}
 
 export function filterGames(games: Game[], type: TypeFilter, range: RangeFilter, now = Date.now()): Game[] {
   const since =
     range === 'all' ? 0
-    : range === 'year' ? new Date(new Date(now).getFullYear(), 0, 1).getTime()
+    : range === 'fy' ? fyStart(now)
+    : range === 'cy' ? new Date(new Date(now).getFullYear(), 0, 1).getTime()
     : now - (range === '90d' ? 90 : 30) * 86400000;
   return games
     .filter((g) => g.status === 'closed' && (type === 'all' || g.type === type) && g.startedAt >= since)

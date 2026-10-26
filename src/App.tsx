@@ -28,7 +28,7 @@ export default function App() {
   const theme = useStore((s) => s.settings.theme);
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
-  if (!hydrated) return <div className="app" />;
+  if (!hydrated) return <div className="felt-app" />;
 
   let screen: JSX.Element;
   let nav = true;
@@ -50,11 +50,11 @@ export default function App() {
 
   const active = a === 'game' || a === 'new' ? 'games' : a ?? '';
   return (
-    <div className="app">
+    <div className="felt-app">
       {screen}
       {nav && (
-        <nav className="nav">
-          <div className="inner glass">
+        <nav className="felt-nav" aria-label="Main">
+          <div className="sat-glass-2">
             {NAV.map((n) => (
               <a key={n.path} href={`#/${n.path}`} aria-current={active === n.path ? 'page' : undefined}>
                 <Icon name={n.icon} />

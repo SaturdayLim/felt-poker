@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { cardText, rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { HELP } from '../lib/help';
 import type { Card } from '../types';
+import { useStore } from '../store';
+import { NEXT_THEME } from '../theme';
 
 /* ------------------------------- icons ------------------------------- */
 
@@ -56,76 +57,158 @@ export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; 
   );
 }
 
-/* ------------------------------- sheet ------------------------------- */
+/* ------------------------------- brand ------------------------------- */
 
-export function Sheet({ open, onClose, title, sub, children }: {
-  open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('modal-open');
-    return () => { document.body.style.overflow = prev; document.body.classList.remove('modal-open'); };
-  }, [open]);
-  if (!open) return null;
+/** Felt mark: two stacked poker chips, each a double ring, forming a vertical figure-eight
+    (a companion to the Saturday double-layered vertical infinity). Source: src/brand/felt-mark.svg. */
+export function FeltMark({ height = 32 }: { height?: number }) {
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet glass" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
-        <div className="grab" />
-        {(title || sub) && (
-          <div className="sheet-head">
-            {title && <h3>{title}</h3>}
-            {sub && <p>{sub}</p>}
-          </div>
-        )}
-        <div className="sheet-body">{children}</div>
-      </div>
-    </div>
+    <svg className="sat-mark" style={{ ['--sat-mark-h' as string]: `${height}px` }} viewBox="-2 -2 68 104" aria-hidden="true">
+      <path d="M8 26 a24 24 0 1 0 48 0 a24 24 0 1 0 -48 0" />
+      <path d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
+      <path d="M45.15 39.15 L47.84 41.84 M18.85 39.15 L16.16 41.84 M18.85 12.85 L16.16 10.16 M45.15 12.85 L47.84 10.16" />
+      <path d="M8 74 a24 24 0 1 0 48 0 a24 24 0 1 0 -48 0" />
+      <path d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
+      <path d="M45.15 87.15 L47.84 89.84 M18.85 87.15 L16.16 89.84 M18.85 60.85 L16.16 58.16 M45.15 60.85 L47.84 58.16" />
+    </svg>
   );
 }
 
-/* ------------------------------- info ------------------------------- */
+/* ------------------------------- header ------------------------------- */
 
-/** Small "i" button that explains a number or control in a glass popover (≤ 3 lines). */
-export function Info({ title, children }: { title?: string; children: ReactNode }) {
-  const btn = useRef<HTMLButtonElement>(null);
-  const pop = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  useLayoutEffect(() => {
-    if (!open || !btn.current || !pop.current) return;
-    const r = btn.current.getBoundingClientRect();
-    const w = pop.current.offsetWidth, h = pop.current.offsetHeight;
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const left = Math.min(Math.max(16, r.left + r.width / 2 - w / 2), vw - 16 - w);
-    const below = r.bottom + 8;
-    const top = below + h > vh - 90 ? Math.max(16, r.top - 8 - h) : below;
-    setPos({ top, left });
+/** Sticky glass header (kit: .sat-header > .sat-header-bar.sat-glass). */
+export function Header({ title, sub, back, right, brand }: {
+  title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean;
+}) {
+  return (
+    <header className="sat-header felt-header">
+      <div className="sat-header-bar sat-glass">
+        {back && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={back} aria-label="Back"><Icon name="back" /></button>}
+        <div className="sat-brand">
+          {brand && <FeltMark />}
+          <div style={{ minWidth: 0 }}>
+            {brand ? <span className="sat-wordmark">Felt</span> : <div className="felt-header-title">{title}</div>}
+            {sub && <small style={{ display: 'block' }}>{sub}</small>}
+          </div>
+        </div>
+        {right}
+      </div>
+    </header>
+  );
+}
+
+/** Phone theme toggle: one icon button that cycles Auto, Light, Dark. */
+export function ThemeCycle() {
+  const pref = useStore((s) => s.settings.theme);
+  const update = useStore((s) => s.updateSettings);
+  const icon = pref === 'auto' ? 'phone' : pref === 'light' ? 'sun' : 'moon';
+  return (
+    <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => update({ theme: NEXT_THEME[pref] })}
+      aria-label={`Theme: ${pref}. Change theme`} title={`Theme: ${pref}`}>
+      <Icon name={icon} />
+    </button>
+  );
+}
+
+/* ------------------------------- sheet ------------------------------- */
+
+/** Kit sheet: a modal <dialog>, bottom sheet on phones, centred dialog on wider screens. */
+export function Sheet({ open, onClose, title, sub, children }: {
+  open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const closing = useRef(onClose);
+  closing.current = onClose;
+  useEffect(() => {
+    const d = ref.current;
+    if (!open || !d) return;
+    if (!d.open) d.showModal();
+    const onCancel = (e: Event) => { e.preventDefault(); closing.current(); };
+    const onClick = (e: MouseEvent) => {
+      const r = d.getBoundingClientRect();
+      if (e.target === d && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) closing.current();
+    };
+    d.addEventListener('cancel', onCancel);
+    d.addEventListener('click', onClick);
+    return () => { d.removeEventListener('cancel', onCancel); d.removeEventListener('click', onClick); if (d.open) d.close(); };
   }, [open]);
+  if (!open) return null;
+  return (
+    <dialog ref={ref} className="sat-sheet sat-glass-2" aria-label={title}>
+      <div className="sat-stack">
+        <div className="sat-split">
+          <h2 className="sat-h3">{title}</h2>
+          <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={onClose}>Close</button>
+        </div>
+        {sub && <p className="sat-small sat-muted" style={{ marginTop: -8 }}>{sub}</p>}
+        {children}
+      </div>
+    </dialog>
+  );
+}
+
+/* ------------------------------- info tip ------------------------------- */
+
+/** Kit info tip (.sat-tip). Opens on tap, focus or hover; Escape or a tap elsewhere closes it.
+    Placement copies saturday.js: centre under the button, then pull inside the screen edge. */
+export function Info({ title, children }: { title?: string; children: ReactNode }) {
+  const wrap = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const place = () => {
+    const tip = wrap.current;
+    const body = tip?.querySelector<HTMLElement>('.sat-tip-body');
+    if (!tip || !body) return;
+    body.style.left = '0px';
+    body.style.transform = 'none';
+    const w = body.getBoundingClientRect().width;
+    if (!w) return;
+    const t = tip.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const left = Math.max(8, Math.min(t.left + t.width / 2 - w / 2, vw - 8 - w));
+    body.style.left = `${left - t.left}px`;
+  };
+  useLayoutEffect(() => { if (open) place(); }, [open]);
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
-    window.addEventListener('scroll', close, { passive: true, capture: true });
-    return () => window.removeEventListener('scroll', close, { capture: true });
+    const onDoc = (e: MouseEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('click', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey); };
   }, [open]);
   return (
-    <>
-      <button ref={btn} type="button" className="info-btn" aria-label={title ? `About ${title}` : 'More info'} aria-expanded={open}
-        onClick={(e) => { e.stopPropagation(); setOpen(!open); setPos(null); }}>
-        <Icon name="info" />
-      </button>
-      {open && createPortal(
-        <>
-          <div className="info-catch" onClick={() => setOpen(false)} />
-          <div ref={pop} role="tooltip" className="info-pop glass" style={pos ? { top: pos.top, left: pos.left } : { top: -999, left: 0 }}>
-            {title && <b>{title}</b>}
-            {children}
-          </div>
-        </>,
-        document.body,
-      )}
-    </>
+    <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onMouseEnter={place}>
+      <button type="button" className="sat-tip-btn" aria-expanded={open} aria-label={title ? `About ${title.toLowerCase()}` : 'More information'}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>i</button>
+      <span className="sat-tip-body" role="tooltip">{children}</span>
+    </span>
+  );
+}
+
+/** Info tip with the shared help copy. */
+export function Help({ k }: { k: keyof typeof HELP }) {
+  return <Info title={HELP[k].title}>{HELP[k].text}</Info>;
+}
+
+/* ------------------------------- captions and deltas ------------------------------- */
+
+/** Uppercase caption with the qualifier in brackets keeping its case: POT (units). */
+export function Caption({ children, q, tip, className }: { children: ReactNode; q?: string; tip?: keyof typeof HELP; className?: string }) {
+  return (
+    <span className={`sat-caption ${className ?? ''}`}>
+      {children}{q && <> <span className="sat-qual">({q})</span></>}{tip && <> <Help k={tip} /></>}
+    </span>
+  );
+}
+
+/** Kit delta: arrow, value and colour, never colour alone. Flat is grey 0. */
+export function Delta({ value, format, vs, className }: { value: number; format: (abs: number) => string; vs?: string; className?: string }) {
+  const dir = value > 0.004 ? 'up' : value < -0.004 ? 'down' : 'flat';
+  const arrow = dir === 'up' ? '▲ ' : dir === 'down' ? '▼ ' : '';
+  return (
+    <span className={`sat-delta sat-delta--${dir} ${className ?? ''}`}>
+      {arrow}{format(dir === 'flat' ? 0 : Math.abs(value))}{vs && <small>{vs}</small>}
+    </span>
   );
 }
 
@@ -134,7 +217,7 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
 export function PlayingCard({ card, size, target, onClick, placeholder }: {
   card?: Card | null; size?: 'sm' | 'lg'; target?: boolean; onClick?: () => void; placeholder?: string;
 }) {
-  const cls = `pcard ${size ?? ''} ${card ? '' : 'empty'} ${target ? 'target' : ''}`;
+  const cls = `felt-card ${size ?? ''} ${card ? '' : 'empty'} ${target ? 'target' : ''}`;
   const inner = card ? (
     <>
       <span className="r" style={{ color: SUIT_COLOR[card[1]] }}>{rankLabel(card)}</span>
@@ -142,24 +225,32 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
     </>
   ) : <span className="s">{placeholder ?? ''}</span>;
   if (onClick)
-    return <button type="button" className={cls} onClick={onClick} aria-label={card ? cardText(card) : 'empty card'}>{inner}</button>;
+    return <button type="button" className={cls} onClick={onClick} aria-label={card ? cardText(card) : `Empty ${placeholder ?? ''} slot`}>{inner}</button>;
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
 }
 
 export function Cards({ cards, size }: { cards: Card[]; size?: 'sm' | 'lg' }) {
-  return <span className="cards">{cards.map((c) => <PlayingCard key={c} card={c} size={size} />)}</span>;
+  return <span className="felt-cards">{cards.map((c) => <PlayingCard key={c} card={c} size={size} />)}</span>;
 }
 
-export function Avatar({ name, size }: { name: string; size?: 'sm' | 'lg' }) {
-  return <span className={`avatar ${size ?? ''}`}>{initials(name)}</span>;
+export function Avatar({ name, size }: { name: string; size?: 'sm' }) {
+  return <span className={`felt-avatar ${size ?? ''}`} aria-hidden="true">{initials(name)}</span>;
 }
 
-export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
-  return <button type="button" role="switch" aria-checked={on} aria-label={label} className="toggle" onClick={() => onChange(!on)} />;
+/** Kit switch: an on/off setting that applies at once. */
+export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+  return <button type="button" className="sat-switch" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} />;
 }
 
-export function Empty({ icon, children }: { icon: string; children: ReactNode }) {
-  return <div className="empty"><Icon name={icon} /><div>{children}</div></div>;
+/** Empty state: heading, one line of body, optional button. */
+export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="sat-flat felt-empty">
+      <h3 className="sat-h3">{title}</h3>
+      {children && <p className="sat-small sat-muted">{children}</p>}
+      {action}
+    </div>
+  );
 }
 
 /* ------------------------------- toast ------------------------------- */
@@ -174,11 +265,11 @@ export function ToastHost() {
     toastListener = (m) => {
       setMsg(m);
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setMsg(null), 2200);
+      timer = window.setTimeout(() => setMsg(null), 2600);
     };
     return () => { toastListener = null; };
   }, []);
-  return msg ? <div className="toast glass" role="status">{msg}</div> : null;
+  return msg ? <div className="felt-toast sat-glass-2 sat-small" role="status">{msg}</div> : null;
 }
 
 /** Re-render every `ms` milliseconds (for live clocks). */
@@ -195,10 +286,4 @@ export function num(v: string): number | null {
   if (v.trim() === '') return null;
   const n = Number(v.replace(/,/g, ''));
   return Number.isFinite(n) ? n : null;
-}
-
-/** Info button with the shared help copy. */
-export function Help({ k }: { k: keyof typeof HELP }) {
-  const h = HELP[k];
-  return <Info title={h.title}>{h.text}</Info>;
 }

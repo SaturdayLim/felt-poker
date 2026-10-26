@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saturday Signature</title>
+<meta name="theme-color" content="#EEF2F1">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<!-- 1. Theme before paint (stops a light flash on dark devices). Copy this line into every project. -->
+<script>try{var t=localStorage.getItem('sat-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);var s=localStorage.getItem('sat-demo-skin');if(s)document.documentElement.setAttribute('data-skin',s)}catch(e){}</script>
+<!-- Demo only: ?theme=dark&skin=codigo opens a fixed combination (handy for screenshots and sharing). -->
+<script>(function(){var q=new URLSearchParams(location.search),t=q.get('theme'),s=q.get('skin');if(t){try{localStorage.setItem('sat-theme',t)}catch(e){}if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);else document.documentElement.removeAttribute('data-theme')}if(s){try{localStorage.setItem('sat-demo-skin',s==='saturday'?'':s)}catch(e){}if(s==='saturday')document.documentElement.removeAttribute('data-skin');else document.documentElement.setAttribute('data-skin',s)}})()</script>
+<!-- 2. Kit -->
+<link rel="preload" href="../fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/InstrumentSerif-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/saturday.css">
+<link rel="stylesheet" href="../css/skin-codigo.css">
+<script src="../js/saturday.js" defer></script>
+<style>
+  /* Demo-only layout. Projects do not need this block. */
+  main { padding-block: var(--sat-space-6) var(--sat-space-16); }
+  section { scroll-margin-top: 96px; }
+  .hero { padding-block: var(--sat-space-10) var(--sat-space-8); }
+  .hero .sat-display { max-width: 14ch; }
+  .chart { width: 100%; height: auto; overflow: visible; }
+  .chart .bar { fill: var(--sat-accent); }
+  .chart .bar.prev { fill: var(--sat-line-strong); }
+  .chart text { fill: var(--sat-muted); font: 500 11px var(--sat-font-ui); }
+  .chart .val { fill: var(--sat-text); font-weight: 600; }
+  .chart line { stroke: var(--sat-line); }
+  .legend { display: flex; gap: var(--sat-space-4); font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .spec { display: grid; grid-template-columns: 120px 1fr; gap: var(--sat-space-3) var(--sat-space-5); align-items: baseline; }
+  .spec > .sat-caption { padding-top: 4px; }
+  @media (max-width: 639px) { .spec { grid-template-columns: 1fr; gap: var(--sat-space-1); } .spec > div { margin-bottom: var(--sat-space-3); } }
+  .scale { display: flex; align-items: flex-end; gap: var(--sat-space-3); flex-wrap: wrap; }
+  .scale div { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 500 11px var(--sat-font-mono); color: var(--sat-muted); }
+  .scale b { display: block; background: var(--sat-accent-soft); border: 1px solid var(--sat-accent); border-radius: 3px; }
+  .radii b { width: 64px; height: 64px; background: var(--sat-glass-2); border: 1px solid var(--sat-line-strong); }
+  .dodont { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sat-space-3); }
+  @media (max-width: 639px) { .dodont { grid-template-columns: 1fr; } }
+  .dodont > div { padding: var(--sat-space-4); border-radius: var(--sat-radius-md); }
+  .do { background: var(--sat-accent-soft); }
+  .dont { background: var(--sat-well); }
+  .dodont .sat-caption { margin-bottom: var(--sat-space-2); }
+  .do .sat-caption { color: var(--sat-accent-text); }
+  .dont .sat-caption { color: var(--sat-neg); }
+  .dodont p + p { margin-top: var(--sat-space-2); }
+  .contrast { font: 500 11px var(--sat-font-mono); color: var(--sat-muted); }
+  .nav { display: flex; gap: var(--sat-space-1); overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .nav a { text-decoration: none; color: var(--sat-muted); font-size: var(--sat-fs-small); font-weight: 600; padding: 6px 10px; border-radius: var(--sat-radius-xs); white-space: nowrap; }
+  .nav a:hover { color: var(--sat-text); background: var(--sat-hover); }
+  @media (pointer: coarse) { .nav a { padding: 12px 10px; } }
+</style>
+</head>
+<body class="sat has-bottombar">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M7 12h10M10 19h4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+</svg>
+
+<header class="sat-header sat-shell">
+  <div class="sat-header-bar sat-glass">
+    <div class="sat-brand">
+      <svg class="sat-mark" id="mark" viewBox="-90 -110 2020 6060" aria-hidden="true"><path d="M1736.7 1731.7 L1546.2 90.2 C1287.7 -43.7 431.5 -10.9 263.5 74.3 L0.0 2388.9 C431.5 2519.4 1201.2 2547.4 1759.0 2401.6"/><path d="M81.0 2336.5 C607.5 2482.3 1453.1 2425.7 1841.5 2304.8 C1823.0 2760.1 1671.1 5163.3 1514.5 5706.8 C1349.6 5855.0 539.5 5903.1 298.4 5694.1 C186.0 4943.5 85.5 4188.1 25.4 3363.6"/></svg>
+      <span class="sat-wordmark" id="wordmark">Saturday Shakes</span>
+      <small class="sat-desktop-only">Signature kit v1.0.3</small>
+    </div>
+    <div class="sat-seg sat-desktop-only" role="radiogroup" aria-label="Skin" id="skinSeg">
+      <button role="radio" aria-checked="true" data-value="saturday">Saturday</button>
+      <button role="radio" aria-checked="false" data-value="codigo">Código</button>
+    </div>
+    <div class="sat-seg sat-theme-toggle sat-desktop-only" role="radiogroup" aria-label="Theme">
+      <button role="radio" data-sat-theme="auto" aria-checked="true" aria-label="Auto theme" title="Follow device"><svg><use href="#i-auto"/></svg></button>
+      <button role="radio" data-sat-theme="light" aria-checked="false" aria-label="Light theme" title="Light"><svg><use href="#i-sun"/></svg></button>
+      <button role="radio" data-sat-theme="dark" aria-checked="false" aria-label="Dark theme" title="Dark"><svg><use href="#i-moon"/></svg></button>
+    </div>
+    <button class="sat-btn sat-iconbtn sat-btn--ghost sat-mobile-only" data-sat-theme-cycle aria-label="Change theme">
+      <svg class="sat-theme-icon sat-theme-icon--auto"><use href="#i-auto"/></svg>
+      <svg class="sat-theme-icon sat-theme-icon--light"><use href="#i-sun"/></svg>
+      <svg class="sat-theme-icon sat-theme-icon--dark"><use href="#i-moon"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="sat-shell sat-stack" style="--sat-gap: var(--sat-space-6)">
+
+  <section class="hero sat-stack">
+    <span class="sat-caption">Design signature</span>
+    <h1 class="sat-display">Glass That Stays <em>Readable</em></h1>
+    <p class="sat-lede">One set of tokens, fonts and controls for every Saturday Portfolio project. Every surface on this page keeps at least 4.5:1 text contrast, in light and in dark.</p>
+    <nav class="nav" aria-label="Sections">
+      <a href="#kpis">KPIs</a><a href="#controls">Toggles</a><a href="#chart">Chart captions</a><a href="#table">Table</a><a href="#type">Type</a><a href="#logo">Logo</a><a href="#colour">Colour</a><a href="#space">Spacing</a><a href="#captions">Caption rules</a>
+    </nav>
+  </section>
+
+  <section id="kpis" class="sat-grid" style="--sat-min: 150px; --sat-gap: var(--sat-space-3)" aria-label="Key figures">
+    <div class="sat-glass sat-stat sat-rise" style="--i:0">
+      <span class="sat-caption">Volume <span class="sat-qual">(9Lc)</span></span>
+      <span class="sat-kpi">45,888</span>
+      <span class="sat-delta sat-delta--up">▲ 39.3%<small>v F25 (32,942)</small></span>
+    </div>
+    <div class="sat-glass sat-stat sat-rise" style="--i:1">
+      <span class="sat-caption">Value <span class="sat-qual">(USD)</span></span>
+      <span class="sat-kpi">$4.21m</span>
+      <span class="sat-delta sat-delta--up">▲ 9.9%<small>v F25 ($3.83m)</small></span>
+    </div>
+    <div class="sat-glass sat-stat sat-rise" style="--i:2">
+      <span class="sat-caption">Active markets
+        <span class="sat-tip"><button class="sat-tip-btn" aria-expanded="false" aria-label="How active markets are counted">i</button><span class="sat-tip-body" role="tooltip">An active market has &gt;=1 invoice during the period. Travel retail channels count as separate markets.</span></span>
+      </span>
+      <span class="sat-kpi">35</span>
+      <span class="sat-delta sat-delta--up">▲ 2.9%<small>v F25 (34)</small></span>
+    </div>
+    <div class="sat-glass sat-stat sat-rise" style="--i:3">
+      <span class="sat-caption">Stock cover <span class="sat-qual">(months)</span>
+        <span class="sat-tip"><button class="sat-tip-btn" aria-expanded="false" aria-label="How stock cover is calculated">i</button><span class="sat-tip-body" role="tooltip">Stock cover (months) = (closing stock) / (average N3M demand).</span></span>
+      </span>
+      <span class="sat-kpi">2.4</span>
+      <span class="sat-delta sat-delta--down">▼ 0.6<small>v Target (3.0)</small></span>
+    </div>
+  </section>
+
+  <section id="controls" class="sat-glass sat-card" aria-labelledby="controls-h">
+    <div class="sat-card-head">
+      <h2 class="sat-h2" id="controls-h">Toggles and buttons</h2>
+      <span class="sat-badge">4 toggle types</span>
+    </div>
+    <div class="sat-grid" style="--sat-min: 260px; --sat-gap: var(--sat-space-6)">
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2)">
+        <span class="sat-caption">Segmented: pick one view</span>
+        <div class="sat-seg" role="radiogroup" aria-label="Measure" id="measure">
+          <button role="radio" aria-checked="true" data-value="volume">Volume</button>
+          <button role="radio" aria-checked="false" data-value="value">Value</button>
+          <button role="radio" aria-checked="false" data-value="share">Share</button>
+        </div>
+        <p class="sat-small sat-muted" id="measureOut">Showing volume (9Lc).</p>
+      </div>
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2)">
+        <span class="sat-caption">Chips: stack filters</span>
+        <div class="sat-cluster" style="--sat-gap: var(--sat-space-2)">
+          <button class="sat-chip" aria-pressed="true">Direct</button>
+          <button class="sat-chip" aria-pressed="true">PR</button>
+          <button class="sat-chip" aria-pressed="false">Travel retail</button>
+          <button class="sat-chip" aria-pressed="false">Top 10</button>
+        </div>
+      </div>
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-1)">
+        <span class="sat-caption">Switch: setting applies at once</span>
+        <div class="sat-switch-row"><span>Show market labels</span><button class="sat-switch" role="switch" aria-checked="true" aria-label="Show market labels"></button></div>
+        <div class="sat-switch-row"><span>Compact rows</span><button class="sat-switch" role="switch" aria-checked="false" aria-label="Compact rows"></button></div>
+      </div>
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2)">
+        <span class="sat-caption">Theme: auto, light, dark</span>
+        <div class="sat-seg sat-theme-toggle" role="radiogroup" aria-label="Theme">
+          <button role="radio" data-sat-theme="auto" aria-checked="true"><svg><use href="#i-auto"/></svg>Auto</button>
+          <button role="radio" data-sat-theme="light" aria-checked="false"><svg><use href="#i-sun"/></svg>Light</button>
+          <button role="radio" data-sat-theme="dark" aria-checked="false"><svg><use href="#i-moon"/></svg>Dark</button>
+        </div>
+        <p class="sat-small sat-muted">Remembers the choice on this device. Auto follows the operating system.</p>
+      </div>
+    </div>
+    <hr class="sat-rule">
+    <div class="sat-grid" style="--sat-min: 260px; --sat-gap: var(--sat-space-6)">
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2)">
+        <span class="sat-caption">Buttons</span>
+        <div class="sat-cluster">
+          <button class="sat-btn sat-btn--primary">Export report</button>
+          <button class="sat-btn" data-sat-open="filters"><svg><use href="#i-filter"/></svg>Filters</button>
+          <button class="sat-btn sat-btn--ghost">Reset</button>
+          <button class="sat-btn sat-iconbtn" aria-label="Download"><svg><use href="#i-download"/></svg></button>
+        </div>
+        <p class="sat-small sat-muted">One primary button per view.</p>
+      </div>
+      <div class="sat-field">
+        <label for="mk">Find a market</label>
+        <input class="sat-input" id="mk" placeholder="Philippines" autocomplete="off">
+        <span class="sat-hint">Type a country or distributor name.</span>
+      </div>
+      <div class="sat-field">
+        <label for="tgt">Target volume</label>
+        <input class="sat-input" id="tgt" value="48,0OO" aria-invalid="true" aria-describedby="tgt-err">
+        <span class="sat-error" id="tgt-err">Use numbers only (e.g. 48000).</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="chart" class="sat-glass sat-card" aria-labelledby="chart-h">
+    <div class="sat-card-head">
+      <div>
+        <span class="sat-caption">Chart with caption rules</span>
+        <h2 class="sat-h2" id="chart-h">Volume by quarter <span class="sat-muted" style="font-size:.6em">(9Lc)</span></h2>
+      </div>
+      <div class="legend"><span><i style="background:var(--sat-accent)"></i>F26</span><span><i style="background:var(--sat-line-strong)"></i>F25</span></div>
+    </div>
+    <figure>
+      <svg class="chart" viewBox="0 0 640 220" role="img" aria-labelledby="chart-cap">
+        <line x1="40" x2="630" y1="190" y2="190"/>
+        <line x1="40" x2="630" y1="125" y2="125" stroke-dasharray="3 4"/>
+        <line x1="40" x2="630" y1="60" y2="60" stroke-dasharray="3 4"/>
+        <text x="32" y="194" text-anchor="end">0</text><text x="32" y="129" text-anchor="end">7k</text><text x="32" y="64" text-anchor="end">14k</text>
+        <g>
+          <rect class="bar prev" x="70" y="116" width="40" height="74" rx="4"/><rect class="bar" x="114" y="98" width="40" height="92" rx="4"/>
+          <text class="val" x="134" y="90" text-anchor="middle">9.9k</text><text x="112" y="208" text-anchor="middle">Q1</text>
+          <rect class="bar prev" x="215" y="104" width="40" height="86" rx="4"/><rect class="bar" x="259" y="72" width="40" height="118" rx="4"/>
+          <text class="val" x="279" y="64" text-anchor="middle">12.7k</text><text x="257" y="208" text-anchor="middle">Q2</text>
+          <rect class="bar prev" x="360" y="100" width="40" height="90" rx="4"/><rect class="bar" x="404" y="52" width="40" height="138" rx="4"/>
+          <text class="val" x="424" y="44" text-anchor="middle">14.9k</text><text x="402" y="208" text-anchor="middle">Q3</text>
+          <rect class="bar prev" x="505" y="112" width="40" height="78" rx="4"/><rect class="bar" x="549" y="110" width="40" height="80" rx="4"/>
+          <text class="val" x="569" y="102" text-anchor="middle">8.4k</text><text x="547" y="208" text-anchor="middle">Q4</text>
+        </g>
+      </svg>
+      <figcaption class="sat-figcaption" id="chart-cap"><b>Peak = F26Q3 (14.9k 9Lc)</b>, up 53% v F25Q3. <span class="sat-tip"><button class="sat-tip-btn" aria-expanded="false" aria-label="About the financial year">i</button><span class="sat-tip-body" role="tooltip">Financial year runs July to June: F26 = Jul'25-Jun'26, so F26Q3 = Jan-Mar'26.</span></span></figcaption>
+      <p class="sat-source" style="margin-top: var(--sat-space-2)">Source: QuickBooks snapshot (13 Oct 2026). Volume in 9Lc.</p>
+    </figure>
+  </section>
+
+  <section id="table" class="sat-glass-2 sat-card" aria-labelledby="table-h">
+    <div class="sat-card-head"><h2 class="sat-h3" id="table-h">Top markets (F26)</h2><span class="sat-badge sat-badge--muted">Data sits on glass-2</span></div>
+    <div class="sat-table-wrap">
+      <table class="sat-table">
+        <thead><tr><th>Market</th><th>Channel</th><th class="n">Volume <span class="sat-qual">(9Lc)</span></th><th class="n"><span class="sat-qual">v</span> F25</th></tr></thead>
+        <tbody>
+          <tr><td>Spain</td><td>Direct</td><td class="n">8,412</td><td class="n"><span class="sat-delta sat-delta--up">▲ 22.1%</span></td></tr>
+          <tr><td>Philippines</td><td>PR</td><td class="n">6,950</td><td class="n"><span class="sat-delta sat-delta--up">▲ 61.0%</span></td></tr>
+          <tr><td>Indonesia</td><td>Direct</td><td class="n">4,203</td><td class="n"><span class="sat-delta sat-delta--down">▼ 4.8%</span></td></tr>
+          <tr><td>Singapore</td><td>PR</td><td class="n">3,877</td><td class="n"><span class="sat-delta sat-delta--flat">0.0%</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="type" class="sat-glass sat-card" aria-labelledby="type-h">
+    <div class="sat-card-head"><h2 class="sat-h2" id="type-h">Type roles</h2><span class="sat-badge" id="fontBadge">Instrument Serif and Geist</span></div>
+    <div class="spec">
+      <span class="sat-caption">Display</span><div class="sat-display">Saturday <em>Signature</em></div>
+      <span class="sat-caption">H1</span><div class="sat-h1">Stock Projection (F27)</div>
+      <span class="sat-caption">H2</span><div class="sat-h2">Volume by quarter</div>
+      <span class="sat-caption">H3</span><div class="sat-h3">Top markets</div>
+      <span class="sat-caption">Body</span><div class="sat-body sat-read">Body copy runs in Geist at 15px on desktop and 16px on touch screens. Lines stop at 68 characters so the eye finds the next line.</div>
+      <span class="sat-caption">Small</span><div class="sat-small">Supporting text, hints and table cells.</div>
+      <span class="sat-caption">Caption</span><div class="sat-caption">Stock cover <span class="sat-qual">(months)</span></div>
+      <span class="sat-caption">KPI</span><div class="sat-kpi">45,888</div>
+      <span class="sat-caption">Delta</span><div><span class="sat-delta sat-delta--up">▲ 39.3%<small>v F25 (32,942)</small></span></div>
+      <span class="sat-caption">Mono</span><div class="sat-mono sat-small">SKU C1530-BLA-700, 2026-10-26</div>
+    </div>
+  </section>
+
+  <section id="logo" class="sat-glass sat-card" aria-labelledby="logo-h">
+    <div class="sat-card-head"><h2 class="sat-h2" id="logo-h">Logo mark</h2><span class="sat-badge">Saturday skin only</span></div>
+    <div class="sat-cluster" style="--sat-gap: var(--sat-space-8); align-items: flex-end">
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2); align-items: center"><svg class="sat-mark" style="--sat-mark-h: 24px" viewBox="-90 -110 2020 6060" aria-hidden="true"><path d="M1736.7 1731.7 L1546.2 90.2 C1287.7 -43.7 431.5 -10.9 263.5 74.3 L0.0 2388.9 C431.5 2519.4 1201.2 2547.4 1759.0 2401.6"/><path d="M81.0 2336.5 C607.5 2482.3 1453.1 2425.7 1841.5 2304.8 C1823.0 2760.1 1671.1 5163.3 1514.5 5706.8 C1349.6 5855.0 539.5 5903.1 298.4 5694.1 C186.0 4943.5 85.5 4188.1 25.4 3363.6"/></svg><span class="sat-source">24px minimum</span></div>
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2); align-items: center"><svg class="sat-mark" style="--sat-mark-h: 64px" viewBox="-90 -110 2020 6060" aria-hidden="true"><path d="M1736.7 1731.7 L1546.2 90.2 C1287.7 -43.7 431.5 -10.9 263.5 74.3 L0.0 2388.9 C431.5 2519.4 1201.2 2547.4 1759.0 2401.6"/><path d="M81.0 2336.5 C607.5 2482.3 1453.1 2425.7 1841.5 2304.8 C1823.0 2760.1 1671.1 5163.3 1514.5 5706.8 C1349.6 5855.0 539.5 5903.1 298.4 5694.1 C186.0 4943.5 85.5 4188.1 25.4 3363.6"/></svg><span class="sat-source">64px</span></div>
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2); align-items: center"><svg class="sat-mark" style="--sat-mark-h: 120px; --sat-mark-stroke: 3px" viewBox="-90 -110 2020 6060" aria-hidden="true"><path d="M1736.7 1731.7 L1546.2 90.2 C1287.7 -43.7 431.5 -10.9 263.5 74.3 L0.0 2388.9 C431.5 2519.4 1201.2 2547.4 1759.0 2401.6"/><path d="M81.0 2336.5 C607.5 2482.3 1453.1 2425.7 1841.5 2304.8 C1823.0 2760.1 1671.1 5163.3 1514.5 5706.8 C1349.6 5855.0 539.5 5903.1 298.4 5694.1 C186.0 4943.5 85.5 4188.1 25.4 3363.6"/></svg><span class="sat-source">120px, 3px stroke</span></div>
+      <div class="sat-stack" style="--sat-gap: var(--sat-space-2); align-items: center"><img src="../assets/saturday-shakes-triple-gold.png" alt="" style="height: 120px; width: auto"><span class="sat-source">Triple-line gold (print, menus)</span></div>
+    </div>
+    <p class="sat-small sat-muted" style="margin-top: var(--sat-space-4)">The two breaks in the shaker outline form an S. Keep clear space equal to the mark's width on every side. Never fill, stretch or recolour it outside the mark token and gold #BBA77B.</p>
+  </section>
+
+  <section id="colour" class="sat-glass sat-card" aria-labelledby="colour-h">
+    <div class="sat-card-head"><h2 class="sat-h2" id="colour-h">Colour tokens</h2><span class="contrast" id="contrastNote"></span></div>
+    <div class="sat-grid" style="--sat-min: 120px; --sat-gap: var(--sat-space-3)" id="swatches"></div>
+  </section>
+
+  <section id="space" class="sat-glass sat-card" aria-labelledby="space-h">
+    <div class="sat-card-head"><h2 class="sat-h2" id="space-h">Spacing and radius</h2></div>
+    <div class="sat-stack" style="--sat-gap: var(--sat-space-6)">
+      <div>
+        <p class="sat-caption" style="margin-bottom: var(--sat-space-3)">4px grid</p>
+        <div class="scale">
+          <div><b style="width:4px;height:4px"></b>4</div><div><b style="width:8px;height:8px"></b>8</div><div><b style="width:12px;height:12px"></b>12</div><div><b style="width:16px;height:16px"></b>16</div><div><b style="width:20px;height:20px"></b>20</div><div><b style="width:24px;height:24px"></b>24</div><div><b style="width:32px;height:32px"></b>32</div><div><b style="width:40px;height:40px"></b>40</div><div><b style="width:48px;height:48px"></b>48</div><div><b style="width:64px;height:64px"></b>64</div>
+        </div>
+      </div>
+      <div>
+        <p class="sat-caption" style="margin-bottom: var(--sat-space-3)">Radius</p>
+        <div class="scale radii">
+          <div><b style="border-radius:8px"></b>xs 8</div><div><b style="border-radius:12px"></b>sm 12</div><div><b style="border-radius:16px"></b>md 16</div><div><b style="border-radius:22px"></b>lg 22</div><div><b style="border-radius:28px"></b>xl 28</div>
+        </div>
+        <p class="sat-small sat-muted" style="margin-top: var(--sat-space-3)">Nested corners: inner radius = outer radius minus the padding between them.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="captions" class="sat-glass sat-card" aria-labelledby="captions-h">
+    <div class="sat-card-head"><h2 class="sat-h2" id="captions-h">Caption rules</h2></div>
+    <div class="sat-stack">
+      <div class="dodont">
+        <div class="do"><p class="sat-caption">Do</p><p class="sat-caption" style="color:var(--sat-muted)">Stock cover <span class="sat-qual">(months)</span></p><p class="sat-small">Uppercase label, 2 or 3 words, unit in brackets keeps its case.</p></div>
+        <div class="dont"><p class="sat-caption">Don't</p><p class="sat-small">Number of months of stock cover in the selected period (#)</p></div>
+      </div>
+      <div class="dodont">
+        <div class="do"><p class="sat-caption">Do</p><p class="sat-small"><b>Peak = F26Q3 (14.9k 9Lc)</b>, up 53% v F25Q3.</p></div>
+        <div class="dont"><p class="sat-caption">Don't</p><p class="sat-small">Chart showing quarterly volume data</p></div>
+      </div>
+      <div class="dodont">
+        <div class="do"><p class="sat-caption">Do</p><p class="sat-small">F26Q2, C26Q1, FYTD, Oct'26</p></div>
+        <div class="dont"><p class="sat-caption">Don't</p><p class="sat-small">Q2, Q2 2026, Q2 of F26</p></div>
+      </div>
+      <div class="dodont">
+        <div class="do"><p class="sat-caption">Do</p><p class="sat-small"><span class="sat-delta sat-delta--down">▼ 4.8%<small>v F25 (4,415)</small></span></p></div>
+        <div class="dont"><p class="sat-caption">Don't</p><p class="sat-small"><span style="color:var(--sat-neg)">4.8%</span> colour alone, no base</p></div>
+      </div>
+      <div class="dodont">
+        <div class="do"><p class="sat-caption">Do</p><p class="sat-small">Spain, Direct, F26Q2</p></div>
+        <div class="dont"><p class="sat-caption">Don't</p><p class="sat-small">Spain · Direct · F26Q2</p></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="sat-source" style="text-align:center">Saturday Signature v1.0.3. Fonts: Instrument Serif, Geist, Geist Mono, Libre Baskerville (SIL Open Font License).</p>
+</main>
+
+<div class="sat-bottombar sat-glass-2">
+  <button class="sat-btn" data-sat-open="filters"><svg><use href="#i-filter"/></svg>Filters</button>
+  <button class="sat-btn sat-btn--primary"><svg><use href="#i-download"/></svg>Export</button>
+</div>
+
+<dialog class="sat-sheet sat-glass-2" id="filters" aria-labelledby="filters-h">
+  <div class="sat-stack">
+    <div class="sat-split"><h2 class="sat-h3" id="filters-h">Filters</h2><button class="sat-btn sat-btn--ghost sat-btn--sm" data-sat-close>Close</button></div>
+    <div class="sat-stack" style="--sat-gap: var(--sat-space-2)">
+      <span class="sat-caption">Period</span>
+      <div class="sat-seg sat-seg--block" role="radiogroup" aria-label="Period">
+        <button role="radio" aria-checked="false" data-value="F25">F25</button>
+        <button role="radio" aria-checked="true" data-value="F26">F26</button>
+        <button role="radio" aria-checked="false" data-value="F27">F27</button>
+      </div>
+    </div>
+    <div class="sat-stack" style="--sat-gap: var(--sat-space-2)">
+      <span class="sat-caption">Channel</span>
+      <div class="sat-cluster" style="--sat-gap: var(--sat-space-2)">
+        <button class="sat-chip" aria-pressed="true">Direct</button>
+        <button class="sat-chip" aria-pressed="true">PR</button>
+        <button class="sat-chip" aria-pressed="false">Travel retail</button>
+      </div>
+    </div>
+    <div class="sat-switch-row"><span>Include earlier years</span><button class="sat-switch" role="switch" aria-checked="false" aria-label="Include earlier years"></button></div>
+    <div class="sat-cluster" style="justify-content:flex-end">
+      <button class="sat-btn sat-btn--ghost" data-sat-close>Reset</button>
+      <button class="sat-btn sat-btn--primary" data-sat-close>Show 35 markets</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  // Demo-only wiring: skin switch, measure readout, live swatches.
+  document.addEventListener('DOMContentLoaded', function () {
+    var html = document.documentElement;
+    var skinSeg = document.getElementById('skinSeg');
+    function syncSkin() {
+      var s = html.getAttribute('data-skin') || 'saturday';
+      skinSeg.querySelectorAll('[role="radio"]').forEach(function (b) { var on = b.dataset.value === s; b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1; });
+      document.getElementById('wordmark').textContent = s === 'codigo' ? 'Código 1530' : 'Saturday Shakes';
+      document.getElementById('mark').style.display = s === 'codigo' ? 'none' : '';
+      document.getElementById('fontBadge').textContent = s === 'codigo' ? 'Baskerville and Geist' : 'Instrument Serif and Geist';
+      swatches();
+    }
+    skinSeg.addEventListener('sat-change', function (e) {
+      if (e.detail.value === 'saturday') html.removeAttribute('data-skin'); else html.setAttribute('data-skin', e.detail.value);
+      try { localStorage.setItem('sat-demo-skin', e.detail.value === 'saturday' ? '' : e.detail.value); } catch (err) {}
+      syncSkin();
+    });
+    var words = { volume: 'Showing volume (9Lc).', value: 'Showing value (USD).', share: 'Showing mktshare by volume.' };
+    document.getElementById('measure').addEventListener('sat-change', function (e) { document.getElementById('measureOut').textContent = words[e.detail.value]; });
+
+    var names = ['bg', 'text', 'muted', 'accent', 'accent-fill', 'accent-text', 'pos', 'neg', 'warn', 'glass-1', 'glass-2', 'well'];
+    function swatches() {
+      var cs = getComputedStyle(html);
+      document.getElementById('swatches').innerHTML = names.map(function (n) {
+        var v = cs.getPropertyValue('--sat-' + n).trim();
+        return '<div class="sat-swatch"><i style="background:var(--sat-' + n + ')"></i><span class="sat-small">' + n + '</span><code>' + v + '</code></div>';
+      }).join('');
+      document.getElementById('contrastNote').textContent = 'Checked by tools/check-contrast.js';
+    }
+    document.addEventListener('sat-theme', swatches);
+    syncSkin();
+  });
+</script>
+</body>
+</html>

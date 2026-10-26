@@ -12,7 +12,7 @@ const idbStorage: StateStorage = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'system',
+  theme: 'auto',
   currency: 'S$',
   unitValue: 0.1,
   sb: 1,
@@ -286,7 +286,13 @@ export const useStore = create<State>()(
         return {
           ...current,
           ...p,
-          settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}), markers: { ...DEFAULT_SETTINGS.markers, ...(p.settings?.markers ?? {}) } },
+          settings: {
+            ...DEFAULT_SETTINGS,
+            ...(p.settings ?? {}),
+            // 'system' was the name for 'auto' before the Saturday Signature reskin
+            theme: (p.settings?.theme as string) === 'system' || !p.settings?.theme ? 'auto' : p.settings.theme,
+            markers: { ...DEFAULT_SETTINGS.markers, ...(p.settings?.markers ?? {}) },
+          },
         };
       },
       onRehydrateStorage: () => () => {
@@ -310,5 +316,5 @@ export const useGame = (id: ID | undefined) => useStore((s) => s.games.find((g) 
 
 export function usePlayerName() {
   const players = useStore((s) => s.players);
-  return (id: ID | undefined) => players.find((p) => p.id === id)?.name ?? '—';
+  return (id: ID | undefined) => players.find((p) => p.id === id)?.name ?? 'Unknown player';
 }

@@ -24,12 +24,13 @@ export function duration(ms: number): string {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
+/** Full date, as in source lines: 13 Oct 2026. */
 export function dateLabel(t: number): string {
-  return new Date(t).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function shortDate(t: number): string {
-  return new Date(t).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+  return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 export function timeLabel(t: number): string {
@@ -47,7 +48,7 @@ export function ago(t: number, now = Date.now()): string {
 
 export function stakesLabel(g: Game): string {
   if (g.type === 'tournament') return `${money(g.tournament?.buyIn ?? 0, g.currency)} tournament`;
-  return `${g.sb}/${g.bb} cash · ${money(g.unitValue, g.currency)} a unit`;
+  return `${g.sb}/${g.bb} cash, 1 unit = ${money(g.unitValue, g.currency)}`;
 }
 
 export function initials(name: string): string {

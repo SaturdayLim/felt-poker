@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { back } from '../router';
-import { Empty, Help, Icon, toast } from '../components/ui';
+import { back, go } from '../router';
+import { Empty, Header, Help, Icon, toast } from '../components/ui';
 import { renderReport, type Tier } from '../report/reports';
 import { loadReportFonts, type ReportTheme } from '../report/canvas';
 import { handsCsv, ledgerCsv, playersCsv, slug } from '../report/csv';
@@ -11,10 +11,10 @@ import { useResolvedTheme } from '../theme';
 type Choice = Tier | 'data';
 
 const TIERS: { k: Choice; label: string; desc: string }[] = [
-  { k: 'summary', label: 'Summary', desc: 'Buy-ins, results and who pays whom.' },
-  { k: 'detailed', label: 'Detailed', desc: 'Results plus game stats, the money chart and highlights.' },
-  { k: 'full', label: 'Full', desc: 'Everything, including every hand with its cards.' },
-  { k: 'data', label: 'Data', desc: 'Three CSV files: players, hands and a ledger of every event.' },
+  { k: 'summary', label: 'Summary', desc: 'Buy-ins, results and payments.' },
+  { k: 'detailed', label: 'Detailed', desc: 'Results, game stats, the money chart and highlights.' },
+  { k: 'full', label: 'Full', desc: 'Everything, including the buy-in log and every hand with its cards.' },
+  { k: 'data', label: 'Data', desc: '3 CSV files: players, hands and a ledger of every event.' },
 ];
 
 export default function Report({ gameId }: { gameId: string }) {
@@ -53,7 +53,7 @@ export default function Report({ gameId }: { gameId: string }) {
         setFiles(out);
         setUrls(tier === 'data' ? [] : out.map((f) => URL.createObjectURL(f)));
       } catch (e) {
-        toast(`Couldn't make the report: ${(e as Error).message}`);
+        toast(`Report unable to build (${(e as Error).message}). Go back and try again.`);
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -64,60 +64,57 @@ export default function Report({ gameId }: { gameId: string }) {
 
   useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
 
-  if (!g) return <div className="screen plain"><Empty icon="games">This game doesn't exist any more.</Empty></div>;
+  if (!g) return <div className="felt-page"><Header back={() => go('')} title="Report" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
 
   const share = async () => {
     const r = await shareFiles(files, `${g.name} report`);
-    if (r === 'downloaded') toast('Saved to your downloads');
+    if (r === 'downloaded') toast('Report exported to Downloads');
   };
   const info = TIERS.find((t) => t.k === tier)!;
 
   return (
-    <div className="screen">
-      <div className="topbar">
-        <button className="icon-btn" onClick={() => back(`game/${g.id}/close`)} aria-label="Back"><Icon name="back" /></button>
-        <div className="titles"><h1>Report</h1><div className="sub">{g.name}</div></div>
-        <span style={{ width: 44 }} />
-      </div>
+    <div className="felt-page">
+      <Header back={() => back(`game/${g.id}/close`)} title="Share Report" sub={g.name} />
+      <div className="sat-stack">
+        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Report type">
+          {TIERS.map((t) => <button key={t.k} role="radio" aria-checked={tier === t.k} onClick={() => setTier(t.k)}>{t.label}</button>)}
+        </div>
+        <div className="sat-split">
+          <p className="sat-small sat-muted felt-grow">{info.desc} <Help k="tiers" /></p>
+          {tier !== 'data' && (
+            <div className="sat-seg" role="radiogroup" aria-label="Image theme">
+              <button role="radio" aria-checked={look === 'light'} onClick={() => setLook('light')} aria-label="Light image"><Icon name="sun" /></button>
+              <button role="radio" aria-checked={look === 'dark'} onClick={() => setLook('dark')} aria-label="Dark image"><Icon name="moon" /></button>
+            </div>
+          )}
+        </div>
 
-      <div className="seg" role="tablist">
-        {TIERS.map((t) => <button key={t.k} role="tab" aria-selected={tier === t.k} onClick={() => setTier(t.k)}>{t.label}</button>)}
-      </div>
-      <div className="row between" style={{ margin: '12px 2px 14px', gap: 12 }}>
-        <span className="small muted row" style={{ gap: 2 }}>{info.desc} <Help k="tiers" /></span>
-        {tier !== 'data' && (
-          <div className="chips" style={{ flex: 'none', gap: 8 }}>
-            <button className="chip sm" aria-pressed={look === 'light'} onClick={() => setLook('light')} aria-label="Light image"><Icon name="sun" size={15} /></button>
-            <button className="chip sm" aria-pressed={look === 'dark'} onClick={() => setLook('dark')} aria-label="Dark image"><Icon name="moon" size={15} /></button>
+        {busy && <div className="sat-flat sat-card sat-small sat-muted">Building the report.</div>}
+
+        {!busy && tier !== 'data' && (
+          <div>
+            {files.length > 1 && <p className="sat-small sat-muted" style={{ marginBottom: 'var(--sat-space-2)' }}>{files.length} images, shared together.</p>}
+            {urls.map((u, i) => <img key={u} src={u} className="felt-preview" alt={`Report page ${i + 1}`} />)}
+          </div>
+        )}
+
+        {!busy && tier === 'data' && (
+          <div className="sat-glass-2 felt-list">
+            {files.map((f) => (
+              <div key={f.name} className="felt-row">
+                <Icon name="file" size={20} />
+                <div className="felt-row-main"><div className="felt-row-title felt-ellipsis sat-mono sat-small">{f.name}</div><div className="felt-row-sub">{(f.size / 1024).toFixed(1)} KB</div></div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {busy && <div className="card center muted" style={{ padding: 40 }}>Making the report…</div>}
-
-      {!busy && tier !== 'data' && (
-        <>
-          {files.length > 1 && <div className="small muted" style={{ marginBottom: 8 }}>{files.length} images, shared together.</div>}
-          {urls.map((u, i) => <img key={u} src={u} className="report-preview" alt={`Report page ${i + 1}`} />)}
-        </>
-      )}
-
-      {!busy && tier === 'data' && (
-        <div className="card list">
-          {files.map((f) => (
-            <div key={f.name} className="list-row">
-              <Icon name="file" size={20} />
-              <div className="grow"><div className="ellipsis" style={{ fontWeight: 700, fontSize: 14.5 }}>{f.name}</div><div className="tiny faint">{(f.size / 1024).toFixed(1)} KB</div></div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="fab-bar"><div className="inner glass">
-        <button className="btn primary amber lg" disabled={busy || !files.length} onClick={share}>
-          <Icon name="share" /> Share {tier === 'data' ? 'files' : files.length > 1 ? `${files.length} images` : 'image'}
+      <div className="sat-bottombar sat-glass-2">
+        <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={busy || !files.length} onClick={() => !busy && files.length && share()}>
+          <Icon name="share" /> Share {tier === 'data' ? '3 files' : files.length > 1 ? `${files.length} images` : 'image'}
         </button>
-      </div></div>
+      </div>
     </div>
   );
 }

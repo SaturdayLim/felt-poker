@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, usePlayerName, type BackupData } from '../store';
-import { Help, Icon, Toggle, num, toast } from '../components/ui';
+import { Caption, Header, Help, Icon, Toggle, num, toast } from '../components/ui';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { money } from '../lib/format';
 import type { Markers, Settings as S, ThemePref } from '../types';
 
 const THEMES: { k: ThemePref; label: string; icon: string }[] = [
-  { k: 'system', label: 'Auto', icon: 'phone' },
+  { k: 'auto', label: 'Auto', icon: 'phone' },
   { k: 'light', label: 'Light', icon: 'sun' },
   { k: 'dark', label: 'Dark', icon: 'moon' },
 ];
+const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
 export default function Settings() {
   const settings = useStore((s) => s.settings);
@@ -30,131 +31,126 @@ export default function Settings() {
     navigator.storage?.estimate?.().then((e) => setUsage(`${((e.usage ?? 0) / 1024).toFixed(0)} KB`)).catch(() => {});
   }, [games]);
 
-  const numField = (label: string, key: keyof S, prefix?: string) => (
-    <label className="field" style={{ marginTop: 0 }}>
-      <span className="label tiny">{label}</span>
-      <div className="input-wrap">
-        {prefix && <span className="prefix">{prefix}</span>}
-        <input className="input" inputMode="decimal" defaultValue={String(settings[key])}
-          onBlur={(e) => { const v = num(e.target.value); if (v !== null && v >= 0) update({ [key]: v } as Partial<S>); }} />
-      </div>
-    </label>
+  const numField = (id: string, label: string, key: keyof S, hint?: string) => (
+    <div className="sat-field">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} className="sat-input sat-num" inputMode="decimal" defaultValue={String(settings[key])}
+        onBlur={(e) => { const v = num(e.target.value); if (v !== null && v >= 0) update({ [key]: v } as Partial<S>); else toast('Use numbers only (e.g. 200).'); }} />
+      {hint && <span className="sat-hint">{hint}</span>}
+    </div>
   );
 
   const backup = async () => {
     const data = exportBackup();
     const f = textFile(JSON.stringify(data), `felt-backup-${new Date().toLocaleDateString('en-CA')}.json`, 'application/json');
     const r = await shareFiles([f], 'Felt backup');
-    if (r !== 'cancelled') toast('Backup saved');
+    if (r === 'downloaded') toast('Backup exported to Downloads');
+    else if (r === 'shared') toast('Backup shared');
   };
   const restore = async (file: File) => {
     try {
       const data = JSON.parse(await file.text()) as BackupData;
-      if (data.app !== 'felt' || !Array.isArray(data.games) || !Array.isArray(data.players)) throw new Error("that file isn't a Felt backup");
+      if (data.app !== 'felt' || !Array.isArray(data.games) || !Array.isArray(data.players)) throw new Error('not a Felt backup');
       importBackup(data);
       toast(`Restored ${data.games.length} games and ${data.players.length} players`);
     } catch (e) {
-      toast(`Couldn't restore: ${(e as Error).message}`);
+      toast(`Backup unable to load (${(e as Error).message}). Pick a felt-backup file.`);
     }
   };
   const exportAllCsv = async () => {
     const closed = games.filter((g) => g.status === 'closed').sort((a, b) => a.startedAt - b.startedAt);
     const d = new Date().toLocaleDateString('en-CA');
-    await shareFiles([
+    const r = await shareFiles([
       textFile(playersCsv(closed, name), `felt-players-${d}.csv`),
       textFile(handsCsv(closed, name), `felt-hands-${d}.csv`),
       textFile(ledgerCsv(closed, name), `felt-ledger-${d}.csv`),
     ], 'Felt data');
+    if (r === 'downloaded') toast('3 CSV files exported to Downloads');
   };
   const setMarker = (k: keyof Markers, v: boolean) => update({ markers: { ...settings.markers, [k]: v } });
 
   return (
-    <div className="screen plain">
-      <div className="page-title">
-        <h1>Settings</h1>
-      </div>
+    <div className="felt-page">
+      <Header title="Settings" />
+      <div className="sat-stack" style={gap(6)}>
+        <section className="sat-stack" style={gap(2)}>
+          <Caption>Theme</Caption>
+          <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Theme">
+            {THEMES.map((t) => (
+              <button key={t.k} role="radio" aria-checked={settings.theme === t.k} onClick={() => update({ theme: t.k })}><Icon name={t.icon} /> {t.label}</button>
+            ))}
+          </div>
+          <p className="sat-small sat-muted">Auto follows the phone setting. Saved on this phone.</p>
+        </section>
 
-      <div className="section-head"><h2>Appearance</h2></div>
-      <div className="seg" role="radiogroup" aria-label="Theme">
-        {THEMES.map((t) => (
-          <button key={t.k} role="radio" aria-checked={settings.theme === t.k} aria-selected={settings.theme === t.k} onClick={() => update({ theme: t.k })}>
-            <Icon name={t.icon} /> {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="tiny faint" style={{ margin: '8px 2px 0' }}>Auto follows your phone's light or dark setting.</div>
-
-      <div className="section">
-        <div className="section-head"><h2>New games</h2><Help k="units" /></div>
-        <div className="panel">
-          <div className="grid3">
-            {numField('Small blind', 'sb')}
-            {numField('Big blind', 'bb')}
-            <label className="field" style={{ marginTop: 0 }}>
-              <span className="label tiny">Currency</span>
-              <input className="input" defaultValue={settings.currency} onBlur={(e) => update({ currency: e.target.value.trim() || 'S$' })} />
-            </label>
-          </div>
-          <div className="grid2" style={{ marginTop: 14 }}>
-            {numField('1 unit is worth', 'unitValue', settings.currency)}
-            {numField('Buy-in, units', 'defaultBuyIn')}
-          </div>
-          <div className="grid2" style={{ marginTop: 14 }}>
-            {numField('Tournament entry', 'tournamentBuyIn', settings.currency)}
-            {numField('Starting stack', 'startingStack')}
-          </div>
-          <div className="small muted" style={{ marginTop: 12 }}>
-            A buy-in of {settings.defaultBuyIn} units is <span className="num">{money(settings.defaultBuyIn * settings.unitValue, settings.currency)}</span>, or {(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} big blinds.
-          </div>
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section-head"><h2>Hand details</h2></div>
-        <div className="panel" style={{ padding: '4px 14px' }}>
-          {([['dealer', 'Dealer', 'Track the button. It moves on after each hand.'], ['allIn', 'All-in', 'Mark hands that went all-in.'],
-            ['straddle', 'Straddle', 'Mark straddled hands.'], ['tags', 'Tags and notes', 'Label hands, like “Bad beat”.']] as const).map(([k, l, d]) => (
-            <div key={k} className="list-row">
-              <div className="grow"><div style={{ fontWeight: 700 }}>{l}</div><div className="tiny faint">{d}</div></div>
-              <Toggle on={settings.markers[k]} onChange={(v) => setMarker(k, v)} label={l} />
+        <section className="sat-glass sat-card sat-stack">
+          <div className="sat-split"><h2 className="sat-h2">New games</h2><Help k="units" /></div>
+          <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ...gap(3) }}>
+            {numField('s-sb', 'Small blind (units)', 'sb')}
+            {numField('s-bb', 'Big blind (units)', 'bb')}
+            {numField('s-uv', `1 unit (${settings.currency})`, 'unitValue', 'e.g. 0.1')}
+            <div className="sat-field">
+              <label htmlFor="s-cur">Currency</label>
+              <input id="s-cur" className="sat-input" defaultValue={settings.currency} onBlur={(e) => update({ currency: e.target.value.trim() || 'S$' })} />
+              <span className="sat-hint">Symbol (e.g. S$)</span>
             </div>
-          ))}
-        </div>
-        <div className="label" style={{ margin: '18px 2px 10px' }}>Tags</div>
-        <div className="chips">
-          {settings.tags.map((t) => (
-            <button key={t} className="chip sm" onClick={() => update({ tags: settings.tags.filter((x) => x !== t) })} aria-label={`Remove tag ${t}`}>{t} <span className="x"><Icon name="close" size={12} /></span></button>
-          ))}
-        </div>
-        <div className="row" style={{ marginTop: 12 }}>
-          <input className="input grow" style={{ minHeight: 44, fontSize: 15 }} placeholder="New tag" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
-          <button className="btn sm" style={{ minHeight: 44 }} disabled={!newTag.trim()} onClick={() => { update({ tags: [...new Set([...settings.tags, newTag.trim()])] }); setNewTag(''); }}>Add</button>
-        </div>
-      </div>
+            {numField('s-bi', 'Buy-in (units)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} big blinds`)}
+            {numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
+            {numField('s-ss', 'Starting stack (chips)', 'startingStack')}
+          </div>
+        </section>
 
-      <div className="section">
-        <div className="section-head"><h2>Your data <Help k="backup" /></h2><span className="small muted">{games.length} games, {players.length} players{usage ? `, ${usage}` : ''}</span></div>
-        <div className="small muted" style={{ margin: '0 2px 12px' }}>Everything stays on this phone.</div>
-        <div className="btn-row">
-          <button className="btn" onClick={backup}><Icon name="download" /> Back up</button>
-          <button className="btn" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Restore</button>
-        </div>
-        <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) restore(f); e.target.value = ''; }} />
-        <button className="btn block" style={{ marginTop: 12 }} onClick={exportAllCsv}><Icon name="file" /> Export every game as CSV</button>
-        <button className="btn danger block" style={{ marginTop: 12 }} onClick={() => {
-          if (erase < 2) { setErase(erase + 1); toast(erase === 0 ? 'Tap twice more to erase everything' : 'One more tap erases everything for good'); return; }
-          eraseAll();
-          setErase(0);
-          toast('Everything erased');
-        }}><Icon name="trash" /> {erase === 0 ? 'Erase everything' : erase === 1 ? 'Are you sure?' : 'Erase for good'}</button>
-      </div>
+        <section className="sat-glass sat-card sat-stack">
+          <h2 className="sat-h2">Hand details</h2>
+          <div className="sat-stack" style={gap(1)}>
+            {([['dealer', 'Track the dealer', 'Moves one seat clockwise after each hand.'], ['allIn', 'Mark all-ins', 'Adds an All-in marker to the hand form.'],
+              ['straddle', 'Mark straddles', 'Adds a Straddle marker to the hand form.'], ['tags', 'Tags and notes', 'Label hands, for example "Bad beat".']] as const).map(([k, l, d]) => (
+              <div key={k} className="sat-switch-row">
+                <span><span style={{ display: 'block' }}>{l}</span><span className="sat-small sat-muted">{d}</span></span>
+                <Toggle on={settings.markers[k]} onChange={(v) => setMarker(k, v)} label={l} />
+              </div>
+            ))}
+          </div>
+          <hr className="sat-rule" style={{ margin: 0 }} />
+          <Caption q="tap to remove">Tags</Caption>
+          <div className="sat-cluster" style={gap(2)}>
+            {settings.tags.map((t) => (
+              <button key={t} className="sat-chip" aria-pressed="true" onClick={() => update({ tags: settings.tags.filter((x) => x !== t) })} aria-label={`Remove tag ${t}`}>{t}</button>
+            ))}
+          </div>
+          <div className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
+            <input className="sat-input" aria-label="New tag" placeholder="New tag (e.g. Cooler)" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
+            <button className="sat-btn" aria-disabled={!newTag.trim()} onClick={() => { if (!newTag.trim()) return; update({ tags: [...new Set([...settings.tags, newTag.trim()])] }); setNewTag(''); }}>Add tag</button>
+          </div>
+        </section>
 
-      <div className="section">
-        <div className="section-head"><h2>Add to your home screen</h2></div>
-        <div className="card small muted">
-          In Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>. Felt then opens full screen and works without a connection.
-        </div>
+        <section className="sat-glass sat-card sat-stack">
+          <div className="sat-split"><h2 className="sat-h2">Data</h2><Help k="backup" /></div>
+          <p className="sat-small sat-muted">{games.length} games and {players.length} players stored on this phone{usage ? ` (${usage})` : ''}. Nothing is sent online.</p>
+          <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(2) }}>
+            <button className="sat-btn sat-btn--primary" onClick={backup}><Icon name="download" /> Back up</button>
+            <button className="sat-btn" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Restore</button>
+          </div>
+          <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) restore(f); e.target.value = ''; }} />
+          <button className="sat-btn" onClick={exportAllCsv}><Icon name="file" /> Export all games (CSV)</button>
+          <button className="sat-btn sat-btn--ghost" style={{ color: 'var(--sat-neg)' }} onClick={() => {
+            if (erase < 2) { setErase(erase + 1); toast(erase === 0 ? 'Tap 2 more times to erase all data' : 'Tap once more to erase all data for good'); return; }
+            eraseAll();
+            setErase(0);
+            toast('All data erased from this phone');
+          }}><Icon name="trash" /> {erase === 0 ? 'Erase all data' : erase === 1 ? 'Tap again to confirm' : 'Erase for good'}</button>
+        </section>
+
+        <section className="sat-flat sat-card sat-stack" style={gap(3)}>
+          <h2 className="sat-h3">Install on iPhone (1 minute)</h2>
+          <ol className="sat-small" style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4 }}>
+            <li>Open this page in Safari.</li>
+            <li>Tap <b>Share</b>.</li>
+            <li>Tap <b>Add to Home Screen</b>.</li>
+            <li>Open Felt from the home screen. It works offline after the first load.</li>
+          </ol>
+        </section>
       </div>
     </div>
   );

@@ -11,13 +11,15 @@ Offline Texas Hold'em tracker for a single phone. It runs as an installable web 
 
 ## Design
 
-Felt uses the Vaela Material System. The tokens are mirrored in `src/design/tokens.css`, and the full spec is `Vaela v2/design/DESIGN.md`.
-- **Paper:** lists and stats.
-- **Stone:** controls and player tiles.
-- **Clay:** the one main action per screen.
-- **Glass:** the top bar, tab bar, action bar, sheets, toasts and info popovers.
+Felt uses the **Saturday Signature** kit (v1.0.3), copied into `src/saturday/`. Its rules are in `src/saturday/SIGNATURE.md` and `src/saturday/WRITING.md`.
 
-The fonts (Fraunces, Atkinson Hyperlegible, IBM Plex Mono) are self-hosted in `src/assets/fonts`. Light, dark and auto themes are in **Settings → Appearance**.
+- **Kit parts:** `.sat-glass` and `.sat-glass-2` surfaces, `.sat-btn`, `.sat-seg`, `.sat-chip`, `.sat-switch`, `.sat-tip`, `.sat-sheet` and `.sat-bottombar`. The fonts are Instrument Serif, Geist and Geist Mono.
+- **Felt's own additions:** `src/styles.css` adds only what the kit lacks (tab bar, playing cards, card picker, seat table, list rows), using `--sat-*` tokens.
+- **Theme:** `src/theme.ts` drives the theme from React state and uses the kit's `sat-theme` key, so `saturday.js` is not loaded.
+- **Report images:** these are drawn on canvas in `src/report/canvas.ts`, with colours copied from `src/saturday/tokens/tokens.json`. If the tokens change, update both.
+- **Brand mark:** two stacked poker chips forming a vertical figure-eight, a companion to the Saturday double-layered vertical infinity. It is in `src/brand/felt-mark.svg` and uses the kit's mark colour. The app icon and favicon are in `public/`.
+
+Do not edit the generated kit files (`css/tokens.css`, `tokens/tailwind*`). Change `tokens/tokens.json`, then run `node src/saturday/tools/build-tokens.js` and `node src/saturday/tools/check-contrast.js`.
 
 ## Develop
 

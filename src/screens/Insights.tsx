@@ -1,20 +1,25 @@
 import { useMemo, useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
-import { Avatar, Empty, Help, Icon, toast } from '../components/ui';
+import { Avatar, Caption, Delta, Empty, Header, Help, Icon, toast } from '../components/ui';
 import { LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
-import { money, shortDate, tone } from '../lib/format';
+import { dateLabel, money, shortDate } from '../lib/format';
 import { cumulativeSeries, filterGames, groupTotals, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
 import { canvasToFile, shareFiles } from '../report/share';
 import { useResolvedTheme } from '../theme';
-import type { ID } from '../types';
+import type { Game, ID } from '../types';
 
-const RANGES: { k: RangeFilter; label: string }[] = [
-  { k: 'all', label: 'All time' }, { k: 'year', label: 'This year' }, { k: '90d', label: 'Last 90 days' }, { k: '30d', label: 'Last 30 days' },
+const RANGES: { k: RangeFilter; label: string; long: string }[] = [
+  { k: 'all', label: 'All', long: 'All Time' },
+  { k: 'fy', label: 'FYTD', long: 'FYTD' },
+  { k: 'cy', label: 'CYTD', long: 'CYTD' },
+  { k: '90d', label: 'L90D', long: 'L90D' },
+  { k: '30d', label: 'L30D', long: 'L30D' },
 ];
+const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
 export default function Insights({ initialPlayer }: { initialPlayer?: string }) {
   const allGames = useStore((s) => s.games);
@@ -28,134 +33,141 @@ export default function Insights({ initialPlayer }: { initialPlayer?: string }) 
   const board = useMemo(() => leaderboard(games, players.map((p) => p.id)), [games, players]);
   const [pid, setPid] = useState<ID | undefined>(initialPlayer && initialPlayer !== 'standings' ? initialPlayer : undefined);
   const selected = pid ?? board[0]?.playerId;
-  const rangeLabel = RANGES.find((r) => r.k === range)!.label;
+  const period = RANGES.find((r) => r.k === range)!.long;
+  const typeLabel = type === 'all' ? 'All Games' : type === 'cash' ? 'Cash Games' : 'Tournaments';
 
   return (
-    <div className="screen plain">
-      <div className="page-title">
-        <h1>Stats</h1>
-        <p>From {games.length} closed game{games.length === 1 ? '' : 's'}.</p>
-      </div>
-
-      <div className="seg" role="tablist">
-        <button role="tab" aria-selected={view === 'player'} onClick={() => setView('player')}><Icon name="chart" /> Players</button>
-        <button role="tab" aria-selected={view === 'standings'} onClick={() => setView('standings')}><Icon name="trophy" /> Leaderboard</button>
-      </div>
-      <div className="row" style={{ marginTop: 14, gap: 12 }}>
-        <div className="chips" style={{ flex: 1, gap: 8, flexWrap: 'nowrap' }}>
+    <div className="felt-page">
+      <Header title="Stats" sub={`${typeLabel} (${period})`} />
+      <div className="sat-stack">
+        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="View">
+          <button role="radio" aria-checked={view === 'player'} onClick={() => setView('player')}><Icon name="chart" /> Players</button>
+          <button role="radio" aria-checked={view === 'standings'} onClick={() => setView('standings')}><Icon name="trophy" /> Leaderboard</button>
+        </div>
+        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
           {(['all', 'cash', 'tournament'] as const).map((t) => (
-            <button key={t} className="chip sm" aria-pressed={type === t} onClick={() => setType(t)}>{t === 'all' ? 'All' : t === 'cash' ? 'Cash' : 'Tournaments'}</button>
+            <button key={t} role="radio" aria-checked={type === t} onClick={() => setType(t)}>{t === 'all' ? 'All' : t === 'cash' ? 'Cash' : 'Tournaments'}</button>
           ))}
         </div>
-      </div>
-      <div className="input-wrap" style={{ marginTop: 12, width: 190 }}>
-        <span className="prefix"><Icon name="calendar" size={16} /></span>
-        <select className="input" style={{ minHeight: 42, fontSize: 15 }} value={range} onChange={(e) => setRange(e.target.value as RangeFilter)} aria-label="Date range">
-          {RANGES.map((r) => <option key={r.k} value={r.k}>{r.label}</option>)}
-        </select>
-      </div>
+        <div className="sat-cluster" style={gap(2)}>
+          <div className="sat-seg" role="radiogroup" aria-label="Period">
+            {RANGES.map((r) => <button key={r.k} role="radio" aria-checked={range === r.k} onClick={() => setRange(r.k)}>{r.label}</button>)}
+          </div>
+          <Help k="periods" />
+        </div>
 
-      {games.length === 0 ? (
-        <div className="section"><Empty icon="chart">No closed games in this range yet.</Empty></div>
-      ) : view === 'player' ? (
-        <PlayerStats games={games} board={board} selected={selected} setPid={setPid} currency={currency} rangeLabel={rangeLabel} name={name} />
-      ) : (
-        <Standings games={games} board={board} currency={currency} name={name} rangeLabel={rangeLabel} type={type} />
-      )}
+        {games.length === 0 ? (
+          <Empty title="No games in this period" action={range !== 'all' || type !== 'all' ? <button className="sat-btn" onClick={() => { setRange('all'); setType('all'); }}>Show all</button> : undefined}>
+            Try a wider period or switch the game type to All.
+          </Empty>
+        ) : view === 'player' ? (
+          <PlayerStats games={games} board={board} selected={selected} setPid={setPid} currency={currency} name={name} />
+        ) : (
+          <Standings games={games} board={board} currency={currency} name={name} scope={`${typeLabel} (${period})`} />
+        )}
+      </div>
     </div>
   );
 }
 
-function PlayerStats({ games, board, selected, setPid, currency, rangeLabel, name }: {
-  games: ReturnType<typeof filterGames>; board: ReturnType<typeof leaderboard>; selected?: ID;
-  setPid: (p: ID) => void; currency: string; rangeLabel: string; name: (id: ID) => string;
+function sourceLine(games: Game[]) {
+  const last = games[games.length - 1];
+  return `Source: Felt game log (${games.length} closed games${last ? `, latest ${dateLabel(last.startedAt)}` : ''}).`;
+}
+
+function PlayerStats({ games, board, selected, setPid, currency, name }: {
+  games: Game[]; board: ReturnType<typeof leaderboard>; selected?: ID;
+  setPid: (p: ID) => void; currency: string; name: (id: ID) => string;
 }) {
   if (!selected) return null;
   const s = playerSummary(games, selected);
   const played = games.filter((g) => g.playerIds.includes(selected));
   const withRebuy = played.filter((g) => playerResult(g, selected).buyIns > 1);
   const noRebuy = played.filter((g) => playerResult(g, selected).buyIns <= 1);
-  const netOf = (gs: typeof games) => gs.reduce((a, g) => a + playerResult(g, selected).net, 0);
+  const netOf = (gs: Game[]) => gs.reduce((a, g) => a + playerResult(g, selected).net, 0);
   const totals = groupTotals(games);
   let cum = 0;
   const cumVals = s.history.map((h) => (cum += h.net));
-  const signed = (v: number) => money(v, currency, { sign: true });
+  const best = s.history.reduce<{ t: number; net: number } | null>((b, h) => (!b || h.net > b.net ? h : b), null);
+  const plain = (v: number) => money(v, '', { sign: true });
+  const fmt = (a: number) => money(a, currency);
 
   return (
     <>
-      <div className="chips scroll" style={{ marginTop: 18 }}>
-        {board.map((b) => (
-          <button key={b.playerId} className="chip" aria-pressed={selected === b.playerId} onClick={() => setPid(b.playerId)}>{name(b.playerId)}</button>
-        ))}
+      <div className="felt-scroll" role="group" aria-label="Player">
+        {board.map((b) => <button key={b.playerId} className="sat-chip" aria-pressed={selected === b.playerId} onClick={() => setPid(b.playerId)}>{name(b.playerId)}</button>)}
       </div>
 
-      <div className="card" style={{ marginTop: 14 }}>
-        <div className="row between" style={{ alignItems: 'flex-start' }}>
-          <div>
-            <div className="label">{name(selected)}, {rangeLabel.toLowerCase()}</div>
-            <div className={`hero-num ${tone(s.net)}`} style={{ fontSize: 40 }}>{signed(s.net)}</div>
+      <section className="sat-glass sat-card sat-stack" style={gap(2)}>
+        <h2 className="sat-h2">{name(selected)}</h2>
+        <div className="sat-split" style={{ alignItems: 'flex-end' }}>
+          <div className="sat-stack" style={gap(1)}>
+            <Caption q={currency}>Net result</Caption>
+            <span className="sat-kpi">{plain(s.net)}</span>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div className="big-num" style={{ fontSize: 22 }}>{s.wins} of {s.games}</div>
-            <div className="tiny faint">games up</div>
+          <div className="sat-stack felt-right" style={gap(1)}>
+            <Caption tip="winRate">Win rate</Caption>
+            <span className="sat-kpi" style={{ fontSize: '1.75rem' }}>{Math.round(s.winRate * 100)}%</span>
           </div>
         </div>
-        <div className="kpis" style={{ marginTop: 14 }}>
-          <div><div className="v">{s.games}</div><div className="tiny faint">Games</div></div>
-          <div><div className="v">{s.wins}</div><div className="tiny faint">Finished up</div></div>
-          <div><div className="v">{Math.round(s.winRate * 100)}%</div><div className="tiny faint row" style={{ justifyContent: 'center', gap: 2 }}>Win rate <Help k="winRate" /></div></div>
+        <p className="sat-small sat-muted">{s.wins} of {s.games} games finished up.</p>
+        {s.history.length > 1 && (
+          <figure style={{ marginTop: 'var(--sat-space-2)' }}>
+            <LineChart height={110} series={[{ name: 'net', color: 'var(--sat-accent)', values: cumVals }]} />
+            <figcaption className="sat-figcaption"><b>Net = {fmt(s.net)}</b> after {s.games} games{best ? `, best ${money(best.net, currency, { sign: true })} on ${shortDate(best.t)}` : ''}.</figcaption>
+            <p className="sat-source" style={{ marginTop: 'var(--sat-space-1)' }}>{sourceLine(played)} Running total in {currency}.</p>
+          </figure>
+        )}
+      </section>
+
+      <section className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }} aria-label="Key figures">
+        <div className="sat-glass sat-stat"><Caption q={currency}>Best game</Caption><span className="sat-kpi">{s.biggestWin > 0 ? plain(s.biggestWin) : '-'}</span></div>
+        <div className="sat-glass sat-stat"><Caption q={currency}>Worst game</Caption><span className="sat-kpi">{s.biggestLoss < 0 ? plain(s.biggestLoss) : '-'}</span></div>
+        <div className="sat-glass sat-stat"><Caption q={currency} tip="avg">Per game</Caption><span className="sat-kpi">{plain(s.avg)}</span></div>
+        <div className="sat-glass sat-stat"><Caption q="games" tip="streak">Streak</Caption><span className="sat-kpi">{s.streak === 0 ? '-' : Math.abs(s.streak)}</span><span className="sat-note">{s.streak > 0 ? 'Up in a row' : s.streak < 0 ? 'Down in a row' : 'No streak'}</span></div>
+        <div className="sat-glass sat-stat"><Caption>Hands won</Caption><span className="sat-kpi">{s.handsWon}</span><span className="sat-note">Top pot {s.biggestPot} units</span></div>
+        <div className="sat-glass sat-stat"><Caption>Buy-ins per game</Caption><span className="sat-kpi">{s.games ? (s.buyIns / s.games).toFixed(1) : '-'}</span><span className="sat-note">{s.buyIns} in total</span></div>
+      </section>
+
+      <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+        <div className="sat-split"><h2 className="sat-h3">Rebuys</h2><Help k="rebuys" /></div>
+        <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(3) }}>
+          <div className="sat-stack" style={gap(1)}><Caption q={`${withRebuy.length} games`}>Rebought</Caption><Delta value={netOf(withRebuy)} format={fmt} /></div>
+          <div className="sat-stack" style={gap(1)}><Caption q={`${noRebuy.length} games`}>One buy-in</Caption><Delta value={netOf(noRebuy)} format={fmt} /></div>
         </div>
-        {s.history.length > 1 && <div style={{ marginTop: 14 }}><LineChart height={110} series={[{ name: 'net', color: s.net >= 0 ? 'var(--up)' : 'var(--down)', values: cumVals }]} /></div>}
-      </div>
+      </section>
 
-      <div className="stat-grid" style={{ marginTop: 12 }}>
-        <div className="stat"><div className="k">Best game</div><div className="v up">{s.biggestWin > 0 ? signed(s.biggestWin) : '—'}</div></div>
-        <div className="stat"><div className="k">Worst game</div><div className="v down">{s.biggestLoss < 0 ? signed(s.biggestLoss) : '—'}</div></div>
-        <div className="stat"><div className="k">Per game <Help k="avg" /></div><div className={`v ${tone(s.avg)}`}>{signed(s.avg)}</div></div>
-        <div className="stat"><div className="k">Streak <Help k="streak" /></div><div className="v">{s.streak === 0 ? '—' : `${Math.abs(s.streak)} ${s.streak > 0 ? 'up' : 'down'}`}</div></div>
-        <div className="stat"><div className="k">Hands won</div><div className="v">{s.handsWon}</div><div className="d">Biggest pot {s.biggestPot} units</div></div>
-        <div className="stat"><div className="k">Buy-ins per game</div><div className="v">{s.games ? (s.buyIns / s.games).toFixed(1) : '—'}</div><div className="d">{s.buyIns} in all</div></div>
-      </div>
-
-      <div className="card" style={{ marginTop: 12 }}>
-        <div className="row" style={{ gap: 2 }}><span className="label">Rebuys</span><Help k="rebuys" /></div>
-        <div className="grid2" style={{ marginTop: 10 }}>
-          <div><div className="tiny faint">Rebought, {withRebuy.length} games</div><div className={`big-num ${tone(netOf(withRebuy))}`} style={{ fontSize: 21 }}>{signed(netOf(withRebuy))}</div></div>
-          <div><div className="tiny faint">One buy-in, {noRebuy.length} games</div><div className={`big-num ${tone(netOf(noRebuy))}`} style={{ fontSize: 21 }}>{signed(netOf(noRebuy))}</div></div>
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section-head"><h2>Games<span className="count">{played.length}</span></h2></div>
-        <div className="card list">
+      <section className="sat-stack" style={gap(3)}>
+        <h2 className="sat-h2">Games ({played.length})</h2>
+        <div className="sat-glass-2 felt-list">
           {[...played].reverse().map((g) => {
             const r = playerResult(g, selected);
             return (
-              <button key={g.id} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => go(`game/${g.id}/close`)}>
-                <div className="grow"><div style={{ fontWeight: 700 }}>{g.name}</div><div className="tiny faint">{shortDate(g.startedAt)} · {r.buyIns} buy-in{r.buyIns === 1 ? '' : 's'}{r.place ? ` · place ${r.place}` : ''}</div></div>
-                <span className={`num ${tone(r.net)}`}>{money(r.net, g.currency, { sign: true })}</span>
+              <button key={g.id} className="felt-row" onClick={() => go(`game/${g.id}/close`)}>
+                <div className="felt-row-main"><div className="felt-row-title">{g.name}</div><div className="felt-row-sub">{dateLabel(g.startedAt)}, {r.buyIns} buy-in{r.buyIns === 1 ? '' : 's'}{r.place ? `, place ${r.place}` : ''}</div></div>
+                <Delta value={r.net} format={(a) => money(a, g.currency)} />
               </button>
             );
           })}
         </div>
-      </div>
+        <p className="sat-source">{sourceLine(played)}</p>
+      </section>
 
-      <div className="section">
-        <div className="section-head"><h2>Whole group</h2></div>
-        <div className="stat-grid">
-          <div className="stat"><div className="k">Games</div><div className="v">{totals.games}</div></div>
-          <div className="stat"><div className="k">Hands</div><div className="v">{totals.hands}</div></div>
-          <div className="stat"><div className="k">Biggest pot</div><div className="v">{totals.biggestPot}</div><div className="d">units</div></div>
-          <div className="stat"><div className="k">Changed hands</div><div className="v">{money(totals.moneyMoved, currency)}</div><div className="d">All winning results added up</div></div>
+      <section className="sat-stack" style={gap(3)}>
+        <h2 className="sat-h2">Whole group</h2>
+        <div className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }}>
+          <div className="sat-glass sat-stat"><Caption>Games</Caption><span className="sat-kpi">{totals.games}</span></div>
+          <div className="sat-glass sat-stat"><Caption>Hands</Caption><span className="sat-kpi">{totals.hands}</span></div>
+          <div className="sat-glass sat-stat"><Caption q="units">Top pot</Caption><span className="sat-kpi">{totals.biggestPot}</span></div>
+          <div className="sat-glass sat-stat"><Caption q={currency}>Won in total</Caption><span className="sat-kpi">{money(totals.moneyMoved, '')}</span><span className="sat-note">All winning results added up</span></div>
         </div>
-      </div>
+      </section>
     </>
   );
 }
 
-function Standings({ games, board, currency, name, rangeLabel, type }: {
-  games: ReturnType<typeof filterGames>; board: ReturnType<typeof leaderboard>; currency: string;
-  name: (id: ID) => string; rangeLabel: string; type: TypeFilter;
+function Standings({ games, board, currency, name, scope }: {
+  games: Game[]; board: ReturnType<typeof leaderboard>; currency: string; name: (id: ID) => string; scope: string;
 }) {
   const pref = useStore((s) => s.settings.theme);
   const look = useResolvedTheme(pref);
@@ -164,63 +176,71 @@ function Standings({ games, board, currency, name, rangeLabel, type }: {
   const [editing, setEditing] = useState(false);
   const shown = showAll ? board : board.slice(0, 5);
   const series = cumulativeSeries(games, cmp);
+  const lastVals = series[series.length - 1]?.values ?? {};
+  const leader = [...cmp].sort((a, b) => (lastVals[b] ?? 0) - (lastVals[a] ?? 0))[0];
+  const fmt = (a: number) => money(a, currency);
 
   const share = async () => {
     try {
       await loadReportFonts();
-      const scope = `${rangeLabel}${type === 'all' ? '' : type === 'cash' ? ', cash' : ', tournaments'}`;
       const canvases = renderStandings(games, board, name, currency, scope, look);
-      const files = await Promise.all(canvases.map((c, i) => canvasToFile(c, `standings-${new Date().toLocaleDateString('en-CA')}${canvases.length > 1 ? `-${i + 1}` : ''}.png`)));
+      const files = await Promise.all(canvases.map((c, i) => canvasToFile(c, `leaderboard-${new Date().toLocaleDateString('en-CA')}${canvases.length > 1 ? `-${i + 1}` : ''}.png`)));
       const r = await shareFiles(files, 'Leaderboard');
-      if (r === 'downloaded') toast('Saved to your downloads');
+      if (r === 'downloaded') toast('Leaderboard exported to Downloads');
     } catch (e) {
-      toast(`Couldn't share: ${(e as Error).message}`);
+      toast(`Image unable to build (${(e as Error).message}). Try again.`);
     }
   };
 
   return (
     <>
-      <div className="section" style={{ marginTop: 20 }}>
-        <div className="section-head"><h2>Leaderboard <Help k="leaderboard" /></h2><span className="small muted">{board.length} players</span></div>
-        <div className="card" style={{ padding: '0 10px' }}>
-          <table className="table">
-            <thead><tr><th>Player</th><th className="r">Games</th><th className="r">Net</th></tr></thead>
+      <section className="sat-glass-2 sat-card sat-stack" style={gap(3)}>
+        <div className="sat-card-head" style={{ marginBottom: 0 }}>
+          <h2 className="sat-h3">Leaderboard <Help k="leaderboard" /></h2>
+          <button className="sat-btn sat-btn--sm" onClick={share}><Icon name="share" /> Share image</button>
+        </div>
+        <div className="sat-table-wrap">
+          <table className="sat-table">
+            <thead><tr><th>Player</th><th className="n">Games</th><th className="n">Net <span className="sat-qual">({currency})</span></th></tr></thead>
             <tbody>
               {shown.map((b, i) => (
                 <tr key={b.playerId} onClick={() => go(`insights/${b.playerId}`)} style={{ cursor: 'pointer' }}>
-                  <td><div className="row" style={{ gap: 8 }}><span className="num faint" style={{ width: 16 }}>{i + 1}</span><Avatar name={name(b.playerId)} size="sm" /><span style={{ fontWeight: 700 }}>{name(b.playerId)}</span></div></td>
-                  <td className="r num muted">{b.games}</td>
-                  <td className={`r num ${tone(b.net)}`}>{money(b.net, currency, { sign: true })}</td>
+                  <td><span className="sat-cluster" style={gap(2)}><span className="sat-mono sat-muted" style={{ width: 14 }}>{i + 1}</span><Avatar name={name(b.playerId)} size="sm" /><span style={{ fontWeight: 600 }}>{name(b.playerId)}</span></span></td>
+                  <td className="n">{b.games}</td>
+                  <td className="n"><Delta value={b.net} format={(a) => money(a, '')} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {board.length > 5 && <button className="btn block sm" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show fewer' : `Show ${board.length - 5} more`}</button>}
         </div>
-        <button className="btn block" style={{ marginTop: 14 }} onClick={share}><Icon name="share" /> Share as an image</button>
-      </div>
+        {board.length > 5 && <button className="sat-btn sat-btn--ghost" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show top 5' : `Show ${board.length} players`}</button>}
+        <p className="sat-source">{sourceLine(games)} Net in {currency}.</p>
+      </section>
 
-      <div className="section">
-        <div className="section-head"><h2>Over time</h2><button className="btn xs" onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Choose players'}</button></div>
+      <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+        <div className="sat-card-head" style={{ marginBottom: 0 }}>
+          <h2 className="sat-h2">Over time</h2>
+          <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Choose players'}</button>
+        </div>
         {editing && (
-          <div className="chips" style={{ marginBottom: 14 }}>
-            {board.map((b) => <button key={b.playerId} className="chip sm" aria-pressed={cmp.includes(b.playerId)} onClick={() => setCmp(cmp.includes(b.playerId) ? cmp.filter((x) => x !== b.playerId) : [...cmp, b.playerId])}>{name(b.playerId)}</button>)}
+          <div className="sat-cluster" style={gap(2)}>
+            {board.map((b) => <button key={b.playerId} className="sat-chip" aria-pressed={cmp.includes(b.playerId)} onClick={() => setCmp(cmp.includes(b.playerId) ? cmp.filter((x) => x !== b.playerId) : [...cmp, b.playerId])}>{name(b.playerId)}</button>)}
           </div>
         )}
-        <div className="card">
-          <div className="tiny faint" style={{ marginBottom: 10 }}>Running total after each game</div>
+        <figure>
           <LineChart series={cmp.map((p, i) => ({ name: p, color: SERIES_COLORS[i % SERIES_COLORS.length], values: series.map((s) => s.values[p] ?? 0) }))} />
-          <div className="row wrap" style={{ gap: 14, marginTop: 12 }}>
+          <div className="sat-cluster sat-small" style={{ ...gap(4), marginTop: 'var(--sat-space-3)' }}>
             {cmp.map((p, i) => (
-              <span key={p} className="small row" style={{ gap: 6 }}>
+              <span key={p} className="sat-cluster" style={gap(2)}>
                 <span style={{ width: 10, height: 10, borderRadius: 3, background: SERIES_COLORS[i % SERIES_COLORS.length] }} />{name(p)}
-                <b className={`num ${tone(series[series.length - 1]?.values[p] ?? 0)}`}>{money(series[series.length - 1]?.values[p] ?? 0, currency, { sign: true })}</b>
+                <Delta value={lastVals[p] ?? 0} format={fmt} />
               </span>
             ))}
           </div>
-          {series.length > 1 && <div className="row between tiny faint" style={{ marginTop: 8 }}><span>{shortDate(series[0].t)}</span><span>{shortDate(series[series.length - 1].t)}</span></div>}
-        </div>
-      </div>
+          {leader && <figcaption className="sat-figcaption"><b>Leader = {name(leader)} ({money(lastVals[leader] ?? 0, currency, { sign: true })})</b> over {series.length} games{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
+          <p className="sat-source" style={{ marginTop: 'var(--sat-space-1)' }}>{sourceLine(games)} Running total after each game, in {currency}.</p>
+        </figure>
+      </section>
     </>
   );
 }

@@ -9,6 +9,16 @@ Offline Texas Hold'em tracker for a single phone. It runs as an installable web 
 - **Insights:** all-time standings and a comparison chart.
 - **Reports:** Summary, Detailed and Full as PNG, plus Data as CSV, sent through the phone's share sheet.
 
+## Design
+
+Felt uses the Vaela Material System. The tokens are mirrored in `src/design/tokens.css`, and the full spec is `Vaela v2/design/DESIGN.md`.
+- **Paper:** lists and stats.
+- **Stone:** controls and player tiles.
+- **Clay:** the one main action per screen.
+- **Glass:** the top bar, tab bar, action bar, sheets, toasts and info popovers.
+
+The fonts (Fraunces, Atkinson Hyperlegible, IBM Plex Mono) are self-hosted in `src/assets/fonts`. Light, dark and auto themes are in **Settings → Appearance**.
+
 ## Develop
 
 ```

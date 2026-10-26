@@ -12,6 +12,7 @@ const idbStorage: StateStorage = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
+  theme: 'system',
   currency: 'S$',
   unitValue: 0.1,
   sb: 1,

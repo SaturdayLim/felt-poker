@@ -1,6 +1,7 @@
+import { tone } from '../lib/format';
 import { useId } from 'react';
 
-export const SERIES_COLORS = ['#5ee3a1', '#f5c13d', '#6aa8ff', '#f0616d', '#c58cff', '#4fd6e0', '#ff9b5e', '#e8e8e8'];
+export const SERIES_COLORS = ['var(--arcaen)', 'var(--aelum)', 'var(--vitalen)', 'var(--seal)', 'var(--somalen)', 'var(--ink-soft)', 'var(--edge-strong)', 'var(--ink)'];
 
 /** Stepped area chart of a cumulative value over time. */
 export function StepChart({ points, height = 90, endTime }: { points: { t: number; v: number }[]; height?: number; endTime: number }) {
@@ -21,13 +22,13 @@ export function StepChart({ points, height = 90, endTime }: { points: { t: numbe
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }}>
       <defs>
         <linearGradient id={`g${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#5ee3a1" stopOpacity=".35" />
-          <stop offset="1" stopColor="#5ee3a1" stopOpacity="0" />
+          <stop offset="0" style={{ stopColor: 'var(--accent)', stopOpacity: 0.3 }} />
+          <stop offset="1" style={{ stopColor: 'var(--accent)', stopOpacity: 0 }} />
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#g${id})`} />
-      <path d={d} fill="none" stroke="#5ee3a1" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      <circle cx={x(t1)} cy={y(last.v)} r="3.5" fill="#5ee3a1" />
+      <path d={d} fill="none" style={{ stroke: 'var(--accent)' }} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <circle cx={x(t1)} cy={y(last.v)} r="3.5" style={{ fill: 'var(--accent)' }} />
     </svg>
   );
 }
@@ -46,9 +47,9 @@ export function LineChart({ series, height = 180 }: {
   const y = (v: number) => padT + (1 - (v - vmin) / span) * (H - padT - padB);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }}>
-      <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="#35403a" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+      <line x1={0} x2={W} y1={y(0)} y2={y(0)} style={{ stroke: 'var(--edge-strong)' }} strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
       {series.map((s) => (
-        <polyline key={s.name} fill="none" stroke={s.color} strokeWidth="2.2" strokeLinejoin="round"
+        <polyline key={s.name} fill="none" style={{ stroke: s.color }} strokeWidth="2.2" strokeLinejoin="round"
           vectorEffect="non-scaling-stroke" points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(' ')} />
       ))}
     </svg>
@@ -62,14 +63,14 @@ export function NetBars({ rows, format }: { rows: { label: string; value: number
     <div className="stack">
       {rows.map((r) => (
         <div key={r.label}>
-          <div className="row between small"><span>{r.label}</span><span className={r.value >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 700 }}>{format(r.value)}</span></div>
+          <div className="row between small"><span>{r.label}</span><span className={`num ${tone(r.value)}`} style={{ fontWeight: 700 }}>{format(r.value)}</span></div>
           <div style={{ display: 'flex', height: 8, marginTop: 5 }}>
             <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-              {r.value < 0 && <div style={{ width: `${(Math.abs(r.value) / max) * 100}%`, background: 'var(--red)', borderRadius: '4px 0 0 4px' }} />}
+              {r.value < 0 && <div style={{ width: `${(Math.abs(r.value) / max) * 100}%`, background: 'var(--down)', borderRadius: '4px 0 0 4px' }} />}
             </div>
-            <div style={{ width: 2, background: 'var(--border-strong)' }} />
+            <div style={{ width: 2, background: 'var(--edge-strong)' }} />
             <div style={{ flex: 1 }}>
-              {r.value > 0 && <div style={{ width: `${(r.value / max) * 100}%`, height: '100%', background: 'var(--mint)', borderRadius: '0 4px 4px 0' }} />}
+              {r.value > 0 && <div style={{ width: `${(r.value / max) * 100}%`, height: '100%', background: 'var(--up)', borderRadius: '0 4px 4px 0' }} />}
             </div>
           </div>
         </div>

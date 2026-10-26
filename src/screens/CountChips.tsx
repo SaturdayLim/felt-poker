@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Avatar, Empty, Icon, num, toast } from '../components/ui';
+import { Empty, Help, Icon, num, toast } from '../components/ui';
 import { buyInUnits, cashOutUnits, hasCashedOut, totalBuyInUnits } from '../lib/calc';
-import { money, units } from '../lib/format';
+import { money, units, tone } from '../lib/format';
 import type { ID } from '../types';
 
 export default function CountChips({ gameId }: { gameId: string }) {
@@ -22,7 +22,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
     Object.fromEntries((g?.playerIds ?? []).filter((p) => hasCashedOut(g!, p)).map((p) => [p, String(cashOutUnits(g!, p))])),
   );
 
-  if (!g) return <div className="screen"><Empty icon="games">Game not found.</Empty></div>;
+  if (!g) return <div className="screen plain"><Empty icon="games">This game doesn't exist any more.</Empty></div>;
   const ordered = [...g.playerIds].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99));
   const list = ordered.filter((p) => name(p).toLowerCase().includes(q.toLowerCase()));
   const entered = ordered.filter((p) => hasCashedOut(g, p)).length;
@@ -39,39 +39,34 @@ export default function CountChips({ gameId }: { gameId: string }) {
   const selOut = sel ? num(text[sel] ?? '') : null;
 
   const finish = () => {
-    if (!allIn) { toast(`${ordered.length - entered} player(s) still need a count`); return; }
-    if (diff !== 0 && !confirm) { setConfirm(true); toast(`Off by ${units(diff)} units — tap again to finish anyway`); return; }
+    if (!allIn) { toast(`${ordered.length - entered} still to count`); return; }
+    if (diff !== 0 && !confirm) { setConfirm(true); toast(`Off by ${units(diff)} units. Tap Finish again to close anyway.`); return; }
     finishGame(g.id);
     go(`game/${g.id}/close`, true);
   };
 
   return (
-    <div className="screen no-nav">
+    <div className="screen">
       <div className="topbar left">
         <div className="titles">
           <h1>Count chips</h1>
-          <div className="sub">{money(totalBuyInUnits(g) * g.unitValue, g.currency)} total · {entered}/{ordered.length} entered</div>
+          <div className="sub">{entered} of {ordered.length} counted · {money(totalBuyInUnits(g) * g.unitValue, g.currency)} bought</div>
         </div>
-        <button className="icon-btn ghost" onClick={() => back(`game/${g.id}`)} aria-label="Close"><Icon name="close" /></button>
+        <button className="icon-btn" onClick={() => back(`game/${g.id}`)} aria-label="Close"><Icon name="close" /></button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '44% 1fr', gap: 10, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '44% 1fr', gap: 14, alignItems: 'start' }}>
         <div>
-          <input className="input" style={{ height: 40, fontSize: 14, borderRadius: 20 }} placeholder="Find player" value={q} onChange={(e) => setQ(e.target.value)} />
-          <div style={{ marginTop: 8 }}>
+          <input className="input" style={{ minHeight: 42, fontSize: 15 }} placeholder="Find a player" value={q} onChange={(e) => setQ(e.target.value)} />
+          <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
             {list.map((p) => {
               const done = hasCashedOut(g, p);
               const net = done ? cashOutUnits(g, p) - buyInUnits(g, p) : null;
               return (
-                <button key={p} onClick={() => setSel(p)} className="row" style={{
-                  width: '100%', textAlign: 'left', padding: '9px 8px', borderRadius: 12, marginBottom: 4,
-                  border: `1px solid ${sel === p ? 'var(--mint)' : 'transparent'}`, background: sel === p ? 'var(--mint-dark)' : 'none',
-                }}>
-                  <Avatar name={name(p)} size="sm" />
+                <button key={p} onClick={() => setSel(p)} aria-pressed={sel === p} className="btn" style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '8px 10px', minHeight: 58 }}>
                   <div className="grow" style={{ minWidth: 0 }}>
-                    <div className="row" style={{ gap: 4 }}><span className="ellipsis" style={{ fontWeight: 650, fontSize: 13.5 }}>{name(p)}</span>{done && <span className="pos"><Icon name="check" size={13} /></span>}</div>
-                    <div className="tiny muted">{units(buyInUnits(g, p))} in</div>
-                    {net !== null && <div className={`tiny ${net >= 0 ? 'pos' : 'neg'}`}>{units(net, { sign: true })}</div>}
+                    <div className="row" style={{ gap: 4 }}><span className="ellipsis" style={{ fontSize: 14.5 }}>{name(p)}</span>{done && <span className="up" style={{ display: 'inline-flex' }}><Icon name="check" size={14} /></span>}</div>
+                    <div className="tiny faint" style={{ fontWeight: 400 }}>{units(buyInUnits(g, p))} in{net !== null && <> · <span className={`num ${tone(net)}`}>{units(net, { sign: true })}</span></>}</div>
                   </div>
                 </button>
               );
@@ -79,38 +74,38 @@ export default function CountChips({ gameId }: { gameId: string }) {
           </div>
         </div>
 
-        <div className="card" style={{ position: 'sticky', top: 'calc(var(--safe-top) + 10px)', minHeight: 360, display: 'flex', flexDirection: 'column' }}>
+        <div className="panel" style={{ position: 'sticky', top: 'calc(var(--safe-top) + 78px)', minHeight: 360, display: 'flex', flexDirection: 'column' }}>
           {sel ? (
             <>
-              <div className="row"><Avatar name={name(sel)} size="sm" /><span style={{ fontWeight: 700 }}>{name(sel)}</span></div>
-              <div className="tiny muted" style={{ marginTop: 10 }}>Final chip count (units)</div>
+              <div style={{ font: '600 18px var(--font-display)' }}>{name(sel)}</div>
+              <div className="label tiny" style={{ marginTop: 12 }}>Chips at the end, units</div>
               <input key={sel} className="input big" autoFocus inputMode="decimal" placeholder="0" value={text[sel] ?? ''}
-                onChange={(e) => update(sel, e.target.value)} style={{ marginTop: 6, borderWidth: '0 0 2px', borderRadius: 0, background: 'none', paddingLeft: 0 }} />
-              <div className="row between small" style={{ marginTop: 14 }}><span className="muted">Bought in</span><span>{units(selIn)} u</span></div>
+                onChange={(e) => update(sel, e.target.value)} style={{ marginTop: 6 }} />
+              <div className="row between small" style={{ marginTop: 14 }}><span className="muted">Bought in</span><span className="num">{units(selIn)}</span></div>
               <div className="row between small" style={{ marginTop: 8 }}><span className="muted">Result</span>
-                {selOut !== null ? <span className={selOut - selIn >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 700 }}>{money((selOut - selIn) * g.unitValue, g.currency, { sign: true })}</span> : <span className="muted">—</span>}
+                {selOut !== null ? <span className={`num ${tone(selOut - selIn)}`}>{money((selOut - selIn) * g.unitValue, g.currency, { sign: true })}</span> : <span className="faint">—</span>}
               </div>
               <div className="grow" />
               <div className="row between" style={{ marginTop: 20 }}>
-                <span className={`small ${diff === 0 ? 'pos' : allIn ? 'gold' : 'muted'}`}>{diff === 0 ? 'Balanced' : !allIn ? 'Left to count' : diff > 0 ? 'Over' : 'Short'}</span>
-                <span className={diff === 0 ? 'pos' : allIn ? 'gold' : ''} style={{ fontWeight: 800, fontSize: 18 }}>{allIn ? units(diff, { sign: true }) : units(-diff)} u</span>
+                <span className={`small row ${diff === 0 ? 'up' : allIn ? 'amber' : 'muted'}`} style={{ gap: 2 }}>{diff === 0 ? 'Balanced' : !allIn ? 'Left to count' : diff > 0 ? 'Too many' : 'Too few'}<Help k="count" /></span>
+                <span className={`num ${diff === 0 ? 'up' : allIn ? 'amber' : ''}`} style={{ fontSize: 18 }}>{allIn ? units(diff, { sign: true }) : units(-diff)}</span>
               </div>
               <div className="btn-row" style={{ marginTop: 12 }}>
-                <button className="btn sm" disabled={idx <= 0} onClick={() => setSel(ordered[idx - 1])}>Previous</button>
-                <button className="btn sm primary" onClick={() => {
+                <button className="btn sm" disabled={idx <= 0} onClick={() => setSel(ordered[idx - 1])}>Back</button>
+                <button className="btn sm" onClick={() => {
                   const next = ordered.slice(idx + 1).find((p) => !hasCashedOut(g, p)) ?? ordered.find((p) => !hasCashedOut(g, p) && p !== sel);
                   if (next) setSel(next);
-                  else toast('All counts entered');
-                }}>Done</button>
+                  else toast('Everyone is counted');
+                }}>Next</button>
               </div>
             </>
           ) : <Empty icon="users">No players.</Empty>}
         </div>
       </div>
 
-      <div className="fab-bar"><div className="inner">
+      <div className="fab-bar"><div className="inner glass">
         <button className="btn lg" onClick={() => back(`game/${g.id}`)}>Back to game</button>
-        <button className="btn primary lg" onClick={finish}>Finish &amp; settle</button>
+        <button className="btn primary lg" onClick={finish}>Finish</button>
       </div></div>
     </div>
   );

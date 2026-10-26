@@ -135,7 +135,10 @@ export interface Markers {
   tags: boolean;
 }
 
+export type ThemePref = 'system' | 'light' | 'dark';
+
 export interface Settings {
+  theme: ThemePref;
   currency: string;
   unitValue: number;
   sb: number;

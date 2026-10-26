@@ -1,6 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cardText, rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
+import { HELP } from '../lib/help';
 import type { Card } from '../types';
 
 /* ------------------------------- icons ------------------------------- */
@@ -39,6 +41,10 @@ const paths: Record<string, ReactNode> = {
   image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 16-5-5-9 9" /></>,
   file: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /></>,
   chevron: <path d="m6 9 6 6 6-6" />,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.6v.4" /></>,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.9 4.9 1.4 1.4" /><path d="m17.7 17.7 1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m4.9 19.1 1.4-1.4" /><path d="m17.7 6.3 1.4-1.4" /></>,
+  moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
+  phone: <><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M11 18.5h2" /></>,
 };
 
 export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; stroke?: number }) {
@@ -59,18 +65,67 @@ export function Sheet({ open, onClose, title, sub, children }: {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    document.body.classList.add('modal-open');
+    return () => { document.body.style.overflow = prev; document.body.classList.remove('modal-open'); };
   }, [open]);
   if (!open) return null;
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="sheet glass" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
         <div className="grab" />
-        {title && <h3>{title}</h3>}
-        {sub && <div className="sheet-sub">{sub}</div>}
-        {children}
+        {(title || sub) && (
+          <div className="sheet-head">
+            {title && <h3>{title}</h3>}
+            {sub && <p>{sub}</p>}
+          </div>
+        )}
+        <div className="sheet-body">{children}</div>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------- info ------------------------------- */
+
+/** Small "i" button that explains a number or control in a glass popover (≤ 3 lines). */
+export function Info({ title, children }: { title?: string; children: ReactNode }) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open || !btn.current || !pop.current) return;
+    const r = btn.current.getBoundingClientRect();
+    const w = pop.current.offsetWidth, h = pop.current.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.min(Math.max(16, r.left + r.width / 2 - w / 2), vw - 16 - w);
+    const below = r.bottom + 8;
+    const top = below + h > vh - 90 ? Math.max(16, r.top - 8 - h) : below;
+    setPos({ top, left });
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, { passive: true, capture: true });
+    return () => window.removeEventListener('scroll', close, { capture: true });
+  }, [open]);
+  return (
+    <>
+      <button ref={btn} type="button" className="info-btn" aria-label={title ? `About ${title}` : 'More info'} aria-expanded={open}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); setPos(null); }}>
+        <Icon name="info" />
+      </button>
+      {open && createPortal(
+        <>
+          <div className="info-catch" onClick={() => setOpen(false)} />
+          <div ref={pop} role="tooltip" className="info-pop glass" style={pos ? { top: pos.top, left: pos.left } : { top: -999, left: 0 }}>
+            {title && <b>{title}</b>}
+            {children}
+          </div>
+        </>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -100,7 +155,7 @@ export function Avatar({ name, size }: { name: string; size?: 'sm' | 'lg' }) {
 }
 
 export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
-  return <button type="button" role="switch" aria-checked={on} aria-label={label} className={`toggle ${on ? 'on' : ''}`} onClick={() => onChange(!on)} />;
+  return <button type="button" role="switch" aria-checked={on} aria-label={label} className="toggle" onClick={() => onChange(!on)} />;
 }
 
 export function Empty({ icon, children }: { icon: string; children: ReactNode }) {
@@ -123,7 +178,7 @@ export function ToastHost() {
     };
     return () => { toastListener = null; };
   }, []);
-  return msg ? <div className="toast" role="status">{msg}</div> : null;
+  return msg ? <div className="toast glass" role="status">{msg}</div> : null;
 }
 
 /** Re-render every `ms` milliseconds (for live clocks). */
@@ -140,4 +195,10 @@ export function num(v: string): number | null {
   if (v.trim() === '') return null;
   const n = Number(v.replace(/,/g, ''));
   return Number.isFinite(n) ? n : null;
+}
+
+/** Info button with the shared help copy. */
+export function Help({ k }: { k: keyof typeof HELP }) {
+  const h = HELP[k];
+  return <Info title={h.title}>{h.text}</Info>;
 }

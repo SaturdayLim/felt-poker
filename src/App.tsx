@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useStore } from './store';
+import { applyTheme } from './theme';
 import { useRoute } from './router';
 import { Icon, ToastHost } from './components/ui';
 import Home from './screens/Home';
@@ -16,14 +18,16 @@ import Settings from './screens/Settings';
 const NAV = [
   { path: '', label: 'Home', icon: 'home' },
   { path: 'games', label: 'Games', icon: 'games' },
-  { path: 'insights', label: 'Insights', icon: 'chart' },
+  { path: 'insights', label: 'Stats', icon: 'chart' },
   { path: 'players', label: 'Players', icon: 'users' },
   { path: 'settings', label: 'Settings', icon: 'settings' },
 ];
 
 export default function App() {
   const hydrated = useStore((s) => s.hydrated);
+  const theme = useStore((s) => s.settings.theme);
   const r = useRoute();
+  useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
   if (!hydrated) return <div className="app" />;
 
   let screen: JSX.Element;
@@ -50,9 +54,9 @@ export default function App() {
       {screen}
       {nav && (
         <nav className="nav">
-          <div className="inner">
+          <div className="inner glass">
             {NAV.map((n) => (
-              <a key={n.path} href={`#/${n.path}`} className={active === n.path ? 'on' : ''}>
+              <a key={n.path} href={`#/${n.path}`} aria-current={active === n.path ? 'page' : undefined}>
                 <Icon name={n.icon} />
                 {n.label}
               </a>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Empty, Icon, PlayingCard, num, toast } from '../components/ui';
+import { Empty, Help, Icon, PlayingCard, num, toast } from '../components/ui';
 import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand } from '../lib/cards';
 import { playerStatus } from '../lib/calc';
 import { inBB, money, units } from '../lib/format';
@@ -98,7 +98,7 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
     return s;
   }, [d]);
 
-  if (!g || !d) return <div className="screen"><Empty icon="cards">Game not found.</Empty></div>;
+  if (!g || !d) return <div className="screen plain"><Empty icon="cards">This game doesn't exist any more.</Empty></div>;
   const m = settings.markers;
   const set = (patch: Partial<Draft>) => setD({ ...d, ...patch });
   const potN = num(d.pot) ?? 0;
@@ -177,14 +177,14 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
   });
 
   const save = (next: boolean) => {
-    if (!valid) { toast(d.winners.length ? 'Split amounts must add up to the pot' : 'Pick the winner'); return; }
+    if (!valid) { toast(d.winners.length ? 'The split has to add up to the pot' : 'Pick who won'); return; }
     saveHand(g.id, toHand());
     if (next) {
       const fresh = useStore.getState().games.find((x) => x.id === g.id)!;
       setD(blank(fresh));
       setTarget({ kind: 'board', i: 0 });
       window.scrollTo(0, 0);
-      toast(`Hand #${d.n} saved`);
+      toast(`Hand ${d.n} saved`);
     } else {
       back(`game/${g.id}`);
     }
@@ -193,24 +193,24 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
   const tagPool = [...new Set([...settings.tags, ...d.tags])];
 
   return (
-    <div className="screen no-nav" style={{ paddingBottom: 'calc(var(--safe-bottom) + 100px)' }}>
+    <div className="screen">
       <div className="topbar">
         <button className="icon-btn" onClick={() => back(`game/${g.id}`)} aria-label="Back"><Icon name="back" /></button>
-        <div className="titles"><h1>Hand #{d.n}</h1><div className="sub">{g.name}{existing ? ' · editing' : ''}</div></div>
+        <div className="titles"><h1>Hand {d.n}</h1><div className="sub">{g.name}</div></div>
         {existing ? (
-          <button className="icon-btn" style={confirmDel ? { borderColor: 'var(--red)', color: 'var(--red)' } : undefined} aria-label="Delete hand"
+          <button className="icon-btn danger" style={confirmDel ? { background: 'var(--seal)', color: 'var(--on-seal)' } : undefined} aria-label="Delete hand"
             onClick={() => { if (!confirmDel) { setConfirmDel(true); toast('Tap again to delete'); return; } deleteHand(g.id, d.id); go(`game/${g.id}`, true); }}>
             <Icon name="trash" />
           </button>
-        ) : <span style={{ width: 40 }} />}
+        ) : <span style={{ width: 44 }} />}
       </div>
 
       {m.dealer && (
-        <div className="section" style={{ marginTop: 6 }}>
-          <div className="label" style={{ marginBottom: 8 }}>Dealer button</div>
-          <div className="chips" style={{ flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 2 }}>
+        <div>
+          <div className="row" style={{ gap: 4, marginBottom: 8 }}><span className="label">Dealer</span><Help k="dealer" /></div>
+          <div className="chips scroll">
             {active.map((p) => (
-              <button key={p} className={`chip ${d.dealerId === p ? 'on' : ''}`} style={{ flex: 'none' }} onClick={() => set({ dealerId: p })}>
+              <button key={p} className="chip" aria-pressed={d.dealerId === p} onClick={() => set({ dealerId: p })}>
                 {d.dealerId === p && <span className="dealer-btn">D</span>}{name(p)}
               </button>
             ))}
@@ -219,43 +219,43 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
       )}
 
       <div className="section" style={{ marginTop: 16 }}>
-        <div className="label" style={{ marginBottom: 8 }}>Pot</div>
+        <div className="row" style={{ gap: 4, marginBottom: 8 }}><span className="label">Pot</span><Help k="pot" /></div>
         <div className="input-wrap">
           <input className="input big" inputMode="decimal" placeholder="0" value={d.pot} onChange={(e) => set({ pot: e.target.value })} />
           <span className="suffix">units</span>
         </div>
-        {potN > 0 && <div className="small muted" style={{ marginTop: 6 }}>{inBB(g, potN)}{g.type === 'cash' && <> · {money(potN * g.unitValue, g.currency)}</>}</div>}
+        {potN > 0 && <div className="small muted" style={{ marginTop: 6 }}>{inBB(g, potN)}{g.type === 'cash' && <>, or {money(potN * g.unitValue, g.currency)}</>}</div>}
       </div>
 
       <div className="section" style={{ marginTop: 18 }}>
         <div className="row between" style={{ marginBottom: 8 }}>
-          <span className="label">Winner{d.winners.length > 1 ? 's · split pot' : ''}</span>
-          {d.shown.length >= 2 && boardDone && <button className="btn xs" onClick={autoWinner}><Icon name="bolt" /> From showdown</button>}
+          <span className="label">{d.winners.length > 1 ? 'Winners, split pot' : 'Winner'}</span>
+          {d.shown.length >= 2 && boardDone && <button className="btn xs" onClick={autoWinner}><Icon name="bolt" /> Best hand wins</button>}
         </div>
         <div className="chips">
           {order.map((p) => (
-            <button key={p} className={`chip ${d.winners.includes(p) ? 'on' : ''}`} onClick={() => toggleWinner(p)}>
+            <button key={p} className="chip" aria-pressed={d.winners.includes(p)} onClick={() => toggleWinner(p)}>
               {d.winners.includes(p) && <Icon name="trophy" size={14} />}{name(p)}
             </button>
           ))}
         </div>
         {d.winners.length > 1 && (
-          <div className="card flat" style={{ marginTop: 10, padding: '6px 12px' }}>
+          <div className="card" style={{ marginTop: 12, padding: '4px 12px' }}>
             {d.winners.map((w) => (
               <div key={w} className="list-row" style={{ padding: '8px 0' }}>
                 <span className="grow" style={{ fontWeight: 600 }}>{name(w)}</span>
                 {d.customSplit ? (
-                  <input className="input" style={{ width: 110, height: 38, fontSize: 15 }} inputMode="decimal" value={d.split[w] ?? ''}
+                  <input className="input num" style={{ width: 110, minHeight: 40, fontSize: 15 }} inputMode="decimal" value={d.split[w] ?? ''}
                     onChange={(e) => set({ split: { ...d.split, [w]: e.target.value } })} />
-                ) : <span style={{ fontWeight: 700 }}>{units(amounts[w] ?? 0)} u</span>}
+                ) : <span className="num">{units(amounts[w] ?? 0)}</span>}
               </div>
             ))}
             <div className="row between" style={{ padding: '8px 0' }}>
               <button className="btn xs" onClick={() => set({
                 customSplit: !d.customSplit,
                 split: Object.fromEntries(d.winners.map((w) => [w, String(amounts[w] ?? 0)])),
-              })}>{d.customSplit ? 'Split evenly' : 'Custom split'}</button>
-              {d.customSplit && <span className={`small ${splitOk ? 'pos' : 'neg'}`}>{units(splitSum)} / {units(potN)}</span>}
+              })}>{d.customSplit ? 'Split evenly' : 'Set amounts'}</button>
+              {d.customSplit && <span className={`small num ${splitOk ? 'up' : 'down'}`}>{units(splitSum)} of {units(potN)}</span>}
             </div>
           </div>
         )}
@@ -264,12 +264,15 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
       <div className="section" style={{ marginTop: 18 }}>
         <div className="row between" style={{ marginBottom: 8 }}>
           <span className="label">Board</span>
-          <button className={`chip ${d.boardNA ? 'gold-on' : ''}`} style={{ height: 30 }} onClick={() => { set({ boardNA: !d.boardNA }); setTarget(null); }}>
-            {d.boardNA ? <Icon name="check" size={13} /> : null} Board n/a
-          </button>
+          <span className="row" style={{ gap: 4 }}>
+            <button className="chip sm amber" aria-pressed={d.boardNA} onClick={() => { set({ boardNA: !d.boardNA }); setTarget(null); }}>
+              {d.boardNA ? <Icon name="check" size={13} /> : null} No board
+            </button>
+            <Help k="boardNA" />
+          </span>
         </div>
         {d.boardNA ? (
-          <div className="small muted">Board not tracked for this hand (bomb pot, side game, etc.).</div>
+          <div className="small muted">The board isn't recorded for this hand.</div>
         ) : (
           <div className="row" style={{ gap: 8 }}>
             {d.board.map((c, i) => (
@@ -283,34 +286,34 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
       </div>
 
       <div className="section" style={{ marginTop: 18 }}>
-        <div className="label" style={{ marginBottom: 8 }}>Shown hands</div>
+        <div className="row" style={{ gap: 4, marginBottom: 8 }}><span className="label">Shown cards</span><Help k="shown" /></div>
         {d.shown.map((s, idx) => {
           const v = shownValues[idx];
           const top = v && v.score === bestScore;
           return (
-            <div key={s.playerId} className="row" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-              <span className="grow" style={{ fontWeight: 650 }}>{name(s.playerId)}
-                {v && <div className={`tiny ${top ? 'pos' : 'muted'}`}>{v.name}{top ? ' · best' : ''}</div>}
+            <div key={s.playerId} className="row" style={{ padding: '8px 0' }}>
+              <span className="grow" style={{ fontWeight: 700 }}>{name(s.playerId)}
+                {v && <div className={`tiny ${top ? 'up' : 'muted'}`}>{v.name}{top ? ', best hand' : ''}</div>}
               </span>
               {s.cards.map((c, ci) => (
                 <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', idx, ci })} onClick={() => tapSlot({ kind: 'shown', idx, ci }, !!c)} />
               ))}
-              <button className="icon-btn ghost" onClick={() => removeShown(idx)} aria-label="Remove"><Icon name="close" /></button>
+              <button className="icon-btn" onClick={() => removeShown(idx)} aria-label={`Remove ${name(s.playerId)}'s cards`}><Icon name="close" /></button>
             </div>
           );
         })}
         <div className="chips" style={{ marginTop: 10 }}>
           {order.filter((p) => !d.shown.some((s) => s.playerId === p)).map((p) => (
-            <button key={p} className="chip" style={{ height: 30, fontSize: 12.5 }} onClick={() => addShown(p)}><Icon name="plus" size={12} />{name(p)}</button>
+            <button key={p} className="chip sm" onClick={() => addShown(p)}><Icon name="plus" size={12} />{name(p)}</button>
           ))}
         </div>
       </div>
 
       {target && (
-        <div className="card" style={{ marginTop: 16, padding: 10, position: 'sticky', bottom: 'calc(var(--safe-bottom) + 84px)', zIndex: 10, boxShadow: '0 -10px 30px rgba(0,0,0,.5)' }}>
+        <div className="glass picker-shell">
           <div className="row between" style={{ marginBottom: 8 }}>
-            <span className="small" style={{ fontWeight: 650 }}>
-              {target.kind === 'board' ? `Board · ${['Flop 1', 'Flop 2', 'Flop 3', 'Turn', 'River'][target.i]}` : `${name(d.shown[target.idx]?.playerId)} · card ${target.ci + 1}`}
+            <span className="small" style={{ fontWeight: 700 }}>
+              {target.kind === 'board' ? ['Flop, card 1', 'Flop, card 2', 'Flop, card 3', 'Turn', 'River'][target.i] : `${name(d.shown[target.idx]?.playerId)}, card ${target.ci + 1}`}
             </span>
             <button className="btn xs" onClick={() => setTarget(null)}>Done</button>
           </div>
@@ -333,8 +336,8 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
         <div className="section" style={{ marginTop: 18 }}>
           <div className="label" style={{ marginBottom: 8 }}>Markers</div>
           <div className="chips">
-            {m.allIn && <button className={`chip ${d.allIn ? 'red-on' : ''}`} onClick={() => set({ allIn: !d.allIn })}>All-in</button>}
-            {m.straddle && <button className={`chip ${d.straddle ? 'on' : ''}`} onClick={() => set({ straddle: !d.straddle })}>Straddle</button>}
+            {m.allIn && <button className="chip seal" aria-pressed={d.allIn} onClick={() => set({ allIn: !d.allIn })}>All-in</button>}
+            {m.straddle && <button className="chip" aria-pressed={d.straddle} onClick={() => set({ straddle: !d.straddle })}>Straddle</button>}
           </div>
         </div>
       )}
@@ -344,12 +347,12 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
           <div className="label" style={{ marginBottom: 8 }}>Tags</div>
           <div className="chips">
             {tagPool.map((t) => (
-              <button key={t} className={`chip ${d.tags.includes(t) ? 'gold-on' : ''}`} onClick={() => set({ tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] })}>{t}</button>
+              <button key={t} className="chip amber" aria-pressed={d.tags.includes(t)} onClick={() => set({ tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] })}>{t}</button>
             ))}
           </div>
           <div className="row" style={{ marginTop: 10 }}>
-            <input className="input grow" style={{ height: 40, fontSize: 15 }} placeholder="New tag" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
-            <button className="btn sm" style={{ height: 40 }} disabled={!newTag.trim()} onClick={() => {
+            <input className="input grow" style={{ minHeight: 42, fontSize: 15 }} placeholder="New tag" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
+            <button className="btn sm" style={{ minHeight: 42 }} disabled={!newTag.trim()} onClick={() => {
               const t = newTag.trim();
               if (!settings.tags.includes(t)) updateSettings({ tags: [...settings.tags, t] });
               set({ tags: [...new Set([...d.tags, t])] });
@@ -364,9 +367,9 @@ export default function HandEditor({ gameId, handId }: { gameId: string; handId?
         <textarea className="input" placeholder="Optional" value={d.note} onChange={(e) => set({ note: e.target.value })} />
       </label>
 
-      <div className="fab-bar"><div className="inner">
-        {!existing && <button className="btn lg" style={{ flex: '0 0 auto' }} disabled={!valid} onClick={() => save(true)}>Save &amp; next</button>}
-        <button className="btn primary lg" disabled={!valid} onClick={() => save(false)}><Icon name="check" /> {existing ? 'Save changes' : 'Save hand'}</button>
+      <div className="fab-bar"><div className="inner glass">
+        {!existing && <button className="btn lg" style={{ flex: '0 0 auto' }} disabled={!valid} onClick={() => save(true)}>Save, next hand</button>}
+        <button className="btn primary lg" disabled={!valid} onClick={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</button>
       </div></div>
     </div>
   );

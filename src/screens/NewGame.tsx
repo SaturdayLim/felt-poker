@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { back, go } from '../router';
-import { Icon, Toggle, num, toast } from '../components/ui';
+import { Help, Icon, Toggle, num, toast } from '../components/ui';
 import { money } from '../lib/format';
 import type { GameType, ID } from '../types';
 
@@ -12,7 +12,7 @@ export default function NewGame({ type }: { type: GameType }) {
   const createGame = useStore((x) => x.createGame);
 
   const day = new Date().toLocaleDateString('en-SG', { weekday: 'long' });
-  const [name, setName] = useState(type === 'cash' ? `${day} Night Cash` : `${day} Tournament`);
+  const [name, setName] = useState(type === 'cash' ? `${day} cash` : `${day} tournament`);
   const [sel, setSel] = useState<ID[]>([]);
   const [newName, setNewName] = useState('');
   const [currency, setCurrency] = useState(s.currency);
@@ -38,7 +38,7 @@ export default function NewGame({ type }: { type: GameType }) {
   const valid = type === 'cash' ? uv > 0 && bi >= 0 && bbN > 0 && (num(sb) ?? 0) > 0 : (num(tBuyIn) ?? -1) >= 0;
 
   const start = () => {
-    if (!valid) { toast('Check the stakes'); return; }
+    if (!valid) { toast('Check the blinds and buy-in'); return; }
     const g = createGame({
       type, name, playerIds: sel, currency: currency.trim() || 'S$',
       unitValue: uv, sb: num(sb) ?? 1, bb: bbN, defaultBuyIn: bi,
@@ -48,82 +48,80 @@ export default function NewGame({ type }: { type: GameType }) {
   };
 
   return (
-    <div className="screen no-nav">
+    <div className="screen">
       <div className="topbar">
         <button className="icon-btn" onClick={() => back()} aria-label="Back"><Icon name="back" /></button>
-        <div className="titles"><h1>{type === 'cash' ? 'New cash game' : 'New tournament'}</h1><div className="sub">Texas Hold'em</div></div>
-        <span style={{ width: 40 }} />
+        <div className="titles"><h1>{type === 'cash' ? 'New cash game' : 'New tournament'}</h1></div>
+        <span style={{ width: 44 }} />
       </div>
 
-      <div className="eyebrow" style={{ marginTop: 8 }}>01 / Set the table</div>
-      <label className="field" style={{ marginTop: 12 }}>
-        <span className="label">Game name</span>
+      <label className="field">
+        <span className="label">Name</span>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </label>
 
       {type === 'cash' ? (
-        <div className="card" style={{ marginTop: 14 }}>
-          <div className="label" style={{ marginBottom: 10 }}>Stakes (units: 1 = SB)</div>
+        <div className="panel" style={{ marginTop: 18 }}>
+          <div className="row between" style={{ marginBottom: 12 }}><span className="label">Blinds, in units</span><Help k="units" /></div>
           <div className="grid3">
-            <label className="field"><span className="tiny muted">Small blind</span><input className="input" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></label>
-            <label className="field" style={{ marginTop: 0 }}><span className="tiny muted">Big blind</span><input className="input" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></label>
-            <label className="field" style={{ marginTop: 0 }}><span className="tiny muted">Currency</span><input className="input" value={currency} onChange={(e) => setCurrency(e.target.value)} /></label>
+            <label className="field"><span className="label tiny">Small</span><input className="input" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></label>
+            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Big</span><input className="input" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></label>
+            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Currency</span><input className="input" value={currency} onChange={(e) => setCurrency(e.target.value)} /></label>
           </div>
-          <div className="grid2" style={{ marginTop: 12 }}>
-            <label className="field"><span className="tiny muted">1 unit is worth</span>
+          <div className="grid2" style={{ marginTop: 14 }}>
+            <label className="field"><span className="label tiny row" style={{ gap: 4 }}>1 unit is worth <Help k="unitValue" /></span>
               <div className="input-wrap"><span className="prefix">{currency}</span><input className="input" inputMode="decimal" value={unitValue} onChange={(e) => setUnitValue(e.target.value)} /></div>
             </label>
-            <label className="field" style={{ marginTop: 0 }}><span className="tiny muted">Default buy-in (units)</span>
+            <label className="field" style={{ marginTop: 0 }}><span className="label tiny" style={{ display: 'block', minHeight: 23 }}>Buy-in, units</span>
               <input className="input" inputMode="numeric" value={buyIn} onChange={(e) => setBuyIn(e.target.value)} />
             </label>
           </div>
-          <div className="small muted" style={{ marginTop: 10 }}>
-            Buy-in = {bbN ? `${(bi / bbN).toFixed(0)} BB` : '—'} = <b className="pos">{money(bi * uv, currency)}</b> · blinds {money((num(sb) ?? 0) * uv, currency)}/{money(bbN * uv, currency)}
+          <div className="small muted" style={{ marginTop: 12 }}>
+            Buy-in is {bbN ? `${(bi / bbN).toFixed(0)} big blinds` : '—'}, or <b className="num">{money(bi * uv, currency)}</b>. Blinds are {money((num(sb) ?? 0) * uv, currency)}/{money(bbN * uv, currency)}.
           </div>
-          <div className="row between" style={{ marginTop: 14 }}>
-            <div><div style={{ fontWeight: 600 }}>Buy everyone in at start</div><div className="tiny muted">Adds one default buy-in per selected player</div></div>
-            <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Auto buy-in" />
+          <div className="row between" style={{ marginTop: 16 }}>
+            <div className="row" style={{ gap: 4 }}><span style={{ fontWeight: 700 }}>Buy everyone in</span><Help k="autoBuyIn" /></div>
+            <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Buy everyone in" />
           </div>
         </div>
       ) : (
-        <div className="card" style={{ marginTop: 14 }}>
+        <div className="panel" style={{ marginTop: 18 }}>
           <div className="grid2">
-            <label className="field"><span className="tiny muted">Entry fee</span>
+            <label className="field"><span className="label tiny">Entry fee</span>
               <div className="input-wrap"><span className="prefix">{currency}</span><input className="input" inputMode="decimal" value={tBuyIn} onChange={(e) => setTBuyIn(e.target.value)} /></div>
             </label>
-            <label className="field" style={{ marginTop: 0 }}><span className="tiny muted">Starting stack</span>
+            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Starting stack</span>
               <input className="input" inputMode="numeric" value={stack} onChange={(e) => setStack(e.target.value)} />
             </label>
           </div>
-          <div className="grid2" style={{ marginTop: 12 }}>
-            <label className="field"><span className="tiny muted">Small blind</span><input className="input" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></label>
-            <label className="field" style={{ marginTop: 0 }}><span className="tiny muted">Big blind</span><input className="input" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></label>
+          <div className="grid2" style={{ marginTop: 14 }}>
+            <label className="field"><span className="label tiny">Small blind</span><input className="input" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></label>
+            <label className="field" style={{ marginTop: 0 }}><span className="label tiny">Big blind</span><input className="input" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></label>
           </div>
-          <div className="small muted" style={{ marginTop: 10 }}>Payouts are suggested from the field size; you can edit them before closing.</div>
+          <div className="row" style={{ gap: 4, marginTop: 12 }}><span className="small muted">Payouts are set when the tournament ends.</span><Help k="payouts" /></div>
         </div>
       )}
 
       <div className="section">
-        <div className="section-head"><h2>Players<span className="count">{sel.length} selected</span></h2>
-          {players.length > 0 && <button className="btn xs" onClick={() => setSel(sel.length === players.length ? [] : players.map((p) => p.id))}>{sel.length === players.length ? 'None' : 'All'}</button>}
+        <div className="section-head"><h2>Players<span className="count">{sel.length} picked</span></h2>
+          {players.length > 0 && <button className="btn xs" onClick={() => setSel(sel.length === players.length ? [] : players.map((p) => p.id))}>{sel.length === players.length ? 'Clear' : 'Everyone'}</button>}
         </div>
         <div className="row">
-          <input className="input grow" placeholder="Add new player" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && quickAdd()} enterKeyHint="done" />
-          <button className="btn" style={{ height: 48 }} onClick={quickAdd} disabled={!newName.trim()}><Icon name="plus" /></button>
+          <input className="input grow" placeholder="Add a new player" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && quickAdd()} enterKeyHint="done" />
+          <button className="btn" style={{ minHeight: 48 }} onClick={quickAdd} disabled={!newName.trim()} aria-label="Add player"><Icon name="plus" /></button>
         </div>
-        <div className="chips" style={{ marginTop: 12 }}>
+        <div className="chips" style={{ marginTop: 14 }}>
           {players.map((p) => (
-            <button key={p.id} className={`chip ${sel.includes(p.id) ? 'on' : ''}`} onClick={() => toggle(p.id)}>
+            <button key={p.id} className="chip" aria-pressed={sel.includes(p.id)} onClick={() => toggle(p.id)}>
               {sel.includes(p.id) && <Icon name="check" size={14} />}{p.name}
             </button>
           ))}
         </div>
-        {players.length === 0 && <div className="small muted" style={{ marginTop: 8 }}>Add your regulars here — they're saved for future games.</div>}
       </div>
 
-      <div className="fab-bar"><div className="inner">
+      <div className="fab-bar"><div className="inner glass">
         <button className="btn primary lg" onClick={start} disabled={!valid}>
-          <Icon name="play" /> Start {type === 'cash' ? 'game' : 'tournament'}{sel.length ? ` · ${sel.length} players` : ''}
+          Start {type === 'cash' ? 'game' : 'tournament'}{sel.length ? ` with ${sel.length}` : ''}
         </button>
       </div></div>
     </div>

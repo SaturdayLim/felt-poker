@@ -4,26 +4,45 @@ export const W = 1080;
 export const PAD = 56;
 export const INNER = W - PAD * 2;
 
-export const C = {
-  bg: '#0a0c0b',
-  surface: '#141917',
-  surface2: '#1a201d',
-  border: '#28302c',
-  text: '#f2f5f3',
-  muted: '#8b958f',
-  faint: '#5b645f',
-  mint: '#5ee3a1',
-  mint2: '#8af5c0',
-  mintDark: '#0f3a27',
-  gold: '#f5c13d',
-  red: '#f0616d',
-  blue: '#6aa8ff',
+/** Report palettes, taken from the Vaela tokens (src/design/tokens.css). */
+const LIGHT = {
+  ground: '#DCE1DE', groundDeep: '#C8D0CB', paper: '#F8F7F3', edge: '#D6DAD4', edgeStrong: '#6F7B76',
+  ink: '#1D2327', inkSoft: '#47525A', inkFaint: '#56626A',
+  accent: '#335E9E', up: '#2A6E40', down: '#A8322A', amber: '#7A5512', amberFill: '#B98226', onAmber: '#1D2327',
+  line: 'rgba(58, 102, 168, 0.10)', glow: 'rgba(116, 87, 168, 0.12)',
+};
+const DARK: typeof LIGHT = {
+  ground: '#1E2326', groundDeep: '#15191B', paper: '#272D31', edge: '#343C41', edgeStrong: '#6E7B76',
+  ink: '#E5E9E7', inkSoft: '#B5BEBA', inkFaint: '#97A29D',
+  accent: '#86A9DE', up: '#6CC08A', down: '#EE7B70', amber: '#E0B060', amberFill: '#E0B060', onAmber: '#15191B',
+  line: 'rgba(134, 169, 222, 0.08)', glow: 'rgba(180, 155, 221, 0.10)',
+};
+export type ReportTheme = 'light' | 'dark';
+export let C = DARK;
+export function setReportTheme(t: ReportTheme) { C = t === 'light' ? LIGHT : DARK; }
+
+const UI = '"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const DISPLAY = 'Fraunces, "Iowan Old Style", Georgia, serif';
+const DATA = '"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
+
+/** kind: false/'ui' = Atkinson, true/'data' = Plex Mono (numbers), 'display' = Fraunces (titles). */
+export const font = (weight: number, size: number, kind: boolean | 'ui' | 'data' | 'display' = false) => {
+  if (kind === true || kind === 'data') return `${Math.min(600, Math.max(400, weight))} ${size}px ${DATA}`;
+  if (kind === 'display') return `${Math.min(700, weight)} ${size}px ${DISPLAY}`;
+  return `${weight >= 600 ? 700 : 400} ${size}px ${UI}`;
 };
 
-const SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-
-export const font = (weight: number, size: number, mono = false) => `${weight} ${size}px ${mono ? MONO : SANS}`;
+/** Canvas only uses a web font once it has loaded, so load the report faces first. */
+export async function loadReportFonts() {
+  if (!document.fonts?.load) return;
+  await Promise.all([
+    document.fonts.load(`600 40px ${DISPLAY}`),
+    document.fonts.load(`400 20px ${UI}`),
+    document.fonts.load(`700 20px ${UI}`),
+    document.fonts.load(`500 20px ${DATA}`),
+    document.fonts.load(`600 20px ${DATA}`),
+  ]).catch(() => {});
+}
 
 export type Ctx = CanvasRenderingContext2D;
 
@@ -87,19 +106,17 @@ export function rrect(ctx: Ctx, x: number, y: number, w: number, h: number, r: n
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
 }
 
+/** Paper card (radius scaled from --r-paper). */
 export function panel(ctx: Ctx, x: number, y: number, w: number, h: number) {
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, C.surface2);
-  g.addColorStop(1, C.surface);
-  rrect(ctx, x, y, w, h, 28, g, C.border, 2);
+  rrect(ctx, x, y, w, h, 12, C.paper, C.edge, 2);
 }
 
 export function playingCard(ctx: Ctx, x: number, y: number, card: string, w = 52) {
   const h = Math.round(w * 1.36);
-  rrect(ctx, x, y, w, h, w * 0.16, '#f7f7f4');
+  rrect(ctx, x, y, w, h, w * 0.16, '#FBFBF8', 'rgba(29,35,39,0.18)', 1.5);
   const col = SUIT_COLOR[card[1]];
-  text(ctx, rankLabel(card), x + w / 2, y + h * 0.48, font(800, Math.round(w * 0.46)), col, 'center');
-  text(ctx, SUIT_SYMBOL[card[1]], x + w / 2, y + h * 0.86, font(700, Math.round(w * 0.38)), col, 'center');
+  text(ctx, rankLabel(card), x + w / 2, y + h * 0.48, font(700, Math.round(w * 0.46)), col, 'center');
+  text(ctx, SUIT_SYMBOL[card[1]], x + w / 2, y + h * 0.86, `${Math.round(w * 0.38)}px system-ui, sans-serif`, col, 'center');
   return w;
 }
 
@@ -108,32 +125,31 @@ export function cardsRow(ctx: Ctx, x: number, y: number, cards: string[], w = 52
   return cards.length ? cards.length * (w + gap) - gap : 0;
 }
 
-export function avatar(ctx: Ctx, cx: number, cy: number, r: number, name: string, color = C.mint2) {
+export function avatar(ctx: Ctx, cx: number, cy: number, r: number, name: string, color?: string) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#202722';
-  ctx.fill();
-  ctx.strokeStyle = '#35403a';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = C.edge;
+  ctx.lineWidth = 3;
   ctx.stroke();
   ctx.textBaseline = 'middle';
-  ctx.font = font(800, Math.round(r * 0.95));
-  ctx.fillStyle = color;
+  ctx.font = font(600, Math.round(r * 0.95), 'display');
+  ctx.fillStyle = color ?? C.inkSoft;
   ctx.textAlign = 'center';
   ctx.fillText((name.trim()[0] ?? '?').toUpperCase(), cx, cy + 1);
   ctx.textBaseline = 'alphabetic';
 }
 
 export function pill(ctx: Ctx, x: number, y: number, label: string, color: string, size = 20): number {
-  const f = font(700, size, true);
-  const w = textWidth(label.toUpperCase(), f) + size * 1.1;
+  const f = font(700, size);
+  const w = textWidth(label.toUpperCase(), f) + size * 1.4;
   const h = size * 1.7;
-  rrect(ctx, x, y, w, h, 10, hexA(color, 0.12), hexA(color, 0.45), 1.5);
+  rrect(ctx, x, y, w, h, h / 2, undefined, C.edge, 2);
   text(ctx, label.toUpperCase(), x + w / 2, y + h * 0.68, f, color, 'center');
   return w;
 }
 
 export function hexA(hex: string, a: number): string {
+  if (!hex.startsWith('#')) return hex;
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
@@ -141,10 +157,13 @@ export function hexA(hex: string, a: number): string {
 export function dealerChip(ctx: Ctx, cx: number, cy: number, r = 14) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#FBFBF8';
   ctx.fill();
+  ctx.strokeStyle = 'rgba(29,35,39,0.3)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
   ctx.textBaseline = 'middle';
-  text(ctx, 'D', cx, cy + 1, font(800, r * 1.1), '#111', 'center');
+  text(ctx, 'D', cx, cy + 1, font(700, r * 1.1), '#1D2327', 'center');
   ctx.textBaseline = 'alphabetic';
 }
 
@@ -179,14 +198,28 @@ export function paginate(blocks: Block[], opts: { maxH: number; top: (page: numb
     canvas.width = W;
     canvas.height = Math.ceil(total);
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = C.bg;
+    const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bg.addColorStop(0, C.ground);
+    bg.addColorStop(1, C.groundDeep);
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, canvas.height);
-    // soft glow in the top corner
-    const glow = ctx.createRadialGradient(W * 0.85, 0, 10, W * 0.85, 0, 700);
-    glow.addColorStop(0, 'rgba(94,227,161,0.14)');
-    glow.addColorStop(1, 'rgba(94,227,161,0)');
+    const glow = ctx.createRadialGradient(W * 0.85, 0, 10, W * 0.85, 0, 760);
+    glow.addColorStop(0, C.glow);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, Math.min(canvas.height, 800));
+    // the faint diagonal lines from the ground pattern
+    ctx.save();
+    ctx.strokeStyle = C.line;
+    ctx.lineWidth = 2;
+    const step = 92, slope = Math.tan((25 * Math.PI) / 180);
+    for (let x0 = -canvas.height * slope; x0 < W; x0 += step) {
+      ctx.beginPath();
+      ctx.moveTo(x0, canvas.height);
+      ctx.lineTo(x0 + canvas.height * slope, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
     let y = 0;
     for (const b of page) { b.draw(ctx, y); y += b.h; }
     foot.draw(ctx, y);
@@ -198,11 +231,11 @@ export const spacer = (h: number): Block => ({ h, draw: () => {} });
 
 export function sectionTitle(label: string, right?: string): Block {
   return {
-    h: 76,
+    h: 84,
     keepWithNext: true,
     draw: (ctx, y) => {
-      text(ctx, label.toUpperCase(), PAD, y + 50, font(700, 22, true), C.mint);
-      if (right) text(ctx, right, W - PAD, y + 50, font(600, 24), C.muted, 'right');
+      text(ctx, label, PAD, y + 54, font(600, 34, 'display'), C.ink);
+      if (right) text(ctx, right, W - PAD, y + 54, font(400, 23), C.inkFaint, 'right');
     },
   };
 }

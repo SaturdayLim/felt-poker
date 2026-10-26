@@ -46,10 +46,15 @@ export function ago(t: number, now = Date.now()): string {
 }
 
 export function stakesLabel(g: Game): string {
-  if (g.type === 'tournament') return `Tournament · ${money(g.tournament?.buyIn ?? 0, g.currency)} entry`;
-  return `Cash · ${g.sb}/${g.bb} · 1 = ${money(g.unitValue, g.currency)}`;
+  if (g.type === 'tournament') return `${money(g.tournament?.buyIn ?? 0, g.currency)} tournament`;
+  return `${g.sb}/${g.bb} cash · ${money(g.unitValue, g.currency)} a unit`;
 }
 
 export function initials(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || '?';
+}
+
+/** Colour class for a result: up, down, or neutral at break-even. */
+export function tone(n: number): string {
+  return n > 0.004 ? 'up' : n < -0.004 ? 'down' : '';
 }

@@ -1,0 +1,4 @@
+{
+  "//": "The kit tools (tools/*.js) are CommonJS; the Felt app package is an ES module.",
+  "type": "commonjs"
+}

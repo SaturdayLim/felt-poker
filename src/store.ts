@@ -13,6 +13,7 @@ const idbStorage: StateStorage = {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
+  entryMode: 'bets',
   currency: 'S$',
   unitValue: 0.1,
   sb: 1,

@@ -1,6 +1,7 @@
 import type { Game, ID } from '../types';
 import { handStats, playerResult, timePlayed } from '../lib/calc';
 import { bestHand } from '../lib/cards';
+import { STREETS, inAtEnd, pfr, potTotal, vpip } from '../lib/hand';
 
 type NameFn = (id: ID) => string;
 
@@ -61,12 +62,21 @@ export function handsCsv(games: Game[], name: NameFn): string {
         h.boardNA ? 'NA' : h.board.slice(0, 3).join(' '), h.boardNA ? 'NA' : h.board[3] ?? '', h.boardNA ? 'NA' : h.board[4] ?? '',
         shown, ranks, h.allIn ? 1 : 0, h.straddle ? 1 : 0, h.tags.join('; '), h.note ?? '',
         (h.pots ?? []).map((p, i) => `${i ? `side${i}` : 'main'}:${p.amount}:${p.winners.map((w) => `${name(w.playerId)}=${w.amount}`).join('+')}`).join('; '),
+        h.log?.mode ?? '',
+        h.log ? h.log.dealt.filter((p) => vpip(g, h.log!, p, h.log!.button)).map(name).join('; ') : '',
+        h.log ? h.log.dealt.filter((p) => pfr(h.log!, p)).map(name).join('; ') : '',
+        h.log ? STREETS.filter((st) => h.log!.streets[st]).map((st) => `${st}:${potTotal(g, h.log!, h.log!.button, st)}`).join('; ') : '',
+        h.log ? STREETS.filter((st) => h.log!.streets[st]).map((st) => `${st}:${inAtEnd(h.log!, st).map(name).join('/')}`).join('; ') : '',
+        h.log?.runs ?? '',
+        Object.entries(h.returned ?? {}).map(([p, a]) => `${name(p)}:${a}`).join('; '),
+        h.endedAt ? Math.round((h.endedAt - h.at) / 1000) : '',
       ]);
     }
   }
   return toCsv([
     'game_id', 'game', 'date', 'hand', 'time', 'button', 'pot_units', 'pot_money', 'winners', 'winner_amounts',
     'split', 'board', 'flop', 'turn', 'river', 'shown_cards', 'shown_hand_ranks', 'all_in', 'straddle', 'tags', 'note', 'pots',
+    'entry_mode', 'vpip_players', 'pfr_players', 'pot_by_street', 'in_by_street', 'runs', 'returned', 'seconds',
   ], rows);
 }
 

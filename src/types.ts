@@ -58,6 +58,48 @@ export interface Pot {
   winners: Winner[];
 }
 
+export type StreetName = 'preflop' | 'flop' | 'turn' | 'river';
+
+/** One betting round as logged in the street-by-street recorder. */
+export interface StreetLog {
+  /** Bet mode: each player's total wager on this street, in units. */
+  bets: Record<ID, number>;
+  /** Wager before the last automatic call; a fold falls back to this. */
+  prev: Record<ID, number>;
+  /** Wagers typed by hand (not auto-calls). */
+  typed: Record<ID, boolean>;
+  /** Players who folded on this street (their wager stays in the pot). */
+  folded: ID[];
+  /** Players who raised on this street (preflop raisers give PFR). */
+  raisers: ID[];
+  /** Count mode: pot total counted at the end of this street. */
+  pot?: number;
+  /** When the street was closed. */
+  at?: number;
+}
+
+/** Everything the street-by-street recorder captured for a hand. */
+export interface HandLog {
+  v: 1;
+  mode: 'bets' | 'count';
+  /** Players dealt in, any order. */
+  dealt: ID[];
+  /** Button for this hand (sets blinds and action order). */
+  button?: ID;
+  streets: Partial<Record<StreetName, StreetLog>>;
+  /** Players with no chips left, and the street they went all-in on. */
+  allInAt?: Record<ID, StreetName>;
+  /** Times the board was run (1 to 5). */
+  runs: number;
+  /** Board cards dealt before the runs started. */
+  runFrom?: number;
+  /** Remaining board cards for each run (run 1 first). */
+  runCards: Card[][];
+  shown: Record<ID, Card[]>;
+  mucked: ID[];
+  startedAt: number;
+}
+
 export interface Hand {
   id: ID;
   n: number;
@@ -69,6 +111,12 @@ export interface Hand {
   winners: Winner[];
   /** Main pot first, then side pots. Older hands have none (one pot = pot/winners). */
   pots?: Pot[];
+  /** Wagers nobody matched, given back (not won). */
+  returned?: Record<ID, number>;
+  /** Street-by-street record (hands logged with the recorder). */
+  log?: HandLog;
+  /** When the hand was saved; with `at` gives the hand's duration. */
+  endedAt?: number;
   /** Up to 5 cards. Ignored when boardNA. */
   board: Card[];
   /** Board not tracked (bomb pot, side game, etc.). */
@@ -151,6 +199,8 @@ export type ThemePref = 'auto' | 'light' | 'dark';
 
 export interface Settings {
   theme: ThemePref;
+  /** How the recorder takes wagers: per-player bets, or the pot counted each street. */
+  entryMode: 'bets' | 'count';
   currency: string;
   unitValue: number;
   sb: number;

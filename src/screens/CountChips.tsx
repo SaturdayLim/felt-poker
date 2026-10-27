@@ -3,6 +3,7 @@ import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
 import { Caption, Delta, Empty, Header, Icon, num, toast } from '../components/ui';
 import { buyInUnits, cashOutUnits, hasCashedOut, totalBuyInUnits } from '../lib/calc';
+import { estimateStacks } from '../lib/stacks';
 import { units } from '../lib/format';
 import type { ID } from '../types';
 
@@ -29,6 +30,14 @@ export default function CountChips({ gameId }: { gameId: string }) {
   const diff = g.cashOuts.reduce((a, c) => a + c.amount, 0) - totalBuyInUnits(g);
   const allIn = entered === ordered.length;
 
+  const est = estimateStacks(g);
+  const fillable = est.complete ? ordered.filter((p) => !hasCashedOut(g, p) && est.stack[p] !== undefined) : [];
+  const fillEstimates = () => {
+    const t = { ...text };
+    for (const p of fillable) { const v = Math.round(est.stack[p]!); t[p] = String(v); setCashOut(g.id, p, v); }
+    setText(t);
+    toast(`${fillable.length} counts filled from estimates. Check each against the chips.`);
+  };
   const update = (p: ID, v: string) => {
     setText((t) => ({ ...t, [p]: v }));
     const n = num(v);
@@ -53,6 +62,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
       <div style={{ display: 'grid', gridTemplateColumns: '42% 1fr', gap: 'var(--sat-space-3)', alignItems: 'start' }}>
         <div className="sat-stack" style={gap(2)}>
           <input className="sat-input" aria-label="Find a player" placeholder="Find player" value={q} onChange={(e) => setQ(e.target.value)} />
+          {fillable.length > 0 && <button className="sat-btn sat-btn--sm" onClick={fillEstimates}>Use estimates ({fillable.length})</button>}
           {list.map((p) => {
             const done = hasCashedOut(g, p);
             const net = done ? cashOutUnits(g, p) - buyInUnits(g, p) : null;

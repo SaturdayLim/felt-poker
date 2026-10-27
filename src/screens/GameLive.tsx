@@ -9,6 +9,7 @@ import {
   timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
 import { ago, buyInsEquivalent, dateLabel, duration, inBB, money, timeLabel, units } from '../lib/format';
+import { estimateStacks } from '../lib/stacks';
 import type { Game, ID } from '../types';
 
 type SheetKind =
@@ -42,6 +43,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
   const outPlayers = ordered.filter((p) => !isIn(p));
   const lastBuy = g.buyIns.length ? Math.max(...g.buyIns.map((b) => b.at)) : null;
   const hs = handStats(g);
+  const est = estimateStacks(g);
   const closed = g.status === 'closed';
   const shown = sub === 'in' ? inPlayers : outPlayers;
   const now = g.endedAt ?? Date.now();
@@ -98,7 +100,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
               <button role="radio" aria-checked={sub === 'out'} onClick={() => setSub('out')}>{isCash ? 'Clocked out' : 'Busted'} ({outPlayers.length})</button>
             </div>
             {shown.map((pid) => (
-              <PlayerTile key={pid} g={g} pid={pid} name={name(pid)} wins={hs.handsWon[pid] ?? 0}
+              <PlayerTile key={pid} g={g} pid={pid} name={name(pid)} wins={hs.handsWon[pid] ?? 0} stack={est.complete ? est.stack[pid] : undefined}
                 onRebuy={() => st.addBuyIn(g.id, pid, isCash ? g.defaultBuyIn : g.tournament!.buyIn)}
                 onLight={(v) => {
                   const cur = playerStatus(g, pid);
@@ -128,7 +130,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
 
       {sheet?.k === 'rebuy' && <AmountSheet g={g} title={`${isCash ? 'Buy-in' : 'Entry'} for ${name(sheet.pid)}`} initial={isCash ? g.defaultBuyIn : g.tournament!.buyIn}
         isMoney={!isCash} onClose={() => setSheet(null)} onSave={(v) => { st.addBuyIn(g.id, sheet.pid, v); setSheet(null); }} />}
-      {sheet?.k === 'clockout' && <AmountSheet g={g} title={`Clock out ${name(sheet.pid)}`} label="Chips at clock-out (units)" tip="clockOut" initial={null}
+      {sheet?.k === 'clockout' && <AmountSheet g={g} title={`Clock out ${name(sheet.pid)}`} label="Chips at clock-out (units)" tip="clockOut" initial={est.complete && est.stack[sheet.pid] !== undefined ? Math.round(est.stack[sheet.pid]!) : null} hint={est.complete ? 'Filled from the stack estimate. Change it to the real count.' : undefined}
         cta="Clock out" onClose={() => setSheet(null)} onSave={(v) => { st.clockOut(g.id, sheet.pid, v); setSheet(null); toast(`${name(sheet.pid)} clocked out with ${units(v)} units`); }} />}
       {sheet?.k === 'menu' && <PlayerMenu g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'back' && <BackInSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
@@ -139,8 +141,8 @@ export default function GameLive({ gameId }: { gameId: string }) {
   );
 }
 
-function PlayerTile({ g, pid, name, wins, onRebuy, onLight, onMenu }: {
-  g: Game; pid: ID; name: string; wins: number;
+function PlayerTile({ g, pid, name, wins, stack, onRebuy, onLight, onMenu }: {
+  g: Game; pid: ID; name: string; wins: number; stack?: number;
   onRebuy: () => void; onLight: (v: Light) => void; onMenu: () => void;
 }) {
   const isCash = g.type === 'cash';
@@ -165,6 +167,7 @@ function PlayerTile({ g, pid, name, wins, onRebuy, onLight, onMenu }: {
               {isCash && <span className="sat-small sat-muted">units</span>}
             </span>
             <span className="sat-small sat-muted">{isCash ? `${n} buy-in${n === 1 ? '' : 's'}` : `${n} entr${n === 1 ? 'y' : 'ies'}`}</span>
+            {stack !== undefined && status !== 'out' && <span className="sat-small sat-muted">Stack <span className="sat-num" style={{ color: 'var(--sat-text)', fontWeight: 600 }}>≈ {units(Math.round(stack))}</span> <Help k="stack" /></span>}
           </div>
         </div>
       </div>
@@ -237,8 +240,8 @@ function HandList({ g, name }: { g: Game; name: (id: ID) => string }) {
   );
 }
 
-function AmountSheet({ g, title, label, tip, initial, isMoney, cta = 'Add', onClose, onSave }: {
-  g: Game; title: string; label?: string; tip?: 'clockOut'; initial: number | null; isMoney?: boolean; cta?: string;
+function AmountSheet({ g, title, label, tip, hint, initial, isMoney, cta = 'Add', onClose, onSave }: {
+  g: Game; title: string; label?: string; tip?: 'clockOut'; hint?: string; initial: number | null; isMoney?: boolean; cta?: string;
   onClose: () => void; onSave: (v: number) => void;
 }) {
   const [v, setV] = useState(initial === null ? '' : String(initial));
@@ -249,10 +252,10 @@ function AmountSheet({ g, title, label, tip, initial, isMoney, cta = 'Add', onCl
       <div className="sat-field">
         <label htmlFor="amt">{label ?? (isMoney ? `Amount (${g.currency})` : 'Amount (units)')}{tip && <> <Help k={tip} /></>}</label>
         <input id="amt" className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }} autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="0" aria-invalid={v !== '' && bad} />
-        {!isMoney && n !== null && <span className="sat-hint">{inBB(g, n)}</span>}
+        {!isMoney && n !== null && <span className="sat-hint">{inBB(g, n)}{hint ? `. ${hint}` : ''}</span>}
         {v !== '' && bad && <span className="sat-error">Use numbers only (e.g. 200).</span>}
       </div>
-      {!isMoney && g.type === 'cash' && initial !== null && (
+      {!isMoney && g.type === 'cash' && initial !== null && !hint && (
         <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
           {[0.5, 1, 1.5, 2].map((m) => {
             const amt = Math.round(g.defaultBuyIn * m);

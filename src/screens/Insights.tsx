@@ -5,7 +5,7 @@ import { Avatar, Caption, Delta, Empty, Header, Help, Icon, toast } from '../com
 import { LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
 import { dateLabel, money, shortDate } from '../lib/format';
-import { cumulativeSeries, filterGames, groupTotals, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
+import { cumulativeSeries, filterGames, groupTotals, handPace, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
 import { canvasToFile, shareFiles } from '../report/share';
@@ -20,6 +20,7 @@ const RANGES: { k: RangeFilter; label: string; long: string }[] = [
   { k: '30d', label: 'L30D', long: 'L30D' },
 ];
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
+const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-');
 
 export default function Insights({ initialPlayer }: { initialPlayer?: string }) {
   const allGames = useStore((s) => s.games);
@@ -86,6 +87,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
   const noRebuy = played.filter((g) => playerResult(g, selected).buyIns <= 1);
   const netOf = (gs: Game[]) => gs.reduce((a, g) => a + playerResult(g, selected).net, 0);
   const totals = groupTotals(games);
+  const pace = handPace(games);
   let cum = 0;
   const cumVals = s.history.map((h) => (cum += h.net));
   const best = s.history.reduce<{ t: number; net: number } | null>((b, h) => (!b || h.net > b.net ? h : b), null);
@@ -129,6 +131,20 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <div className="sat-glass sat-stat"><Caption>Buy-ins per game</Caption><span className="sat-kpi">{s.games ? (s.buyIns / s.games).toFixed(1) : '-'}</span><span className="sat-note">{s.buyIns} in total</span></div>
       </section>
 
+      {s.logged > 0 && (
+        <section className="sat-stack" style={gap(3)} aria-label="Playing style">
+          <div className="sat-split"><h2 className="sat-h2">Playing style</h2><span className="sat-small sat-muted">{s.logged} hands logged street by street</span></div>
+          <div className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }}>
+            <div className="sat-glass sat-stat"><Caption tip="vpip">VPIP</Caption><span className="sat-kpi">{pct(s.vpip, s.logged)}</span><span className="sat-note">{s.vpip} of {s.logged} hands</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="pfr">PFR</Caption><span className="sat-kpi">{pct(s.pfr, s.logged)}</span><span className="sat-note">{s.pfr} of {s.logged} hands</span></div>
+            <div className="sat-glass sat-stat"><Caption>Saw flop</Caption><span className="sat-kpi">{pct(s.sawFlop, s.logged)}</span><span className="sat-note">{s.sawFlop} of {s.logged} hands</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="wtsd">WTSD</Caption><span className="sat-kpi">{pct(s.wtsd, s.sawFlop)}</span><span className="sat-note">{s.wtsd} of {s.sawFlop} flops</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="wsd">W$SD</Caption><span className="sat-kpi">{pct(s.wsd, s.wtsd)}</span><span className="sat-note">{s.wsd} of {s.wtsd} showdowns</span></div>
+          </div>
+          <p className="sat-source">{sourceLine(played)} Rates use hands logged street by street only.</p>
+        </section>
+      )}
+
       <section className="sat-glass sat-card sat-stack" style={gap(3)}>
         <div className="sat-split"><h2 className="sat-h3">Rebuys</h2><Help k="rebuys" /></div>
         <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(3) }}>
@@ -157,7 +173,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <h2 className="sat-h2">Whole group</h2>
         <div className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }}>
           <div className="sat-glass sat-stat"><Caption>Games</Caption><span className="sat-kpi">{totals.games}</span></div>
-          <div className="sat-glass sat-stat"><Caption>Hands</Caption><span className="sat-kpi">{totals.hands}</span></div>
+          <div className="sat-glass sat-stat"><Caption>Hands</Caption><span className="sat-kpi">{totals.hands}</span>{pace.hands > 0 && <span className="sat-note">Median {Math.floor(pace.medianSec / 60)}m {pace.medianSec % 60}s per hand</span>}</div>
           <div className="sat-glass sat-stat"><Caption q="units">Top pot</Caption><span className="sat-kpi">{totals.biggestPot}</span></div>
           <div className="sat-glass sat-stat"><Caption q={currency}>Won in total</Caption><span className="sat-kpi">{money(totals.moneyMoved, '')}</span><span className="sat-note">All winning results added up</span></div>
         </div>

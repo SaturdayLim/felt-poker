@@ -79,7 +79,7 @@ function fromHand(g: Game, h: Hand): Draft {
   };
 }
 
-export default function HandEditor({ gameId, handId }: { gameId: string; handId?: string }) {
+export default function HandEditorClassic({ gameId, handId }: { gameId: string; handId?: string }) {
   const g = useGame(gameId);
   const settings = useStore((s) => s.settings);
   const saveHand = useStore((s) => s.saveHand);

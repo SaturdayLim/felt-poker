@@ -147,3 +147,18 @@ button.felt-row { color: inherit; }
 /* Pots in the hand form */
 .felt-pot { padding: var(--sat-space-4); }
 .felt-split { padding: var(--sat-space-1) var(--sat-space-3); }
+
+/* Street-by-street recorder */
+.felt-step-closed { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: var(--sat-space-3) var(--sat-space-4); min-height: 56px; color: inherit; }
+.felt-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sat-space-2); }
+.felt-act { display: flex; flex-direction: column; gap: 6px; padding: var(--sat-space-3); border-radius: var(--sat-radius-md); cursor: pointer;
+  background: var(--sat-glass-2); border: 1.5px solid var(--sat-accent); -webkit-tap-highlight-color: transparent; user-select: none; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
+.felt-act.is-folded { border: 1.5px dashed var(--sat-line-strong); background: transparent; opacity: 0.6; }
+.felt-act.is-locked { cursor: default; border-style: solid; border-color: var(--sat-line); }
+.felt-act:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 2px; }
+.felt-act-name { font-weight: 600; }
+.felt-act-meta { font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+.felt-act-row { display: flex; gap: 6px; align-items: center; }
+.felt-bet { min-height: 40px; padding: 0 10px; font-size: 1.0625rem; font-weight: 600; flex: 1; min-width: 0; }
+.felt-mini { min-height: 36px; padding: 0 10px; font-size: var(--sat-fs-caption); }
+@media (pointer: coarse) { .felt-mini { min-height: 40px; } .felt-bet { min-height: 44px; } }

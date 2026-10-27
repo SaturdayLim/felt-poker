@@ -1,5 +1,6 @@
 import type { Game, GameType, ID } from '../types';
 import { handStats, playerResult, round2 } from './calc';
+import { finalists, inAtEnd, pfr, vpip } from './hand';
 
 export type TypeFilter = 'all' | GameType;
 /** all, FYTD (financial year from 1 July), CYTD (from 1 January), L90D, L30D. */
@@ -39,12 +40,22 @@ export interface PlayerSummary {
   biggestPot: number;
   /** Per-game net in chronological order. */
   history: { gameId: ID; t: number; net: number }[];
+  /** Hands logged street by street that this player was dealt into (the base for the rates below). */
+  logged: number;
+  vpip: number;
+  pfr: number;
+  sawFlop: number;
+  /** Went to showdown (counted among hands where they saw the flop). */
+  wtsd: number;
+  /** Won all or part of a showdown. */
+  wsd: number;
 }
 
 export function playerSummary(games: Game[], pid: ID): PlayerSummary {
   const s: PlayerSummary = {
     playerId: pid, games: 0, net: 0, wins: 0, winRate: 0, biggestWin: 0, biggestLoss: 0,
     avg: 0, streak: 0, buyIns: 0, handsWon: 0, biggestPot: 0, history: [],
+    logged: 0, vpip: 0, pfr: 0, sawFlop: 0, wtsd: 0, wsd: 0,
   };
   for (const g of games) {
     if (!g.playerIds.includes(pid)) continue;
@@ -57,6 +68,18 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
     s.buyIns += r.buyIns;
     s.history.push({ gameId: g.id, t: g.startedAt, net: r.net });
     for (const h of g.hands) {
+      const L = h.log;
+      if (L?.dealt.includes(pid)) {
+        s.logged++;
+        if (vpip(g, L, pid, L.button)) s.vpip++;
+        if (pfr(L, pid)) s.pfr++;
+        if (L.streets.flop && inAtEnd(L, 'preflop').includes(pid)) s.sawFlop++;
+        const fin = finalists(L);
+        if (fin.length > 1 && fin.includes(pid)) {
+          s.wtsd++;
+          if (h.winners.some((x) => x.playerId === pid)) s.wsd++;
+        }
+      }
       const w = h.winners.find((x) => x.playerId === pid);
       if (w) {
         s.handsWon++;
@@ -105,4 +128,12 @@ export function groupTotals(games: Game[]) {
     }
   }
   return { games: games.length, hands, biggestPot, moneyMoved: round2(moneyMoved) };
+}
+
+/** Median seconds per hand, for hands logged with start and end times. */
+export function handPace(games: Game[]): { hands: number; medianSec: number } {
+  const secs = games.flatMap((g) => g.hands).filter((h) => h.endedAt && h.log).map((h) => (h.endedAt! - h.at) / 1000).sort((a, b) => a - b);
+  if (!secs.length) return { hands: 0, medianSec: 0 };
+  const m = secs.length % 2 ? secs[(secs.length - 1) / 2] : (secs[secs.length / 2 - 1] + secs[secs.length / 2]) / 2;
+  return { hands: secs.length, medianSec: Math.round(m) };
 }

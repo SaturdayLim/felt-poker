@@ -7,7 +7,9 @@ import Home from './screens/Home';
 import Games from './screens/Games';
 import NewGame from './screens/NewGame';
 import GameLive from './screens/GameLive';
-import HandEditor from './screens/HandEditor';
+import HandEditorClassic from './screens/HandEditorClassic';
+import HandRecorder from './screens/HandRecorder';
+import { useStore as useStoreForRoute } from './store';
 import CountChips from './screens/CountChips';
 import CloseTable from './screens/CloseTable';
 import Report from './screens/Report';
@@ -37,7 +39,7 @@ export default function App() {
   else if (a === 'new') { screen = <NewGame type={b === 'tournament' ? 'tournament' : 'cash'} />; nav = false; }
   else if (a === 'game' && b) {
     nav = false;
-    if (c === 'hand') screen = <HandEditor gameId={b} handId={d} />;
+    if (c === 'hand') screen = <HandRoute gameId={b} handId={d} />;
     else if (c === 'count') screen = <CountChips gameId={b} />;
     else if (c === 'close') screen = <CloseTable gameId={b} />;
     else if (c === 'report') screen = <Report gameId={b} />;
@@ -67,4 +69,12 @@ export default function App() {
       <ToastHost />
     </div>
   );
+}
+
+/** New hands use the street-by-street recorder; hands logged the quick way open in the quick editor. */
+function HandRoute({ gameId, handId }: { gameId: string; handId?: string }) {
+  const hand = useStoreForRoute((s) => s.games.find((g) => g.id === gameId)?.hands.find((h) => h.id === handId));
+  if (handId === 'quick') return <HandEditorClassic key="quick" gameId={gameId} />;
+  if (!handId || handId === 'new') return <HandRecorder key="new" gameId={gameId} />;
+  return hand?.log ? <HandRecorder key={handId} gameId={gameId} handId={handId} /> : <HandEditorClassic key={handId} gameId={gameId} handId={handId} />;
 }

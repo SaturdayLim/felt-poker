@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '../types';
-import { actionClosed, contributions, finalists, inAtStart, newLog, openStreet, pfr, resolve, setStreetPot, tapPlayer, typeBet, vpip } from './hand';
+import { actionClosed, contributions, finalists, inAtStart, newLog, openStreet, pfr, resolve, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -89,5 +89,18 @@ describe('all-in detection', () => {
     expect(log.streets.turn!.bets).toEqual({ Fabian: 150, CY: 150, Edwin: 150 });
     expect(Object.keys(log.allInAt!).sort()).toEqual(['CY', 'Edwin', 'Fabian']);
     expect(actionClosed(log, 'turn')).toBe(true);
+  });
+});
+
+describe('action order', () => {
+  it('after the flop, action starts left of the button: the big blind acts before the cutoff', () => {
+    const g = game();
+    let log = newLog(g, ids, 'bets', 'Edwin');
+    log = tapPlayer(log, 'preflop', 'Everett');
+    log = tapPlayer(log, 'preflop', 'Mike');
+    log = openStreet(g, log, 'flop');
+    const live = inAtStart(log, 'flop');
+    expect(streetOrder(g, log, 'flop').filter((p) => live.includes(p))).toEqual(['Fabian', 'CY', 'Edwin']);
+    expect(streetOrder(g, log, 'preflop')).toEqual(['Everett', 'CY', 'Edwin', 'Mike', 'Fabian']);
   });
 });

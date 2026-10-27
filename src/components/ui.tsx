@@ -81,7 +81,7 @@ export function Header({ title, sub, back, right, brand }: {
   title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean;
 }) {
   return (
-    <header className="sat-header felt-header">
+    <header className={back ? 'sat-header felt-header' : 'sat-header felt-header felt-header--tab'}>
       <div className="sat-header-bar sat-glass">
         {back && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={back} aria-label="Back"><Icon name="back" /></button>}
         <div className="sat-brand">

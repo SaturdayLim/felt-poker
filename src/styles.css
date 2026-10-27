@@ -18,6 +18,8 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 /* Header: the kit's sticky glass bar, pushed below the iPhone status bar */
 .felt-header { margin: 0 calc(var(--sat-gutter-mobile) * -1) var(--sat-space-2); padding: calc(var(--felt-safe-top) + var(--sat-space-2)) var(--sat-space-3) var(--sat-space-2); }
 .felt-header .sat-header-bar { padding-left: var(--sat-space-2); min-height: 56px; }
+/* Tab screens (no back button): clear the bar's rounded corner so every tab title starts at the same inset */
+.felt-header--tab .sat-header-bar { padding-left: var(--sat-space-5); }
 .felt-header .sat-brand { gap: var(--sat-space-3); }
 .felt-header-title { font-family: var(--sat-font-ui); font-size: var(--sat-fs-h3); font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

@@ -1,0 +1,42 @@
+/* Landing page (site root). Builds on the kit and the app's header and card styles in styles.css.
+   One column on phones; hero copy and the example hand sit side by side from 880px. */
+
+.felt-landing { max-width: 1080px; margin: 0 auto; padding: 0 var(--sat-gutter-mobile) calc(var(--felt-safe-bottom) + var(--sat-space-8)); }
+@media (min-width: 640px) { .felt-landing { padding-inline: var(--sat-gutter-tablet); } }
+.felt-landing .felt-header { margin-inline: calc(var(--sat-gutter-mobile) * -1); }
+@media (min-width: 640px) { .felt-landing .felt-header { margin-inline: calc(var(--sat-gutter-tablet) * -1); } }
+.felt-landing .sat-brand, .felt-landing a.sat-btn { text-decoration: none; }
+.felt-landing .sat-brand { color: inherit; }
+
+.felt-hero { display: grid; gap: var(--sat-space-8); align-items: center; padding: var(--sat-space-8) 0 var(--sat-space-12); }
+.felt-hero-copy { --sat-gap: var(--sat-space-5); }
+.felt-hero-copy .sat-cluster { --sat-gap: var(--sat-space-3); margin-top: var(--sat-space-2); }
+@media (min-width: 880px) {
+  .felt-hero { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); padding-top: var(--sat-space-16); }
+}
+
+/* Example hand: one recorder hand as Felt shows it */
+.felt-demo { margin: 0; display: flex; flex-direction: column; gap: var(--sat-space-4); }
+.felt-demo-board { display: flex; gap: var(--sat-space-2); justify-content: center; }
+.felt-demo-board .felt-card { flex: 1 1 0; max-width: 56px; width: auto; aspect-ratio: 52 / 70; height: auto; }
+.felt-suit-s { color: #111; }
+.felt-suit-h { color: #d62839; }
+.felt-suit-d { color: #1f6fd6; }
+.felt-suit-c { color: #1b8a4b; }
+.felt-demo-rows { border-top: 1px solid var(--sat-line); }
+.felt-demo-row { display: flex; justify-content: space-between; gap: var(--sat-space-3); padding: var(--sat-space-2) 0; border-bottom: 1px solid var(--sat-line); font-size: var(--sat-fs-small); }
+.felt-demo-row > span:first-child { color: var(--sat-muted); }
+.felt-demo-pot { align-items: flex-end; }
+
+.felt-section { display: flex; flex-direction: column; gap: var(--sat-space-4); padding-bottom: var(--sat-space-12); }
+.felt-features .sat-card { display: flex; flex-direction: column; gap: var(--sat-space-2); }
+
+.felt-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sat-space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.felt-steps li { display: flex; gap: var(--sat-space-4); align-items: flex-start; }
+.felt-steps li > div { display: flex; flex-direction: column; gap: var(--sat-space-1); }
+.felt-step-n { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--sat-accent-soft); color: var(--sat-accent-text); font-weight: 600; }
+
+.felt-data { --sat-gap: var(--sat-space-3); }
+
+.felt-foot { display: flex; justify-content: space-between; gap: var(--sat-space-4); flex-wrap: wrap; padding-top: var(--sat-space-6); border-top: 1px solid var(--sat-line); }

@@ -25,10 +25,12 @@ Do not edit the generated kit files (`css/tokens.css`, `tokens/tailwind*`). Chan
 
 ```
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # landing page at http://localhost:5173, the app at /app/
 npm test
 npm run build    # static site in dist/
 ```
+
+The site has two pages. `index.html` at the root is the landing page (static HTML, styled by `src/landing.ts` and `src/landing.css`). `app/index.html` is the app (`src/main.tsx`). The service worker and manifest sit at the root and cover both; the manifest's start URL is `./app/`. A copy installed before the app moved to `app/` still opens the root, so the landing page sends home-screen launches straight on to the app.
 
 ## Deploy
 
@@ -37,5 +39,5 @@ In the repo, set **Settings → Pages → Source** to **GitHub Actions**.
 
 ## Install on iPhone
 
-Open the Pages URL in Safari, tap **Share**, then **Add to Home Screen**. After that first load the app works offline.
+Open the Pages URL in Safari, tap **Open Felt**, then **Share** and **Add to Home Screen**. After that first load the app works offline.
 Deleting the home-screen app deletes its data, so use **Settings → Backup** now and then.

@@ -12,6 +12,11 @@
 
 body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
 .felt-app { max-width: 520px; margin: 0 auto; min-height: 100dvh; }
+/* Arrival from the splash (index.html): fade in once, when the store has loaded. Same-origin page
+   changes also cross-fade where the browser supports cross-document view transitions. */
+@view-transition { navigation: auto; }
+.felt-enter { animation: felt-enter 520ms var(--sat-ease) both; }
+@keyframes felt-enter { from { opacity: 0; transform: translateY(6px); } }
 .felt-page { padding: 0 var(--sat-gutter-mobile) calc(var(--felt-safe-bottom) + 112px); }
 .felt-page > .sat-stack { --sat-gap: var(--sat-space-4); }
 

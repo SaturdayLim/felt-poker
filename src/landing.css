@@ -1,42 +1,49 @@
-/* Landing page (site root). Builds on the kit and the app's header and card styles in styles.css.
-   One column on phones; hero copy and the example hand sit side by side from 880px. */
+/* Splash at the site root: Felt mark, name and version on the kit's mesh, then a fade into the app.
+   Timeline: the outer S draws in one stroke 0 to 1100ms (top chip anticlockwise, through the waist,
+   bottom chip clockwise), the inner rings grow in 800 to 1350ms and the ticks fade in, the name settles
+   1100 to 1850ms, hold, fade out from 2200ms.
+   The app page fades in on arrival (.felt-enter in styles.css); browsers with cross-document
+   view transitions also cross-fade the two pages. */
 
-.felt-landing { max-width: 1080px; margin: 0 auto; padding: 0 var(--sat-gutter-mobile) calc(var(--felt-safe-bottom) + var(--sat-space-8)); }
-@media (min-width: 640px) { .felt-landing { padding-inline: var(--sat-gutter-tablet); } }
-.felt-landing .felt-header { margin-inline: calc(var(--sat-gutter-mobile) * -1); }
-@media (min-width: 640px) { .felt-landing .felt-header { margin-inline: calc(var(--sat-gutter-tablet) * -1); } }
-.felt-landing .sat-brand, .felt-landing a.sat-btn { text-decoration: none; }
-.felt-landing .sat-brand { color: inherit; }
+@view-transition { navigation: auto; }
 
-.felt-hero { display: grid; gap: var(--sat-space-8); align-items: center; padding: var(--sat-space-8) 0 var(--sat-space-12); }
-.felt-hero-copy { --sat-gap: var(--sat-space-5); }
-.felt-hero-copy .sat-cluster { --sat-gap: var(--sat-space-3); margin-top: var(--sat-space-2); }
-@media (min-width: 880px) {
-  .felt-hero { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); padding-top: var(--sat-space-16); }
+body.sat { overflow: hidden; }
+
+.felt-splash { position: fixed; inset: 0; display: grid; place-items: center; cursor: default; user-select: none; -webkit-user-select: none; }
+.felt-splash-lockup { display: flex; flex-direction: column; align-items: center; gap: var(--sat-space-5);
+  transition: opacity 420ms var(--sat-ease), transform 420ms var(--sat-ease), filter 420ms var(--sat-ease); }
+
+/* The mark, drawn large: plain strokes so the dash animation can use pathLength */
+.felt-splash-mark { --sat-mark-h: 88px; }
+.felt-splash-mark path { vector-effect: none; stroke-width: 2.6px; }
+.felt-splash-mark .s { stroke-dasharray: 1; stroke-dashoffset: 1; animation: felt-draw 1100ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+.felt-splash-mark .inner { opacity: 0; transform-box: fill-box; transform-origin: center;
+  animation: felt-grow 450ms cubic-bezier(0.2, 0.8, 0.2, 1) 800ms forwards; }
+.felt-splash-mark .inner-b { animation-delay: 900ms; }
+.felt-splash-mark .notch { opacity: 0; animation: felt-fade 300ms var(--sat-ease) 1150ms forwards; }
+
+.felt-splash-name { font-size: clamp(2.5rem, 9vw, 3.25rem); letter-spacing: 0.02em;
+  opacity: 0; animation: felt-settle 750ms var(--sat-ease) 1100ms forwards; }
+
+.felt-splash-version { position: fixed; right: calc(var(--sat-space-5) + env(safe-area-inset-right, 0px)); bottom: calc(var(--sat-space-5) + env(safe-area-inset-bottom, 0px));
+  font-size: var(--sat-fs-caption); color: var(--sat-muted); letter-spacing: 0.04em;
+  opacity: 0; animation: felt-fade 500ms var(--sat-ease) 1300ms forwards; transition: opacity 300ms var(--sat-ease); }
+
+.felt-splash-skip { position: fixed; left: 50%; bottom: 20%; transform: translateX(-50%); }
+
+/* Hand-over */
+body.is-leaving .felt-splash-lockup { opacity: 0; transform: translateY(-8px) scale(0.98); filter: blur(4px); }
+body.is-leaving .felt-splash-version { opacity: 0; }
+
+@keyframes felt-draw { to { stroke-dashoffset: 0; } }
+@keyframes felt-fade { to { opacity: 1; } }
+@keyframes felt-grow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+@keyframes felt-settle {
+  from { opacity: 0; letter-spacing: 0.24em; filter: blur(6px); transform: translateY(6px); }
+  to { opacity: 1; letter-spacing: 0.02em; filter: blur(0); transform: none; }
 }
 
-/* Example hand: one recorder hand as Felt shows it */
-.felt-demo { margin: 0; display: flex; flex-direction: column; gap: var(--sat-space-4); }
-.felt-demo-board { display: flex; gap: var(--sat-space-2); justify-content: center; }
-.felt-demo-board .felt-card { flex: 1 1 0; max-width: 56px; width: auto; aspect-ratio: 52 / 70; height: auto; }
-.felt-suit-s { color: #111; }
-.felt-suit-h { color: #d62839; }
-.felt-suit-d { color: #1f6fd6; }
-.felt-suit-c { color: #1b8a4b; }
-.felt-demo-rows { border-top: 1px solid var(--sat-line); }
-.felt-demo-row { display: flex; justify-content: space-between; gap: var(--sat-space-3); padding: var(--sat-space-2) 0; border-bottom: 1px solid var(--sat-line); font-size: var(--sat-fs-small); }
-.felt-demo-row > span:first-child { color: var(--sat-muted); }
-.felt-demo-pot { align-items: flex-end; }
-
-.felt-section { display: flex; flex-direction: column; gap: var(--sat-space-4); padding-bottom: var(--sat-space-12); }
-.felt-features .sat-card { display: flex; flex-direction: column; gap: var(--sat-space-2); }
-
-.felt-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sat-space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
-.felt-steps li { display: flex; gap: var(--sat-space-4); align-items: flex-start; }
-.felt-steps li > div { display: flex; flex-direction: column; gap: var(--sat-space-1); }
-.felt-step-n { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--sat-accent-soft); color: var(--sat-accent-text); font-weight: 600; }
-
-.felt-data { --sat-gap: var(--sat-space-3); }
-
-.felt-foot { display: flex; justify-content: space-between; gap: var(--sat-space-4); flex-wrap: wrap; padding-top: var(--sat-space-6); border-top: 1px solid var(--sat-line); }
+@media (prefers-reduced-motion: reduce) {
+  .felt-splash-mark .s { stroke-dashoffset: 0; }
+  .felt-splash-mark .inner, .felt-splash-mark .notch, .felt-splash-name, .felt-splash-version { opacity: 1; }
+}

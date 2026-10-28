@@ -2,10 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+
+const version = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')).version as string;
 
 export default defineConfig({
   base: './',
-  // The site root is the landing page; the app itself lives at app/.
+  // The site root is the splash screen; the app itself lives at app/.
   build: { rollupOptions: { input: { landing: resolve(__dirname, 'index.html'), app: resolve(__dirname, 'app/index.html') } } },
   plugins: [
     react(),
@@ -20,8 +23,8 @@ export default defineConfig({
         name: 'Felt — Home Game Tracker',
         short_name: 'Felt',
         description: 'Offline Texas Hold\'em home game tracker',
-        start_url: './app/',
-        scope: './app/',
+        start_url: './',
+        scope: './',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#0A0F12',
@@ -38,14 +41,15 @@ export default defineConfig({
         navigateFallbackAllowlist: [/\/app\//],
       },
     }),
-    // The PWA plugin writes the manifest link with buildBase ("../"), which is only right for app/.
+    // Splash page: stamp the version, and fix the manifest link, which the PWA plugin writes with
+    // buildBase ("../") because that is right for app/.
     {
-      name: 'felt-landing-manifest',
+      name: 'felt-splash',
       enforce: 'post',
       transformIndexHtml: {
         order: 'post',
         handler: (html: string, ctx: { path: string }) =>
-          ctx.path.includes('/app/') ? html : html.replace('href="../manifest.webmanifest"', 'href="./manifest.webmanifest"'),
+          ctx.path.includes('/app/') ? html : html.replace('__FELT_VERSION__', version).replace('href="../manifest.webmanifest"', 'href="./manifest.webmanifest"'),
       },
     },
   ],

@@ -3,135 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <!-- Launched from the home screen (an install made before the app moved to app/): go straight to the app. -->
-    <script>try{if(navigator.standalone||matchMedia('(display-mode: standalone)').matches)location.replace('./app/'+location.hash)}catch(e){}</script>
     <!-- Saturday Signature: theme before paint (stops a light flash on dark devices). Keep before the stylesheets. -->
     <script>try{var t=localStorage.getItem('sat-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
     <meta name="theme-color" content="#0A0F12" />
-    <meta name="description" content="Felt records a Texas Hold'em home game on one phone: buy-ins, hands street by street, stats and who pays whom. Offline, no account." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Felt" />
+    <meta name="description" content="Felt: an offline Texas Hold'em home game tracker." />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <title>Felt: Home Game Tracker</title>
+    <title>Felt</title>
   </head>
   <body class="sat">
-    <div class="felt-landing">
-      <header class="sat-header felt-header felt-header--tab">
-        <div class="sat-header-bar sat-glass">
-          <a class="sat-brand" href="./" aria-label="Felt home">
-            <svg class="sat-mark" style="--sat-mark-h: 32px" viewBox="-2 -2 68 104" aria-hidden="true">
-              <path d="M8 26 a24 24 0 1 0 48 0 a24 24 0 1 0 -48 0" />
-              <path d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-              <path d="M45.15 39.15 L47.84 41.84 M18.85 39.15 L16.16 41.84 M18.85 12.85 L16.16 10.16 M45.15 12.85 L47.84 10.16" />
-              <path d="M8 74 a24 24 0 1 0 48 0 a24 24 0 1 0 -48 0" />
-              <path d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-              <path d="M45.15 87.15 L47.84 89.84 M18.85 87.15 L16.16 89.84 M18.85 60.85 L16.16 58.16 M45.15 60.85 L47.84 58.16" />
-            </svg>
-            <span class="sat-wordmark">Felt</span>
-          </a>
-          <a class="sat-btn sat-btn--primary sat-btn--sm" href="./app/">Open Felt</a>
-        </div>
-      </header>
-
-      <main>
-        <section class="felt-hero">
-          <div class="sat-stack felt-hero-copy">
-            <span class="sat-caption sat-rise" style="--i: 0">Home game tracker <span class="sat-qual">(Texas Hold'em)</span></span>
-            <h1 class="sat-display sat-rise" style="--i: 1">Every hand, every buy-in, <em>settled</em>.</h1>
-            <p class="sat-lede sat-rise" style="--i: 2">Felt records your home game on one phone: buy-ins, hands street by street, and who pays whom when the night ends. It works offline and keeps every figure on your device.</p>
-            <div class="sat-cluster sat-rise" style="--i: 3">
-              <a class="sat-btn sat-btn--primary sat-btn--lg" href="./app/">Open Felt</a>
-              <a class="sat-btn sat-btn--lg" href="#install">Add to iPhone</a>
-            </div>
-          </div>
-
-          <figure class="sat-glass sat-card felt-demo sat-rise" style="--i: 4" aria-label="Example hand as Felt records it">
-            <div class="sat-split">
-              <span class="sat-caption">Hand 14 <span class="sat-qual">(River)</span></span>
-              <span class="sat-badge">Split pot</span>
-            </div>
-            <div class="felt-demo-board">
-              <span class="felt-card lg felt-suit-s"><span class="r">A</span><span class="s">♠</span></span>
-              <span class="felt-card lg felt-suit-h"><span class="r">K</span><span class="s">♥</span></span>
-              <span class="felt-card lg felt-suit-d"><span class="r">9</span><span class="s">♦</span></span>
-              <span class="felt-card lg felt-suit-c"><span class="r">9</span><span class="s">♣</span></span>
-              <span class="felt-card lg felt-suit-s"><span class="r">4</span><span class="s">♠</span></span>
-            </div>
-            <div class="felt-demo-rows">
-              <div class="felt-demo-row"><span>Preflop</span><span class="sat-num">Raise 5, two calls</span></div>
-              <div class="felt-demo-row"><span>Flop</span><span class="sat-num">Bet 10, one call</span></div>
-              <div class="felt-demo-row"><span>Turn</span><span class="sat-num">All in 40, called</span></div>
-            </div>
-            <div class="sat-split felt-demo-pot">
-              <div class="sat-stack" style="--sat-gap: var(--sat-space-1)">
-                <span class="sat-caption">Pot <span class="sat-qual">(units)</span></span>
-                <span class="sat-kpi">115</span>
-              </div>
-              <span class="sat-small sat-muted felt-right">Split 58 and 57<br />Odd chip by position</span>
-            </div>
-          </figure>
-        </section>
-
-        <section class="felt-section" aria-labelledby="what">
-          <h2 class="sat-h2" id="what">What it records</h2>
-          <div class="sat-grid felt-features" style="--sat-min: 240px">
-            <article class="sat-glass sat-card">
-              <h3 class="sat-h3">Cash games and tournaments</h3>
-              <p class="sat-muted">Track in blinds, then set one multiplier to turn units into money. Tournaments keep entries, re-entries, bust order and payouts.</p>
-            </article>
-            <article class="sat-glass sat-card">
-              <h3 class="sat-h3">Hands, street by street</h3>
-              <p class="sat-muted">Tap to call or fold, type a number to raise, or just count the pot at the end of each street. Action order follows the button.</p>
-            </article>
-            <article class="sat-glass sat-card">
-              <h3 class="sat-h3">Split and side pots</h3>
-              <p class="sat-muted">All-ins build side pots and return uncalled chips. Run the board up to five times; odd chips go by position.</p>
-            </article>
-            <article class="sat-glass sat-card">
-              <h3 class="sat-h3">Who is in the game</h3>
-              <p class="sat-muted">A traffic light per player: playing, away with the clock paused, or clocked out. Stack estimates fill in the chip count.</p>
-            </article>
-            <article class="sat-glass sat-card">
-              <h3 class="sat-h3">Settle up</h3>
-              <p class="sat-muted">Shared expenses and the fewest transfers that square everyone, with a tick for each payment as it lands.</p>
-            </article>
-            <article class="sat-glass sat-card">
-              <h3 class="sat-h3">Stats and reports</h3>
-              <p class="sat-muted">Standings, VPIP, PFR and showdown rates over any period. Share a game as a PNG report or the full log as CSV.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="felt-section" id="install" aria-labelledby="install-title">
-          <h2 class="sat-h2" id="install-title">Add it to your iPhone</h2>
-          <ol class="felt-steps">
-            <li class="sat-glass-2 sat-card">
-              <span class="felt-step-n sat-mono">1</span>
-              <div><h3 class="sat-h3">Open Felt in Safari</h3><p class="sat-muted">Tap <a href="./app/">Open Felt</a> on this page.</p></div>
-            </li>
-            <li class="sat-glass-2 sat-card">
-              <span class="felt-step-n sat-mono">2</span>
-              <div><h3 class="sat-h3">Add to Home Screen</h3><p class="sat-muted">Tap Share, then Add to Home Screen.</p></div>
-            </li>
-            <li class="sat-glass-2 sat-card">
-              <span class="felt-step-n sat-mono">3</span>
-              <div><h3 class="sat-h3">Play offline</h3><p class="sat-muted">Open it from the home screen. After the first load it needs no signal.</p></div>
-            </li>
-          </ol>
-        </section>
-
-        <section class="felt-section" aria-labelledby="data">
-          <div class="sat-flat sat-card sat-stack felt-data">
-            <h2 class="sat-h2" id="data">Your data stays on the phone</h2>
-            <p class="sat-muted sat-read">There is no account and no server. Games, players and settings live in the phone's own storage. Removing the app from the home screen removes its data too, so back up now and then from Settings, under Data.</p>
-          </div>
-        </section>
-      </main>
-
-      <footer class="felt-foot sat-small sat-muted">
-        <span>Felt, a home game tracker.</span>
-        <a href="./app/">Open Felt</a>
-      </footer>
-    </div>
+    <!-- Splash: the outer S draws in one stroke, the inner rings and ticks complete the chips, the name settles, then the page fades and hands over to the app.
+         Tap or press a key to skip. -->
+    <main class="felt-splash" aria-label="Felt is loading">
+      <div class="felt-splash-lockup">
+        <svg class="sat-mark felt-splash-mark" viewBox="-2 -2 68 104" aria-hidden="true">
+          <path class="s" pathLength="1" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
+          <path class="inner" d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
+          <path class="inner inner-b" d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
+          <path class="notch" d="M45.15 39.15 L47.84 41.84 M18.85 39.15 L16.16 41.84 M18.85 12.85 L16.16 10.16 M45.15 12.85 L47.84 10.16" />
+          <path class="notch" d="M45.15 87.15 L47.84 89.84 M18.85 87.15 L16.16 89.84 M18.85 60.85 L16.16 58.16 M45.15 60.85 L47.84 58.16" />
+        </svg>
+        <h1 class="sat-wordmark felt-splash-name">Felt</h1>
+      </div>
+      <span class="felt-splash-version sat-mono">v__FELT_VERSION__</span>
+      <noscript><a class="felt-splash-skip" href="./app/">Open Felt</a></noscript>
+    </main>
+    <script>
+      (function () {
+        var reduce = false;
+        try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+        var left = false;
+        function enter() {
+          if (left) return;
+          left = true;
+          document.body.classList.add('is-leaving');
+          // replace, not assign: Back from the app should not land on the splash again
+          setTimeout(function () { location.replace('./app/' + location.hash); }, reduce ? 0 : 420);
+        }
+        setTimeout(enter, reduce ? 450 : 2200);
+        addEventListener('pointerdown', enter);
+        addEventListener('keydown', enter);
+      })();
+    </script>
     <script type="module" src="/src/landing.ts"></script>
   </body>
 </html>

@@ -52,7 +52,7 @@ export default function App() {
 
   const active = a === 'game' || a === 'new' ? 'games' : a ?? '';
   return (
-    <div className="felt-app">
+    <div className="felt-app felt-enter">
       {screen}
       {nav && (
         <nav className="felt-nav" aria-label="Main">

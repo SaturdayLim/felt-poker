@@ -39,7 +39,7 @@ export function playersCsv(games: Game[], name: NameFn): string {
   }
   return toCsv([
     'game_id', 'game', 'date', 'type', 'currency', 'unit_value', 'player', 'seat',
-    'buy_ins', 'buy_in_units', 'cash_out_units', 'money_in', 'money_out', 'net', 'expenses', 'balance', 'place',
+    'buy_ins', 'buy_in_chips', 'cash_out_chips', 'money_in', 'money_out', 'net', 'expenses', 'balance', 'place',
     'minutes_played', 'hands_won', 'units_won_in_pots',
   ], rows);
 }
@@ -74,7 +74,7 @@ export function handsCsv(games: Game[], name: NameFn): string {
     }
   }
   return toCsv([
-    'game_id', 'game', 'date', 'hand', 'time', 'button', 'pot_units', 'pot_money', 'winners', 'winner_amounts',
+    'game_id', 'game', 'date', 'hand', 'time', 'button', 'pot_chips', 'pot_money', 'winners', 'winner_amounts',
     'split', 'board', 'flop', 'turn', 'river', 'shown_cards', 'shown_hand_ranks', 'all_in', 'straddle', 'tags', 'note', 'pots',
     'entry_mode', 'vpip_players', 'pfr_players', 'pot_by_street', 'in_by_street', 'runs', 'returned', 'seconds',
   ], rows);
@@ -91,7 +91,7 @@ export function ledgerCsv(games: Game[], name: NameFn): string {
     for (const t of g.transfers) rows.push([g.id, g.name, iso(t.resolvedAt ?? g.endedAt ?? g.startedAt), t.resolved ? 'transfer_paid' : 'transfer_open', name(t.from), name(t.to), '', t.amount, '']);
   }
   rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])));
-  return toCsv(['game_id', 'game', 'time', 'event', 'player', 'to_player', 'units', 'money', 'detail'], rows);
+  return toCsv(['game_id', 'game', 'time', 'event', 'player', 'to_player', 'chips', 'money', 'detail'], rows);
 }
 
 export function slug(s: string) {

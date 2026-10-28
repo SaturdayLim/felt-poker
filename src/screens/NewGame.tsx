@@ -10,6 +10,8 @@ export default function NewGame({ type }: { type: GameType }) {
   const s = useStore((x) => x.settings);
   const players = useStore((x) => x.players).filter((p) => !p.archived);
   const createGame = useStore((x) => x.createGame);
+  const groups = useStore((x) => x.groups);
+  const [groupId, setGroupId] = useState<ID | undefined>(undefined);
 
   const day = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
   const [name, setName] = useState(type === 'cash' ? `${day} cash` : `${day} tournament`);
@@ -32,7 +34,7 @@ export default function NewGame({ type }: { type: GameType }) {
     const g = createGame({
       type, name, playerIds: sel, currency: currency.trim() || 'S$',
       unitValue: uv, sb: num(sb) ?? 1, bb: bbN, defaultBuyIn: bi,
-      tournamentBuyIn: num(tBuyIn) ?? 0, startingStack: num(stack) ?? 0, autoBuyIn,
+      tournamentBuyIn: num(tBuyIn) ?? 0, startingStack: num(stack) ?? 0, autoBuyIn, groupId,
     });
     go(`game/${g.id}`, true);
   };
@@ -58,8 +60,8 @@ export default function NewGame({ type }: { type: GameType }) {
           <section className="sat-glass sat-card sat-stack">
             <div className="sat-split"><h2 className="sat-h3">Blinds and buy-in</h2><Help k="units" /></div>
             <div className="sat-grid" style={{ ['--sat-min' as string]: '90px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-              {field('g-sb', 'Small blind (units)', sb, setSb, { decimal: true })}
-              {field('g-bb', 'Big blind (units)', bb, setBb, { decimal: true })}
+              {field('g-sb', 'Small blind (chips)', sb, setSb, { decimal: true })}
+              {field('g-bb', 'Big blind (chips)', bb, setBb, { decimal: true })}
             </div>
             <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
               <div className="sat-field">
@@ -76,7 +78,7 @@ export default function NewGame({ type }: { type: GameType }) {
                 <span className="sat-hint">Per unit (e.g. 0.1)</span>
               </div>
             </div>
-            {field('g-bi', 'Buy-in (units)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} big blinds` : '-'} = ${money(bi * uv, currency)}` })}
+            {field('g-bi', 'Buy-in (chips)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} big blinds` : '-'} = ${money(bi * uv, currency)}` })}
             <div className="sat-switch-row">
               <span>Buy everyone in now <Help k="autoBuyIn" /></span>
               <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Buy everyone in now" />
@@ -103,6 +105,18 @@ export default function NewGame({ type }: { type: GameType }) {
               {players.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setSel(sel.length === players.length ? [] : players.map((p) => p.id))}>{sel.length === players.length ? 'Clear' : 'Pick all'}</button>}
             </div>
           </div>
+          {groups.length > 0 && (
+            <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+              <Caption tip="groups">Group</Caption>
+              <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+                <button className="sat-chip" aria-pressed={!groupId} onClick={() => setGroupId(undefined)}>None</button>
+                {groups.map((grp) => (
+                  <button key={grp.id} className="sat-chip" aria-pressed={groupId === grp.id} onClick={() => { setGroupId(grp.id); setSel(grp.playerIds.filter((p) => players.some((x) => x.id === p))); }}>{grp.name}</button>
+                ))}
+              </div>
+              {groupId && <p className="sat-small sat-muted">Picks the group's players. Payments settle with the group's other games.</p>}
+            </div>
+          )}
           <NameEntry onPick={(p) => setSel((v) => (v.includes(p.id) ? v : [...v, p.id]))} />
           <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
             {players.map((p) => <PlayerChip key={p.id} player={p} pressed={sel.includes(p.id)} onTap={() => toggle(p.id)} />)}

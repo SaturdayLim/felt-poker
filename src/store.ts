@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
-import type { Game, GameType, Hand, ID, Player, PlayerStatus, Settings } from './types';
+import type { Game, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
 import { uid } from './lib/ids';
 import { defaultPayoutPercents, playerStatus, rebuildTransfers, round2, totalPotMoney } from './lib/calc';
 
@@ -11,8 +11,15 @@ const idbStorage: StateStorage = {
   removeItem: async (name) => { await idbDel(name); },
 };
 
+/** Opening screen length. 3s lets the logo draw (1.85s) and hold for about a second; splash screens
+    longer than about 3 seconds start to feel like a wait. */
+export const SPLASH_DEFAULT = 3000;
+/** Read by the splash page (index.html) before it paints, so it can skip or set its own length. */
+export const SPLASH_KEY = 'felt-splash-ms';
+
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
+  splashMs: SPLASH_DEFAULT,
   entryMode: 'bets',
   currency: 'S$',
   unitValue: 0.1,
@@ -37,6 +44,7 @@ export interface NewGameInput {
   tournamentBuyIn: number;
   startingStack: number;
   autoBuyIn: boolean;
+  groupId?: ID;
 }
 
 export interface BackupData {
@@ -46,13 +54,19 @@ export interface BackupData {
   players: Player[];
   games: Game[];
   settings: Settings;
+  groups?: Group[];
 }
 
 interface State {
   players: Player[];
   games: Game[];
+  groups: Group[];
   settings: Settings;
   hydrated: boolean;
+
+  saveGroup: (g: Group) => void;
+  deleteGroup: (id: ID) => void;
+  settleGroup: (id: ID) => void;
 
   addPlayer: (name: string) => Player;
   renamePlayer: (id: ID, name: string) => void;
@@ -104,8 +118,27 @@ export const useStore = create<State>()(
       return {
         players: [],
         games: [],
+        groups: [],
         settings: DEFAULT_SETTINGS,
         hydrated: false,
+
+        saveGroup: (grp) =>
+          set((s) => ({ groups: s.groups.some((x) => x.id === grp.id) ? s.groups.map((x) => (x.id === grp.id ? grp : x)) : [...s.groups, grp] })),
+        deleteGroup: (id) =>
+          set((s) => ({
+            groups: s.groups.filter((x) => x.id !== id),
+            games: s.games.map((g) => (g.groupId === id ? { ...g, groupId: undefined } : g)),
+          })),
+        settleGroup: (id) =>
+          set((s) => {
+            const t = now();
+            return {
+              games: s.games.map((g) =>
+                g.groupId === id && g.status === 'closed' && g.transfers.some((x) => !x.resolved)
+                  ? { ...g, transfers: g.transfers.map((x) => (x.resolved ? x : { ...x, resolved: true, resolvedAt: t })) }
+                  : g),
+            };
+          }),
 
         addPlayer: (name) => {
           const p: Player = { id: uid(), name: name.trim(), createdAt: now() };
@@ -144,6 +177,7 @@ export const useStore = create<State>()(
             hands: [],
             expenses: [],
             transfers: [],
+            groupId: input.groupId,
             tournament:
               input.type === 'tournament'
                 ? { buyIn: input.tournamentBuyIn, startingStack: input.startingStack, bustOrder: [], payouts: [] }
@@ -268,25 +302,32 @@ export const useStore = create<State>()(
           }),
 
         updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
+        // Theme and opening screen are this phone's own preferences: a restore never changes them.
         importBackup: (data) =>
-          set({ players: data.players, games: data.games, settings: { ...DEFAULT_SETTINGS, ...data.settings } }),
+          set((s) => ({
+            players: data.players,
+            games: data.games,
+            groups: data.groups ?? [],
+            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) } },
+          })),
         exportBackup: () => {
           const s = get();
-          return { app: 'felt', version: 1, exportedAt: now(), players: s.players, games: s.games, settings: s.settings };
+          return { app: 'felt', version: 1, exportedAt: now(), players: s.players, games: s.games, groups: s.groups, settings: s.settings };
         },
-        eraseAll: () => set({ players: [], games: [], settings: DEFAULT_SETTINGS }),
+        eraseAll: () => set((s) => ({ players: [], games: [], groups: [], settings: { ...DEFAULT_SETTINGS, theme: s.settings.theme, splashMs: s.settings.splashMs } })),
       };
     },
     {
       name: 'felt-store',
       version: 1,
       storage: createJSONStorage(() => idbStorage),
-      partialize: (s) => ({ players: s.players, games: s.games, settings: s.settings }) as unknown as State,
+      partialize: (s) => ({ players: s.players, games: s.games, groups: s.groups, settings: s.settings }) as unknown as State,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>;
         return {
           ...current,
           ...p,
+          groups: p.groups ?? [],
           settings: {
             ...DEFAULT_SETTINGS,
             ...(p.settings ?? {}),

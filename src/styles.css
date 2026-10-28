@@ -13,10 +13,12 @@
 body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
 .felt-app { max-width: 520px; margin: 0 auto; min-height: 100dvh; }
 /* Arrival from the splash (index.html): fade in once, when the store has loaded. Same-origin page
-   changes also cross-fade where the browser supports cross-document view transitions. */
+   changes also cross-fade where the browser supports cross-document view transitions.
+   Opacity only: a transform here (even a finished one, held by fill-mode) turns .felt-app into the
+   containing block for position: fixed, and the tab bar would scroll away with the page. */
 @view-transition { navigation: auto; }
-.felt-enter { animation: felt-enter 520ms var(--sat-ease) both; }
-@keyframes felt-enter { from { opacity: 0; transform: translateY(6px); } }
+.felt-enter { animation: felt-enter 520ms var(--sat-ease) backwards; }
+@keyframes felt-enter { from { opacity: 0; } }
 .felt-page { padding: 0 var(--sat-gutter-mobile) calc(var(--felt-safe-bottom) + 112px); }
 .felt-page > .sat-stack { --sat-gap: var(--sat-space-4); }
 
@@ -140,22 +142,141 @@ button.felt-row { color: inherit; }
 /* Press and hold chips: no iOS callout or text selection while holding */
 .felt-hold { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 
-/* Traffic light status (green playing, amber away, red out). 44px hit area per lamp. */
-.felt-light { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--sat-radius-pill); flex: none; }
-.felt-lamp { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
-.felt-lamp::before { content: ''; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; opacity: 0.45; transition: all var(--sat-dur-fast) var(--sat-ease); }
-.felt-lamp::after { content: ''; position: absolute; inset: -7px -2px; }
+/* Traffic light, top right of a player card: one lamp (green playing, faded orange away, red out)
+   and a small red cross to clock out. Each control has a 40px hit area around a small mark. */
+.felt-light { display: inline-flex; align-items: center; gap: 2px; flex: none; margin: -8px -6px -8px 0; }
+.felt-lamp, .felt-lamp-out { position: relative; width: 36px; height: 40px; display: grid; place-items: center; border-radius: 50%; }
+.felt-lamp::before { content: ''; width: 14px; height: 14px; border-radius: 50%; background: currentColor; transition: all var(--sat-dur-fast) var(--sat-ease); }
 .felt-lamp--playing { color: var(--sat-pos); }
+.felt-lamp--playing::before { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 24%, transparent), 0 0 10px color-mix(in srgb, currentColor 55%, transparent); }
 .felt-lamp--away { color: var(--sat-warn); }
+.felt-lamp--away::before { opacity: 0.45; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent); }
 .felt-lamp--out { color: var(--sat-neg); }
-.felt-lamp[aria-checked="true"]::before { background: currentColor; opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
-.felt-lamp:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 1px; border-radius: 50%; }
+.felt-lamp-out { color: var(--sat-neg); width: 32px; }
+.felt-lamp-out svg { width: 18px; height: 18px; padding: 3px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, currentColor 55%, transparent); }
+.felt-lamp:focus-visible, .felt-lamp-out:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: -2px; }
+
+/* Info tips: one line per field or option */
+.felt-tip-line { display: block; }
+.felt-tip-line + .felt-tip-line { margin-top: var(--sat-space-2); }
+/* Source of a figure: only ever an info tip (standing rule), aligned to the end of its block */
+.felt-source { display: flex; justify-content: flex-end; margin-top: calc(var(--sat-space-1) * -1); }
+.sat-h3 .sat-tip, .sat-h2 .sat-tip { vertical-align: 2px; }
+
+/* Sections and lists */
+.felt-section { display: flex; flex-direction: column; gap: var(--sat-space-3); margin-top: var(--sat-space-2); }
+.felt-section-cap { display: flex; align-items: center; }
+.felt-row--slim { min-height: 52px; padding: var(--sat-space-2) 0; }
+.felt-start { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sat-space-2); }
+
+/* Live game cards: accent edge, pulsing dot, chevron. Closed games use flat, quiet rows instead. */
+.felt-live-card { position: relative; display: grid; gap: 2px; text-align: left; padding: var(--sat-space-4) 48px var(--sat-space-4) var(--sat-space-5);
+  border-color: color-mix(in srgb, var(--sat-pos) 55%, var(--sat-glass-edge)); box-shadow: inset 4px 0 0 var(--sat-pos), 0 6px 24px color-mix(in srgb, var(--sat-pos) 14%, transparent); }
+.felt-live-tag { font-size: var(--sat-fs-caption); font-weight: 600; letter-spacing: var(--sat-track-caption); text-transform: uppercase; color: var(--sat-pos); display: flex; align-items: center; }
+.felt-live-name { font: 400 1.5rem/1.2 var(--sat-font-display); }
+.felt-live-go { position: absolute; right: var(--sat-space-4); top: 50%; transform: translateY(-50%) rotate(180deg); color: var(--sat-muted); display: grid; }
+.felt-live-go svg { width: 20px; height: 20px; }
+.felt-dot--pulse { animation: felt-pulse 1.8s ease-in-out infinite; }
+@keyframes felt-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sat-pos) 45%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--sat-pos) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .felt-dot--pulse { animation: none; } }
+.felt-closed-list .felt-row-title { font-weight: 500; }
+
+/* Game sub-pages, inside the sticky header */
+.felt-subnav { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: var(--sat-space-2); padding: 4px; border-radius: var(--sat-radius-md); }
+.felt-subnav button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: calc(var(--sat-radius-md) - 4px); font-weight: 600; color: var(--sat-muted); }
+.felt-subnav button span { font-size: var(--sat-fs-caption); padding: 1px 7px; border-radius: var(--sat-radius-pill); background: var(--sat-well); }
+.felt-subnav button[aria-selected="true"] { color: var(--sat-accent-text); background: var(--sat-accent-soft); }
+
+/* Live game summary strip */
+.felt-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sat-space-2); padding: var(--sat-space-3) var(--sat-space-4); border-radius: var(--sat-radius-md); background: var(--sat-well); }
+.felt-summary > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.felt-summary b { font-size: 1.0625rem; white-space: nowrap; }
+
+/* Player card: grip (seat) | name and light, then buy-ins, stack, time */
+.felt-seatlist { display: flex; flex-direction: column; gap: var(--sat-space-2); }
+.felt-pcard { display: flex; align-items: stretch; gap: var(--sat-space-1); padding: var(--sat-space-2) var(--sat-space-3) var(--sat-space-2) 0; border-radius: var(--sat-radius-md);
+  transition: opacity var(--sat-dur-fast) var(--sat-ease), box-shadow var(--sat-dur-fast) var(--sat-ease); }
+.felt-pcard.is-away { opacity: 0.78; }
+.felt-pcard.is-out { opacity: 0.6; }
+.felt-pcard.is-dragging { box-shadow: 0 10px 30px rgba(0,0,0,0.28); outline: 2px solid var(--sat-accent); position: relative; z-index: 2; }
+.felt-grip { width: 44px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--sat-muted);
+  touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.felt-grip span { font-size: var(--sat-fs-caption); font-weight: 600; }
+.felt-grip.is-static { cursor: default; }
+.felt-pcard.is-dragging .felt-grip { cursor: grabbing; color: var(--sat-accent-text); }
+.felt-pcard-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.felt-pcard-top { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 40px; }
+.felt-pcard-name { flex: 1; min-width: 0; text-align: left; font: 400 1.3125rem/1.2 var(--sat-font-display); font-synthesis: none; min-height: 40px; color: inherit; }
+.felt-pcard-input { flex: 1; min-width: 0; min-height: 40px; padding: 4px 10px; font: 400 1.1875rem/1.2 var(--sat-font-display); }
+.felt-pcard-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sat-space-3); font-size: var(--sat-fs-small); color: var(--sat-muted); }
+.felt-pcard-stats b { color: var(--sat-text); font-weight: 600; }
+.felt-stat { white-space: nowrap; }
+.felt-pill { display: inline-flex; align-items: center; border-radius: var(--sat-radius-pill); background: var(--sat-well); }
+.felt-pill > button { min-height: 32px; padding: 0 10px; color: inherit; border-radius: var(--sat-radius-pill); }
+.felt-pill > .felt-pill-plus { width: 32px; padding: 0; display: grid; place-items: center; color: var(--sat-accent-text); border-left: 1px solid var(--sat-line); border-radius: 0 var(--sat-radius-pill) var(--sat-radius-pill) 0; }
+@media (pointer: coarse) { .felt-pill > button { min-height: 36px; } .felt-pill > .felt-pill-plus { width: 40px; } }
+.felt-out-cap { margin-top: var(--sat-space-3); }
+.felt-addbar { display: flex; align-items: center; justify-content: center; gap: var(--sat-space-2); width: 100%; min-height: 52px; border-radius: var(--sat-radius-md);
+  border: 1.5px dashed var(--sat-line-strong); color: var(--sat-accent-text); font-weight: 600; background: transparent; }
+.felt-addbar svg { width: 18px; height: 18px; }
+@media (hover: hover) and (pointer: fine) { .felt-addbar:hover { background: var(--sat-hover); } }
+.felt-addcard { border: 1.5px dashed var(--sat-line-strong); }
+
 
 /* Pots in the hand form */
 .felt-pot { padding: var(--sat-space-4); }
 .felt-split { padding: var(--sat-space-1) var(--sat-space-3); }
 
-/* Street-by-street recorder */
+/* Hand recorder: stage tabs and status inside the sticky header, action table, keypad dock */
+.felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + 340px); }
+.felt-rec-bar { margin-top: var(--sat-space-2); padding: 4px; border-radius: var(--sat-radius-md); }
+.felt-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; }
+.felt-tabs button { min-height: 36px; padding: 0 2px; border-radius: calc(var(--sat-radius-md) - 4px); font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); white-space: nowrap; }
+.felt-tabs button[aria-selected="true"] { color: var(--sat-accent-text); background: var(--sat-accent-soft); }
+.felt-tabs button:disabled { opacity: 0.35; }
+.felt-rec-status { display: flex; justify-content: space-between; gap: var(--sat-space-2); padding: 6px var(--sat-space-2) 2px; font-size: var(--sat-fs-small); color: var(--sat-muted); }
+.felt-rec-status b { color: var(--sat-text); }
+.felt-rec-status > span:last-child b { font-size: 1.0625rem; }
+
+.felt-acts { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--sat-gutter-mobile) * -1); padding: 0 var(--sat-gutter-mobile); }
+.felt-acts::-webkit-scrollbar { display: none; }
+.felt-acts-row { display: grid; grid-template-columns: 112px repeat(var(--cols), minmax(68px, 1fr)); gap: 4px; align-items: stretch; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
+.felt-acts-row.is-folded { opacity: 0.38; }
+.felt-acts-name { position: sticky; left: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 4px 8px; border-radius: var(--sat-radius-sm); background: var(--sat-well); }
+.felt-acts-name > span:first-child { font-weight: 600; }
+.felt-acts-sub { font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+.felt-box { min-height: 48px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; gap: 1px;
+  border: 1.5px solid var(--sat-accent); background: var(--sat-glass-2); color: var(--sat-text); -webkit-tap-highlight-color: transparent; user-select: none; }
+.felt-box .v { font-size: var(--sat-fs-caption); font-weight: 600; }
+.felt-box .n { font-size: 0.9375rem; font-weight: 600; }
+.felt-box.is-off { border: 0; background: transparent; }
+.felt-box.is-empty { border-style: dashed; border-color: var(--sat-line-strong); background: transparent; color: var(--sat-muted); }
+.felt-box.is-empty .v, .felt-box.is-empty .n { font-weight: 500; }
+.felt-box.is-implied { border-style: dashed; color: var(--sat-muted); background: transparent; }
+.felt-box.is-fold { border: 1.5px solid var(--sat-line-strong); background: var(--sat-well); color: var(--sat-muted); }
+.felt-box.is-bet, .felt-box.is-allin { background: var(--sat-accent-soft); color: var(--sat-accent-text); }
+.felt-box.is-sel { outline: 2.5px solid var(--sat-focus); outline-offset: 1px; }
+.felt-box:active:not(.is-off) { transform: scale(0.96); }
+
+.felt-rec-dock { flex-direction: column; align-items: stretch; }
+.felt-app .felt-rec-dock > * { flex: none; }
+.felt-dock-actions { display: flex; gap: var(--sat-space-2); }
+.felt-dock-actions > * { flex: 1; }
+.felt-picker-wrap { display: flex; flex-direction: column; gap: var(--sat-space-2); padding: 2px 2px var(--sat-space-1); }
+.felt-keypad { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px var(--sat-space-1); }
+.felt-keypad-head { display: flex; justify-content: space-between; gap: var(--sat-space-2); font-size: var(--sat-fs-small); padding: 0 4px; min-height: 20px; }
+.felt-keypad-val { color: var(--sat-accent-text); font-weight: 600; white-space: nowrap; }
+.felt-keypad-quick { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.felt-keypad-digits { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.felt-keypad button { min-height: 42px; border-radius: var(--sat-radius-sm); background: var(--sat-well); color: var(--sat-text); font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.felt-keypad-quick button { font-size: var(--sat-fs-small); background: var(--sat-glass); border: 1px solid var(--sat-line); }
+.felt-keypad-quick small { font-size: var(--sat-fs-caption); color: var(--sat-muted); font-weight: 500; }
+.felt-keypad-digits button { font-size: 1.125rem; }
+.felt-keypad-digits .is-ok { background: var(--sat-accent-fill); color: #fff; font-size: var(--sat-fs-small); }
+.felt-keypad-digits .is-ok[aria-disabled="true"] { opacity: 0.4; }
+.felt-keypad button:active { transform: scale(0.95); }
+
+/* Street-by-street recorder (earlier version, kept for old hands) */
 .felt-step-closed { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: var(--sat-space-3) var(--sat-space-4); min-height: 56px; color: inherit; }
 .felt-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sat-space-2); }
 .felt-act { display: flex; flex-direction: column; gap: 6px; padding: var(--sat-space-3); border-radius: var(--sat-radius-md); cursor: pointer;

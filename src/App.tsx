@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useStore } from './store';
+import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
 import { useRoute } from './router';
 import { Icon, ToastHost } from './components/ui';
@@ -16,6 +16,7 @@ import Report from './screens/Report';
 import Insights from './screens/Insights';
 import Players from './screens/Players';
 import Settings from './screens/Settings';
+import Group from './screens/Group';
 
 const NAV = [
   { path: '', label: 'Home', icon: 'home' },
@@ -28,8 +29,10 @@ const NAV = [
 export default function App() {
   const hydrated = useStore((s) => s.hydrated);
   const theme = useStore((s) => s.settings.theme);
+  const splashMs = useStore((s) => s.settings.splashMs);
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
+  useEffect(() => { if (hydrated) try { localStorage.setItem(SPLASH_KEY, String(splashMs)); } catch { /* private mode */ } }, [hydrated, splashMs]);
   if (!hydrated) return <div className="felt-app" />;
 
   let screen: JSX.Element;
@@ -47,10 +50,11 @@ export default function App() {
   }
   else if (a === 'insights') screen = <Insights initialPlayer={b} />;
   else if (a === 'players') screen = <Players />;
+  else if (a === 'group' && b) screen = <Group groupId={b} />;
   else if (a === 'settings') screen = <Settings />;
   else screen = <Home />;
 
-  const active = a === 'game' || a === 'new' ? 'games' : a ?? '';
+  const active = a === 'game' || a === 'new' ? 'games' : a === 'group' ? 'players' : a ?? '';
   return (
     <div className="felt-app felt-enter">
       {screen}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore, usePlayerName, type BackupData } from '../store';
+import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { Caption, Header, Help, Icon, Toggle, num, toast } from '../components/ui';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
@@ -10,6 +10,12 @@ const THEMES: { k: ThemePref; label: string; icon: string }[] = [
   { k: 'auto', label: 'Auto', icon: 'phone' },
   { k: 'light', label: 'Light', icon: 'sun' },
   { k: 'dark', label: 'Dark', icon: 'moon' },
+];
+const SPLASH: { ms: number; label: string }[] = [
+  { ms: 0, label: 'Off' },
+  { ms: 1800, label: 'Short' },
+  { ms: SPLASH_DEFAULT, label: 'Standard' },
+  { ms: 4500, label: 'Long' },
 ];
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
@@ -82,18 +88,28 @@ export default function Settings() {
           <p className="sat-small sat-muted">Auto follows the phone setting. Saved on this phone.</p>
         </section>
 
+        <section className="sat-stack" style={gap(2)}>
+          <Caption tip="splash">Opening screen</Caption>
+          <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Opening screen">
+            {SPLASH.map((o) => (
+              <button key={o.ms} role="radio" aria-checked={settings.splashMs === o.ms} onClick={() => update({ splashMs: o.ms })}>{o.label}</button>
+            ))}
+          </div>
+          <p className="sat-small sat-muted">{settings.splashMs ? `Shows for ${(settings.splashMs / 1000).toFixed(1)} seconds when Felt opens. Tap it to skip.` : 'Felt opens straight into the app.'}</p>
+        </section>
+
         <section className="sat-glass sat-card sat-stack">
           <div className="sat-split"><h2 className="sat-h2">New games</h2><Help k="units" /></div>
           <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ...gap(3) }}>
-            {numField('s-sb', 'Small blind (units)', 'sb')}
-            {numField('s-bb', 'Big blind (units)', 'bb')}
+            {numField('s-sb', 'Small blind (chips)', 'sb')}
+            {numField('s-bb', 'Big blind (chips)', 'bb')}
             <div className="sat-field">
               <label htmlFor="s-cur">Currency</label>
               <input id="s-cur" className="sat-input" defaultValue={settings.currency} onBlur={(e) => update({ currency: e.target.value.trim() || 'S$' })} />
               <span className="sat-hint">Symbol (e.g. S$)</span>
             </div>
             {numField('s-uv', `Multiplier (${settings.currency})`, 'unitValue', 'Per unit (e.g. 0.1)', 'unitValue')}
-            {numField('s-bi', 'Buy-in (units)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} big blinds`)}
+            {numField('s-bi', 'Buy-in (chips)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} big blinds`)}
             {numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
             {numField('s-ss', 'Starting stack (chips)', 'startingStack')}
           </div>

@@ -10,6 +10,14 @@ export interface Player {
   archived?: boolean;
 }
 
+/** Players who play together. Games tagged with a group settle together (netted payments). */
+export interface Group {
+  id: ID;
+  name: string;
+  playerIds: ID[];
+  createdAt: number;
+}
+
 export type GameType = 'cash' | 'tournament';
 export type GameStatus = 'live' | 'closed';
 export type PlayerStatus = 'playing' | 'away' | 'out';
@@ -60,8 +68,18 @@ export interface Pot {
 
 export type StreetName = 'preflop' | 'flop' | 'turn' | 'river';
 
+/** One action box in the recorder: call (or check), fold, bet or raise to a street total, or all-in. */
+export interface Act {
+  k: 'call' | 'fold' | 'bet' | 'allin';
+  /** Bet: the player's total wager on this street after the bet. */
+  to?: number;
+}
+
 /** One betting round as logged in the street-by-street recorder. */
 export interface StreetLog {
+  /** Action boxes per player, one per pass around the table (current recorder).
+      When present, bets, folded and raisers are worked out from these. */
+  acts?: Record<ID, (Act | null)[]>;
   /** Bet mode: each player's total wager on this street, in units. */
   bets: Record<ID, number>;
   /** Wager before the last automatic call; a fold falls back to this. */
@@ -186,6 +204,8 @@ export interface Game {
   firstDealer?: ID;
   tournament?: TournamentInfo;
   notes?: string;
+  /** Group this game belongs to, for netted settle-up and the group leaderboard. */
+  groupId?: ID;
 }
 
 export interface Markers {
@@ -199,6 +219,8 @@ export type ThemePref = 'auto' | 'light' | 'dark';
 
 export interface Settings {
   theme: ThemePref;
+  /** How long the opening screen shows, in ms. 0 = skip it. */
+  splashMs: number;
   /** How the recorder takes wagers: per-player bets, or the pot counted each street. */
   entryMode: 'bets' | 'count';
   currency: string;

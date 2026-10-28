@@ -2,7 +2,7 @@
    Two entry modes:
    - bets:  each player's wager per street (tap = call, typed number = raise or all-in for less)
    - count: the pot total counted at the end of each street; wagers are estimated */
-import type { Card, Game, HandLog, ID, Pot, StreetLog, StreetName, Winner } from '../types';
+import type { Act, Card, Game, HandLog, ID, Pot, StreetLog, StreetName, Winner } from '../types';
 import { buildPots, fromSmallBlind, positionSplit, round2 } from './calc';
 import { bestHand } from './cards';
 
@@ -327,4 +327,180 @@ export function pfr(log: HandLog, p: ID): boolean {
 export function newLog(g: Game, dealt: ID[], mode: 'bets' | 'count', button?: ID, stacks?: Record<ID, number>): HandLog {
   const base: HandLog = { v: 1, mode, dealt, button, streets: {}, allInAt: {}, runs: 1, runCards: [], shown: {}, mucked: [], startedAt: Date.now() };
   return openStreet(g, base, 'preflop', stacks);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Action boxes (current recorder). Each player gets one box per pass around the table. A street is
+   replayed box by box in time order (pass 1 in seat order, then pass 2, ...) to work out the wagers,
+   folds, raises and all-ins, so everything above (contributions, pots, VPIP, stacks) keeps working.
+   An empty box is still waiting; once the street is closed (its `at` is set) an empty box counts as
+   a call. A new pass opens for players who acted but now face a bet they have not matched. */
+
+export interface Cell {
+  /** The player has to act in this box. */
+  needed: boolean;
+  act: Act | null;
+  /** Empty box that counts as a call because the street is closed. */
+  implied: boolean;
+  /** Player's street wager after this box. */
+  amount: number;
+  /** Chips the player had to add to call when this box came up. */
+  toCall: number;
+}
+
+export interface Replay {
+  street: StreetLog;
+  /** Players who went all-in on this street. */
+  allIn: ID[];
+  /** Rows in acting order: players who could still bet when the street began. */
+  order: ID[];
+  cols: number;
+  cells: Record<ID, Cell[]>;
+  /** First box still waiting for an action. */
+  next: { p: ID; r: number } | null;
+  high: number;
+}
+
+export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?: Record<ID, number>): Replay {
+  const src = log.streets[street] ?? emptyStreet();
+  const acts = src.acts ?? {};
+  const closed = !!src.at;
+  const canBet = actors(log, street);
+  const order = streetOrder(g, log, street).filter((p) => canBet.includes(p));
+  const bets: Record<ID, number> = {};
+  const folded: ID[] = [];
+  const raisers: ID[] = [];
+  const typed: Record<ID, boolean> = {};
+  const allIn = new Set<ID>();
+  const cells: Record<ID, Cell[]> = Object.fromEntries(order.map((p) => [p, [] as Cell[]]));
+  const roomOf = (p: ID) => room(log, p, stacks, street);
+  for (const p of inAtStart(log, street)) bets[p] = 0;
+  if (street === 'preflop') {
+    for (const [p, v] of Object.entries(blinds(g, log.dealt, log.button))) {
+      const r = roomOf(p);
+      bets[p] = r === undefined ? v : Math.min(v, r);
+      if (r !== undefined && r <= v) allIn.add(p);
+    }
+  }
+  let high = Math.max(0, ...Object.values(bets));
+  let next: Replay['next'] = null;
+  const maxStored = Math.max(0, ...Object.values(acts).map((a) => a.length));
+  const acted = new Set<ID>();
+  const waiting = new Set<ID>();
+  for (let r = 0; r < 12; r++) {
+    let anyNeeded = false;
+    for (const p of order) {
+      const owe = round2(high - (bets[p] ?? 0));
+      const needed = !folded.includes(p) && !allIn.has(p) && !waiting.has(p) && (r === 0 || (acted.has(p) && owe > 0));
+      const cell: Cell = { needed, act: needed ? acts[p]?.[r] ?? null : null, implied: false, amount: bets[p] ?? 0, toCall: Math.max(0, owe) };
+      cells[p][r] = cell;
+      if (!needed) continue;
+      anyNeeded = true;
+      let a = cell.act;
+      if (!a) {
+        if (!closed) { waiting.add(p); if (!next) next = { p, r }; continue; }
+        a = { k: 'call' };
+        cell.implied = true;
+      }
+      acted.add(p);
+      const rm = roomOf(p);
+      const have = bets[p] ?? 0;
+      if (a.k === 'fold') {
+        folded.push(p);
+      } else if (a.k === 'call') {
+        bets[p] = Math.max(have, rm === undefined ? high : Math.min(high, rm));
+        if (rm !== undefined && rm > 0 && bets[p] >= rm) allIn.add(p);
+      } else {
+        let to = a.k === 'allin' ? (rm ?? Math.max(high, a.to ?? 0)) : (a.to ?? high);
+        if (rm !== undefined) to = Math.min(to, rm);
+        to = Math.max(to, have);
+        typed[p] = true;
+        if (to > high) {
+          if (!raisers.includes(p)) raisers.push(p);
+          high = to;
+          bets[p] = to;
+        } else if (rm !== undefined && to >= rm) {
+          bets[p] = to; // all-in for less than the bet
+        } else {
+          bets[p] = Math.max(have, rm === undefined ? high : Math.min(high, rm)); // a bet no higher than the current one is a call
+        }
+        if (a.k === 'allin' || (rm !== undefined && bets[p] >= rm)) allIn.add(p);
+      }
+      cell.amount = bets[p] ?? 0;
+    }
+    if (!anyNeeded && r >= maxStored - 1) {
+      for (const p of order) cells[p].length = r;
+      break;
+    }
+  }
+  const cols = Math.max(1, ...order.map((p) => cells[p].length));
+  for (const p of order) for (let r = 0; r < cols; r++) cells[p][r] ??= { needed: false, act: null, implied: false, amount: bets[p] ?? 0, toCall: 0 };
+  return {
+    street: { ...src, acts, bets, prev: { ...bets }, typed, folded, raisers },
+    allIn: [...allIn],
+    order,
+    cols,
+    cells,
+    next,
+    high,
+  };
+}
+
+/** Replay every street that uses action boxes, in order (later streets depend on earlier folds and all-ins). */
+export function rederive(g: Game, log: HandLog, stacks?: Record<ID, number>): HandLog {
+  let out: HandLog = { ...log, allInAt: { ...(log.allInAt ?? {}) } };
+  for (const st of STREETS) {
+    const s = out.streets[st];
+    if (!s?.acts) continue;
+    const allInAt = { ...(out.allInAt ?? {}) };
+    for (const [p, at] of Object.entries(allInAt)) if (STREETS.indexOf(at) >= STREETS.indexOf(st)) delete allInAt[p];
+    out = { ...out, allInAt };
+    const rp = replayStreet(g, out, st, stacks);
+    for (const p of rp.allIn) allInAt[p] = st;
+    out = { ...out, allInAt, streets: { ...out.streets, [st]: rp.street } };
+  }
+  return out;
+}
+
+/** Fill, change or clear one action box, then replay the hand. */
+export function setAct(g: Game, log: HandLog, street: StreetName, p: ID, r: number, act: Act | null, stacks?: Record<ID, number>): HandLog {
+  const s = log.streets[street] ?? emptyStreet();
+  const acts = { ...(s.acts ?? {}) };
+  const row = [...(acts[p] ?? [])];
+  while (row.length <= r) row.push(null);
+  row[r] = act;
+  while (row.length && row[row.length - 1] === null) row.pop();
+  acts[p] = row;
+  return rederive(g, { ...log, streets: { ...log.streets, [street]: { ...s, acts } } }, stacks);
+}
+
+/** Tap cycle for a box: empty, call, fold, empty. A bet or all-in goes to fold. */
+export function cycleAct(a: Act | null): Act | null {
+  if (!a) return { k: 'call' };
+  if (a.k === 'fold') return null;
+  return { k: 'fold' };
+}
+
+/** Open a street with action boxes: everyone who can still bet gets an empty box. */
+export function openStreetBoxes(g: Game, log: HandLog, street: StreetName, stacks?: Record<ID, number>): HandLog {
+  return rederive(g, { ...log, streets: { ...log.streets, [street]: { ...emptyStreet(), acts: {} } } }, stacks);
+}
+
+/** Start a hand with action boxes. Only the blinds are filled in. */
+export function newBoxLog(g: Game, dealt: ID[], button?: ID, stacks?: Record<ID, number>): HandLog {
+  const base: HandLog = { v: 1, mode: 'bets', dealt, button, streets: {}, allInAt: {}, runs: 1, runCards: [], shown: {}, mucked: [], startedAt: Date.now() };
+  return openStreetBoxes(g, base, 'preflop', stacks);
+}
+
+/** Close a street (empty boxes count as calls), or reopen it with `at` undefined. */
+export function closeStreet(g: Game, log: HandLog, street: StreetName, at: number | undefined, stacks?: Record<ID, number>): HandLog {
+  const s = log.streets[street];
+  if (!s) return log;
+  return rederive(g, { ...log, streets: { ...log.streets, [street]: { ...s, at } } }, stacks);
+}
+
+/** Drop the streets after `street` (used when an earlier street changes so the hand ends sooner). */
+export function dropAfter(log: HandLog, street: StreetName): HandLog {
+  const keep = STREETS.slice(0, STREETS.indexOf(street) + 1);
+  return { ...log, streets: Object.fromEntries(Object.entries(log.streets).filter(([k]) => keep.includes(k as StreetName))) };
 }

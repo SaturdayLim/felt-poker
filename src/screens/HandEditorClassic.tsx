@@ -272,7 +272,7 @@ export default function HandEditorClassic({ gameId, handId }: { gameId: string; 
 
         <section className="sat-stack" style={gap(3)}>
           <div className="sat-split">
-            <Caption q="units" tip={multi ? 'sidePots' : 'pot'}>{multi ? `Pots (${d.pots.length})` : 'Pot'}</Caption>
+            <Caption q="chips" tip={multi ? 'sidePots' : 'pot'}>{multi ? `Pots (${d.pots.length})` : 'Pot'}</Caption>
             {multi && <span className="sat-small sat-muted">Total <span className="sat-num" style={{ color: 'var(--sat-text)', fontWeight: 600 }}>{units(total)}</span></span>}
           </div>
 
@@ -408,8 +408,8 @@ function PotEditor({ g, title, pot, order, name, allocation, button, showEligibl
   const body = (
     <div className="sat-stack" style={gap(3)}>
       <div className="sat-field">
-        {title && <label htmlFor={fieldId}>{title} (units)</label>}
-        <input id={fieldId} aria-label={title ? undefined : 'Pot (units)'} className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }}
+        {title && <label htmlFor={fieldId}>{title} (chips)</label>}
+        <input id={fieldId} aria-label={title ? undefined : 'Pot (chips)'} className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }}
           inputMode="decimal" placeholder="0" value={pot.amount} onChange={(e) => onAmount(e.target.value)} />
         {amount > 0 && <span className="sat-hint">{inBB(g, amount)}</span>}
       </div>
@@ -443,7 +443,7 @@ function PotEditor({ g, title, pot, order, name, allocation, button, showEligibl
             <div key={w} className="felt-row" style={{ minHeight: 44, padding: '4px 0' }}>
               <span className="felt-row-main felt-row-title">{name(w)}{w === button ? <span className="felt-dealer" style={{ marginLeft: 6 }}>D</span> : null}</span>
               {pot.custom ? (
-                <input className="sat-input sat-num" style={{ width: 104 }} inputMode="decimal" aria-label={`${name(w)} share (units)`} value={pot.split[w] ?? ''} onChange={(e) => onShare(w, e.target.value)} />
+                <input className="sat-input sat-num" style={{ width: 104 }} inputMode="decimal" aria-label={`${name(w)} share (chips)`} value={pot.split[w] ?? ''} onChange={(e) => onShare(w, e.target.value)} />
               ) : <span className="sat-num" style={{ fontWeight: 600 }}>{units(allocation[w] ?? 0)}</span>}
             </div>
           ))}
@@ -482,20 +482,20 @@ function AllInSheet({ g, players, name, onClose, onBuild }: {
   const pots = buildPots(entries);
   return (
     <Sheet open onClose={onClose} title="Work out from all-ins">
-      <p className="sat-small sat-muted">Enter the chips each player put in this hand, in units. Leave blank if they put in nothing. Mark players who folded.</p>
+      <p className="sat-small sat-muted">Enter the chips each player put in this hand. Leave blank if they put in nothing. Mark players who folded.</p>
       <div className="sat-glass-2 felt-list">
         {players.map((p) => (
           <div key={p} className="felt-row" style={{ minHeight: 52 }}>
             <span className="felt-row-main felt-row-title">{name(p)}</span>
             <button className="sat-chip" aria-pressed={folded.includes(p)} onClick={() => setFolded((f) => f.includes(p) ? f.filter((x) => x !== p) : [...f, p])}>Folded</button>
-            <input className="sat-input sat-num" style={{ width: 96 }} inputMode="decimal" placeholder="0" aria-label={`${name(p)} put in (units)`}
+            <input className="sat-input sat-num" style={{ width: 96 }} inputMode="decimal" placeholder="0" aria-label={`${name(p)} put in (chips)`}
               value={putIn[p] ?? ''} onChange={(e) => setPutIn({ ...putIn, [p]: e.target.value })} />
           </div>
         ))}
       </div>
       {pots.length > 0 && (
         <div className="sat-stack" style={gap(1)}>
-          <Caption q="units">Pots</Caption>
+          <Caption q="chips">Pots</Caption>
           {pots.map((pt, i) => (
             <p key={i} className="sat-small"><b>{i === 0 ? 'Main pot' : `Side pot ${i}`} = <span className="sat-num">{units(pt.amount)}</span></b>, {pt.eligible.map(name).join(', ')}</p>
           ))}

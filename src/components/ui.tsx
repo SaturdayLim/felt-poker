@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cardText, rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
-import { HELP } from '../lib/help';
+import { HELP, type HelpKey } from '../lib/help';
 import type { Card } from '../types';
 import { useStore } from '../store';
 import { NEXT_THEME } from '../theme';
@@ -78,8 +78,8 @@ export function FeltMark({ height = 32 }: { height?: number }) {
 /* ------------------------------- header ------------------------------- */
 
 /** Sticky glass header (kit: .sat-header > .sat-header-bar.sat-glass). */
-export function Header({ title, sub, back, right, brand }: {
-  title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean;
+export function Header({ title, sub, back, right, brand, children }: {
+  title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean; children?: ReactNode;
 }) {
   return (
     <header className={back ? 'sat-header felt-header' : 'sat-header felt-header felt-header--tab'}>
@@ -94,6 +94,7 @@ export function Header({ title, sub, back, right, brand }: {
         </div>
         {right}
       </div>
+      {children}
     </header>
   );
 }
@@ -186,15 +187,21 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
   );
 }
 
-/** Info tip with the shared help copy. */
-export function Help({ k }: { k: keyof typeof HELP }) {
-  return <Info title={HELP[k].title}>{HELP[k].text}</Info>;
+/** Info tip with the shared help copy. Each array entry is its own line. */
+export function Help({ k }: { k: HelpKey }) {
+  const t = HELP[k].text;
+  return <Info title={HELP[k].title}>{typeof t === 'string' ? t : t.map((x, i) => <span key={i} className="felt-tip-line">{x}</span>)}</Info>;
+}
+
+/** Standing rule: a figure's source is shown only as a tip, never as text on the page. */
+export function SourceTip({ children }: { children: ReactNode }) {
+  return <Info title="Source">{children}</Info>;
 }
 
 /* ------------------------------- captions and deltas ------------------------------- */
 
 /** Uppercase caption with the qualifier in brackets keeping its case: POT (units). */
-export function Caption({ children, q, tip, className }: { children: ReactNode; q?: string; tip?: keyof typeof HELP; className?: string }) {
+export function Caption({ children, q, tip, className }: { children: ReactNode; q?: string; tip?: HelpKey; className?: string }) {
   return (
     <span className={`sat-caption ${className ?? ''}`}>
       {children}{q && <> <span className="sat-qual">({q})</span></>}{tip && <> <Help k={tip} /></>}
@@ -298,19 +305,22 @@ export function num(v: string): number | null {
 
 export type Light = 'playing' | 'away' | 'out';
 
-/** Traffic light: green = playing (clock runs), amber = away (clock paused), red = clocked out. */
-export function StatusLight({ value, onChange, name, outLabel = 'Clocked out' }: {
+/** Small traffic light for the top right of a player card.
+    The lamp: green = playing (clock runs), tap for faded orange = away (clock paused), tap again for green.
+    The red cross clocks the player out. When out, the lamp shows red and a tap brings them back. */
+export function StatusLight({ value, onChange, name, outLabel = 'Clock out' }: {
   value: Light; onChange: (v: Light) => void; name: string; outLabel?: string;
 }) {
-  const lamps: { k: Light; label: string }[] = [
-    { k: 'playing', label: 'Playing' }, { k: 'away', label: 'Away from the table' }, { k: 'out', label: outLabel },
-  ];
+  const label = value === 'playing' ? 'Playing. Tap to pause' : value === 'away' ? 'Away, clock paused. Tap to resume' : 'Out. Tap to bring back';
   return (
-    <div className="felt-light sat-well" role="radiogroup" aria-label={`${name} status`}>
-      {lamps.map((l) => (
-        <button key={l.k} type="button" role="radio" aria-checked={value === l.k} aria-label={l.label} title={l.label}
-          className={`felt-lamp felt-lamp--${l.k}`} onClick={() => onChange(l.k)} />
-      ))}
-    </div>
+    <span className="felt-light">
+      <button type="button" className={`felt-lamp felt-lamp--${value}`} aria-label={`${name}: ${label}`} title={label}
+        onClick={() => onChange(value === 'playing' ? 'away' : 'playing')} />
+      {value !== 'out' && (
+        <button type="button" className="felt-lamp-out" aria-label={`${outLabel} ${name}`} title={outLabel} onClick={() => onChange('out')}>
+          <Icon name="close" size={12} stroke={2.6} />
+        </button>
+      )}
+    </span>
   );
 }

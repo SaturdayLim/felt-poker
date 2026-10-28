@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <!-- Saturday Signature: theme before paint (stops a light flash on dark devices). Keep before the stylesheets. -->
     <script>try{var t=localStorage.getItem('sat-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+    <!-- Opening screen length, set in the app (Settings, Opening screen). 0 = skip straight to the app. -->
+    <script>var FELT_SPLASH_MS=3000;try{var m=localStorage.getItem('felt-splash-ms');if(m!==null&&!isNaN(+m))FELT_SPLASH_MS=+m}catch(e){}if(FELT_SPLASH_MS<=0){document.documentElement.style.visibility='hidden';location.replace('./app/'+location.hash)}</script>
     <meta name="theme-color" content="#0A0F12" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -17,7 +19,7 @@
   </head>
   <body class="sat">
     <!-- Splash: the outer S draws in one stroke, the inner rings and ticks complete the chips, the name settles, then the page fades and hands over to the app.
-         Tap or press a key to skip. -->
+         Tap or press a key to skip. Length comes from FELT_SPLASH_MS above (default 3s). -->
     <main class="felt-splash" aria-label="Felt is loading">
       <div class="felt-splash-lockup">
         <svg class="sat-mark felt-splash-mark" viewBox="-2 -2 68 104" aria-hidden="true">
@@ -44,7 +46,7 @@
           // replace, not assign: Back from the app should not land on the splash again
           setTimeout(function () { location.replace('./app/' + location.hash); }, reduce ? 0 : 420);
         }
-        setTimeout(enter, reduce ? 450 : 2200);
+        setTimeout(enter, reduce ? 450 : FELT_SPLASH_MS);
         addEventListener('pointerdown', enter);
         addEventListener('keydown', enter);
       })();

@@ -2,15 +2,21 @@ import { useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { Delta, Empty, Header, Icon } from '../components/ui';
-import { gameResults, openTransfers, totalPotMoney } from '../lib/calc';
-import { dateLabel, money } from '../lib/format';
-import type { GameType } from '../types';
+import { gameResults, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
+import { dateLabel, duration, money } from '../lib/format';
+import type { Game, GameType } from '../types';
 
+/* Live games sit in their own section as solid glass cards with a pulsing dot.
+   Closed games are flat, quieter rows underneath, so the two never read alike. */
 export default function Games() {
   const games = useStore((s) => s.games);
+  const groups = useStore((s) => s.groups);
   const name = usePlayerName();
   const [type, setType] = useState<'all' | GameType>('all');
   const list = games.filter((g) => type === 'all' || g.type === type).sort((a, b) => b.startedAt - a.startedAt);
+  const live = list.filter((g) => g.status === 'live');
+  const closed = list.filter((g) => g.status === 'closed');
+  const groupName = (g: Game) => groups.find((x) => x.id === g.groupId)?.name;
 
   return (
     <div className="felt-page">
@@ -23,37 +29,57 @@ export default function Games() {
             </button>
           ))}
         </div>
-        <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-          <button className="sat-btn sat-btn--primary felt-grow" onClick={() => go('new/cash')}><Icon name="plus" /> Start cash game</button>
-          <button className="sat-btn felt-grow" onClick={() => go('new/tournament')}><Icon name="trophy" /> Start tournament</button>
+        <div className="felt-start">
+          <button className="sat-btn sat-btn--primary" onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
+          <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>
         </div>
         {list.length === 0 && <Empty title="No games">Games you start appear here.</Empty>}
-        {list.map((g) => {
-          const res = gameResults(g);
-          const open = openTransfers(g).length;
-          return (
-            <button key={g.id} className="sat-glass sat-card sat-stack" style={{ textAlign: 'left', ['--sat-gap' as string]: 'var(--sat-space-2)' }}
-              onClick={() => go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/close`)}>
-              <div className="sat-split">
-                <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
-                  <span className={g.status === 'live' ? 'sat-badge' : 'sat-badge sat-badge--muted'}>{g.status === 'live' ? 'Live' : 'Closed'}</span>
-                  <span className="sat-badge sat-badge--muted">{g.type === 'cash' ? 'Cash' : 'Tournament'}</span>
-                  {open > 0 && <span className="sat-badge sat-badge--muted">{open} unpaid</span>}
-                </div>
-                <span className="sat-small sat-muted">{dateLabel(g.startedAt)}</span>
-              </div>
-              <h3 className="sat-h3">{g.name}</h3>
-              <p className="sat-small sat-muted">{g.playerIds.length} players, {g.hands.length} hands, {money(totalPotMoney(g), g.currency)} {g.type === 'cash' ? 'in play' : 'prize pool'}</p>
-              {g.status === 'closed' && res.length > 0 && (
-                <div className="sat-cluster sat-small" style={{ ['--sat-gap' as string]: 'var(--sat-space-4)' }}>
-                  {res.slice(0, 3).map((r) => (
-                    <span key={r.playerId} className="sat-cluster" style={{ ['--sat-gap' as string]: '6px' }}>{name(r.playerId)} <Delta value={r.net} format={(a) => money(a, g.currency)} /></span>
-                  ))}
-                </div>
-              )}
-            </button>
-          );
-        })}
+
+        {live.length > 0 && (
+          <section className="felt-section">
+            <h2 className="sat-caption felt-section-cap"><span className="felt-dot felt-dot--pulse" />Live now</h2>
+            {live.map((g) => {
+              const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
+              return (
+                <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
+                  <span className="felt-live-tag">{g.type === 'cash' ? `${g.sb}/${g.bb} cash` : 'Tournament'}, {duration(Date.now() - g.startedAt)}</span>
+                  <span className="felt-live-name">{g.name}</span>
+                  <span className="sat-small sat-muted">{seated} playing, {g.hands.length} hands{groupName(g) ? `, ${groupName(g)}` : ''}</span>
+                  <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
+                </button>
+              );
+            })}
+          </section>
+        )}
+
+        {closed.length > 0 && (
+          <section className="felt-section">
+            <h2 className="sat-caption felt-section-cap">Closed</h2>
+            <div className="sat-flat felt-list felt-closed-list">
+              {closed.map((g) => {
+                const res = gameResults(g);
+                const open = openTransfers(g).length;
+                return (
+                  <button key={g.id} className="felt-row" onClick={() => go(`game/${g.id}/close`)}>
+                    <div className="felt-row-main">
+                      <div className="felt-row-title felt-ellipsis">{g.name}</div>
+                      <div className="felt-row-sub">
+                        {dateLabel(g.startedAt)}, {g.playerIds.length} players, {money(totalPotMoney(g), g.currency)}{groupName(g) ? `, ${groupName(g)}` : ''}
+                        {open > 0 ? `, ${open} unpaid` : ''}
+                      </div>
+                    </div>
+                    {res[0] && (
+                      <div className="felt-right">
+                        <div className="sat-small felt-ellipsis" style={{ maxWidth: 96 }}>{name(res[0].playerId)}</div>
+                        <Delta value={res[0].net} format={(a) => money(a, g.currency)} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Empty, Header, Help, Icon, toast } from '../components/ui';
+import { Avatar, Caption, Delta, Empty, Header, Help, Icon, toast, SourceTip } from '../components/ui';
 import { LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
 import { dateLabel, money, shortDate } from '../lib/format';
@@ -73,7 +73,7 @@ export default function Insights({ initialPlayer }: { initialPlayer?: string }) 
 
 function sourceLine(games: Game[]) {
   const last = games[games.length - 1];
-  return `Source: Felt game log (${games.length} closed games${last ? `, latest ${dateLabel(last.startedAt)}` : ''}).`;
+  return `Felt game log (${games.length} closed games${last ? `, latest ${dateLabel(last.startedAt)}` : ''}).`;
 }
 
 function PlayerStats({ games, board, selected, setPid, currency, name }: {
@@ -117,7 +117,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
           <figure style={{ marginTop: 'var(--sat-space-2)' }}>
             <LineChart height={110} series={[{ name: 'net', color: 'var(--sat-accent)', values: cumVals }]} />
             <figcaption className="sat-figcaption"><b>Net = {fmt(s.net)}</b> after {s.games} games{best ? `, best ${money(best.net, currency, { sign: true })} on ${shortDate(best.t)}` : ''}.</figcaption>
-            <p className="sat-source" style={{ marginTop: 'var(--sat-space-1)' }}>{sourceLine(played)} Running total in {currency}.</p>
+            <div className="felt-source"><SourceTip>{sourceLine(played)} Running total in {currency}.</SourceTip></div>
           </figure>
         )}
       </section>
@@ -127,7 +127,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <div className="sat-glass sat-stat"><Caption q={currency}>Worst game</Caption><span className="sat-kpi">{s.biggestLoss < 0 ? plain(s.biggestLoss) : '-'}</span></div>
         <div className="sat-glass sat-stat"><Caption q={currency} tip="avg">Per game</Caption><span className="sat-kpi">{plain(s.avg)}</span></div>
         <div className="sat-glass sat-stat"><Caption q="games" tip="streak">Streak</Caption><span className="sat-kpi">{s.streak === 0 ? '-' : Math.abs(s.streak)}</span><span className="sat-note">{s.streak > 0 ? 'Up in a row' : s.streak < 0 ? 'Down in a row' : 'No streak'}</span></div>
-        <div className="sat-glass sat-stat"><Caption>Hands won</Caption><span className="sat-kpi">{s.handsWon}</span><span className="sat-note">Top pot {s.biggestPot} units</span></div>
+        <div className="sat-glass sat-stat"><Caption>Hands won</Caption><span className="sat-kpi">{s.handsWon}</span><span className="sat-note">Top pot {s.biggestPot} chips</span></div>
         <div className="sat-glass sat-stat"><Caption>Buy-ins per game</Caption><span className="sat-kpi">{s.games ? (s.buyIns / s.games).toFixed(1) : '-'}</span><span className="sat-note">{s.buyIns} in total</span></div>
       </section>
 
@@ -141,7 +141,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
             <div className="sat-glass sat-stat"><Caption tip="wtsd">WTSD</Caption><span className="sat-kpi">{pct(s.wtsd, s.sawFlop)}</span><span className="sat-note">{s.wtsd} of {s.sawFlop} flops</span></div>
             <div className="sat-glass sat-stat"><Caption tip="wsd">W$SD</Caption><span className="sat-kpi">{pct(s.wsd, s.wtsd)}</span><span className="sat-note">{s.wsd} of {s.wtsd} showdowns</span></div>
           </div>
-          <p className="sat-source">{sourceLine(played)} Rates use hands logged street by street only.</p>
+          <div className="felt-source"><SourceTip>{sourceLine(played)} Rates use hands logged street by street only.</SourceTip></div>
         </section>
       )}
 
@@ -166,7 +166,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
             );
           })}
         </div>
-        <p className="sat-source">{sourceLine(played)}</p>
+        <div className="felt-source"><SourceTip>{sourceLine(played)}</SourceTip></div>
       </section>
 
       <section className="sat-stack" style={gap(3)}>
@@ -174,7 +174,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <div className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }}>
           <div className="sat-glass sat-stat"><Caption>Games</Caption><span className="sat-kpi">{totals.games}</span></div>
           <div className="sat-glass sat-stat"><Caption>Hands</Caption><span className="sat-kpi">{totals.hands}</span>{pace.hands > 0 && <span className="sat-note">Median {Math.floor(pace.medianSec / 60)}m {pace.medianSec % 60}s per hand</span>}</div>
-          <div className="sat-glass sat-stat"><Caption q="units">Top pot</Caption><span className="sat-kpi">{totals.biggestPot}</span></div>
+          <div className="sat-glass sat-stat"><Caption q="chips">Top pot</Caption><span className="sat-kpi">{totals.biggestPot}</span></div>
           <div className="sat-glass sat-stat"><Caption q={currency}>Won in total</Caption><span className="sat-kpi">{money(totals.moneyMoved, '')}</span><span className="sat-note">All winning results added up</span></div>
         </div>
       </section>
@@ -230,7 +230,7 @@ function Standings({ games, board, currency, name, scope }: {
           </table>
         </div>
         {board.length > 5 && <button className="sat-btn sat-btn--ghost" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show top 5' : `Show ${board.length} players`}</button>}
-        <p className="sat-source">{sourceLine(games)} Net in {currency}.</p>
+        <div className="felt-source"><SourceTip>{sourceLine(games)} Net in {currency}.</SourceTip></div>
       </section>
 
       <section className="sat-glass sat-card sat-stack" style={gap(3)}>
@@ -254,7 +254,7 @@ function Standings({ games, board, currency, name, scope }: {
             ))}
           </div>
           {leader && <figcaption className="sat-figcaption"><b>Leader = {name(leader)} ({money(lastVals[leader] ?? 0, currency, { sign: true })})</b> over {series.length} games{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
-          <p className="sat-source" style={{ marginTop: 'var(--sat-space-1)' }}>{sourceLine(games)} Running total after each game, in {currency}.</p>
+          <div className="felt-source"><SourceTip>{sourceLine(games)} Running total after each game, in {currency}.</SourceTip></div>
         </figure>
       </section>
     </>

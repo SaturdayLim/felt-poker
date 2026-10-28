@@ -49,7 +49,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
 
   const finish = () => {
     if (!allIn) { toast(`${ordered.length - entered} players not counted. Enter a count for each player.`); return; }
-    if (diff !== 0 && !confirm) { setConfirm(true); toast(`Counts differ from buy-ins by ${units(diff)} units. Tap Finish again to close anyway.`); return; }
+    if (diff !== 0 && !confirm) { setConfirm(true); toast(`Counts differ from buy-ins by ${units(diff)} chips. Tap Finish again to close anyway.`); return; }
     finishGame(g.id);
     go(`game/${g.id}/close`, true);
   };
@@ -86,17 +86,17 @@ export default function CountChips({ gameId }: { gameId: string }) {
             <>
               <h2 className="sat-h2">{name(sel)}</h2>
               <div className="sat-field">
-                <label htmlFor="cnt">Chips at the end (units)</label>
+                <label htmlFor="cnt">Chips at the end</label>
                 <input key={sel} id="cnt" className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }} autoFocus inputMode="decimal" placeholder="0" value={text[sel] ?? ''}
                   onChange={(e) => update(sel, e.target.value)} />
               </div>
               <div className="sat-split sat-small"><span className="sat-muted">Bought in</span><span className="sat-num">{units(selIn)}</span></div>
               <div className="sat-split sat-small"><span className="sat-muted">Result</span>
-                {selOut !== null ? <Delta value={selOut - selIn} format={(a) => `${units(a)} units`} /> : <span className="sat-muted">-</span>}
+                {selOut !== null ? <Delta value={selOut - selIn} format={(a) => `${units(a)} chips`} /> : <span className="sat-muted">-</span>}
               </div>
               <hr className="sat-rule" style={{ margin: 0 }} />
               <div className="sat-stack" style={gap(1)}>
-                <Caption q="units" tip="count">{allIn ? 'Difference' : 'Left to count'}</Caption>
+                <Caption q="chips" tip="count">{allIn ? 'Difference' : 'Left to count'}</Caption>
                 <span className={`sat-kpi ${diff === 0 ? 'felt-up' : ''}`} style={{ fontSize: '1.75rem' }}>{allIn ? units(diff) : units(-diff)}</span>
                 {allIn && <span className="sat-small sat-muted">{diff === 0 ? 'Counts match the buy-ins.' : diff > 0 ? 'More chips counted than bought.' : 'Fewer chips counted than bought.'}</span>}
               </div>

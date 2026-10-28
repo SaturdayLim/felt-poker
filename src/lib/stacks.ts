@@ -1,14 +1,20 @@
 /* Running stack estimate per player: buy-ins - wagers + pots won + chips returned, hand by hand.
-   Exact in bet mode (if wagers were entered right), an estimate in count mode.
-   Hands logged without the recorder have no wagers, so stacks are unknown once one appears. */
+   Each estimate carries a spread (±chips) for what Felt could not see:
+   - hands logged street by street with every wager: exact, no spread
+   - pot-count hands (wagers shared evenly per street): spread of 30% of the estimated wager
+   - hands logged with pot and winner only: the pot is charged evenly to everyone still in the game,
+     and that share is added to each player's spread
+   A player who clocks out resets to 0 with no spread (the count is real). */
 import type { Game, ID } from '../types';
-import { round2 } from './calc';
+import { playerStatus, round2 } from './calc';
 import { contributions } from './hand';
 
 export interface StackEstimate {
-  /** Units in front of each player; undefined = cannot be estimated. */
+  /** Chips in front of each player (best guess). */
   stack: Record<ID, number | undefined>;
-  /** True when every hand so far was logged street by street. */
+  /** Plus or minus chips around the best guess. 0 = exact. */
+  spread: Record<ID, number>;
+  /** True when every hand so far was logged with every wager (no spread anywhere). */
   complete: boolean;
 }
 
@@ -21,27 +27,53 @@ export function estimateStacks(g: Game, beforeN?: number): StackEstimate {
     ...g.hands.map((h, i) => ({ at: h.endedAt ?? h.at, kind: 'hand' as const, i })),
   ].sort((a, b) => a.at - b.at);
   const stack: Record<ID, number | undefined> = Object.fromEntries(g.playerIds.map((p) => [p, 0]));
+  const spread: Record<ID, number> = Object.fromEntries(g.playerIds.map((p) => [p, 0]));
+  const seated = new Set<ID>();
   let complete = true;
   for (const e of evs) {
     if (e.kind === 'buy') {
       const b = g.buyIns[e.i];
-      if (stack[b.playerId] !== undefined) stack[b.playerId] = round2(stack[b.playerId]! + b.amount);
+      stack[b.playerId] = round2((stack[b.playerId] ?? 0) + b.amount);
+      seated.add(b.playerId);
     } else if (e.kind === 'out') {
       const c = g.cashOuts[e.i];
-      if (stack[c.playerId] !== undefined) stack[c.playerId] = 0;
+      stack[c.playerId] = 0;
+      spread[c.playerId] = 0;
+      seated.delete(c.playerId);
     } else {
       const h = g.hands[e.i];
       if (beforeN !== undefined && h.n >= beforeN) continue;
       if (!h.log) {
         complete = false;
-        for (const p of g.playerIds) stack[p] = undefined;
+        const inGame = [...seated];
+        const share = inGame.length ? h.pot / inGame.length : 0;
+        for (const p of inGame) {
+          stack[p] = round2((stack[p] ?? 0) - share);
+          spread[p] = round2(spread[p] + share);
+        }
+        for (const w of h.winners) stack[w.playerId] = round2((stack[w.playerId] ?? 0) + w.amount);
         continue;
       }
       const c = contributions(g, h.log, h.log.button ?? h.dealerId);
-      for (const p of Object.keys(c)) if (stack[p] !== undefined) stack[p] = round2(stack[p]! - c[p]);
-      for (const w of h.winners) if (stack[w.playerId] !== undefined) stack[w.playerId] = round2(stack[w.playerId]! + w.amount);
-      for (const [p, a] of Object.entries(h.returned ?? {})) if (stack[p] !== undefined) stack[p] = round2(stack[p]! + a);
+      for (const p of Object.keys(c)) {
+        stack[p] = round2((stack[p] ?? 0) - c[p]);
+        if (h.log.mode === 'count') { spread[p] = round2((spread[p] ?? 0) + c[p] * 0.3); complete = false; }
+      }
+      for (const w of h.winners) stack[w.playerId] = round2((stack[w.playerId] ?? 0) + w.amount);
+      for (const [p, a] of Object.entries(h.returned ?? {})) stack[p] = round2((stack[p] ?? 0) + a);
     }
   }
-  return { stack, complete };
+  return { stack, spread, complete };
+}
+
+/** "~180-220" when there is a spread, "200" when exact. Rounded to the big blind; never below 0. */
+export function stackLabel(g: Game, est: StackEstimate, p: ID): string | null {
+  const v = est.stack[p];
+  if (v === undefined || playerStatus(g, p) === 'out') return null;
+  const s = est.spread[p] ?? 0;
+  const step = g.bb > 0 ? g.bb : 1;
+  if (s < step / 2) return Math.round(Math.max(0, v)).toLocaleString('en-US');
+  const lo = Math.max(0, Math.floor((v - s) / step) * step);
+  const hi = Math.max(lo, Math.ceil((v + s) / step) * step);
+  return `~${lo.toLocaleString('en-US')}-${hi.toLocaleString('en-US')}`;
 }

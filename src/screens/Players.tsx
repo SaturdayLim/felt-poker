@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Delta, Empty, Header, Icon, toast } from '../components/ui';
+import { Avatar, Caption, Delta, Empty, Header, Icon, toast, SourceTip } from '../components/ui';
 import { PlayerEditSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
+import { GroupSheet, groupSettlement } from './Group';
 import { money } from '../lib/format';
 import type { Player } from '../types';
 
@@ -12,6 +13,8 @@ export default function Players() {
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
   const addPlayer = useStore((s) => s.addPlayer);
+  const groups = useStore((s) => s.groups);
+  const [newGroup, setNewGroup] = useState(false);
   const [nm, setNm] = useState('');
   const [edit, setEdit] = useState<Player | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -41,6 +44,33 @@ export default function Players() {
             <button className="sat-switch" role="switch" aria-checked={showArchived} aria-label="Show archived players" onClick={() => setShowArchived(!showArchived)} />
           </div>
         )}
+        <section className="felt-section">
+          <div className="sat-split">
+            <Caption tip="groups">Groups</Caption>
+            <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setNewGroup(true)}><Icon name="plus" /> New group</button>
+          </div>
+          {groups.length === 0 ? (
+            <p className="sat-small sat-muted">Group the people you play with often. Their games settle together in the fewest payments.</p>
+          ) : (
+            <div className="sat-glass-2 felt-list">
+              {groups.map((grp) => {
+                const gs = games.filter((g) => g.groupId === grp.id && g.status === 'closed');
+                const owed = groupSettlement(gs).transfers.length;
+                return (
+                  <button key={grp.id} className="felt-row felt-row--slim" onClick={() => go(`group/${grp.id}`)}>
+                    <div className="felt-row-main">
+                      <div className="felt-row-title">{grp.name}</div>
+                      <div className="felt-row-sub felt-ellipsis">{grp.playerIds.length} players, {gs.length} games</div>
+                    </div>
+                    {owed > 0 ? <span className="sat-badge sat-badge--muted">{owed} to pay</span> : <span className="sat-small sat-muted">Square</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <Caption>Everyone</Caption>
         {list.length === 0 && <Empty title="No players">Add the people you play with. They are saved for every game.</Empty>}
         {list.length > 0 && (
           <div className="sat-glass-2 felt-list">
@@ -60,9 +90,10 @@ export default function Players() {
             })}
           </div>
         )}
-        {list.length > 0 && <p className="sat-source">Source: Felt game log ({closed.length} closed games). Net result in {currency}.</p>}
+        {list.length > 0 && <div className="felt-source"><SourceTip>Felt game log ({closed.length} closed games). Net result in {currency}.</SourceTip></div>}
       </div>
       {edit && <PlayerEditSheet p={edit} onClose={() => setEdit(null)} />}
+      {newGroup && <GroupSheet onClose={() => setNewGroup(false)} />}
     </div>
   );
 }

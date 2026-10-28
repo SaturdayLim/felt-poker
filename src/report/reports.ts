@@ -55,7 +55,7 @@ function footer(g: Game, note: string): (page: number, pages: number) => Block {
     draw: (ctx, y) => {
       ctx.fillStyle = C.line;
       ctx.fillRect(PAD, y + 30, INNER, 2);
-      text(ctx, `Source: Felt game log (${dateLabel(g.startedAt)}). ${note}`, PAD, y + 76, font(400, 22), C.muted, 'left', INNER - 120);
+      text(ctx, `Felt, ${dateLabel(g.startedAt)}. ${note}`, PAD, y + 76, font(400, 22), C.muted, 'left', INNER - 120);
       if (pages > 1) text(ctx, `${page + 1} of ${pages}`, W - PAD, y + 76, font(500, 22, 'mono'), C.muted, 'right');
     },
   });
@@ -69,7 +69,7 @@ function hero(g: Game): Block {
       caption(ctx, g.type === 'cash' ? 'In play' : 'Prize pool', PAD + 40, y + 70, { q: g.currency });
       text(ctx, money(totalPotMoney(g), ''), PAD + 40, y + 178, font(400, 110, 'display'), C.text);
       const right = g.type === 'cash'
-        ? [`${units(totalBuyInUnits(g))} units`, `${g.buyIns.length} buy-ins`, `${g.hands.length} hands`]
+        ? [`${units(totalBuyInUnits(g))} chips`, `${g.buyIns.length} buy-ins`, `${g.hands.length} hands`]
         : [`${g.buyIns.length} entries`, `${g.playerIds.length} players`, `${g.hands.length} hands`];
       right.forEach((s, i) => text(ctx, s, W - PAD - 40, y + 86 + i * 44, font(400, 26), i === 0 ? C.text : C.muted, 'right'));
     },
@@ -99,7 +99,7 @@ function resultRows(g: Game, name: NameFn, compact: boolean): Block[] {
         const d = deltaText(r.net, fmt);
         text(ctx, d.s, W - PAD - 36, mid + (g.type === 'cash' ? 2 : 12), font(500, 34, 'mono'), d.color, 'right');
         if (g.type === 'cash') {
-          const du = deltaText(r.outUnits - r.inUnits, (a) => `${units(a)} units`);
+          const du = deltaText(r.outUnits - r.inUnits, (a) => `${units(a)} chips`);
           text(ctx, du.s, W - PAD - 36, mid + 36, font(500, 21, 'mono'), C.muted, 'right');
         }
       },
@@ -162,8 +162,8 @@ function statTiles(g: Game, name: NameFn): Block {
   const perHour = hs.hands ? Math.round(hs.hands / Math.max(1, (ended - g.startedAt) / 3600000)) : 0;
   const tiles: { cap: string; q?: string; v: string; note: string; name?: boolean }[] = [
     { cap: 'Hands', v: String(hs.hands), note: `${perHour} per hour over ${duration(ended - g.startedAt)}` },
-    { cap: 'Avg pot', q: 'units', v: hs.hands ? units(Math.round(hs.avgPot)) : '-', note: g.type === 'cash' && hs.hands ? `= ${money(hs.avgPot * g.unitValue, g.currency)}` : 'Across all hands' },
-    { cap: 'Top pot', q: 'units', v: hs.biggest ? units(hs.biggest.pot) : '-', note: hs.biggest ? `Hand ${hs.biggest.n}, ${hs.biggest.winners.map(name).join(' and ')}` : '' },
+    { cap: 'Avg pot', q: 'chips', v: hs.hands ? units(Math.round(hs.avgPot)) : '-', note: g.type === 'cash' && hs.hands ? `= ${money(hs.avgPot * g.unitValue, g.currency)}` : 'Across all hands' },
+    { cap: 'Top pot', q: 'chips', v: hs.biggest ? units(hs.biggest.pot) : '-', note: hs.biggest ? `Hand ${hs.biggest.n}, ${hs.biggest.winners.map(name).join(' and ')}` : '' },
     { cap: 'Most hands won', v: mostWins ? name(mostWins[0]) : '-', note: mostWins ? `${mostWins[1]} hands` : '', name: true },
     { cap: 'All-ins', v: String(hs.allIns), note: `${hs.showdowns} showdowns` },
     { cap: g.type === 'cash' ? 'Rebuys' : 'Re-entries', v: String(rebuys), note: `${g.buyIns.length} ${g.type === 'cash' ? 'buy-ins' : 'entries'} in total` },
@@ -226,7 +226,7 @@ function buyInChart(g: Game): Block {
 function playerStats(g: Game, name: NameFn): Block[] {
   const hs = handStats(g);
   const rows = gameResults(g);
-  const out: Block[] = [sectionTitle('Players', 'Hands won, units won, time')];
+  const out: Block[] = [sectionTitle('Players', 'Hands won, chips won, time')];
   const maxWon = Math.max(1, ...rows.map((r) => hs.handsWon[r.playerId] ?? 0));
   out.push({
     h: 24 + rows.length * 78 + 24,
@@ -256,7 +256,7 @@ function highlightHand(h: Hand, label: string, lead: string, name: NameFn, cards
       panel(ctx, PAD, y + 10, INNER, 250);
       caption(ctx, label, PAD + 32, y + 62);
       text(ctx, lead, PAD + 32, y + 124, font(400, 48, 'display'), C.text, 'left', INNER - 64);
-      text(ctx, `Hand ${h.n}, won by ${h.winners.map((w) => name(w.playerId)).join(' and ')}, ${units(h.pot)} units`, PAD + 32, y + 164, font(400, 23), C.muted, 'left', INNER - 64);
+      text(ctx, `Hand ${h.n}, won by ${h.winners.map((w) => name(w.playerId)).join(' and ')}, ${units(h.pot)} chips`, PAD + 32, y + 164, font(400, 23), C.muted, 'left', INNER - 64);
       let x = PAD + 32;
       if (cards?.length) { x += cardsRow(ctx, x, y + 184, cards, 44, 6) + 24; }
       if (!h.boardNA && h.board.length) cardsRow(ctx, x, y + 184, h.board, 44, 6);
@@ -272,7 +272,7 @@ function highlights(g: Game, name: NameFn): Block[] {
   out.push(sectionTitle('Highlights'));
   if (hs.biggest) {
     const h = g.hands.find((x) => x.id === hs.biggest!.handId)!;
-    out.push(highlightHand(h, 'Top pot', g.type === 'cash' ? `${units(h.pot)} units = ${money(h.pot * g.unitValue, g.currency)}` : `${units(h.pot)} chips`, name));
+    out.push(highlightHand(h, 'Top pot', g.type === 'cash' ? `${units(h.pot)} chips = ${money(h.pot * g.unitValue, g.currency)}` : `${units(h.pot)} chips`, name));
   }
   if (hs.bestShown) {
     const h = g.hands.find((x) => x.id === hs.bestShown!.handId)!;
@@ -296,7 +296,7 @@ function highlights(g: Game, name: NameFn): Block[] {
 }
 
 function buyInLog(g: Game, name: NameFn): Block[] {
-  const out: Block[] = [sectionTitle(g.type === 'cash' ? 'Buy-in log' : 'Entry log', g.type === 'cash' ? 'Time and units' : `Time and ${g.currency}`)];
+  const out: Block[] = [sectionTitle(g.type === 'cash' ? 'Buy-in log' : 'Entry log', g.type === 'cash' ? 'Time and chips' : `Time and ${g.currency}`)];
   for (const pid of [...g.playerIds].sort((a, b) => (g.seats[a] ?? 0) - (g.seats[b] ?? 0))) {
     const ev = [
       ...g.buyIns.filter((b) => b.playerId === pid).map((b) => `${timeLabel(b.at)} +${g.type === 'cash' ? units(b.amount) : money(b.amount, '')}`),
@@ -348,7 +348,7 @@ function handRow(h: Hand, name: NameFn): Block {
       const meta = [h.dealerId ? `${name(h.dealerId)} on the button` : '', (h.pots?.length ?? 1) > 1 ? h.pots!.map((p, i) => `${i ? `side ${i}` : 'main'} ${units(p.amount)} ${p.winners.map((w) => name(w.playerId)).join('/')}`).join(', ') : h.winners.length > 1 ? 'split pot' : ''].filter(Boolean).join(', ');
       if (h.dealerId) dealerChip(ctx, x + 112, y + 82, 11);
       text(ctx, meta, x + (h.dealerId ? 130 : 100), y + 89, font(400, 20), C.muted, 'left', 420);
-      caption(ctx, 'Pot', W - PAD - 28, y + 40, { q: 'units', size: 17, align: 'right' });
+      caption(ctx, 'Pot', W - PAD - 28, y + 40, { q: 'chips', size: 17, align: 'right' });
       text(ctx, `${units(h.pot)}`, W - PAD - 28, y + 84, font(400, 46, 'display'), C.text, 'right');
       let cy = y + 110;
       if (h.boardNA) badge(ctx, x + 100, cy + 6, 'No board', true, 18);
@@ -388,13 +388,13 @@ export function renderReport(g: Game, tier: Tier, name: NameFn, theme: ReportThe
       ...highlights(g, name), ...playerStats(g, name), spacer(10), ...payments(g, name));
     if (tier === 'full') {
       blocks.push(...buyInLog(g, name));
-      blocks.push(sectionTitle('Hands', `${g.hands.length} logged, pots in units`));
+      blocks.push(sectionTitle('Hands', `${g.hands.length} logged, pots in chips`));
       if (!g.hands.length) blocks.push({ h: 80, draw: (ctx, y) => text(ctx, 'No hands were logged.', PAD, y + 46, font(400, 26), C.muted) });
       for (const h of g.hands) blocks.push(handRow(h, name));
     }
   }
   blocks.push(spacer(20));
-  const note = g.type === 'cash' ? `Money in ${g.currency}, chips in units (multiplier ${money(g.unitValue, g.currency)}).` : `Money in ${g.currency}.`;
+  const note = g.type === 'cash' ? `Money in ${g.currency}, 1 chip = 1 small blind (multiplier ${money(g.unitValue, g.currency)}).` : `Money in ${g.currency}.`;
   return paginate(blocks, { maxH: 7200, top: contHeader(g, tier), footer: footer(g, note) });
 }
 
@@ -454,7 +454,7 @@ export function renderStandings(
       draw: (ctx, y) => {
         ctx.fillStyle = C.line;
         ctx.fillRect(PAD, y + 30, INNER, 2);
-        text(ctx, `Source: Felt game log (${games.length} closed games${latest ? `, latest ${dateLabel(latest.startedAt)}` : ''}). Net in ${currency}.`, PAD, y + 76, font(400, 22), C.muted, 'left', INNER - 120);
+        text(ctx, `${games.length} closed games${latest ? `, latest ${dateLabel(latest.startedAt)}` : ''}. Net in ${currency}.`, PAD, y + 76, font(400, 22), C.muted, 'left', INNER - 120);
         if (n > 1) text(ctx, `${p + 1} of ${n}`, W - PAD, y + 76, font(500, 22, 'mono'), C.muted, 'right');
       },
     }),

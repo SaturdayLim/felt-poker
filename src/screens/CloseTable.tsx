@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
 import { back, go } from '../router';
-import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast } from '../components/ui';
+import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, SourceTip } from '../components/ui';
 import { gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
 import { dateLabel, duration, money, units } from '../lib/format';
 import { uid } from '../lib/ids';
@@ -84,7 +84,7 @@ export default function CloseTable({ gameId }: { gameId: string }) {
                   </div>
                 ))}
               </div>
-              <p className="sat-source">Source: Felt game log ({dateLabel(g.startedAt)}). Result = cash-out - buy-ins, in {g.currency}.</p>
+              <div className="felt-source"><SourceTip>Felt game log ({dateLabel(g.startedAt)}). Result = cash-out - buy-ins, in {g.currency}.</SourceTip></div>
             </section>
           </>
         )}

@@ -2,9 +2,11 @@
 
 Offline Texas Hold'em tracker for a single phone. It runs as an installable web app, and all data stays in the phone's local storage.
 
-- **Cash games:** amounts are in units (1 = SB, 2 = BB). Each game sets the unit's money value (default 1 = S$0.10).
+- **Cash games:** amounts are in chips (1 chip = 1 SB, so 2 = BB). Each game sets the money value of a chip, the multiplier (default S$0.10).
 - **Tournaments:** entries, re-entries, bust order and payouts.
-- **Hand log:** pot, winner(s) including split pots, board (or n/a), shown hole cards, dealer, all-in or straddle, tags and notes.
+- **Live game:** two sub-pages. Players: slim cards with the seat (drag the grip to reorder), name (tap to rename), traffic light (green playing, tap for orange away, red cross to clock out), buy-ins (tap for the list, + to rebuy) and the stack estimate, shown as a range (~180-220) when some hands were logged without every wager. Hands: newest first, with Log hand on top.
+- **Hand recorder:** tabs Setup, Pre-flop, Flop, Turn, River, Showdown; the stage and running pot stay in the header. Each street is a table of action boxes, one row per player in acting order and one column per pass around the table. Tap = call, tap again = fold, the keypad types a bet or raise. Empty boxes count as calls when the street closes. Cards at showdown can be skipped in one tap.
+- **Groups:** players who play together. Group games settle together: every unpaid amount across them is netted into the fewest payments. Each group has its own leaderboard.
 - **Settle-up:** shared expenses, fewest-transfer "who pays whom", and a resolved toggle for each payment.
 - **Insights:** all-time standings and a comparison chart.
 - **Reports:** Summary, Detailed and Full as PNG, plus Data as CSV, sent through the phone's share sheet.
@@ -30,7 +32,7 @@ npm test
 npm run build    # static site in dist/
 ```
 
-The site has two pages. `index.html` at the root is the splash screen: the S of the Felt mark draws in one stroke, the inner rings and ticks complete the chips, the name and version appear, and after about 2.2 seconds (or a tap) it fades and replaces itself with the app. It is static HTML styled by `src/landing.ts` and `src/landing.css`; the version comes from `package.json` at build time. `app/index.html` is the app (`src/main.tsx`), which fades in on arrival. The service worker and manifest sit at the root and cover both, and the manifest's start URL is the root, so home-screen launches show the splash first.
+The site has two pages. `index.html` at the root is the splash screen: the S of the Felt mark draws in one stroke, the inner rings and ticks complete the chips, the name and version appear, and after 3 seconds by default (or a tap) it fades and replaces itself with the app. Settings, Opening screen sets the length (Off, Short 1.8s, Standard 3s, Long 4.5s); the app stores it in localStorage (`felt-splash-ms`) and the splash reads it before it paints, so Off goes straight to the app. It is static HTML styled by `src/landing.ts` and `src/landing.css`; the version comes from `package.json` at build time. `app/index.html` is the app (`src/main.tsx`), which fades in on arrival. The service worker and manifest sit at the root and cover both, and the manifest's start URL is the root, so home-screen launches show the splash first.
 
 ## Deploy
 
@@ -40,4 +42,4 @@ In the repo, set **Settings → Pages → Source** to **GitHub Actions**.
 ## Install on iPhone
 
 Open the Pages URL in Safari, wait for the app to load, then tap **Share** and **Add to Home Screen**. After that first load the app works offline.
-Deleting the home-screen app deletes its data, so use **Settings → Backup** now and then.
+Deleting the home-screen app deletes its data, so use **Settings → Backup** now and then. Restore replaces games, players and groups; the theme and opening screen stay as set on the phone.

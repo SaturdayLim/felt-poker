@@ -1,6 +1,7 @@
 import type { Game, GameType, ID } from '../types';
 import { handStats, playerResult, round2 } from './calc';
 import { finalists, inAtEnd, pfr, vpip } from './hand';
+import { addFlow, addMoves, addStyle, emptyFlow, emptyStyle, wonAt, type ChipFlow, type StyleCounts, type WonAt } from './style';
 
 export type TypeFilter = 'all' | GameType;
 /** all, FYTD (financial year from 1 July), CYTD (from 1 January), L90D, L30D. */
@@ -49,6 +50,13 @@ export interface PlayerSummary {
   wtsd: number;
   /** Won all or part of a showdown. */
   wsd: number;
+  /** 3-bets, c-bets, aggression, BB defence and steals (hands logged with action boxes). */
+  style: StyleCounts;
+  /** Hands won (all or part) by where they were decided. */
+  wonAt: Record<WonAt, number>;
+  /** Chips won and lost: folds (everyone else folded, or chips left in before folding), showdown, others
+      (2-7 bounties and chip moves). */
+  flow: ChipFlow;
 }
 
 export function playerSummary(games: Game[], pid: ID): PlayerSummary {
@@ -56,6 +64,7 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
     playerId: pid, games: 0, net: 0, wins: 0, winRate: 0, biggestWin: 0, biggestLoss: 0,
     avg: 0, streak: 0, buyIns: 0, handsWon: 0, biggestPot: 0, history: [],
     logged: 0, vpip: 0, pfr: 0, sawFlop: 0, wtsd: 0, wsd: 0,
+    style: emptyStyle(), wonAt: { preflop: 0, flop: 0, turn: 0, river: 0, showdown: 0 }, flow: emptyFlow(),
   };
   for (const g of games) {
     if (!g.playerIds.includes(pid)) continue;
@@ -67,13 +76,18 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
     s.biggestLoss = Math.min(s.biggestLoss, r.net);
     s.buyIns += r.buyIns;
     s.history.push({ gameId: g.id, t: g.startedAt, net: r.net });
+    addMoves(s.flow, g, pid);
     for (const h of g.hands) {
+      if (h.missed) continue;
+      addFlow(s.flow, g, h, pid);
       if (h.excluded) continue;
       const L = h.log;
       if (L?.dealt.includes(pid)) {
         s.logged++;
         if (vpip(g, L, pid, L.button)) s.vpip++;
         if (pfr(L, pid)) s.pfr++;
+        addStyle(s.style, g, L, pid);
+        if (h.winners.some((x) => x.playerId === pid)) s.wonAt[wonAt(L)]++;
         if (L.streets.flop && inAtEnd(L, 'preflop').includes(pid)) s.sawFlop++;
         const fin = finalists(L);
         if (fin.length > 1 && fin.includes(pid)) {

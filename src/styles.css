@@ -358,3 +358,43 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-bet { min-height: 40px; padding: 0 10px; font-size: 1.0625rem; font-weight: 600; flex: 1; min-width: 0; }
 .felt-mini { min-height: 36px; padding: 0 10px; font-size: var(--sat-fs-caption); }
 @media (pointer: coarse) { .felt-mini { min-height: 40px; } .felt-bet { min-height: 44px; } }
+
+/* 2-7 bounty at the result */
+.felt-bounty { padding: var(--sat-space-3); border-radius: var(--sat-radius-md); background: var(--sat-well); gap: var(--sat-space-2); }
+.felt-bounty.is-paid { box-shadow: inset 0 0 0 1.5px var(--sat-accent); }
+.felt-bounty-head { margin: 0; }
+/* the name cell is a button: tap a name to enter the cards that player shows */
+button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+/* Pay bounty tag on a shown 2-7 row */
+.felt-paytag-wrap { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
+.felt-paytag[aria-pressed="false"] { color: var(--sat-muted); }
+.felt-toast { display: flex; align-items: center; gap: var(--sat-space-3); }
+.felt-toast-act { border: 0; background: none; font: inherit; font-weight: 700; color: var(--sat-accent-text); padding: 4px 2px; cursor: pointer; }
+/* keypad open: everything but the keypad and the action boxes is greyed out; a tap there closes the keypad */
+.felt-recorder.has-keypad .felt-rec-bar, .felt-recorder.has-keypad .felt-dock-actions, .felt-recorder.has-keypad .sat-header-bar,
+.felt-recorder.has-keypad .felt-acts-name, .felt-recorder.has-keypad .felt-acts-head { opacity: 0.45; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
+.felt-stat-btn { border: 0; background: none; font: inherit; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.felt-hand--missed { opacity: 0.7; }
+/* hand list: log hand and chip move side by side; a chip move row is dashed so it never reads as a hand */
+.felt-addrow { display: grid; grid-template-columns: 2fr 1fr; gap: var(--sat-space-2); }
+.felt-addbar--alt { font-size: var(--sat-fs-small); }
+.felt-move { padding: var(--sat-space-2) var(--sat-space-3); margin: var(--sat-space-2) 0; border: 1.5px dashed var(--sat-line); border-radius: var(--sat-radius-md); background: var(--sat-well); }
+/* count bars: label, track, value */
+.felt-bars { display: grid; gap: 6px; }
+.felt-bars-row { display: grid; grid-template-columns: 76px 1fr 32px; align-items: center; gap: var(--sat-space-2); font-size: var(--sat-fs-small); }
+.felt-bars-label { color: var(--sat-muted); }
+.felt-bars-track { height: 12px; display: flex; }
+.felt-bars-bar { height: 100%; background: var(--sat-accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+.felt-bars-val { text-align: right; font-weight: 600; }
+/* back-to-back bars: losses left, wins right, the source in the middle */
+.felt-b2b { display: grid; gap: 8px; font-size: var(--sat-fs-small); }
+.felt-b2b-head, .felt-b2b-row { display: grid; grid-template-columns: 1fr 74px 1fr; align-items: center; gap: 6px; }
+.felt-b2b-head { color: var(--sat-muted); font-size: var(--sat-fs-caption); font-weight: 600; letter-spacing: var(--sat-track-caption); }
+.felt-b2b-head > :first-child { text-align: right; }
+.felt-b2b-label { text-align: center; color: var(--sat-muted); }
+.felt-b2b-side { display: flex; align-items: center; gap: 6px; height: 14px; min-width: 0; }
+.felt-b2b-side.is-loss { justify-content: flex-end; }
+.felt-b2b-bar { height: 100%; min-width: 2px; flex: none; }
+.felt-b2b-side.is-loss .felt-b2b-bar { background: var(--sat-neg); border-radius: 4px 0 0 4px; }
+.felt-b2b-side.is-win .felt-b2b-bar { background: var(--sat-pos); border-radius: 0 4px 4px 0; }
+.felt-b2b-val { flex: none; font-weight: 600; }

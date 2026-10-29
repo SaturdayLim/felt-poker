@@ -79,3 +79,46 @@ export function NetBars({ rows, format }: { rows: { label: string; value: number
     </div>
   );
 }
+
+/** Horizontal bars for counts in a fixed order (one hue: the accent). Each row prints its own value, and a
+    hover title repeats it. */
+export function CountBars({ rows, unit }: { rows: { label: string; value: number }[]; unit: string }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <div className="felt-bars" role="table" aria-label="Counts">
+      {rows.map((r) => (
+        <div key={r.label} className="felt-bars-row" role="row" title={`${r.label}: ${r.value} ${unit}`}>
+          <span className="felt-bars-label" role="rowheader">{r.label}</span>
+          <span className="felt-bars-track" role="cell" aria-label={`${r.value} ${unit}`}>
+            {r.value > 0 && <span className="felt-bars-bar" style={{ width: `${(r.value / max) * 100}%` }} />}
+          </span>
+          <span className="felt-bars-val sat-num" role="cell">{r.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Back-to-back bars: losses to the left of the centre line, wins to the right, one row per source.
+    Both sides share one scale. Values print beside the bars. */
+export function BackToBack({ rows, format }: { rows: { label: string; win: number; loss: number }[]; format: (v: number) => string }) {
+  const max = Math.max(1e-9, ...rows.flatMap((r) => [r.win, r.loss]));
+  return (
+    <div className="felt-b2b" role="table" aria-label="Chips won and lost">
+      <div className="felt-b2b-head" role="row"><span role="columnheader">Lost</span><span /><span role="columnheader">Won</span></div>
+      {rows.map((r) => (
+        <div key={r.label} className="felt-b2b-row" role="row">
+          <span className="felt-b2b-side is-loss" role="cell" title={`${r.label}: lost ${format(r.loss)}`}>
+            <span className="felt-b2b-val sat-num">{r.loss ? format(r.loss) : '-'}</span>
+            {r.loss > 0 && <span className="felt-b2b-bar" style={{ width: `calc((100% - 52px) * ${r.loss / max})` }} />}
+          </span>
+          <span className="felt-b2b-label" role="rowheader">{r.label}</span>
+          <span className="felt-b2b-side is-win" role="cell" title={`${r.label}: won ${format(r.win)}`}>
+            {r.win > 0 && <span className="felt-b2b-bar" style={{ width: `calc((100% - 52px) * ${r.win / max})` }} />}
+            <span className="felt-b2b-val sat-num">{r.win ? format(r.win) : '-'}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}

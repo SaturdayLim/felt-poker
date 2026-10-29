@@ -8,7 +8,10 @@ import {
 } from '../lib/calc';
 import { buyInsEquivalent, dateLabel, duration, inBB, money, timeLabel, units } from '../lib/format';
 import { estimateStacks, stackLabel } from '../lib/stacks';
-import type { Game, ID } from '../types';
+import { gameRules } from '../lib/rules';
+import { RulesFields } from '../components/rules';
+import { uid } from '../lib/ids';
+import type { ChipMove, Game, Hand, ID } from '../types';
 
 type SheetKind =
   | { k: 'clockout'; pid: ID }
@@ -16,6 +19,8 @@ type SheetKind =
   | { k: 'back'; pid: ID }
   | { k: 'seats' }
   | { k: 'edit' }
+  | { k: 'count'; pid: ID }
+  | { k: 'move' }
   | null;
 
 export function gameSubtitle(g: Game) {
@@ -90,7 +95,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
             </div>
             <SeatList g={g} ids={inPlayers} disabled={closed} render={(pid, handle) => (
               <PlayerCard key={pid} g={g} pid={pid} name={name(pid)} handle={handle} stack={stackLabel(g, est, pid)}
-                onLight={(v) => onLight(pid, v)} onRebuy={() => rebuy(pid)} onBuyIns={() => setSheet({ k: 'buyins', pid })} />
+                onLight={(v) => onLight(pid, v)} onRebuy={() => rebuy(pid)} onBuyIns={() => setSheet({ k: 'buyins', pid })} onCount={() => setSheet({ k: 'count', pid })} />
             )} />
             {!closed && <AddPlayerCard g={g} />}
             {outPlayers.length > 0 && (
@@ -108,7 +113,10 @@ export default function GameLive({ gameId }: { gameId: string }) {
         {tab === 'hands' && (
           <>
             {!closed && (
-              <button className="felt-addbar" onClick={() => go(`game/${g.id}/hand/new`)}><Icon name="plus" /> Log hand {nextN}</button>
+              <div className="felt-addrow">
+                <button className="felt-addbar" onClick={() => go(`game/${g.id}/hand/new`)}><Icon name="plus" /> Log hand {nextN}</button>
+                <button className="felt-addbar felt-addbar--alt" onClick={() => setSheet({ k: 'move' })}><Icon name="plus" /> Chip move</button>
+              </div>
             )}
             <HandList g={g} name={name} />
           </>
@@ -129,6 +137,15 @@ export default function GameLive({ gameId }: { gameId: string }) {
           hint={v !== undefined ? (exact ? 'Filled from the stack estimate. Change it to the real count.' : `Estimate ${stackLabel(g, est, sheet.pid)}. Enter the real count.`) : undefined}
           cta="Clock out" onClose={() => setSheet(null)} onSave={(n) => { st.clockOut(g.id, sheet.pid, n); setSheet(null); toast(`${name(sheet.pid)} clocked out with ${units(n)} chips`); }} />;
       })()}
+      {sheet?.k === 'count' && (() => {
+        const v = est.stack[sheet.pid];
+        const exact = !(est.spread[sheet.pid] > 0);
+        return <AmountSheet g={g} title={`Count ${name(sheet.pid)}`} label="Chips counted" tip="stackCount" initial={exact && v !== undefined ? Math.max(0, Math.round(v)) : null}
+          hint={exact ? 'The estimate is exact. A count still overrides it.' : `Estimate ${stackLabel(g, est, sheet.pid)}. The count makes it exact again.`}
+          cta="Save count" onClose={() => setSheet(null)}
+          onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips`); }} />;
+      })()}
+      {sheet?.k === 'move' && <MoveSheet g={g} name={name} onClose={() => setSheet(null)} />}
       {sheet?.k === 'buyins' && <BuyInsSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'back' && <BackInSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'seats' && <SeatDrawSheet g={g} onClose={() => setSheet(null)} />}
@@ -190,9 +207,9 @@ function SeatList({ g, ids, disabled, render }: { g: Game; ids: ID[]; disabled?:
 
 /* ------------------------------- player card ------------------------------- */
 
-function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns }: {
+function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, onCount }: {
   g: Game; pid: ID; name: string; handle?: Handle; stack: string | null;
-  onLight: (v: Light) => void; onRebuy: () => void; onBuyIns: () => void;
+  onLight: (v: Light) => void; onRebuy: () => void; onBuyIns: () => void; onCount?: () => void;
 }) {
   const st = useStore();
   const isCash = g.type === 'cash';
@@ -236,7 +253,13 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns }:
             </button>
             {!closed && <button type="button" className="felt-pill-plus" onClick={onRebuy} aria-label={isCash ? `Rebuy ${units(g.defaultBuyIn)} chips for ${name}` : `Re-enter ${name}`}><Icon name="plus" size={14} stroke={2.4} /></button>}
           </span>
-          {stack !== null && status !== 'out' && <span className="felt-stat">Stack <b className="sat-num">{stack}</b> <Help k="stack" /></span>}
+          {stack !== null && status !== 'out' && (
+            <span className="felt-stat">
+              {onCount && !closed
+                ? <button type="button" className="felt-stat-btn" onClick={onCount} aria-label={`Stack ${stack}. Tap to count ${name}'s chips`}>Stack <b className="sat-num">{stack}</b></button>
+                : <>Stack <b className="sat-num">{stack}</b></>} <Help k="stack" />
+            </span>
+          )}
           {isCash && hasCashedOut(g, pid) && status === 'out' && <span className="felt-stat">Left with <b className="sat-num">{units(cashOutUnits(g, pid))}</b></span>}
           <span className="felt-stat sat-num">{duration(timePlayed(g, pid))}{status === 'away' ? ', paused' : ''}</span>
         </div>
@@ -287,11 +310,30 @@ function BackInSheet({ g, pid, name, onClose }: { g: Game; pid: ID; name: string
 }
 
 function HandList({ g, name }: { g: Game; name: (id: ID) => string }) {
+  const st = useStore();
   const hands = [...g.hands].reverse();
-  if (!hands.length) return <Empty title="No hands yet">Log hand adds the first one. The newest stays on top.</Empty>;
+  const moves = [...(g.moves ?? [])].sort((a, b) => b.afterN - a.afterN || b.at - a.at);
+  if (!hands.length && !moves.length) return <Empty title="No hands yet">Log hand adds the first one. The newest stays on top.</Empty>;
+  // newest first: each hand is followed (below it) by nothing newer, so moves logged after hand n sit above it
+  const rows: ({ k: 'hand'; h: Hand } | { k: 'move'; m: ChipMove })[] = [];
+  let mi = 0;
+  for (const h of hands) {
+    while (mi < moves.length && moves[mi].afterN >= h.n) rows.push({ k: 'move', m: moves[mi++] });
+    rows.push({ k: 'hand', h });
+  }
+  while (mi < moves.length) rows.push({ k: 'move', m: moves[mi++] });
   return (
     <div className="sat-glass-2 felt-list">
-      {hands.map((h) => (
+      {rows.map((row) => row.k === 'move' ? (
+        <MoveRow key={row.m.id} m={row.m} name={name} onRemove={() => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); }} />
+      ) : (() => { const h = row.h; return h.missed ? (
+        <div key={h.id} className="felt-hand felt-hand--missed">
+          <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
+            <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}><span className="sat-mono sat-small sat-muted">{h.n}</span><span className="sat-muted">Missed hand</span></span>
+            <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { st.deleteHand(g.id, h.id); toast(`Hand ${h.n} removed`); }}>Remove</button>
+          </div>
+        </div>
+      ) : (
         <button key={h.id} className="felt-hand" onClick={() => go(`game/${g.id}/hand/${h.id}`)}>
           <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
             <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap', minWidth: 0 }}>
@@ -307,16 +349,92 @@ function HandList({ g, name }: { g: Game; name: (id: ID) => string }) {
               {h.dealerId && <span className="sat-small sat-muted"><span className="felt-dealer" style={{ width: 15, height: 15, fontSize: 8 }} aria-label="Button">D</span> {name(h.dealerId)}</span>}
               {(h.pots?.length ?? 1) > 1 && <span className="sat-badge sat-badge--muted">{h.pots!.length} pots</span>}
               {h.shown.length > 0 && <span className="sat-badge">{h.shown.length} shown</span>}
+              {h.bounty && <span className="sat-badge">2-7 {name(h.bounty.playerId)}</span>}
             </div>
           </div>
         </button>
-      ))}
+      ); })())}
     </div>
   );
 }
 
+const MOVE_KIND: { k: ChipMove['kind']; label: string }[] = [
+  { k: 'side', label: 'Side game' },
+  { k: 'tip', label: 'Tip' },
+  { k: 'other', label: 'Other' },
+];
+
+/** A chip move in the hand list: a dashed row between hands, so it never reads as a hand. */
+function MoveRow({ m, name, onRemove }: { m: ChipMove; name: (id: ID) => string; onRemove: () => void }) {
+  const kind = MOVE_KIND.find((k) => k.k === m.kind)?.label ?? 'Other';
+  return (
+    <div className="felt-move">
+      <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
+        <span className="felt-ellipsis"><span className="sat-badge sat-badge--muted">{kind}</span> <b>{name(m.from)}</b> paid <b>{m.to ? name(m.to) : 'off the table'}</b></span>
+        <span className="sat-num" style={{ fontWeight: 600 }}>{units(m.amount)}</span>
+      </div>
+      <div className="sat-split">
+        <span className="sat-small sat-muted felt-ellipsis">{m.note || `After hand ${m.afterN}`}</span>
+        <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={onRemove}>Remove</button>
+      </div>
+    </div>
+  );
+}
+
+/** Log chips that changed hands outside a pot. They change the stacks, not the pots or hand stats. */
+function MoveSheet({ g, name, onClose }: { g: Game; name: (id: ID) => string; onClose: () => void }) {
+  const st = useStore();
+  const ids = [...g.playerIds].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99)).filter((p) => playerStatus(g, p) !== 'out');
+  const [kind, setKind] = useState<ChipMove['kind']>('side');
+  const [from, setFrom] = useState<ID | null>(null);
+  const [to, setTo] = useState<ID | null | undefined>(undefined); // null = off the table
+  const [amt, setAmt] = useState('');
+  const [note, setNote] = useState('');
+  const n = num(amt);
+  const ok = !!from && to !== undefined && to !== from && n !== null && n > 0;
+  const afterN = g.hands[g.hands.length - 1]?.n ?? 0;
+  const save = () => {
+    if (!ok) { toast(!from ? 'Pick who paid.' : to === undefined ? 'Pick who got the chips.' : 'Type the chips moved (e.g. 20).'); return; }
+    st.updateGame(g.id, (x) => {
+      (x.moves ??= []).push({ id: uid(), from: from!, to: to ?? undefined, amount: n!, kind, note: note.trim() || undefined, at: Date.now(), afterN });
+    });
+    toast(`${name(from!)} paid ${to ? name(to) : 'off the table'} ${units(n!)} chips`);
+    onClose();
+  };
+  return (
+    <Sheet open onClose={onClose} title="Chip move">
+      <p className="sat-small sat-muted">Chips that changed hands outside a pot: a side game, a tip, a settled bet. Stacks change; pots and hand stats do not. <Help k="moves" /></p>
+      <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Kind of move">
+        {MOVE_KIND.map((o) => <button key={o.k} type="button" role="radio" aria-checked={kind === o.k} onClick={() => setKind(o.k)}>{o.label}</button>)}
+      </div>
+      <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+        <Caption>Paid by</Caption>
+        <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+          {ids.map((p) => <button key={p} type="button" className="sat-chip" aria-pressed={from === p} onClick={() => { setFrom(p); if (to === p) setTo(undefined); }}>{name(p)}</button>)}
+        </div>
+      </div>
+      <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+        <Caption>Paid to</Caption>
+        <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+          {ids.filter((p) => p !== from).map((p) => <button key={p} type="button" className="sat-chip" aria-pressed={to === p} onClick={() => setTo(p)}>{name(p)}</button>)}
+          <button type="button" className="sat-chip" aria-pressed={to === null} onClick={() => setTo(null)}>Off the table</button>
+        </div>
+      </div>
+      <div className="sat-field">
+        <label htmlFor="mv-amt">Chips</label>
+        <input id="mv-amt" className="sat-input sat-num" inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0" />
+      </div>
+      <div className="sat-field">
+        <label htmlFor="mv-note">Note</label>
+        <input id="mv-note" className="sat-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional, for example High card side bet" />
+      </div>
+      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!ok} onClick={save}>Save move</button>
+    </Sheet>
+  );
+}
+
 function AmountSheet({ g, title, label, tip, hint, initial, isMoney, cta = 'Add', onClose, onSave }: {
-  g: Game; title: string; label?: string; tip?: 'clockOut'; hint?: string; initial: number | null; isMoney?: boolean; cta?: string;
+  g: Game; title: string; label?: string; tip?: 'clockOut' | 'stackCount'; hint?: string; initial: number | null; isMoney?: boolean; cta?: string;
   onClose: () => void; onSave: (v: number) => void;
 }) {
   const [v, setV] = useState(initial === null ? '' : String(initial));
@@ -427,6 +545,7 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   const [bb, setBb] = useState(String(g.bb));
   const [grp, setGrp] = useState<string | undefined>(g.groupId);
   const [notes, setNotes] = useState(g.notes ?? '');
+  const [rules, setRules] = useState(() => gameRules(g, st.settings));
   const [confirm, setConfirm] = useState(false);
   return (
     <Sheet open onClose={onClose} title="Game settings">
@@ -446,12 +565,18 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
           </div>
         </div>
       )}
+      <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+        <h3 className="sat-h3">House rules</h3>
+        <RulesFields rules={rules} onChange={setRules} players={g.playerIds.length} idPrefix="eg" />
+        <p className="sat-small sat-muted">Changes apply to the next hands. Saved hands keep their bounty.</p>
+      </section>
       <div className="sat-field"><label htmlFor="eg-x">Notes</label><textarea id="eg-x" className="sat-input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => {
         st.updateGame(g.id, (x) => {
           x.name = nm.trim() || x.name;
           x.notes = notes;
           x.groupId = grp;
+          x.rules = rules;
           const s = num(sb), b = num(bb);
           if (s && b && b >= s) { x.sb = s; x.bb = b; }
           if (x.type === 'cash') { x.unitValue = num(uv) ?? x.unitValue; x.defaultBuyIn = num(bi) ?? x.defaultBuyIn; }

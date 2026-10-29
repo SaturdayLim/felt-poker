@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '../types';
-import { minRaiseTo, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
+import { bountyQualifiers, bountyWinner, is27, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -192,6 +192,28 @@ describe('action boxes', () => {
     expect(potTotal(g, partial)).toBe(36);
   });
 
+  it('partly recorded only while a skipped box is empty or the hand stops early', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 6 }, stacks);
+    // skipped to the flop: the boxes after Nat are unknown
+    let l = closeStreet(g, log, 'preflop', 1, stacks, true);
+    expect(unknownBoxes(g, l, stacks)).toBeGreaterThan(0);
+    expect(partlyRecorded(g, l, stacks)).toBe(true);
+    // fill every skipped box: everyone folds to Nat, so the hand ended preflop and is whole again
+    const rp = replayStreet(g, l, 'preflop', stacks);
+    for (const p of rp.order) rp.cells[p].forEach((c, r) => { if (c.needed && c.implied) l = setAct(g, l, 'preflop', p, r, { k: 'fold' }, stacks); });
+    expect(unknownBoxes(g, l, stacks)).toBe(0);
+    expect(partlyRecorded(g, l, stacks)).toBe(false);
+    // stopping on the flop with two players able to bet is partly recorded
+    let two = fillBefore(g, log, 'preflop', 'Clar', 1, stacks);
+    two = setAct(g, two, 'preflop', 'Clar', 1, { k: 'call' }, stacks);
+    two = closeStreet(g, two, 'preflop', 1, stacks);
+    two = closeStreet(g, openStreetBoxes(g, two, 'flop', stacks), 'flop', 1, stacks);
+    expect(inAtEnd(two, 'flop').length).toBeGreaterThan(1);
+    expect(partlyRecorded(g, two, stacks)).toBe(true);
+  });
+
   it('heads-up: the button posts the small blind and acts first preflop', () => {
     const g = g6();
     const log = newBoxLog(g, ['Bel', 'Gab'], 'Bel', stacks);
@@ -318,5 +340,44 @@ describe('action boxes', () => {
     rp = replayStreet(g, log, 'preflop', st);
     expect(rp.street.bets.Clar).toBe(10); // the raise counts as a call
     expect(rp.cells.Clar[1].act?.k).toBe('call');
+  });
+});
+
+describe('2-7 bounty', () => {
+  it('reads 2-7 offsuit, and suited only when allowed', () => {
+    expect(is27(['7d', '2c'], false)).toBe(true);
+    expect(is27(['2c', '7d'], false)).toBe(true);
+    expect(is27(['7c', '2c'], false)).toBe(false);
+    expect(is27(['7c', '2c'], true)).toBe(true);
+    expect(is27(['7c', '3d'], true)).toBe(false);
+    expect(is27(['7c'], true)).toBe(false);
+  });
+
+  const pot = (amount: number, eligible: string[], runs: string[][]) => ({ amount, eligible, winners: [], runs: runs.map((w) => ({ winners: w })), manual: false });
+
+  it('revealed cards: a shown 2-7 that lost still wins it; winning hand and exclusive win do not', () => {
+    const res = { pots: [pot(100, ['CY', 'Edwin'], [['Edwin']])], winners: [{ playerId: 'Edwin', amount: 100 }], missing: false };
+    const shown = { CY: ['7d', '2c'], Edwin: ['As', 'Ah'] };
+    expect(bountyWinner(res, ['CY', 'Edwin'], shown, { win: 'shown', suited: false })).toBe('CY');
+    expect(bountyWinner(res, ['CY', 'Edwin'], shown, { win: 'won', suited: false })).toBeNull();
+    expect(bountyWinner(res, ['CY', 'Edwin'], shown, { win: 'sole', suited: false })).toBeNull();
+  });
+
+  it('a chopped pot is a winning hand but not an exclusive win', () => {
+    const res = { pots: [pot(100, ['CY', 'Edwin'], [['CY', 'Edwin']])], winners: [{ playerId: 'CY', amount: 50 }, { playerId: 'Edwin', amount: 50 }], missing: false };
+    expect(bountyQualifiers(res, ['CY', 'Edwin'], 'won')).toEqual(['CY', 'Edwin']);
+    expect(bountyQualifiers(res, ['CY', 'Edwin'], 'sole')).toEqual([]);
+  });
+
+  it('exclusive win: the main pot alone with a side pot lost to others counts; winning one run of two does not', () => {
+    const side = { pots: [pot(90, ['CY', 'Edwin', 'Mike'], [['CY']]), pot(40, ['Edwin', 'Mike'], [['Mike']])], winners: [{ playerId: 'CY', amount: 90 }, { playerId: 'Mike', amount: 40 }], missing: false };
+    expect(bountyQualifiers(side, ['CY', 'Edwin', 'Mike'], 'sole')).toEqual(['CY']); // Mike won only the side pot: not the best hand on the table
+    const twice = { pots: [pot(100, ['CY', 'Edwin'], [['CY'], ['Edwin']])], winners: [{ playerId: 'CY', amount: 50 }, { playerId: 'Edwin', amount: 50 }], missing: false };
+    expect(bountyQualifiers(twice, ['CY', 'Edwin'], 'sole')).toEqual([]);
+  });
+
+  it('winning uncontested and showing 2-7 counts under every rule', () => {
+    const res = { pots: [pot(30, ['CY'], [['CY']])], winners: [{ playerId: 'CY', amount: 30 }], missing: false };
+    for (const win of ['shown', 'won', 'sole'] as const) expect(bountyWinner(res, ['CY'], { CY: ['2h', '7s'] }, { win, suited: false })).toBe('CY');
   });
 });

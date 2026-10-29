@@ -3,6 +3,8 @@ import { useStore } from '../store';
 import { back, go } from '../router';
 import { Caption, Header, Help, Toggle, num, toast } from '../components/ui';
 import { NameEntry, PlayerChip } from '../components/players';
+import { RulesFields } from '../components/rules';
+import { rulesForNew } from '../lib/rules';
 import { money } from '../lib/format';
 import type { GameType, ID } from '../types';
 
@@ -11,6 +13,9 @@ export default function NewGame({ type }: { type: GameType }) {
   const players = useStore((x) => x.players).filter((p) => !p.archived);
   const createGame = useStore((x) => x.createGame);
   const groups = useStore((x) => x.groups);
+  const games = useStore((x) => x.games);
+  // house rules start from the last game of this type (2-7 bounty: on for cash, off for tournaments)
+  const [rules, setRules] = useState(() => rulesForNew(games, type, s));
   const [groupId, setGroupId] = useState<ID | undefined>(undefined);
 
   const day = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
@@ -37,7 +42,7 @@ export default function NewGame({ type }: { type: GameType }) {
     const g = createGame({
       type, name, playerIds: sel, currency: currency.trim() || 'S$',
       unitValue: uv, sb: num(sb) ?? 1, bb: bbN, defaultBuyIn: bi,
-      tournamentBuyIn: num(tBuyIn) ?? 0, startingStack: num(stack) ?? 0, autoBuyIn, groupId,
+      tournamentBuyIn: num(tBuyIn) ?? 0, startingStack: num(stack) ?? 0, autoBuyIn, groupId, rules,
     });
     go(`game/${g.id}`, true);
   };
@@ -99,6 +104,12 @@ export default function NewGame({ type }: { type: GameType }) {
             <p className="sat-small sat-muted">Payouts are set when the tournament ends.</p>
           </section>
         )}
+
+        <section className="sat-glass sat-card sat-stack">
+          <h2 className="sat-h3">House rules</h2>
+          <RulesFields rules={rules} onChange={setRules} players={Math.max(sel.length, 2)} idPrefix="g" />
+          <p className="sat-small sat-muted">{games.some((x) => x.rules && x.type === type) ? `Copied from your last ${type === 'cash' ? 'cash game' : 'tournament'}. ` : ''}Change them later in the game settings.</p>
+        </section>
 
         <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)', marginTop: 'var(--sat-space-2)' }}>
           <div className="sat-split">

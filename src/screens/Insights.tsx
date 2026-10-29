@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Help, Icon, toast, SourceTip } from '../components/ui';
-import { LineChart, SERIES_COLORS } from '../components/charts';
+import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
-import { dateLabel, money, shortDate } from '../lib/format';
+import { dateLabel, money, shortDate, units } from '../lib/format';
 import { cumulativeSeries, filterGames, groupTotals, handPace, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
@@ -140,10 +140,44 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
             <div className="sat-glass sat-stat"><Caption>Saw flop</Caption><span className="sat-kpi">{pct(s.sawFlop, s.logged)}</span><span className="sat-note">{s.sawFlop} of {s.logged} hands</span></div>
             <div className="sat-glass sat-stat"><Caption tip="wtsd">WTSD</Caption><span className="sat-kpi">{pct(s.wtsd, s.sawFlop)}</span><span className="sat-note">{s.wtsd} of {s.sawFlop} flops</span></div>
             <div className="sat-glass sat-stat"><Caption tip="wsd">W$SD</Caption><span className="sat-kpi">{pct(s.wsd, s.wtsd)}</span><span className="sat-note">{s.wsd} of {s.wtsd} showdowns</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="threeBet">3-bet</Caption><span className="sat-kpi">{pct(s.style.threeBet, s.style.threeBetOpp)}</span><span className="sat-note">{s.style.threeBet} of {s.style.threeBetOpp} chances</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="fold3Bet">Fold to 3-bet</Caption><span className="sat-kpi">{pct(s.style.fold3Bet, s.style.fold3BetOpp)}</span><span className="sat-note">{s.style.fold3Bet} of {s.style.fold3BetOpp} times 3-bet</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="cbet">C-bet</Caption><span className="sat-kpi">{pct(s.style.cbet, s.style.cbetOpp)}</span><span className="sat-note">{s.style.cbet} of {s.style.cbetOpp} chances</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="foldCbet">Fold to c-bet</Caption><span className="sat-kpi">{pct(s.style.foldCbet, s.style.foldCbetOpp)}</span><span className="sat-note">{s.style.foldCbet} of {s.style.foldCbetOpp} c-bets faced</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="bbDefend">BB defend</Caption><span className="sat-kpi">{pct(s.style.bbDefend, s.style.bbDefendOpp)}</span><span className="sat-note">{s.style.bbDefend} of {s.style.bbDefendOpp} raises faced</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="steal">Steal</Caption><span className="sat-kpi">{pct(s.style.steal, s.style.stealOpp)}</span><span className="sat-note">{s.style.steal} of {s.style.stealOpp} chances</span></div>
+            <div className="sat-glass sat-stat"><Caption tip="aggression">Aggression</Caption><span className="sat-kpi">{s.style.calls ? (s.style.betsRaises / s.style.calls).toFixed(1) : s.style.betsRaises ? 'All in' : '-'}</span><span className="sat-note">{s.style.betsRaises} bets and raises, {s.style.calls} calls</span></div>
           </div>
           <div className="felt-source"><SourceTip>{sourceLine(played)} Rates use hands logged street by street only.</SourceTip></div>
         </section>
       )}
+
+      {s.logged > 0 && (
+        <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+          <div className="sat-split"><h2 className="sat-h3">Where hands were won</h2><Help k="wonAt" /></div>
+          <CountBars unit="hands" rows={[
+            { label: 'Pre-flop', value: s.wonAt.preflop }, { label: 'Flop', value: s.wonAt.flop }, { label: 'Turn', value: s.wonAt.turn },
+            { label: 'River', value: s.wonAt.river }, { label: 'Showdown', value: s.wonAt.showdown },
+          ]} />
+          <p className="sat-small sat-muted">{s.wonAt.showdown} of {Object.values(s.wonAt).reduce((a, b) => a + b, 0)} hands won at showdown. The rest were won when everyone else folded.</p>
+        </section>
+      )}
+
+      {(s.flow.winFold + s.flow.winShowdown + s.flow.winOther + s.flow.lossFold + s.flow.lossShowdown + s.flow.lossOther) > 0 && (() => {
+        const f = s.flow;
+        const net = f.winFold + f.winShowdown + f.winOther - f.lossFold - f.lossShowdown - f.lossOther;
+        return (
+          <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+            <div className="sat-split"><h2 className="sat-h3">Chips won and lost</h2><Help k="flow" /></div>
+            <BackToBack format={(v) => units(v)} rows={[
+              { label: 'Folds', win: f.winFold, loss: f.lossFold },
+              { label: 'Showdown', win: f.winShowdown, loss: f.lossShowdown },
+              { label: 'Others', win: f.winOther, loss: f.lossOther },
+            ]} />
+            <p className="sat-small sat-muted">Net {net > 0 ? '+' : ''}{units(net)} chips from logged hands, 2-7 bounties and chip moves.</p>
+          </section>
+        );
+      })()}
 
       <section className="sat-glass sat-card sat-stack" style={gap(3)}>
         <div className="sat-split"><h2 className="sat-h3">Rebuys</h2><Help k="rebuys" /></div>

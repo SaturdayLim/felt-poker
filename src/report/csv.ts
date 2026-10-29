@@ -1,7 +1,7 @@
 import type { Game, ID } from '../types';
 import { handStats, playerResult, timePlayed } from '../lib/calc';
 import { bestHand } from '../lib/cards';
-import { STREETS, inAtEnd, pfr, potTotal, vpip } from '../lib/hand';
+import { STREETS, bountyPay, bountyTotal, inAtEnd, pfr, potTotal, vpip } from '../lib/hand';
 
 type NameFn = (id: ID) => string;
 
@@ -70,13 +70,15 @@ export function handsCsv(games: Game[], name: NameFn): string {
         h.log?.runs ?? '',
         Object.entries(h.returned ?? {}).map(([p, a]) => `${name(p)}:${a}`).join('; '),
         h.endedAt ? Math.round((h.endedAt - h.at) / 1000) : '',
+        h.bounty ? `${name(h.bounty.playerId)}:${bountyTotal(h.bounty)}` : '',
+        h.bounty ? h.bounty.payers.map((p) => `${name(p)}:${bountyPay(h.bounty!, p)}`).join('; ') : '',
       ]);
     }
   }
   return toCsv([
     'game_id', 'game', 'date', 'hand', 'time', 'button', 'pot_chips', 'pot_money', 'winners', 'winner_amounts',
     'split', 'board', 'flop', 'turn', 'river', 'shown_cards', 'shown_hand_ranks', 'all_in', 'straddle', 'tags', 'note', 'pots',
-    'entry_mode', 'vpip_players', 'pfr_players', 'pot_by_street', 'in_by_street', 'runs', 'returned', 'seconds',
+    'entry_mode', 'vpip_players', 'pfr_players', 'pot_by_street', 'in_by_street', 'runs', 'returned', 'seconds', 'bounty_27', 'bounty_27_paid_by',
   ], rows);
 }
 

@@ -270,21 +270,29 @@ export function Empty({ title, children, action }: { title: string; children?: R
 
 /* ------------------------------- toast ------------------------------- */
 
-let toastListener: ((msg: string) => void) | null = null;
-export function toast(msg: string) { toastListener?.(msg); }
+type ToastAction = { label: string; run: () => void };
+let toastListener: ((msg: string, action?: ToastAction) => void) | null = null;
+/** Short message at the bottom. With an action (for example Undo) it stays 5 seconds instead of 2.6. */
+export function toast(msg: string, action?: ToastAction) { toastListener?.(msg, action); }
 
 export function ToastHost() {
-  const [msg, setMsg] = useState<string | null>(null);
+  const [t, setT] = useState<{ msg: string; action?: ToastAction } | null>(null);
   useEffect(() => {
     let timer: number | undefined;
-    toastListener = (m) => {
-      setMsg(m);
+    toastListener = (msg, action) => {
+      setT({ msg, action });
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setMsg(null), 2600);
+      timer = window.setTimeout(() => setT(null), action ? 5000 : 2600);
     };
     return () => { toastListener = null; };
   }, []);
-  return msg ? <div className="felt-toast sat-glass-2 sat-small" role="status">{msg}</div> : null;
+  if (!t) return null;
+  return (
+    <div className="felt-toast sat-glass-2 sat-small" role="status">
+      {t.msg}
+      {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); setT(null); }}>{t.action.label}</button>}
+    </div>
+  );
 }
 
 /** Re-render every `ms` milliseconds (for live clocks). */

@@ -1,16 +1,17 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast } from '../components/ui';
-import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand } from '../lib/cards';
+import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
 import { uid } from '../lib/ids';
 import {
-  STREETS, STREET_CARDS, actionClosed, blinds, closeStreet, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
-  newBoxLog, openStreetBoxes, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, type Replay,
+  STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
+  newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, unknownBoxes, type Replay,
 } from '../lib/hand';
 import { estimateStacks } from '../lib/stacks';
+import { gameRules } from '../lib/rules';
 import type { Act, Card, Game, Hand, HandLog, ID, StreetName } from '../types';
 
 /* Hand recorder, one tab per stage in the order things happen at the table:
@@ -45,6 +46,10 @@ interface RState {
   finalPot: string;
   /** Leave the hand out of stats; undefined = follow `partial`. */
   exclude?: boolean;
+  /** 2-7 bounty paid to this player; undefined = follow the shown cards, null = none. */
+  bounty?: ID | null;
+  /** Players dealt in who did not pay the bounty. */
+  bountyOff?: ID[];
 }
 
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
@@ -131,6 +136,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         shown: Object.fromEntries(Object.entries(L.shown ?? {}).map(([p, c]) => [p, [c[0] ?? null, c[1] ?? null]])),
         manual: Object.fromEntries(pots.map((p, i) => [i, p.winners.map((w) => w.playerId)]).filter((_, i) => !auto.pots[i]?.runs.every((r) => r.winners.length))),
         partial: !!existing.partial, finalPot: existing.partial && existing.pot > recorded ? String(existing.pot) : '', exclude: existing.excluded,
+        // a saved hand keeps the bounty it was saved with; it never adds one by itself
+        bounty: existing.bounty?.playerId ?? null,
+        bountyOff: existing.bounty ? L.dealt.filter((p) => p !== existing.bounty!.playerId && !existing.bounty!.payers.includes(p)) : [],
       };
     }
     return freshState(g, nNew, dealtDefault(g), buttonFor(g, dealtDefault(g), nNew), stacksRef.current ?? {});
@@ -140,23 +148,31 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const [typed, setTyped] = useState('');
   const [confirm, setConfirm] = useState<'delete' | 'reset' | null>(null);
   // keypad: dark (blind) mark for the next action, and a raise under the house minimum
-  const minRule = useStore((s) => s.settings.minRaise);
+  const settings = useStore((s) => s.settings);
+  const { minRaise: minRule, bounty27: bountyRule } = g ? gameRules(g, settings) : settings;
   const [dark, setDark] = useState(false);
   const [raiseErr, setRaiseErr] = useState<number | null>(null);
+  // All-in with the stack only a range: the keypad asks for the amount (it was the whole stack)
+  const [allInAsk, setAllInAsk] = useState(false);
 
   useEffect(() => {
     if (existing || !st) return;
     try { localStorage.setItem(draftKey(gameId), JSON.stringify({ v: 1, st, dealt, button, sb, bb } satisfies Draft)); } catch { /* storage full or private mode */ }
   }, [st, dealt, button, sb, bb, existing, gameId]);
 
-  // Tapping anywhere outside the keypad and the action boxes puts the keypad away
+  // While the keypad is open the rest of the screen is greyed out: a tap anywhere outside the keypad and
+  // the action boxes only puts the keypad away (that tap does nothing else). Scrolling leaves it open.
+  const keypadOpen = useRef(false);
   useEffect(() => {
-    const onDown = (e: PointerEvent) => {
+    const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && !t.closest('.felt-rec-dock, .felt-box, .sat-tip')) { setSel(null); setTyped(''); setDark(false); setRaiseErr(null); }
+      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false);
     };
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
   }, []);
 
   const used = useMemo(() => {
@@ -185,10 +201,42 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     return st.board.filter(Boolean) as Card[];
   };
   const recordedPot = potNow;
+  // Partly recorded follows the log: filling in every skipped box makes the hand whole again.
+  // Hands from the earlier recorder (no action boxes) keep the flag they were saved with.
+  const boxLog = Object.values(log.streets).some((s) => s?.acts);
+  const partial = boxLog ? (st.ended ? partlyRecorded(g, log, stacks) : unknownBoxes(g, log, stacks) > 0) : st.partial;
   const finalPotN = num(st.finalPot);
-  const extra = st.partial && finalPotN !== null && finalPotN > recordedPot ? round2(finalPotN - recordedPot) : 0;
+  const extra = partial && finalPotN !== null && finalPotN > recordedPot ? round2(finalPotN - recordedPot) : 0;
   const res = st.ended ? resolve(g, fullLog(), boardForResolve(), log.button, st.manual, extra) : null;
-  const exclude = st.exclude ?? st.partial;
+  const exclude = st.exclude ?? partial;
+  // 2-7 bounty: filled in from the shown cards under the house rule, or picked by hand
+  const bountyOn = bountyRule.on || !!existing?.bounty;
+  const bountyAmt = existing?.bounty?.amount ?? bountyRule.amount;
+  const bountyAuto = res && bountyOn ? bountyWinner(res, live, fullLog().shown, bountyRule) : null;
+  const bountyPick = st.bounty === undefined ? bountyAuto : st.bounty;
+  const bountyTo = bountyPick && live.includes(bountyPick) ? bountyPick : null;
+  // Chips left after the pot, where the stack is known. A player who busts in the hand is exempt; a short
+  // stack pays what it has. With the stack only a range, a player all-in who won nothing counts as busted.
+  const contrib = res ? contributions(g, log, log.button) : {};
+  const leftAfter = (p: ID) => (!res || stacks?.[p] === undefined ? undefined
+    : round2(stacks[p] - (contrib[p] ?? 0) + (res.winners.find((w) => w.playerId === p)?.amount ?? 0) + (res.returned[p] ?? 0)));
+  const busted = res ? log.dealt.filter((p) => {
+    const l = leftAfter(p);
+    if (l !== undefined) return l <= 0;
+    return !!log.allInAt?.[p] && !res.winners.some((w) => w.playerId === p) && !res.returned[p];
+  }) : [];
+  const bountyPayers = bountyTo ? log.dealt.filter((p) => p !== bountyTo && !busted.includes(p) && !(st.bountyOff ?? []).includes(p)) : [];
+  const bountyShort: Record<ID, number> = Object.fromEntries(bountyPayers.map((p) => [p, leftAfter(p)]).filter(([, l]) => l !== undefined && (l as number) < bountyAmt));
+  const payOf = (p: ID) => bountyShort[p] ?? bountyAmt;
+  // A shown 2-7 gets a Pay bounty tag: pressed when the bounty is paid to it. Felt presses it when the
+  // game's rule is met; the table can press it anyway, or clear it.
+  const shown27 = (p: ID) => bountyOn && is27((st.shown[p] ?? []).filter(Boolean) as Card[], bountyRule.suited);
+  const payTag = (p: ID) => (shown27(p) && live.includes(p) ? (
+    <span className="felt-paytag-wrap">
+      <button type="button" className="sat-chip felt-mini felt-paytag" aria-pressed={bountyTo === p} onClick={() => set({ bounty: bountyTo === p ? null : p })}>Pay bounty</button>
+      <Help k="payBounty" />
+    </span>
+  ) : null);
   const sbN = Number(sb), bbN = Number(bb);
   const nextStreet = street ? STREETS[STREETS.indexOf(street) + 1] : undefined;
   const started = hasActs(log);
@@ -255,7 +303,13 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   /** Next button: close the street on screen with the defaults and move on. */
   const nextFrom = (s: StreetName) => {
     const r = closeThrough(s, false);
-    if (r.ended) { enterShowdown(r.l, { partial: r.partial }); return; }
+    if (r.ended) {
+      const before = st, beforeSel = sel;
+      const filled = replayStreet(g, log, s, stacks).waiting.length;
+      enterShowdown(r.l, { partial: r.partial });
+      if (filled) toast('Empty boxes took the default.', { label: 'Undo', run: () => { setSt(before); setSel(beforeSel); setTarget(null); } });
+      return;
+    }
     openStreet(r.l, STREETS[STREETS.indexOf(s) + 1], { partial: r.partial });
   };
   /** Tabs: any stage can be opened. Jumping ahead closes the streets in between, keeping players in. */
@@ -285,6 +339,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     if (!street) return;
     setDark(false);
     setRaiseErr(null);
+    setAllInAsk(false);
     let l = setAct(g, log, street, p, r, a, stacks);
     let ended = st.ended;
     if (l.streets[street]?.at && (inAtEnd(l, street).length <= 1 || actionClosed(l, street))) { l = dropAfter(l, street); ended = true; }
@@ -300,6 +355,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     setTyped('');
     setDark(false);
     setRaiseErr(null);
+    setAllInAsk(false);
     // a box further on than the next one: the boxes before it take their defaults
     if (!c.act && !c.implied && replay.next && (replay.next.p !== p || replay.next.r !== r)) {
       const l = fillBefore(g, log, street, p, r, stacks);
@@ -320,25 +376,38 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       board: boardForResolve(), boardNA: false,
       shown: Object.entries(L.shown).map(([playerId, cards]) => ({ playerId, cards })),
       allIn: Object.keys(L.allInAt ?? {}).length > 0, straddle: false, tags: existing?.tags ?? [], note: st.note.trim() || undefined, log: L,
-      partial: st.partial || undefined, excluded: exclude || undefined,
+      partial: partial || undefined, excluded: exclude || undefined,
+      bounty: bountyTo && bountyPayers.length ? { playerId: bountyTo, amount: bountyAmt, payers: bountyPayers, short: Object.keys(bountyShort).length ? bountyShort : undefined } : undefined,
     };
     saveHand(g.id, hand);
     try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }
-    if (next) {
-      go(`game/${g.id}/hand/new`, true);
-      const fg = useStore.getState().games.find((x) => x.id === g.id)!;
-      const n = hand.n + 1;
-      const d = dealtDefault(fg);
-      const b = buttonFor(fg, d, n);
-      stacksRef.current = exactStacks(fg, n);
-      setDealt(d); setButton(b); setSb(String(fg.sb)); setBb(String(fg.bb));
-      const fresh = freshState(fg, n, d, b, stacksRef.current);
-      setSt(fresh);
-      setSel(replayStreet(fg, fresh.log, 'preflop', stacksRef.current).next);
-      setTarget(null); setTyped(''); setConfirm(null);
-      window.scrollTo(0, 0);
-      toast(`Hand ${hand.n} saved. Hand ${n} dealt.`);
-    } else back(`game/${g.id}`);
+    if (next) nextHand(hand.n + 1, `Hand ${hand.n} saved. Hand ${hand.n + 1} dealt.`);
+    else back(`game/${g.id}`);
+  };
+  const nextHand = (n: number, msg: string) => {
+    try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }
+    go(`game/${g.id}/hand/new`, true);
+    const fg = useStore.getState().games.find((x) => x.id === g.id)!;
+    const d = dealtDefault(fg);
+    const b = buttonFor(fg, d, n);
+    stacksRef.current = exactStacks(fg, n);
+    setDealt(d); setButton(b); setSb(String(fg.sb)); setBb(String(fg.bb));
+    const fresh = freshState(fg, n, d, b, stacksRef.current);
+    setSt(fresh);
+    setSel(replayStreet(fg, fresh.log, 'preflop', stacksRef.current).next);
+    setTarget(null); setTyped(''); setConfirm(null);
+    window.scrollTo(0, 0);
+    toast(msg);
+  };
+
+  /** A hand played but not logged: it keeps the hand count and the button right, and widens the stacks. */
+  const saveMissed = () => {
+    const t = Date.now();
+    saveHand(g.id, {
+      id: st.id, n: st.n, at: log.startedAt, endedAt: t, dealerId: button, pot: 0, winners: [], board: [], boardNA: true,
+      shown: [], allIn: false, straddle: false, tags: [], missed: true, excluded: true,
+    });
+    nextHand(st.n + 1, `Hand ${st.n} marked missed. Hand ${st.n + 1} dealt.`);
   };
 
   /* --------- cards --------- */
@@ -360,6 +429,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       const shown = { ...st.shown, [target.p]: nextCards };
       set({ shown });
       if (target.ci === 0 && !nextCards[1]) { setTarget({ kind: 'shown', p: target.p, ci: 1 }); return; }
+      if (st.tab !== 'showdown') { setTarget(null); return; }
       // on to the next player still to show
       const order = showdownOrder(g, log, live);
       const after = [...order.slice(order.indexOf(target.p) + 1), ...order.slice(0, order.indexOf(target.p))];
@@ -387,6 +457,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   /* --------- keypad --------- */
   const selCell = sel && replay?.cells[sel.p]?.[sel.r]?.needed ? replay.cells[sel.p][sel.r] : null;
+  keypadOpen.current = !target && !!selCell;
   const darkOn = selCell?.act ? !!selCell.act.dark : dark;
   const mark = (a: Act): Act => (darkOn && street !== 'preflop' ? { ...a, dark: true } : a);
   // chips the player can still put in on this street (when the stack is known exactly)
@@ -422,7 +493,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const toAct = replay?.next ? name(replay.next.p) : null;
 
   return (
-    <div className="felt-page felt-recorder">
+    <div className={`felt-page felt-recorder ${!target && selCell ? 'has-keypad' : ''}`}>
       <Header back={() => back(`game/${g.id}`)} title={`Hand ${st.n}`} sub={g.name}
         right={existing ? (
           <button className="sat-btn sat-btn--ghost sat-iconbtn" style={confirm === 'delete' ? { color: 'var(--sat-neg)' } : undefined} aria-label={confirm === 'delete' ? 'Tap again to delete this hand' : 'Delete hand'}
@@ -437,7 +508,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             ))}
           </div>
           <div className="felt-rec-status" aria-live="polite">
-            <span><b>{LABEL[st.tab === 'setup' ? lastStreet : st.tab]}</b>{street && toAct ? `, ${toAct} to act` : ''}{st.partial ? ', partly recorded' : ''}</span>
+            <span><b>{LABEL[st.tab === 'setup' ? lastStreet : st.tab]}</b>{street && toAct ? `, ${toAct} to act` : ''}{partial ? ', partly recorded' : ''}</span>
             <span>Pot <b className="sat-num">{units(extra ? recordedPot + extra : potNow)}</b></span>
           </div>
         </div>
@@ -453,6 +524,13 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
                   onClick={() => { if (confirm !== 'reset') { setConfirm('reset'); return; } setConfirm(null); rebuild(dealt, button, sbN, bbN); }}>
                   <Icon name="undo" /> {confirm === 'reset' ? 'Tap again to clear the action' : 'Clear the action'}
                 </button>
+              </div>
+            )}
+            {!existing && !started && (
+              <div className="sat-flat sat-card sat-stack" style={gap(2)}>
+                <div className="sat-split"><span className="sat-small"><b>Missed this hand?</b></span><Help k="missed" /></div>
+                <p className="sat-small sat-muted">Records hand {st.n} as missed and deals hand {st.n + 1}. Stacks become ranges until a count or an all-in.</p>
+                <button className="sat-btn sat-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={saveMissed}>Skip hand {st.n}</button>
               </div>
             )}
             <fieldset className="felt-setup" disabled={started}>
@@ -496,15 +574,22 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             {legacy ? (
               <p className="sat-small sat-muted">This hand was logged with the earlier recorder. {inAtEnd(log, street).length} players were still in after the {LABEL[street].toLowerCase()}, pot {units(potTotal(g, log, log.button, street))}.</p>
             ) : replay && (
-              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} name={name} onPick={pickBox} />
+              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} name={name} onPick={pickBox}
+                shown={st.shown} onName={(p) => { setSel(null); setTyped(''); setTarget({ kind: 'shown', p, ci: st.shown[p]?.[0] ? 1 : 0 }); }} />
             )}
           </>
         )}
 
         {st.tab === 'showdown' && (
-          <Showdown g={g} st={st} log={log} live={live} res={res} extra={extra} recordedPot={recordedPot} exclude={exclude} name={name}
+          <Showdown g={g} st={st} log={log} live={live} res={res} partial={partial} extra={extra} recordedPot={recordedPot} exclude={exclude} name={name}
             boardForResolve={boardForResolve} commonCards={commonCards} isTarget={isTarget} tapSlot={tapSlot} setRuns={setRuns}
-            set={set} setTarget={setTarget} />
+            set={set} setTarget={setTarget} bountyOn={bountyOn} payTag={payTag}>
+            {bountyOn && res && (
+              <BountyBlock live={live} dealt={log.dealt} to={bountyTo} auto={bountyTo !== null && bountyTo === bountyAuto} amount={bountyAmt} off={st.bountyOff ?? []} name={name}
+                busted={busted} payOf={payOf}
+                onPick={(p) => set({ bounty: p })} onOff={(p) => set({ bountyOff: (st.bountyOff ?? []).includes(p) ? st.bountyOff!.filter((x) => x !== p) : [...(st.bountyOff ?? []), p] })} />
+            )}
+          </Showdown>
         )}
       </div>
 
@@ -530,10 +615,13 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         ) : replay && selCell && sel ? (
           <Keypad who={name(sel.p)} toCall={selCell.toCall} filled={!!selCell.act} typed={typed} setTyped={(v) => { setTyped(v); setRaiseErr(null); }} isRaise={selCell.high > 0}
             dark={darkOn} darkLabel={isPre ? 'Straddle' : 'Dark'} darkEnabled={isPre ? selCell.canStraddle && selCell.canRaise : true} canRaise={selCell.canRaise}
-            onDark={toggleDark} minErr={raiseErr} minTo={minTo}
+            onDark={toggleDark} minErr={raiseErr} minTo={minTo} allInAsk={allInAsk}
             onCall={() => act(sel.p, sel.r, mark({ k: 'call' }))} onFold={() => act(sel.p, sel.r, mark({ k: 'fold' }))}
-            onAllIn={() => act(sel.p, sel.r, mark({ k: 'allin', to: typed ? Number(typed) : undefined }))}
-            onClear={() => act(sel.p, sel.r, null)} onOk={() => commitBet()} onMin={() => commitBet(minTo)} />
+            onAllIn={() => {
+              if (!typed && roomFor(sel.p) === undefined) { setAllInAsk(true); return; }
+              act(sel.p, sel.r, mark({ k: 'allin', to: typed ? Number(typed) : undefined }));
+            }}
+            onClear={() => act(sel.p, sel.r, null)} onOk={() => (allInAsk ? Number(typed) > 0 && act(sel.p, sel.r, mark({ k: 'allin', to: Number(typed) })) : commitBet())} onMin={() => commitBet(minTo)} />
         ) : null}
         <div className="felt-dock-actions">
           {st.tab === 'setup' && <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => goTab(st.ended ? 'showdown' : lastStreet)}>Next</button>}
@@ -542,7 +630,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           ) : st.ended ? (
             <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => goTab('showdown')}>Showdown</button>
           ) : (
-            <button className={`sat-btn sat-btn--lg ${replay?.next ? '' : 'sat-btn--primary'}`} onClick={() => nextFrom(street)}>{nextLabel(g, log, street, stacks)}</button>
+            <button className={`sat-btn sat-btn--lg ${replay?.next ? '' : 'sat-btn--primary'}`} onClick={() => nextFrom(street)}>{nextLabel(g, log, street, name, stacks)}</button>
           ))}
           {st.tab === 'showdown' && (
             <>
@@ -568,10 +656,13 @@ function targetLabel(t: Exclude<Target, null>, name: (id: ID) => string) {
   return `${name(t.p)}, card ${t.ci + 1}`;
 }
 
-/** Label for closing the street on screen (empty boxes take their defaults). */
-function nextLabel(g: Game, log: HandLog, s: StreetName, stacks?: Record<ID, number>) {
+/** Label for closing the street on screen (empty boxes take their defaults). When that ends the hand,
+    it names the outcome ("Eve wins 9"), so a stray tap is easy to catch. */
+function nextLabel(g: Game, log: HandLog, s: StreetName, name: (id: ID) => string, stacks?: Record<ID, number>) {
   const l = closeStreet(g, log, s, 1, stacks);
-  if (inAtEnd(l, s).length <= 1) return 'Result';
+  const left = inAtEnd(l, s);
+  if (left.length === 1) return `${name(left[0])} wins ${units(potTotal(g, l, l.button))}`;
+  if (left.length < 1) return 'Result';
   if (s === 'river') return 'Showdown';
   if (actionClosed(l, s)) return 'Run it out';
   return `${LABEL[STREETS[STREETS.indexOf(s) + 1]]}`;
@@ -610,9 +701,9 @@ function BoardRow({ board, to, lockedBefore, isTarget, onTap }: {
 /** Rows from the small blind down to the button; columns are passes around the table, newest on the right.
     Grey boxes have nothing to decide. Players out of the hand stay as greyed rows. Amounts are street
     totals, so only a player's latest box stands; earlier boxes fade. C = call or check, F = fold. */
-function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
+function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown, onName }: {
   g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>;
-  name: (id: ID) => string; onPick: (p: ID, r: number) => void;
+  name: (id: ID) => string; onPick: (p: ID, r: number) => void; shown: Record<ID, (Card | null)[]>; onName: (p: ID) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -647,13 +738,15 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
             const canAct = replay.order.includes(p);
             const folded = gone || s.folded.includes(p);
             const left = stacks?.[p] !== undefined ? round2(stacks[p] - spentBefore(p) - (s.bets[p] ?? 0)) : undefined;
-            const sub = [tag(p), street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : ''].filter(Boolean).join(', ');
+            const cards = (shown[p] ?? []).filter(Boolean) as Card[];
+            const sub = [cards.map(cardText).join(' '), tag(p), street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : ''].filter(Boolean).join(', ');
             return (
               <div key={p} className={`felt-acts-row ${folded ? 'is-folded' : ''}`}>
-                <div className="felt-acts-name">
+                {/* tap a name to enter the cards that player shows, on any street, before they are mucked */}
+                <button type="button" className="felt-acts-name" aria-label={`${name(p)}: enter the cards they show`} onClick={() => onName(p)}>
                   <span className="felt-ellipsis">{name(p)}</span>
                   {sub && <span className="felt-acts-sub felt-ellipsis">{sub}</span>}
-                </div>
+                </button>
                 <span />
                 {Array.from({ length: replay.cols }, (_, r) => {
                   const c = canAct ? replay.cells[p]?.[r] : undefined;
@@ -688,13 +781,15 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
     with a backspace key inside it. Straddle (preflop, first to act only) or Dark (after the flop) marks a
     blind action. Raising is greyed out when nobody else is left to answer it. A raise under the house
     minimum shows the minimum, with the call and the minimum raise as one-tap fixes. */
-function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel, darkEnabled, canRaise, onDark, minErr, minTo, onCall, onFold, onAllIn, onClear, onOk, onMin }: {
+function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel, darkEnabled, canRaise: canRaiseIn, onDark, minErr, minTo, allInAsk, onCall, onFold, onAllIn, onClear, onOk, onMin }: {
   who: string; toCall: number; filled: boolean; typed: string; setTyped: (v: string) => void; isRaise: boolean;
-  dark: boolean; darkLabel: string; darkEnabled: boolean; canRaise: boolean; onDark: () => void; minErr: number | null; minTo: number;
+  dark: boolean; darkLabel: string; darkEnabled: boolean; canRaise: boolean; onDark: () => void; minErr: number | null; minTo: number; allInAsk: boolean;
   onCall: () => void; onFold: () => void; onAllIn: () => void; onClear: () => void; onOk: () => void; onMin: () => void;
 }) {
   const press = (k: string) => setTyped((typed + k).replace(/^0+(?=\d)/, '').slice(0, 6));
-  const verb = isRaise ? 'Raise' : 'Bet';
+  // asking for an all-in amount: the digits stay on even when nobody is left to raise
+  const canRaise = canRaiseIn || allInAsk;
+  const verb = allInAsk ? 'All-in' : isRaise ? 'Raise' : 'Bet';
   const callLabel = toCall ? 'Call' : 'Check';
   return (
     <div className="felt-keypad" role="group" aria-label={`Action for ${who}`}>
@@ -721,8 +816,8 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
       ) : (
         <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
           <div className={`felt-keypad-field ${typed ? 'has-value' : ''}`} aria-live="polite">
-            <span className="felt-keypad-label">{verb} to</span>
-            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">nobody left to raise</span> : typed || <span className="felt-keypad-min">min {units(minTo)}</span>}</span>
+            <span className="felt-keypad-label">{allInAsk ? 'All-in for' : `${verb} to`}</span>
+            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">nobody left to raise</span> : typed || <span className="felt-keypad-min">{allInAsk ? 'stack unknown: type it' : `min ${units(minTo)}`}</span>}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
           </div>
           <button type="button" className="felt-keypad-ok" aria-disabled={!typed || !canRaise} disabled={!canRaise} onClick={onOk}>{verb}</button>
@@ -739,11 +834,11 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
 
 /** Showdown, in three visually different parts: run-out (if all-in), cards shown (a list of hands),
     and the result (one accent card saying who wins what). Partly recorded hands add the final pot. */
-function Showdown({ g, st, log, live, res, extra, recordedPot, exclude, name, boardForResolve, commonCards, isTarget, tapSlot, setRuns, set, setTarget }: {
-  g: Game; st: RState; log: HandLog; live: ID[]; res: ReturnType<typeof resolve> | null; extra: number; recordedPot: number; exclude: boolean;
+function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude, name, boardForResolve, commonCards, isTarget, tapSlot, setRuns, set, setTarget, bountyOn, payTag, children }: {
+  g: Game; st: RState; log: HandLog; live: ID[]; res: ReturnType<typeof resolve> | null; partial: boolean; extra: number; recordedPot: number; exclude: boolean;
   name: (id: ID) => string; boardForResolve: () => Card[]; commonCards: (n: number) => Card[];
   isTarget: (t: Exclude<Target, null>) => boolean; tapSlot: (t: Exclude<Target, null>, filled: boolean) => void; setRuns: (n: number) => void;
-  set: (p: Partial<RState>) => void; setTarget: (t: Target) => void;
+  set: (p: Partial<RState>) => void; setTarget: (t: Target) => void; bountyOn: boolean; payTag: (p: ID) => ReactNode; children?: ReactNode;
 }) {
   const order = showdownOrder(g, log, live);
   const b = boardForResolve();
@@ -774,7 +869,8 @@ function Showdown({ g, st, log, live, res, extra, recordedPot, exclude, name, bo
         </section>
       )}
 
-      {live.length > 1 && (
+      {/* with the 2-7 bounty on, a player who wins uncontested can still show their cards */}
+      {(live.length > 1 || (bountyOn && live.length === 1)) && (
         <section className="felt-section">
           <div className="sat-split">
             <h2 className="sat-caption felt-section-cap">Cards shown <Help k="shown" /></h2>
@@ -792,10 +888,11 @@ function Showdown({ g, st, log, live, res, extra, recordedPot, exclude, name, bo
                     <span className="felt-show-n sat-num">{i + 1}</span>
                     <div className="felt-row-main">
                       <div className="felt-row-title">{name(p)}{log.allInAt?.[p] ? <span className="sat-badge sat-badge--muted" style={{ marginLeft: 6 }}>All-in</span> : null}</div>
-                      <div className="felt-row-sub">{mucked ? 'Mucked' : v ? v.name : 'Not shown'}</div>
+                      <div className="felt-row-sub">{mucked ? 'Mucked' : v ? v.name : cards.every(Boolean) ? 'Shown' : 'Not shown'}</div>
+                      {!mucked && payTag(p)}
                     </div>
                     {!mucked && cards.map((c, ci) => <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', p, ci })} onClick={() => tapSlot({ kind: 'shown', p, ci }, !!c)} />)}
-                    <button className="sat-chip felt-mini" aria-pressed={mucked} onClick={() => set({ log: { ...log, mucked: mucked ? log.mucked.filter((x) => x !== p) : [...log.mucked, p] } })}>Muck</button>
+                    {live.length > 1 && <button className="sat-chip felt-mini" aria-pressed={mucked} onClick={() => set({ log: { ...log, mucked: mucked ? log.mucked.filter((x) => x !== p) : [...log.mucked, p] } })}>Muck</button>}
                   </div>
                 );
               })}
@@ -804,7 +901,7 @@ function Showdown({ g, st, log, live, res, extra, recordedPot, exclude, name, bo
         </section>
       )}
 
-      {st.partial && (
+      {partial && (
         <section className="felt-partial sat-stack" style={gap(3)}>
           <div className="sat-split"><h2 className="sat-h3">Partly recorded</h2><Help k="partial" /></div>
           <div className="sat-field">
@@ -820,6 +917,7 @@ function Showdown({ g, st, log, live, res, extra, recordedPot, exclude, name, bo
       )}
 
       {res && <Result res={res} live={live} runs={log.runs ?? 1} name={name} manual={st.manual} onManual={(i, ids) => set({ manual: { ...st.manual, [i]: ids } })} />}
+      {children}
 
       <div className="sat-field">
         <label htmlFor="note">Note</label>
@@ -876,6 +974,45 @@ function Result({ res, live, runs, name, manual, onManual }: {
       )}
       {Object.entries(res.returned).map(([p, a]) => <p key={p} className="sat-small sat-muted"><span className="sat-num">{units(a)}</span> returned to {name(p)}: nobody matched it.</p>)}
       {runs > 1 && <p className="sat-small sat-muted">Each run wins an equal share of each pot; an odd chip goes to run 1. <Help k="runs" /></p>}
+    </section>
+  );
+}
+
+/** 2-7 bounty at the result: who collects, and who paid. Filled in when shown cards qualify under the
+    house rule; otherwise tap the player who was paid. Every other player dealt in pays; tap a name to
+    leave them out. */
+function BountyBlock({ live, dealt, to, auto, amount, off, name, busted, payOf, onPick, onOff }: {
+  live: ID[]; dealt: ID[]; to: ID | null; auto: boolean; amount: number; off: ID[]; name: (id: ID) => string;
+  busted: ID[]; payOf: (p: ID) => number; onPick: (p: ID | null) => void; onOff: (p: ID) => void;
+}) {
+  const others = to ? dealt.filter((p) => p !== to) : [];
+  const payers = others.filter((p) => !off.includes(p) && !busted.includes(p));
+  const total = round2(payers.reduce((a, p) => a + payOf(p), 0));
+  const short = payers.some((p) => payOf(p) < amount);
+  return (
+    <section className={`felt-section felt-bounty ${to ? 'is-paid' : ''}`} aria-live="polite">
+      <div className="sat-split">
+        <h2 className="sat-caption felt-section-cap">2-7 bounty <Help k="bounty27" /></h2>
+        {to && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => onPick(null)}>Clear</button>}
+      </div>
+      {to ? (
+        <>
+          <p className="felt-bounty-head"><b>{name(to)}</b> collects <b className="sat-num">{units(total)}</b> chips{auto ? ' for the shown 2-7' : ''}.</p>
+          <span className="sat-small sat-muted">{short ? `Paid by ${payers.length} players, ${units(amount)} each or all they had left.` : `Paid by ${payers.length} x ${units(amount)}.`} Tap a name to leave them out.</span>
+          <div className="sat-cluster" style={gap(2)}>
+            {others.map((p) => (busted.includes(p)
+              ? <button key={p} className="sat-chip felt-mini" aria-pressed={false} disabled>{name(p)}, busted</button>
+              : <button key={p} className="sat-chip felt-mini" aria-pressed={!off.includes(p)} onClick={() => onOff(p)}>{name(p)}{!off.includes(p) && payOf(p) < amount ? ` ${units(payOf(p))}` : ''}</button>))}
+          </div>
+        </>
+      ) : (
+        <>
+          <span className="sat-small sat-muted">Not paid. If the table paid it anyway, tap who collected.</span>
+          <div className="sat-cluster" style={gap(2)}>
+            {live.map((p) => <button key={p} className="sat-chip felt-mini" onClick={() => onPick(p)}>{name(p)}</button>)}
+          </div>
+        </>
+      )}
     </section>
   );
 }

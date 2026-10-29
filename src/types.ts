@@ -126,6 +126,16 @@ export interface HandLog {
   startedAt: number;
 }
 
+/** 2-7 bounty paid on a hand: each payer gives the winner `amount` chips, outside the pot. */
+export interface Bounty {
+  playerId: ID;
+  /** Chips from each payer. */
+  amount: number;
+  payers: ID[];
+  /** Payers who had fewer chips than the bounty left after the pot: what they paid instead. */
+  short?: Record<ID, number>;
+}
+
 export interface Hand {
   id: ID;
   n: number;
@@ -156,6 +166,33 @@ export interface Hand {
   straddle: boolean;
   tags: string[];
   note?: string;
+  /** 2-7 bounty paid on this hand. */
+  bounty?: Bounty;
+  /** Hand played but not logged: it moves the button on and turns every stack into a range. */
+  missed?: boolean;
+}
+
+/** Chips that changed hands outside a pot: a side game, a tip, or anything else settled in chips. */
+export interface ChipMove {
+  id: ID;
+  /** Player who gave the chips. */
+  from: ID;
+  /** Player who got them. None: the chips left the table (for example a tip to a dealer who is not playing). */
+  to?: ID;
+  amount: number;
+  kind: 'side' | 'tip' | 'other';
+  note?: string;
+  at: number;
+  /** Logged after this hand number: the hand list shows it after that hand. */
+  afterN: number;
+}
+
+/** A player's chips counted mid-game: the stack estimate is exact again from here. */
+export interface StackCount {
+  id: ID;
+  playerId: ID;
+  chips: number;
+  at: number;
 }
 
 export interface Expense {
@@ -220,6 +257,12 @@ export interface Game {
   groupId?: ID;
   /** Seats were reshuffled before this hand number: seat 1 (firstDealer) takes the button. */
   reseatN?: number;
+  /** House rules for this game. Games from before per-game rules follow the old app Settings. */
+  rules?: GameRules;
+  /** Stacks counted mid-game. */
+  counts?: StackCount[];
+  /** Chips moved between players outside the pots (side games, tips). */
+  moves?: ChipMove[];
 }
 
 export interface Markers {
@@ -231,12 +274,32 @@ export interface Markers {
 
 export type ThemePref = 'auto' | 'light' | 'dark';
 
+/** House rules of one game: set when the game is created, changed from the game's settings. */
+export interface GameRules {
+  /** Smallest raise: last raise (standard), small-blind steps, or double the bet. */
+  minRaise: 'last' | 'sb' | 'double';
+  bounty27: BountyRule;
+}
+
+/** House rule: a 2-7 hand wins a bounty from every other player dealt in. */
+export interface BountyRule {
+  on: boolean;
+  /** shown: revealed at showdown, win or lose. won: took chips from a pot. sole: best hand on the table
+      (winning uncontested included), no chopped pot (side pots lost to others are fine). */
+  win: 'shown' | 'won' | 'sole';
+  /** Suited 2-7 counts too. */
+  suited: boolean;
+  /** Chips from each other player dealt in. */
+  amount: number;
+}
+
 export interface Settings {
   theme: ThemePref;
   /** How long the opening screen shows, in ms. 0 = skip it. */
   splashMs: number;
-  /** House rule for the smallest raise: last raise (standard), small-blind steps, or double the bet. */
-  minRaise: 'last' | 'sb' | 'double';
+  /** Fallback rules for games created before rules were set per game (see Game.rules). */
+  minRaise: GameRules['minRaise'];
+  bounty27: BountyRule;
   /** How the recorder takes wagers: per-player bets, or the pot counted each street. */
   entryMode: 'bets' | 'count';
   currency: string;

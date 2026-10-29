@@ -2,7 +2,7 @@
    Two entry modes:
    - bets:  each player's wager per street (tap = call, typed number = raise or all-in for less)
    - count: the pot total counted at the end of each street; wagers are estimated */
-import type { Act, Card, Game, HandLog, ID, Pot, StreetLog, StreetName, Winner } from '../types';
+import type { Act, Bounty, Card, Game, HandLog, ID, Pot, StreetLog, StreetName, Winner } from '../types';
 import { buildPots, fromSmallBlind, positionSplit, round2 } from './calc';
 import { bestHand } from './cards';
 
@@ -318,6 +318,40 @@ export function resolve(g: Game, log: HandLog, board: Card[], button: ID | undef
   };
 }
 
+/** A 2 and a 7. Offsuit only unless `suited` allows the suited ones too. */
+export function is27(cards: Card[] | undefined, suited: boolean): boolean {
+  if (cards?.length !== 2) return false;
+  const ranks = cards.map((c) => c[0]).sort().join('');
+  return ranks === '27' && (suited || cards[0][1] !== cards[1][1]);
+}
+
+/** Players who meet the house 2-7 win condition (cards aside):
+    - shown: still in at the end (reached showdown, or won it uncontested)
+    - won: took chips from a pot
+    - sole: won every pot they could win, on every run, alone (side pots they could not win are fine) */
+export function bountyQualifiers(res: Pick<Resolution, 'pots' | 'winners' | 'missing'>, live: ID[], win: 'shown' | 'won' | 'sole'): ID[] {
+  if (win === 'shown') return live;
+  if (res.missing) return [];
+  const won = res.winners.filter((w) => w.amount > 0).map((w) => w.playerId);
+  if (win === 'won') return won;
+  return won.filter((p) => res.pots.every((pot) => !pot.eligible.includes(p) || pot.runs.every((r) => r.winners.length === 1 && r.winners[0] === p)));
+}
+
+/** The player whose shown 2-7 wins the bounty under the house rule, if any. */
+/** Chips one payer gave for a 2-7 bounty: the full amount, or less when that was all they had left. */
+export function bountyPay(b: Bounty, p: ID): number {
+  return b.short?.[p] ?? b.amount;
+}
+
+/** Chips the 2-7 collected. */
+export function bountyTotal(b: Bounty): number {
+  return round2(b.payers.reduce((a, p) => a + bountyPay(b, p), 0));
+}
+
+export function bountyWinner(res: Pick<Resolution, 'pots' | 'winners' | 'missing'>, live: ID[], shown: Record<ID, Card[]>, rule: { win: 'shown' | 'won' | 'sole'; suited: boolean }): ID | null {
+  return bountyQualifiers(res, live, rule.win).find((p) => is27(shown[p], rule.suited)) ?? null;
+}
+
 /** Did the player put chips in voluntarily before the flop? (calls or raises beyond their blind) */
 export function vpip(g: Game, log: HandLog, p: ID, button?: ID): boolean {
   const s = log.streets.preflop;
@@ -497,7 +531,7 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
         bets[p] = Math.max(have, rm === undefined ? high : Math.min(high, rm));
         if (rm !== undefined && rm > 0 && bets[p] >= rm) allIn.add(p);
       } else {
-        let to = a.k === 'allin' ? (rm ?? Math.max(high, a.to ?? 0)) : (a.to ?? high);
+        let to = a.k === 'allin' ? (rm ?? a.to ?? high) : (a.to ?? high);
         if (rm !== undefined) to = Math.min(to, rm);
         to = Math.max(to, have);
         typed[p] = true;
@@ -506,7 +540,7 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
           inc = Math.max(inc, round2(to - high));
           high = to;
           bets[p] = to;
-        } else if (rm !== undefined && to >= rm) {
+        } else if ((rm !== undefined && to >= rm) || (a.k === 'allin' && rm === undefined && a.to !== undefined)) {
           bets[p] = to; // all-in for less than the bet
         } else {
           bets[p] = Math.max(have, rm === undefined ? high : Math.min(high, rm)); // no higher than the bet: a call
@@ -610,6 +644,33 @@ export function closeStreet(g: Game, log: HandLog, street: StreetName, at: numbe
 export function dropAfter(log: HandLog, street: StreetName): HandLog {
   const keep = STREETS.slice(0, STREETS.indexOf(street) + 1);
   return { ...log, streets: Object.fromEntries(Object.entries(log.streets).filter(([k]) => keep.includes(k as StreetName))) };
+}
+
+/** Boxes left empty on streets closed by skipping ahead. Their action is unknown (the player is kept in
+    with a call), so the hand is partly recorded until they are filled in. */
+export function unknownBoxes(g: Game, log: HandLog, stacks?: Record<ID, number>): number {
+  let n = 0;
+  for (const st of STREETS) {
+    const s = log.streets[st];
+    if (!s?.acts || !s.at || !s.partial) continue;
+    const rp = replayStreet(g, log, st, stacks);
+    for (const p of rp.order) n += rp.cells[p].filter((c) => c.needed && c.implied).length;
+  }
+  return n;
+}
+
+/** Partly recorded: a skipped box is still empty, or the hand stops on a street where it could not have
+    ended (more than one player could still bet). Filling in what was skipped makes it whole again. */
+export function partlyRecorded(g: Game, log: HandLog, stacks?: Record<ID, number>): boolean {
+  if (unknownBoxes(g, log, stacks) > 0) return true;
+  const last = lastStreet(log);
+  if (!log.streets[last]?.at) return true;
+  return last !== 'river' && inAtEnd(log, last).length > 1 && !actionClosed(log, last);
+}
+
+/** The player went all-in with the amount typed in: that amount was their whole stack. */
+export function typedAllIn(log: HandLog, p: ID): boolean {
+  return Object.values(log.streets).some((s) => s?.acts?.[p]?.some((a) => a?.k === 'allin' && a.to !== undefined));
 }
 
 /** Any action typed into a box yet (defaults included)? */

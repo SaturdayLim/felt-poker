@@ -27,7 +27,9 @@ export default function CountChips({ gameId }: { gameId: string }) {
   const ordered = [...g.playerIds].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99));
   const list = ordered.filter((p) => name(p).toLowerCase().includes(q.toLowerCase()));
   const entered = ordered.filter((p) => hasCashedOut(g, p)).length;
-  const diff = g.cashOuts.reduce((a, c) => a + c.amount, 0) - totalBuyInUnits(g);
+  // chips tipped off the table are gone: they are not a miscount
+  const offTable = (g.moves ?? []).filter((m) => !m.to).reduce((a, m) => a + m.amount, 0);
+  const diff = g.cashOuts.reduce((a, c) => a + c.amount, 0) - totalBuyInUnits(g) + offTable;
   const allIn = entered === ordered.length;
 
   const est = estimateStacks(g);
@@ -98,7 +100,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
               <div className="sat-stack" style={gap(1)}>
                 <Caption q="chips" tip="count">{allIn ? 'Difference' : 'Left to count'}</Caption>
                 <span className={`sat-kpi ${diff === 0 ? 'felt-up' : ''}`} style={{ fontSize: '1.75rem' }}>{allIn ? units(diff) : units(-diff)}</span>
-                {allIn && <span className="sat-small sat-muted">{diff === 0 ? 'Counts match the buy-ins.' : diff > 0 ? 'More chips counted than bought.' : 'Fewer chips counted than bought.'}</span>}
+                {allIn && <span className="sat-small sat-muted">{diff === 0 ? 'Counts match the buy-ins.' : diff > 0 ? 'More chips counted than bought.' : 'Fewer chips counted than bought.'}{offTable ? ` Allows for ${units(offTable)} chips tipped off the table.` : ''}</span>}
               </div>
               <div className="sat-cluster" style={gap(2)}>
                 <button className="sat-btn sat-btn--sm felt-grow" aria-disabled={idx <= 0} onClick={() => idx > 0 && setSel(ordered[idx - 1])}>Back</button>

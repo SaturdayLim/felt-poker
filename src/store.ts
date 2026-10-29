@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
-import type { Game, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
+import type { Game, GameRules, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
 import { uid } from './lib/ids';
 import { defaultPayoutPercents, playerStatus, rebuildTransfers, round2, totalPotMoney } from './lib/calc';
 
@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
   splashMs: SPLASH_DEFAULT,
   minRaise: 'last',
+  bounty27: { on: false, win: 'shown', suited: false, amount: 10 },
   entryMode: 'bets',
   currency: 'S$',
   unitValue: 0.1,
@@ -46,6 +47,7 @@ export interface NewGameInput {
   startingStack: number;
   autoBuyIn: boolean;
   groupId?: ID;
+  rules: GameRules;
 }
 
 export interface BackupData {
@@ -179,6 +181,7 @@ export const useStore = create<State>()(
             expenses: [],
             transfers: [],
             groupId: input.groupId,
+            rules: input.rules,
             tournament:
               input.type === 'tournament'
                 ? { buyIn: input.tournamentBuyIn, startingStack: input.startingStack, bustOrder: [], payouts: [] }
@@ -309,7 +312,7 @@ export const useStore = create<State>()(
             players: data.players,
             games: data.games,
             groups: data.groups ?? [],
-            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) } },
+            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
           })),
         exportBackup: () => {
           const s = get();
@@ -335,6 +338,7 @@ export const useStore = create<State>()(
             // 'system' was the name for 'auto' before the Saturday Signature reskin
             theme: (p.settings?.theme as string) === 'system' || !p.settings?.theme ? 'auto' : p.settings.theme,
             markers: { ...DEFAULT_SETTINGS.markers, ...(p.settings?.markers ?? {}) },
+            bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(p.settings?.bounty27 ?? {}) },
           },
         };
       },

@@ -20,6 +20,7 @@ export const SPLASH_KEY = 'felt-splash-ms';
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
   splashMs: SPLASH_DEFAULT,
+  minRaise: 'last',
   entryMode: 'bets',
   currency: 'S$',
   unitValue: 0.1,

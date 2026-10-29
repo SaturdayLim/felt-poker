@@ -385,7 +385,7 @@ function SeatDrawSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   }), [d]);
   return (
     <Sheet open onClose={onClose} title="Shuffle seats">
-      <p className="sat-small sat-muted">Seats run clockwise. Seat 1 has the button, then the small blind and big blind. <Help k="seatDraw" /></p>
+      <p className="sat-small sat-muted">Seats run clockwise. Seat 1 has the button, then SB and BB. <Help k="seatDraw" /></p>
       <div className="felt-seats">
         <div className="felt-table" />
         {d.order.map((p, i) => (
@@ -432,8 +432,8 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
     <Sheet open onClose={onClose} title="Game settings">
       <div className="sat-field"><label htmlFor="eg-n">Game name</label><input id="eg-n" className="sat-input" value={nm} onChange={(e) => setNm(e.target.value)} /></div>
       <div className="sat-grid" style={{ ['--sat-min' as string]: '110px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-        <div className="sat-field"><label htmlFor="eg-sb">Small blind</label><input id="eg-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></div>
-        <div className="sat-field"><label htmlFor="eg-bb">Big blind</label><input id="eg-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></div>
+        <div className="sat-field"><label htmlFor="eg-sb">SB</label><input id="eg-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></div>
+        <div className="sat-field"><label htmlFor="eg-bb">BB</label><input id="eg-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></div>
         {g.type === 'cash' && <div className="sat-field"><label htmlFor="eg-u">Multiplier ({g.currency}) <Help k="unitValue" /></label><input id="eg-u" className="sat-input sat-num" inputMode="decimal" value={uv} onChange={(e) => setUv(e.target.value)} /></div>}
         {g.type === 'cash' && <div className="sat-field"><label htmlFor="eg-b">Rebuy (chips)</label><input id="eg-b" className="sat-input sat-num" inputMode="numeric" value={bi} onChange={(e) => setBi(e.target.value)} /></div>}
       </div>

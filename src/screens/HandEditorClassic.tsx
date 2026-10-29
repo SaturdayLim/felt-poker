@@ -504,7 +504,7 @@ function AllInSheet({ g, players, name, onClose, onBuild }: {
       <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!pots.length} onClick={() => pots.length && onBuild(pots)}>
         {pots.length > 1 ? `Use ${pots.length} pots` : 'Use this pot'}
       </button>
-      {g.sb > 1 && <p className="sat-small sat-muted">Shares round to the small blind ({g.sb}).</p>}
+      {g.sb > 1 && <p className="sat-small sat-muted">Shares round to the SB ({g.sb}).</p>}
     </Sheet>
   );
 }

@@ -7,7 +7,7 @@ import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
 import { uid } from '../lib/ids';
 import {
-  STREETS, STREET_CARDS, actionClosed, blinds, closeStreet, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
+  STREETS, STREET_CARDS, actionClosed, blinds, closeStreet, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
   newBoxLog, openStreetBoxes, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, type Replay,
 } from '../lib/hand';
 import { estimateStacks } from '../lib/stacks';
@@ -139,6 +139,10 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const [sel, setSel] = useState<Sel>(() => (st && !existing ? replayStreet(g!, st.log, 'preflop', stacks).next : null));
   const [typed, setTyped] = useState('');
   const [confirm, setConfirm] = useState<'delete' | 'reset' | null>(null);
+  // keypad: dark (blind) mark for the next action, and a raise under the house minimum
+  const minRule = useStore((s) => s.settings.minRaise);
+  const [dark, setDark] = useState(false);
+  const [raiseErr, setRaiseErr] = useState<number | null>(null);
 
   useEffect(() => {
     if (existing || !st) return;
@@ -149,7 +153,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && !t.closest('.felt-rec-dock, .felt-box, .sat-tip')) { setSel(null); setTyped(''); }
+      if (t && !t.closest('.felt-rec-dock, .felt-box, .sat-tip')) { setSel(null); setTyped(''); setDark(false); setRaiseErr(null); }
     };
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
@@ -277,14 +281,16 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   /* --------- action boxes --------- */
   /** Change one box. A street already closed that now ends the hand sooner drops the streets after it. */
-  const act = (p: ID, r: number, a: Act | null) => {
+  const act = (p: ID, r: number, a: Act | null, keepSel = false) => {
     if (!street) return;
+    setDark(false);
+    setRaiseErr(null);
     let l = setAct(g, log, street, p, r, a, stacks);
     let ended = st.ended;
     if (l.streets[street]?.at && (inAtEnd(l, street).length <= 1 || actionClosed(l, street))) { l = dropAfter(l, street); ended = true; }
     setSt({ ...st, log: l, ended });
     setTyped('');
-    setSel(replayStreet(g, l, street, stacks).next);
+    setSel(keepSel ? { p, r } : replayStreet(g, l, street, stacks).next);
   };
   const pickBox = (p: ID, r: number) => {
     if (!replay || !street) return;
@@ -292,6 +298,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     if (!c?.needed) return;
     setTarget(null);
     setTyped('');
+    setDark(false);
+    setRaiseErr(null);
     // a box further on than the next one: the boxes before it take their defaults
     if (!c.act && !c.implied && replay.next && (replay.next.p !== p || replay.next.r !== r)) {
       const l = fillBefore(g, log, street, p, r, stacks);
@@ -379,11 +387,26 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   /* --------- keypad --------- */
   const selCell = sel && replay?.cells[sel.p]?.[sel.r]?.needed ? replay.cells[sel.p][sel.r] : null;
-  const commitBet = () => {
-    const v = Number(typed);
-    if (!sel || !(v > 0)) return;
-    act(sel.p, sel.r, { k: 'bet', to: v });
+  const darkOn = selCell?.act ? !!selCell.act.dark : dark;
+  const mark = (a: Act): Act => (darkOn ? { ...a, dark: true } : a);
+  // chips the player can still put in on this street (when the stack is known exactly)
+  const roomFor = (p: ID) => (stacks?.[p] === undefined || !street ? undefined
+    : round2(stacks[p] - STREETS.slice(0, STREETS.indexOf(street)).reduce((a, x) => a + (log.streets[x]?.bets[p] ?? 0), 0)));
+  const minTo = selCell ? minRaiseTo(g, minRule, selCell.high, selCell.inc) : 0;
+  /** An amount no higher than the bet is a call (C). A raise under the house minimum is refused,
+      unless it puts the player all-in; the keypad then offers the call or the minimum raise. */
+  const commitBet = (v = Number(typed)) => {
+    if (!sel || !selCell || !(v > 0)) return;
+    if (v <= selCell.high) { act(sel.p, sel.r, mark({ k: 'call' })); return; }
+    const rm = roomFor(sel.p);
+    if (v < minTo && !(rm !== undefined && v >= rm)) { setRaiseErr(minTo); return; }
+    act(sel.p, sel.r, mark({ k: 'bet', to: v }));
   };
+  const toggleDark = () => {
+    if (sel && selCell?.act) act(sel.p, sel.r, { ...selCell.act, dark: !selCell.act.dark || undefined }, true);
+    else setDark(!dark);
+  };
+  const isStraddleBox = !!(sel && street === 'preflop' && sel.r === 0);
 
   const lastStreet = STREETS.filter((s) => log.streets[s]).pop() ?? 'preflop';
   const legacy = street && log.streets[street] && !log.streets[street]!.acts;
@@ -441,14 +464,14 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
                 </div>
                 {dealt.length >= 2 && (() => {
                   const [s1, b1] = Object.keys(blinds({ ...g, sb: sbN || g.sb, bb: bbN || g.bb }, dealt, button));
-                  return <p className="sat-small sat-muted">Small blind {s1 ? name(s1) : '-'}, big blind {b1 ? name(b1) : '-'}.</p>;
+                  return <p className="sat-small sat-muted">SB {s1 ? name(s1) : '-'}, BB {b1 ? name(b1) : '-'}.</p>;
                 })()}
               </section>
               <section className="sat-stack" style={gap(2)}>
                 <Caption tip="blinds">Blinds</Caption>
                 <div className="sat-grid" style={{ ['--sat-min' as string]: '110px', ...gap(3) }}>
-                  <div className="sat-field"><label htmlFor="h-sb">Small blind</label><input id="h-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
-                  <div className="sat-field"><label htmlFor="h-bb">Big blind</label><input id="h-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
+                  <div className="sat-field"><label htmlFor="h-sb">SB</label><input id="h-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
+                  <div className="sat-field"><label htmlFor="h-bb">BB</label><input id="h-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
                 </div>
               </section>
             </fieldset>
@@ -496,13 +519,14 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             </div>
           </div>
         ) : replay && selCell && sel ? (
-          <Keypad who={name(sel.p)} toCall={selCell.toCall} filled={!!selCell.act} typed={typed} setTyped={setTyped} isRaise={replay.high > 0}
-            onCall={() => act(sel.p, sel.r, { k: 'call' })} onFold={() => act(sel.p, sel.r, { k: 'fold' })}
-            onAllIn={() => act(sel.p, sel.r, { k: 'allin', to: typed ? Number(typed) : undefined })}
-            onClear={() => act(sel.p, sel.r, null)} onOk={commitBet} />
+          <Keypad who={name(sel.p)} toCall={selCell.toCall} filled={!!selCell.act} typed={typed} setTyped={(v) => { setTyped(v); setRaiseErr(null); }} isRaise={selCell.high > 0}
+            dark={darkOn} darkLabel={isStraddleBox ? 'Straddle' : 'Dark'} onDark={toggleDark} minErr={raiseErr} minTo={minTo}
+            onCall={() => act(sel.p, sel.r, mark({ k: 'call' }))} onFold={() => act(sel.p, sel.r, mark({ k: 'fold' }))}
+            onAllIn={() => act(sel.p, sel.r, mark({ k: 'allin', to: typed ? Number(typed) : undefined }))}
+            onClear={() => act(sel.p, sel.r, null)} onOk={() => commitBet()} onMin={() => commitBet(minTo)} />
         ) : null}
         <div className="felt-dock-actions">
-          {st.tab === 'setup' && <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => goTab(st.ended ? 'showdown' : lastStreet)}>{started ? 'Back to the action' : `Go to ${LABEL[lastStreet].toLowerCase()}`}</button>}
+          {st.tab === 'setup' && <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => goTab(st.ended ? 'showdown' : lastStreet)}>Next</button>}
           {street && (nextStreet && log.streets[nextStreet] ? (
             <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => goTab(nextStreet)}>{LABEL[nextStreet]}</button>
           ) : st.ended ? (
@@ -573,8 +597,9 @@ function BoardRow({ board, to, lockedBefore, isTarget, onTap }: {
   );
 }
 
-/** Rows from the button down; columns are passes around the table, newest on the right.
-    Grey boxes have nothing to decide. Players out of the hand stay as greyed rows. */
+/** Rows from the small blind down to the button; columns are passes around the table, newest on the right.
+    Grey boxes have nothing to decide. Players out of the hand stay as greyed rows. Amounts are street
+    totals, so only a player's latest box stands; earlier boxes fade. C = call or check, F = fold. */
 function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
   g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>;
   name: (id: ID) => string; onPick: (p: ID, r: number) => void;
@@ -612,7 +637,7 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
             const canAct = replay.order.includes(p);
             const folded = gone || s.folded.includes(p);
             const left = stacks?.[p] !== undefined ? round2(stacks[p] - spentBefore(p) - (s.bets[p] ?? 0)) : undefined;
-            const sub = [tag(p), gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : ''].filter(Boolean).join(', ');
+            const sub = [tag(p), street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : ''].filter(Boolean).join(', ');
             return (
               <div key={p} className={`felt-acts-row ${folded ? 'is-folded' : ''}`}>
                 <div className="felt-acts-name">
@@ -622,18 +647,20 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
                 <span />
                 {Array.from({ length: replay.cols }, (_, r) => {
                   const c = canAct ? replay.cells[p]?.[r] : undefined;
-                  if (c?.post) return <span key={r} className="felt-box is-post" aria-label={`${name(p)} posted ${units(c.amount)}`}><span className="n sat-num">{units(c.amount)}</span></span>;
+                  if (c?.post) return <span key={r} className={`felt-box is-post ${c.past ? 'is-past' : ''}`} aria-label={`${name(p)} posted ${units(c.amount)}`}><span className="n sat-num">{units(c.amount)}</span></span>;
                   if (!c?.needed) return <span key={r} className="felt-box is-off" aria-hidden="true" />;
                   const isSel = sel?.p === p && sel.r === r;
                   const isNext = replay.next?.p === p && replay.next.r === r;
                   const a = c.act ?? (c.implied ? { k: (c.toCall ? 'fold' : 'call') as Act['k'], d: true } : null);
-                  const label = !a ? '' : a.k === 'fold' ? 'Fold' : a.k === 'call' ? (c.toCall ? 'Call' : 'Check') : a.k === 'allin' ? 'All-in' : '';
-                  const amt = a && (a.k === 'bet' || a.k === 'allin' || (a.k === 'call' && c.toCall)) ? units(c.amount) : '';
+                  const label = !a ? '' : a.k === 'fold' ? 'F' : a.k === 'call' ? 'C' : a.k === 'allin' ? 'All-in' : '';
+                  const amt = a && (a.k === 'bet' || a.k === 'allin') ? units(c.amount) : '';
+                  const spoken = !a ? 'empty' : a.k === 'fold' ? 'fold' : a.k === 'call' ? (c.toCall ? 'call' : 'check') : `${a.k === 'allin' ? 'all-in' : 'to'} ${amt}`;
                   return (
-                    <button key={r} type="button" className={`felt-box ${a ? `is-${a.k}` : 'is-empty'} ${a?.d ? 'is-default' : ''} ${isSel ? 'is-sel' : ''} ${isNext && !isSel ? 'is-next' : ''}`}
-                      aria-label={`${name(p)}, action ${r + 1}: ${label || (amt ? `bet ${amt}` : 'empty')}${amt && label ? ` ${amt}` : ''}`} onClick={() => onPick(p, r)}>
-                      {label && <span className="v">{label}</span>}
+                    <button key={r} type="button" className={`felt-box ${a ? `is-${a.k}` : 'is-empty'} ${a?.d ? 'is-default' : ''} ${c.past ? 'is-past' : ''} ${isSel ? 'is-sel' : ''} ${isNext && !isSel ? 'is-next' : ''}`}
+                      aria-label={`${name(p)}, action ${r + 1}: ${spoken}${a?.dark ? ', in the dark' : ''}`} onClick={() => onPick(p, r)}>
+                      {label && <span className={a?.k === 'allin' ? 'v' : 'l'}>{label}</span>}
                       {amt && <span className="n sat-num">{amt}</span>}
+                      {a?.dark && <span className="felt-box-dark" aria-hidden="true"><Icon name="dark" size={12} stroke={2} /></span>}
                     </button>
                   );
                 })}
@@ -646,33 +673,49 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
   );
 }
 
-/** Choices for the selected box: Check or Call, Fold, All-in, or an amount (what they bet or raised to).
-    The amount shows in its own field with a backspace key inside it, and the Bet or Raise key beside it. */
-function Keypad({ who, toCall, filled, typed, setTyped, isRaise, onCall, onFold, onAllIn, onClear, onOk }: {
+/** Choices for the selected box: C (call or check), F (fold), All-in, or an amount (the street total
+    they bet or raised to). The amount has its own field with a backspace key inside it. Dark marks
+    the action as made blind (a straddle before the flop). A raise under the house minimum shows an
+    error with the call and the minimum raise as one-tap fixes. */
+function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel, onDark, minErr, minTo, onCall, onFold, onAllIn, onClear, onOk, onMin }: {
   who: string; toCall: number; filled: boolean; typed: string; setTyped: (v: string) => void; isRaise: boolean;
-  onCall: () => void; onFold: () => void; onAllIn: () => void; onClear: () => void; onOk: () => void;
+  dark: boolean; darkLabel: string; onDark: () => void; minErr: number | null; minTo: number;
+  onCall: () => void; onFold: () => void; onAllIn: () => void; onClear: () => void; onOk: () => void; onMin: () => void;
 }) {
   const press = (k: string) => setTyped((typed + k).replace(/^0+(?=\d)/, '').slice(0, 6));
   const verb = isRaise ? 'Raise' : 'Bet';
   return (
     <div className="felt-keypad" role="group" aria-label={`Action for ${who}`}>
       <div className="felt-keypad-head">
-        <span className="felt-ellipsis"><b>{who}</b>{toCall ? `, ${units(toCall)} to call` : ', nothing to call'}</span>
-        {filled && <button type="button" className="felt-keypad-clear" onClick={onClear}>Clear box</button>}
+        <span className="felt-ellipsis"><b>{who}</b>{toCall ? `, ${units(toCall)} to call` : ''}</span>
+        <span className="felt-keypad-tools">
+          {filled && <button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button>}
+          <button type="button" className="felt-keypad-dark" aria-pressed={dark} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
+        </span>
       </div>
       <div className="felt-keypad-quick">
-        <button type="button" onClick={onCall}>{toCall ? `Call ${units(toCall)}` : 'Check'}</button>
-        <button type="button" onClick={onFold}>Fold</button>
-        <button type="button" onClick={onAllIn}>All-in</button>
+        <button type="button" onClick={onCall}><b>C</b><small>{toCall ? `call ${units(toCall)}` : 'check'}</small></button>
+        <button type="button" onClick={onFold}><b>F</b><small>fold</small></button>
+        <button type="button" onClick={onAllIn}><b>All-in</b></button>
       </div>
-      <div className="felt-keypad-amount">
-        <div className={`felt-keypad-field ${typed ? 'has-value' : ''}`} aria-live="polite">
-          <span className="felt-keypad-label">{verb} to</span>
-          <span className="felt-keypad-val sat-num">{typed || '0'}</span>
-          <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
+      {minErr !== null ? (
+        <div className="felt-keypad-err" role="alert">
+          <span>{verb} must be at least {units(minErr)} (house rule).</span>
+          <span className="felt-keypad-err-acts">
+            <button type="button" onClick={onCall}>C {toCall ? `(call ${units(toCall)})` : '(check)'}</button>
+            <button type="button" className="is-primary" onClick={onMin}>{verb} to {units(minErr)}</button>
+          </span>
         </div>
-        <button type="button" className="felt-keypad-ok" aria-disabled={!typed} onClick={onOk}>{verb}</button>
-      </div>
+      ) : (
+        <div className="felt-keypad-amount">
+          <div className={`felt-keypad-field ${typed ? 'has-value' : ''}`} aria-live="polite">
+            <span className="felt-keypad-label">{verb} to</span>
+            <span className="felt-keypad-val sat-num">{typed || <span className="felt-keypad-min">min {units(minTo)}</span>}</span>
+            <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
+          </div>
+          <button type="button" className="felt-keypad-ok" aria-disabled={!typed} onClick={onOk}>{verb}</button>
+        </div>
+      )}
       <div className="felt-keypad-digits">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((k) => <button key={k} type="button" onClick={() => press(k)}>{k}</button>)}
       </div>

@@ -75,6 +75,10 @@ export interface Act {
   to?: number;
   /** Filled in by Felt (a box skipped over): check, or fold when facing a bet. */
   d?: boolean;
+  /** The bet this action answered. If an earlier change moves it, the action is dropped. */
+  at?: number;
+  /** Acted in the dark (before seeing the cards). Preflop, a dark raise is a straddle. */
+  dark?: boolean;
 }
 
 /** One betting round as logged in the street-by-street recorder. */
@@ -231,6 +235,8 @@ export interface Settings {
   theme: ThemePref;
   /** How long the opening screen shows, in ms. 0 = skip it. */
   splashMs: number;
+  /** House rule for the smallest raise: last raise (standard), small-blind steps, or double the bet. */
+  minRaise: 'last' | 'sb' | 'double';
   /** How the recorder takes wagers: per-player bets, or the pot counted each street. */
   entryMode: 'bets' | 'count';
   currency: string;

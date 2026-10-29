@@ -230,8 +230,8 @@ button.felt-row { color: inherit; }
 /* Hand recorder: stage tabs and status inside the sticky header, action table, keypad dock */
 .felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + 340px); }
 .felt-rec-bar { margin-top: var(--sat-space-2); padding: 4px; border-radius: var(--sat-radius-md); }
-.felt-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; }
-.felt-tabs button { min-height: 36px; padding: 0 2px; border-radius: calc(var(--sat-radius-md) - 4px); font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); white-space: nowrap; }
+.felt-tabs { display: flex; gap: 2px; }
+.felt-tabs button { flex: 1 1 auto; min-width: 0; min-height: 36px; padding: 0 5px; border-radius: calc(var(--sat-radius-md) - 4px); font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); white-space: nowrap; }
 .felt-tabs button[aria-selected="true"] { color: var(--sat-accent-text); background: var(--sat-accent-soft); }
 .felt-tabs button:disabled { opacity: 0.35; }
 .felt-rec-status { display: flex; justify-content: space-between; gap: var(--sat-space-2); padding: 6px var(--sat-space-2) 2px; font-size: var(--sat-fs-small); color: var(--sat-muted); }
@@ -268,7 +268,13 @@ button.felt-row { color: inherit; }
 .felt-box.is-fold { border: 1.5px solid var(--sat-line-strong); background: var(--sat-well); color: var(--sat-muted); }
 .felt-box.is-bet, .felt-box.is-allin { background: var(--sat-accent-soft); color: var(--sat-accent-text); }
 .felt-box.is-default { border-style: dashed; font-style: italic; color: var(--sat-muted); background: transparent; }
-.felt-box.is-sel { outline: 2.5px solid var(--sat-focus); outline-offset: 1px; }
+/* inset ring: an outline would be cut off at the scroll edge (rightmost column, last row) */
+.felt-box.is-sel { box-shadow: inset 0 0 0 2.5px var(--sat-focus); border-color: transparent; }
+/* a later box replaces this one: amounts are street totals, never added together */
+.felt-box.is-past { opacity: 0.22; }
+.felt-box { position: relative; }
+.felt-box .l { font-size: 1.0625rem; font-weight: 700; }
+.felt-box-dark { position: absolute; top: 1px; right: 3px; display: grid; color: var(--sat-muted); }
 button.felt-box:active { transform: scale(0.96); }
 
 .felt-tabs button.is-done:not([aria-selected="true"]) { color: var(--sat-text); }
@@ -310,7 +316,19 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad button:active:not(:disabled) { transform: scale(0.96); }
 .felt-keypad .felt-keypad-clear { min-height: 28px; padding: 0 8px; color: var(--sat-neg); font-size: var(--sat-fs-caption); }
 .felt-keypad-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.felt-keypad-quick button { font-size: var(--sat-fs-small); background: var(--sat-glass); border: 1px solid var(--sat-line-strong); }
+.felt-keypad-quick button { flex-direction: column; gap: 0; font-size: var(--sat-fs-small); background: var(--sat-glass); border: 1px solid var(--sat-line-strong); }
+.felt-keypad-quick b { font-size: 1.0625rem; }
+.felt-keypad-quick small { font-size: var(--sat-fs-caption); font-weight: 500; color: var(--sat-muted); }
+.felt-keypad-tools { display: flex; align-items: center; gap: 4px; flex: none; }
+.felt-keypad .felt-keypad-dark { min-height: 28px; padding: 0 10px; gap: 4px; flex-direction: row; font-size: var(--sat-fs-caption); color: var(--sat-muted);
+  border: 1px solid var(--sat-line-strong); border-radius: var(--sat-radius-pill); }
+.felt-keypad .felt-keypad-dark[aria-pressed="true"] { color: var(--sat-accent-text); border-color: var(--sat-accent); background: var(--sat-accent-soft); }
+.felt-keypad-min { font-size: var(--sat-fs-small); font-weight: 500; color: var(--sat-muted); }
+.felt-keypad-err { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: var(--sat-radius-sm);
+  border: 1.5px solid var(--sat-neg); background: color-mix(in srgb, var(--sat-neg) 10%, transparent); font-size: var(--sat-fs-small); font-weight: 600; }
+.felt-keypad-err-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.felt-keypad-err-acts button { background: var(--sat-glass); border: 1px solid var(--sat-line-strong); font-size: var(--sat-fs-small); }
+.felt-keypad-err-acts .is-primary { background: var(--sat-accent-fill); color: #fff; border-color: transparent; }
 .felt-keypad-amount { display: grid; grid-template-columns: 1fr 96px; gap: 6px; }
 .felt-keypad-field { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0 0 0 var(--sat-space-3); border-radius: var(--sat-radius-sm);
   background: var(--sat-well); border: 1.5px solid var(--sat-line); color: var(--sat-muted); }

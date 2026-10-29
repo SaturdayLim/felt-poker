@@ -17,6 +17,11 @@ const SPLASH: { ms: number; label: string }[] = [
   { ms: SPLASH_DEFAULT, label: 'Standard' },
   { ms: 4500, label: 'Long' },
 ];
+const MIN_RAISE: { k: S['minRaise']; label: string; hint: string }[] = [
+  { k: 'last', label: 'Last raise', hint: 'Raise by at least the last raise: 2, 4, 6, 8. The usual rule.' },
+  { k: 'sb', label: 'SB steps', hint: 'Raise by at least the SB: 2, 3, 4, 5.' },
+  { k: 'double', label: 'Double', hint: 'Raise to at least double the bet: 2, 4, 8, 16.' },
+];
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
 export default function Settings() {
@@ -101,15 +106,15 @@ export default function Settings() {
         <section className="sat-glass sat-card sat-stack">
           <div className="sat-split"><h2 className="sat-h2">New games</h2><Help k="units" /></div>
           <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ...gap(3) }}>
-            {numField('s-sb', 'Small blind (chips)', 'sb')}
-            {numField('s-bb', 'Big blind (chips)', 'bb')}
+            {numField('s-sb', 'SB (chips)', 'sb')}
+            {numField('s-bb', 'BB (chips)', 'bb')}
             <div className="sat-field">
               <label htmlFor="s-cur">Currency</label>
               <input id="s-cur" className="sat-input" defaultValue={settings.currency} onBlur={(e) => update({ currency: e.target.value.trim() || 'S$' })} />
               <span className="sat-hint">Symbol (e.g. S$)</span>
             </div>
             {numField('s-uv', `Multiplier (${settings.currency})`, 'unitValue', 'Per unit (e.g. 0.1)', 'unitValue')}
-            {numField('s-bi', 'Buy-in (chips)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} big blinds`)}
+            {numField('s-bi', 'Buy-in (chips)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} BB`)}
             {numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
             {numField('s-ss', 'Starting stack (chips)', 'startingStack')}
           </div>
@@ -120,6 +125,13 @@ export default function Settings() {
           <div className="sat-switch-row">
             <span><span style={{ display: 'block' }}>Track the button</span><span className="sat-small sat-muted">Moves one seat clockwise after each hand. Sets who gets odd chips in a split pot.</span></span>
             <Toggle on={settings.markers.dealer} onChange={(v) => setMarker('dealer', v)} label="Track the button" />
+          </div>
+          <div className="sat-stack" style={gap(2)}>
+            <Caption tip="minRaise">Minimum raise</Caption>
+            <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Minimum raise">
+              {MIN_RAISE.map((o) => <button key={o.k} role="radio" aria-checked={settings.minRaise === o.k} onClick={() => update({ minRaise: o.k })}>{o.label}</button>)}
+            </div>
+            <p className="sat-small sat-muted">{MIN_RAISE.find((o) => o.k === settings.minRaise)?.hint}</p>
           </div>
         </section>
 

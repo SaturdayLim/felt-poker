@@ -17,3 +17,9 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A skipped box takes the default: check, or fold when facing a bet. Defaults are there to save taps and stay editable.
 - Shuffling seats does not draw a button: seat 1 has the button, seat 2 the small blind, seat 3 the big blind.
 - Keypads: no betting-helper keys (half pot, pot). Never use "<" as a backspace; use the backspace-key icon.
+- Action boxes: C = call or check, F = fold, a number = the street total bet or raised to. Typing an amount no higher than the bet is a C.
+- Amounts are totals, never added: only a player's latest box stands, earlier boxes fade hard.
+- An action answers a specific bet; if an earlier change moves that bet, the action is dropped (blank box).
+- Minimum raise is a house rule in Settings (Last raise by default, SB steps, Double). A smaller raise is refused with C or the minimum raise offered.
+- Dark actions carry a shut-eye mark. Preflop, a dark raise is a straddle and gives that player a later turn.
+- Use "SB" and "BB" in labels, not "Small blind" and "Big blind".

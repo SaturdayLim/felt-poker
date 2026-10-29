@@ -63,8 +63,8 @@ export default function NewGame({ type }: { type: GameType }) {
           <section className="sat-glass sat-card sat-stack">
             <div className="sat-split"><h2 className="sat-h3">Blinds and buy-in</h2><Help k="units" /></div>
             <div className="sat-grid" style={{ ['--sat-min' as string]: '90px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-              {field('g-sb', 'Small blind (chips)', sb, setSb, { decimal: true })}
-              {field('g-bb', 'Big blind (chips)', bb, setBb, { decimal: true })}
+              {field('g-sb', 'SB (chips)', sb, setSb, { decimal: true })}
+              {field('g-bb', 'BB (chips)', bb, setBb, { decimal: true })}
             </div>
             <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
               <div className="sat-field">
@@ -81,7 +81,7 @@ export default function NewGame({ type }: { type: GameType }) {
                 <span className="sat-hint">Per unit (e.g. 0.1)</span>
               </div>
             </div>
-            {field('g-bi', 'Buy-in (chips)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} big blinds` : '-'} = ${money(bi * uv, currency)}` })}
+            {field('g-bi', 'Buy-in (chips)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} BB` : '-'} = ${money(bi * uv, currency)}` })}
             <div className="sat-switch-row">
               <span>Buy everyone in now <Help k="autoBuyIn" /></span>
               <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Buy everyone in now" />
@@ -93,8 +93,8 @@ export default function NewGame({ type }: { type: GameType }) {
             <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
               {field('t-fee', `Entry fee (${currency})`, tBuyIn, setTBuyIn, { decimal: true })}
               {field('t-stack', 'Starting stack', stack, setStack)}
-              {field('t-sb', 'Small blind', sb, setSb, { decimal: true })}
-              {field('t-bb', 'Big blind', bb, setBb, { decimal: true })}
+              {field('t-sb', 'SB', sb, setSb, { decimal: true })}
+              {field('t-bb', 'BB', bb, setBb, { decimal: true })}
             </div>
             <p className="sat-small sat-muted">Payouts are set when the tournament ends.</p>
           </section>

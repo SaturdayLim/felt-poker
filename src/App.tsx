@@ -78,7 +78,7 @@ export default function App() {
 /** New hands use the street-by-street recorder; hands logged the quick way open in the quick editor. */
 function HandRoute({ gameId, handId }: { gameId: string; handId?: string }) {
   const hand = useStoreForRoute((s) => s.games.find((g) => g.id === gameId)?.hands.find((h) => h.id === handId));
-  if (handId === 'quick') return <HandEditorClassic key="quick" gameId={gameId} />;
-  if (!handId || handId === 'new') return <HandRecorder key="new" gameId={gameId} />;
+  if (handId === 'quick') return <HandEditorClassic key={`quick-${gameId}`} gameId={gameId} />;
+  if (!handId || handId === 'new') return <HandRecorder key={`new-${gameId}`} gameId={gameId} />;
   return hand?.log ? <HandRecorder key={handId} gameId={gameId} handId={handId} /> : <HandEditorClassic key={handId} gameId={gameId} handId={handId} />;
 }

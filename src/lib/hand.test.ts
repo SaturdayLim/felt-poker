@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '../types';
-import { actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
+import { minRaiseTo, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -168,8 +168,8 @@ describe('action boxes', () => {
     log = fillBefore(g, log, 'preflop', 'Nic', 0, stacks);
     log = setAct(g, log, 'preflop', 'Nic', 0, { k: 'bet', to: 6 }, stacks);
     const rp = replayStreet(g, log, 'preflop', stacks);
-    expect(rp.cells.Nat[0].act).toEqual({ k: 'fold', d: true });
-    expect(rp.cells.Ev[0].act).toEqual({ k: 'fold', d: true });
+    expect(rp.cells.Nat[0].act).toMatchObject({ k: 'fold', d: true });
+    expect(rp.cells.Ev[0].act).toMatchObject({ k: 'fold', d: true });
     expect(rp.next).toEqual({ p: 'Bel', r: 0 });
     log = setAct(g, log, 'preflop', 'Bel', 0, { k: 'call' }, stacks);
     // on the flop nobody has bet: skipped boxes check
@@ -178,7 +178,7 @@ describe('action boxes', () => {
     l2 = openStreetBoxes(g, l2, 'flop', stacks);
     const fo = replayStreet(g, l2, 'flop', stacks).order;
     l2 = fillBefore(g, l2, 'flop', fo[fo.length - 1], 0, stacks);
-    expect(replayStreet(g, l2, 'flop', stacks).cells[fo[0]][0].act).toEqual({ k: 'call', d: true });
+    expect(replayStreet(g, l2, 'flop', stacks).cells[fo[0]][0].act).toMatchObject({ k: 'call', d: true });
   });
 
   it('closing a street: empty boxes fold when facing a bet; a skipped-ahead street keeps them in', () => {
@@ -209,5 +209,70 @@ describe('action boxes', () => {
     log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'allin' }, st);
     expect(log.streets.preflop!.bets.Nat).toBe(50);
     expect(log.allInAt?.Nat).toBe('preflop');
+  });
+
+  it('only the latest box of a player stands; earlier ones are marked past', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    for (const p of ['Nat', 'Ev', 'Nic', 'Bel']) log = setAct(g, log, 'preflop', p, 0, { k: 'call' }, stacks);
+    let rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Gab[0].past).toBe(false); // the 1 stands until the small blind acts
+    log = setAct(g, log, 'preflop', 'Gab', 1, { k: 'bet', to: 2 }, stacks); // typing 2 = calling 2
+    rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Gab[0].past).toBe(true);
+    expect(rp.street.bets.Gab).toBe(2);
+    expect(rp.street.raisers).toEqual([]);
+  });
+
+  it('an action whose bet was changed earlier is forgotten', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'call' }, stacks);
+    log = setAct(g, log, 'preflop', 'Ev', 0, { k: 'call' }, stacks);
+    expect(replayStreet(g, log, 'preflop', stacks).cells.Ev[0].act?.k).toBe('call');
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 6 }, stacks); // Ev had called 2, not 6
+    const rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Ev[0].act).toBeNull();
+    expect(rp.next).toEqual({ p: 'Ev', r: 0 });
+  });
+
+  it('a dark raise before the flop is a straddle: the straddler gets the last word', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 4, dark: true }, stacks);
+    for (const p of ['Ev', 'Nic', 'Bel']) log = setAct(g, log, 'preflop', p, 0, { k: 'call' }, stacks);
+    log = setAct(g, log, 'preflop', 'Gab', 1, { k: 'call' }, stacks);
+    log = setAct(g, log, 'preflop', 'Clar', 1, { k: 'call' }, stacks);
+    const rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.straddles).toEqual(['Nat']);
+    expect(rp.next).toEqual({ p: 'Nat', r: 1 });
+    expect(rp.cells.Nat[1].toCall).toBe(0);
+    expect(rp.street.raisers).toEqual([]);
+    // after the flop a dark action is only a mark
+    let l2 = setAct(g, log, 'preflop', 'Nat', 1, { k: 'call' }, stacks);
+    l2 = closeStreet(g, l2, 'preflop', 1, stacks);
+    l2 = openStreetBoxes(g, l2, 'flop', stacks);
+    l2 = setAct(g, l2, 'flop', 'Gab', 0, { k: 'call', dark: true }, stacks);
+    expect(replayStreet(g, l2, 'flop', stacks).next?.p).toBe('Clar');
+  });
+
+  it('minimum raise house rules', () => {
+    const g = g6();
+    // last raise (standard): 2, 4, 6, 8
+    expect(minRaiseTo(g, 'last', 2, 2)).toBe(4);
+    expect(minRaiseTo(g, 'last', 4, 2)).toBe(6);
+    expect(minRaiseTo(g, 'last', 10, 6)).toBe(16);
+    // small-blind steps: 2, 3, 4, 5
+    expect(minRaiseTo(g, 'sb', 2, 2)).toBe(3);
+    // double: 2, 4, 8, 16
+    expect(minRaiseTo(g, 'double', 4, 2)).toBe(8);
+    // opening bet after the flop
+    expect(minRaiseTo(g, 'last', 0, 0)).toBe(2);
+    expect(minRaiseTo(g, 'sb', 0, 0)).toBe(1);
+    // the replay tracks the largest raise for the cell
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 8 }, stacks);
+    const c = replayStreet(g, log, 'preflop', stacks).cells.Ev[0];
+    expect([c.high, c.inc]).toEqual([8, 6]);
   });
 });

@@ -350,7 +350,11 @@ export function newLog(g: Game, dealt: ID[], mode: 'bets' | 'count', button?: ID
      work out wagers, folds, raises and all-ins, so contributions, pots, VPIP and stacks keep working.
    - An empty box is waiting. Picking a later box fills every waiting box before it with the default:
      check, or fold when facing a bet. Closing the street does the same (a street closed by skipping
-     ahead keeps players in with a call instead, since their action is unknown). */
+     ahead keeps players in with a call instead, since their action is unknown).
+   - Each action remembers the bet it answered. When an earlier change moves that bet, the action is
+     dropped and its box shows empty again.
+   - A dark (blind) action carries a shut-eye mark. Preflop, a dark raise is a straddle: the player
+     gets another turn later, like the big blind. */
 
 export interface Cell {
   /** The player has a decision in this box. */
@@ -360,10 +364,16 @@ export interface Cell {
   implied: boolean;
   /** Preflop blind posted (column 1 of the small and big blind). */
   post: boolean;
+  /** A later box of the same player replaces this one (shown faded: amounts are totals, not added). */
+  past: boolean;
   /** Player's street wager after this box. */
   amount: number;
   /** Chips the player had to add to call when this box came up. */
   toCall: number;
+  /** The bet to match when this box came up. */
+  high: number;
+  /** Largest raise so far on the street when this box came up (for the minimum raise). */
+  inc: number;
 }
 
 export interface Replay {
@@ -379,18 +389,34 @@ export interface Replay {
   /** Every waiting box, in time order. */
   waiting: { p: ID; r: number }[];
   high: number;
+  /** Players whose dark preflop raise was a straddle. */
+  straddles: ID[];
 }
 
-const blankCell = (amount: number): Cell => ({ needed: false, act: null, implied: false, post: false, amount, toCall: 0 });
+const blankCell = (amount: number): Cell => ({ needed: false, act: null, implied: false, post: false, past: false, amount, toCall: 0, high: 0, inc: 0 });
 
 /** Default for a skipped box: check when nothing is owed, fold when facing a bet. */
 export function defaultAct(toCall: number): Act {
   return toCall > 0 ? { k: 'fold', d: true } : { k: 'call', d: true };
 }
 
+/** House rule for the smallest raise:
+    - last: raise by at least the biggest raise so far, at least the big blind (2, 4, 6, 8)
+    - sb: raise by at least the small blind (2, 3, 4, 5)
+    - double: raise to at least double the bet (2, 4, 8, 16)
+    An opening bet is at least the big blind (the small blind under `sb`). */
+export type MinRaise = 'last' | 'sb' | 'double';
+export function minRaiseTo(g: Pick<Game, 'sb' | 'bb'>, rule: MinRaise, high: number, inc: number): number {
+  if (high <= 0) return rule === 'sb' ? g.sb : g.bb;
+  if (rule === 'sb') return round2(high + g.sb);
+  if (rule === 'double') return round2(high * 2);
+  return round2(high + Math.max(inc, g.bb));
+}
+
 export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?: Record<ID, number>): Replay {
   const src = log.streets[street] ?? emptyStreet();
   const acts = src.acts ?? {};
+  const kept: Record<ID, (Act | null)[]> = {};
   const closed = !!src.at;
   const canBet = actors(log, street);
   const inHand = inAtStart(log, street);
@@ -401,6 +427,7 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
   const bets: Record<ID, number> = Object.fromEntries(inHand.map((p) => [p, 0]));
   const folded: ID[] = [];
   const raisers: ID[] = [];
+  const straddles: ID[] = [];
   const typed: Record<ID, boolean> = {};
   const allIn = new Set<ID>(inHand.filter((p) => !canBet.includes(p)));
   const cells: Record<ID, Cell[]> = Object.fromEntries(order.map((p) => [p, [] as Cell[]]));
@@ -413,6 +440,8 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
     if (r !== undefined && r <= v) allIn.add(p);
   }
   let high = Math.max(0, ...Object.values(bets));
+  // preflop the big blind counts as the first raise (0 to the big blind)
+  let inc = street === 'preflop' ? high : 0;
   const acted = new Set<ID>();
   const waiting: Replay['waiting'] = [];
   const waitingSet = new Set<ID>();
@@ -422,7 +451,7 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
     let any = false;
     for (const p of order) {
       const isBlind = p in blindPosts;
-      if (r === 0 && isBlind) { cells[p][0] = { ...blankCell(bets[p] ?? 0), post: true }; continue; }
+      if (r === 0 && isBlind) { cells[p][0] = { ...blankCell(bets[p] ?? 0), post: true, high, inc }; continue; }
       const owe = round2(high - (bets[p] ?? 0));
       const live = !folded.includes(p) && !allIn.has(p) && !waitingSet.has(p);
       const othersIn = inHand.some((q) => q !== p && !folded.includes(q));
@@ -431,19 +460,24 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
       // a decision is owed for a first action or an unmatched bet; with nothing to call and nobody
       // left who can bet (everyone else all-in), there is nothing to decide
       const needed = live && othersIn && (first || owe > 0) && (owe > 0 || othersCanBet);
-      const cell: Cell = { ...blankCell(bets[p] ?? 0), needed, toCall: Math.max(0, owe) };
+      const cell: Cell = { ...blankCell(bets[p] ?? 0), needed, toCall: Math.max(0, owe), high, inc };
       cells[p][r] = cell;
       if (!needed) continue;
       any = true;
       lastCol = Math.max(lastCol, r);
       let a = acts[p]?.[r] ?? null;
+      // an action recorded against a different bet has been overtaken by an earlier change: forget it
+      if (a && a.at !== undefined && a.at !== high) a = null;
       cell.act = a;
+      if (a) (kept[p] ??= [])[r] = a;
       if (!a) {
         if (!closed) { waitingSet.add(p); waiting.push({ p, r }); continue; }
         a = src.partial ? { k: 'call' } : defaultAct(owe);
         cell.implied = true;
       }
-      acted.add(p);
+      // a dark raise before the flop is a straddle: like a blind, the player still gets a turn later
+      const straddle = street === 'preflop' && r === 0 && !!a.dark && (a.k === 'bet' || a.k === 'allin');
+      if (straddle) straddles.push(p); else acted.add(p);
       const rm = roomOf(p);
       const have = bets[p] ?? 0;
       if (a.k === 'fold') {
@@ -457,7 +491,8 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
         to = Math.max(to, have);
         typed[p] = true;
         if (to > high) {
-          if (!raisers.includes(p)) raisers.push(p);
+          if (!raisers.includes(p) && !straddle) raisers.push(p);
+          inc = Math.max(inc, round2(to - high));
           high = to;
           bets[p] = to;
         } else if (rm !== undefined && to >= rm) {
@@ -471,17 +506,20 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
     }
     if (!any && r >= maxStored - 1 && r > 0) break;
   }
-  // Column 2 holds only the blinds' first decisions while column 1 is still going: keep it hidden
+  // Column 2 holds only the blinds' (and straddlers') next decisions while column 1 is still going: keep it hidden
   // until column 1 is done, so the table grows one column at a time.
   let cols = Math.max(1, lastCol + 1);
-  if (cols === 2 && waiting.some((w) => w.r === 0) && order.every((p) => !cells[p][1]?.needed || (p in blindPosts && !cells[p][1].act))) cols = 1;
+  if (cols === 2 && waiting.some((w) => w.r === 0) && order.every((p) => !cells[p][1]?.needed || ((p in blindPosts || straddles.includes(p)) && !cells[p][1].act))) cols = 1;
   for (const p of order) {
     cells[p].length = Math.min(cells[p].length, cols);
     for (let r = 0; r < cols; r++) cells[p][r] ??= blankCell(bets[p] ?? 0);
+    // only a player's latest box stands; earlier ones are history
+    const filled = cells[p].map((c, r) => (c.post || c.act || c.implied ? r : -1)).filter((r) => r >= 0);
+    for (const r of filled.slice(0, -1)) cells[p][r].past = true;
   }
   const shown = waiting.filter((w) => w.r < cols);
   return {
-    street: { ...src, acts, bets, prev: { ...bets }, typed, folded, raisers },
+    street: { ...src, acts: kept, bets, prev: { ...bets }, typed, folded, raisers },
     allIn: [...allIn].filter((p) => canBet.includes(p)),
     order,
     cols,
@@ -489,6 +527,7 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
     next: shown[0] ?? null,
     waiting: shown,
     high,
+    straddles,
   };
 }
 
@@ -510,6 +549,9 @@ export function rederive(g: Game, log: HandLog, stacks?: Record<ID, number>): Ha
 
 /** Fill, change or clear one action box, then replay the hand. */
 export function setAct(g: Game, log: HandLog, street: StreetName, p: ID, r: number, act: Act | null, stacks?: Record<ID, number>): HandLog {
+  // remember the bet the action answered, so a later change to that bet clears it
+  const cell = log.streets[street] ? replayStreet(g, log, street, stacks).cells[p]?.[r] : undefined;
+  if (act) act = { ...act, at: cell?.high ?? 0 };
   const s = log.streets[street] ?? emptyStreet();
   const acts = { ...(s.acts ?? {}) };
   const row = [...(acts[p] ?? [])];

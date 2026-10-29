@@ -73,6 +73,8 @@ export interface Act {
   k: 'call' | 'fold' | 'bet' | 'allin';
   /** Bet: the player's total wager on this street after the bet. */
   to?: number;
+  /** Filled in by Felt (a box skipped over): check, or fold when facing a bet. */
+  d?: boolean;
 }
 
 /** One betting round as logged in the street-by-street recorder. */
@@ -94,6 +96,8 @@ export interface StreetLog {
   pot?: number;
   /** When the street was closed. */
   at?: number;
+  /** Closed by skipping ahead: boxes left empty keep the player in (call) instead of the usual default. */
+  partial?: boolean;
 }
 
 /** Everything the street-by-street recorder captured for a hand. */
@@ -133,6 +137,10 @@ export interface Hand {
   returned?: Record<ID, number>;
   /** Street-by-street record (hands logged with the recorder). */
   log?: HandLog;
+  /** Some action was skipped, so wagers are incomplete. */
+  partial?: boolean;
+  /** Left out of hand stats and trends (hands won, VPIP, pace). */
+  excluded?: boolean;
   /** When the hand was saved; with `at` gives the hand's duration. */
   endedAt?: number;
   /** Up to 5 cards. Ignored when boardNA. */
@@ -206,6 +214,8 @@ export interface Game {
   notes?: string;
   /** Group this game belongs to, for netted settle-up and the group leaderboard. */
   groupId?: ID;
+  /** Seats were reshuffled before this hand number: seat 1 (firstDealer) takes the button. */
+  reseatN?: number;
 }
 
 export interface Markers {

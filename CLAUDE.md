@@ -13,3 +13,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 
 - Theme and opening-screen length belong to the phone. A backup restore must never change them.
 - Player status: dealt into a hand or acting in it turns the player green (playing).
+- Hand recorder rows run in time order: small blind first, button last. Columns are passes around the table, newest flush right.
+- A skipped box takes the default: check, or fold when facing a bet. Defaults are there to save taps and stay editable.
+- Shuffling seats does not draw a button: seat 1 has the button, seat 2 the small blind, seat 3 the big blind.
+- Keypads: no betting-helper keys (half pot, pot). Never use "<" as a backspace; use the backspace-key icon.

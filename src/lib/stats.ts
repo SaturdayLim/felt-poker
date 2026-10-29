@@ -68,6 +68,7 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
     s.buyIns += r.buyIns;
     s.history.push({ gameId: g.id, t: g.startedAt, net: r.net });
     for (const h of g.hands) {
+      if (h.excluded) continue;
       const L = h.log;
       if (L?.dealt.includes(pid)) {
         s.logged++;
@@ -132,7 +133,7 @@ export function groupTotals(games: Game[]) {
 
 /** Median seconds per hand, for hands logged with start and end times. */
 export function handPace(games: Game[]): { hands: number; medianSec: number } {
-  const secs = games.flatMap((g) => g.hands).filter((h) => h.endedAt && h.log).map((h) => (h.endedAt! - h.at) / 1000).sort((a, b) => a - b);
+  const secs = games.flatMap((g) => g.hands).filter((h) => h.endedAt && h.log && !h.excluded).map((h) => (h.endedAt! - h.at) / 1000).sort((a, b) => a - b);
   if (!secs.length) return { hands: 0, medianSec: 0 };
   const m = secs.length % 2 ? secs[(secs.length - 1) / 2] : (secs[secs.length / 2 - 1] + secs[secs.length / 2]) / 2;
   return { hands: secs.length, medianSec: Math.round(m) };

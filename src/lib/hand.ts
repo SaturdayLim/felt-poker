@@ -22,11 +22,21 @@ export function blinds(g: Game, dealt: ID[], button?: ID): Record<ID, number> {
   return { [o[0]]: g.sb, [o[1]]: g.bb };
 }
 
-/** Order players act on a street: preflop starts after the big blind, later streets start at the small blind. */
+/** Order players act on a street: preflop starts after the big blind, later streets start at the small blind.
+    Heads-up, the button is the small blind: first to act preflop, last after the flop. */
 export function streetOrder(g: Game, log: HandLog, street: StreetName): ID[] {
   const o = actingOrder(g, log.dealt, log.button);
-  if (street !== 'preflop' || o.length < 3) return o;
+  if (street !== 'preflop') return o;
+  if (o.length === 2) return log.button && o[1] === log.button ? [o[1], o[0]] : o;
+  if (o.length < 3) return o;
   return [...o.slice(2), ...o.slice(0, 2)];
+}
+
+/** Rows for the recorder, in time order: small blind first, the button last (it acts last after the flop).
+    Heads-up, the button is the small blind, so it comes first. */
+export function rowOrder(g: Game, log: HandLog): ID[] {
+  const o = actingOrder(g, log.dealt, log.button);
+  return o.length === 2 && log.button && o[1] === log.button ? [o[1], o[0]] : o;
 }
 
 const emptyStreet = (): StreetLog => ({ bets: {}, prev: {}, typed: {}, folded: [], raisers: [] });
@@ -264,11 +274,13 @@ export interface Resolution {
 }
 
 /** Decide every pot on every run from the shown cards, then apply manual picks (they win every run of that pot). */
-export function resolve(g: Game, log: HandLog, board: Card[], button: ID | undefined, manual: Record<number, ID[]>): Resolution {
+/** `extra`: chips in the pot that were not recorded as wagers (a partly recorded hand); added to the main pot. */
+export function resolve(g: Game, log: HandLog, board: Card[], button: ID | undefined, manual: Record<number, ID[]>, extra = 0): Resolution {
   const contrib = contributions(g, log, button);
   const live = finalists(log);
   let { pots, returned } = potsAndReturns(contrib, live);
   if (log.mode === 'count' && pots.length === 1) pots = [{ amount: potTotal(g, log, button), eligible: live }];
+  if (extra > 0) pots = pots.length ? [{ ...pots[0], amount: round2(pots[0].amount + extra) }, ...pots.slice(1)] : [{ amount: extra, eligible: live }];
   const runs = Math.max(1, log.runs ?? 1);
   const common = board.slice(0, log.runFrom ?? board.length);
   const runBoards = runs > 1 ? Array.from({ length: runs }, (_, r) => [...common, ...(log.runCards?.[r] ?? [])]) : [board];
@@ -329,19 +341,25 @@ export function newLog(g: Game, dealt: ID[], mode: 'bets' | 'count', button?: ID
   return openStreet(g, base, 'preflop', stacks);
 }
 
+
 /* ------------------------------------------------------------------------------------------------
-   Action boxes (current recorder). Each player gets one box per pass around the table. A street is
-   replayed box by box in time order (pass 1 in seat order, then pass 2, ...) to work out the wagers,
-   folds, raises and all-ins, so everything above (contributions, pots, VPIP, stacks) keeps working.
-   An empty box is still waiting; once the street is closed (its `at` is set) an empty box counts as
-   a call. A new pass opens for players who acted but now face a bet they have not matched. */
+   Action boxes (current recorder). Each player has one box per action column. A column is one pass
+   around the table: a new column opens when a bet or raise reopens the action.
+   - Preflop, the blinds' first box holds the blind they posted; their first decision is in column 2.
+   - A street is replayed box by box in time order (column 1 in acting order, then column 2, ...) to
+     work out wagers, folds, raises and all-ins, so contributions, pots, VPIP and stacks keep working.
+   - An empty box is waiting. Picking a later box fills every waiting box before it with the default:
+     check, or fold when facing a bet. Closing the street does the same (a street closed by skipping
+     ahead keeps players in with a call instead, since their action is unknown). */
 
 export interface Cell {
-  /** The player has to act in this box. */
+  /** The player has a decision in this box. */
   needed: boolean;
   act: Act | null;
-  /** Empty box that counts as a call because the street is closed. */
+  /** Empty box that counts as its default because the street is closed. */
   implied: boolean;
+  /** Preflop blind posted (column 1 of the small and big blind). */
+  post: boolean;
   /** Player's street wager after this box. */
   amount: number;
   /** Chips the player had to add to call when this box came up. */
@@ -352,13 +370,22 @@ export interface Replay {
   street: StreetLog;
   /** Players who went all-in on this street. */
   allIn: ID[];
-  /** Rows in acting order: players who could still bet when the street began. */
+  /** Players who could act on this street, in acting order. */
   order: ID[];
   cols: number;
   cells: Record<ID, Cell[]>;
-  /** First box still waiting for an action. */
+  /** First box still waiting for an action (in time order). */
   next: { p: ID; r: number } | null;
+  /** Every waiting box, in time order. */
+  waiting: { p: ID; r: number }[];
   high: number;
+}
+
+const blankCell = (amount: number): Cell => ({ needed: false, act: null, implied: false, post: false, amount, toCall: 0 });
+
+/** Default for a skipped box: check when nothing is owed, fold when facing a bet. */
+export function defaultAct(toCall: number): Act {
+  return toCall > 0 ? { k: 'fold', d: true } : { k: 'call', d: true };
 }
 
 export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?: Record<ID, number>): Replay {
@@ -366,40 +393,54 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
   const acts = src.acts ?? {};
   const closed = !!src.at;
   const canBet = actors(log, street);
-  const order = streetOrder(g, log, street).filter((p) => canBet.includes(p));
-  const bets: Record<ID, number> = {};
+  const inHand = inAtStart(log, street);
+  // Time order inside a column runs from the small blind. Preflop the blinds' column 1 boxes are their
+  // posts, so column 1 really starts under the gun and column 2 starts with the small blind.
+  const sbFirst = street === 'preflop' && log.dealt.length > 2 ? actingOrder(g, log.dealt, log.button) : streetOrder(g, log, street);
+  const order = sbFirst.filter((p) => canBet.includes(p));
+  const bets: Record<ID, number> = Object.fromEntries(inHand.map((p) => [p, 0]));
   const folded: ID[] = [];
   const raisers: ID[] = [];
   const typed: Record<ID, boolean> = {};
-  const allIn = new Set<ID>();
+  const allIn = new Set<ID>(inHand.filter((p) => !canBet.includes(p)));
   const cells: Record<ID, Cell[]> = Object.fromEntries(order.map((p) => [p, [] as Cell[]]));
   const roomOf = (p: ID) => room(log, p, stacks, street);
-  for (const p of inAtStart(log, street)) bets[p] = 0;
-  if (street === 'preflop') {
-    for (const [p, v] of Object.entries(blinds(g, log.dealt, log.button))) {
-      const r = roomOf(p);
-      bets[p] = r === undefined ? v : Math.min(v, r);
-      if (r !== undefined && r <= v) allIn.add(p);
-    }
+  const blindPosts = street === 'preflop' ? blinds(g, log.dealt, log.button) : {};
+  for (const [p, v] of Object.entries(blindPosts)) {
+    if (!(p in bets)) continue;
+    const r = roomOf(p);
+    bets[p] = r === undefined ? v : Math.min(v, r);
+    if (r !== undefined && r <= v) allIn.add(p);
   }
   let high = Math.max(0, ...Object.values(bets));
-  let next: Replay['next'] = null;
-  const maxStored = Math.max(0, ...Object.values(acts).map((a) => a.length));
   const acted = new Set<ID>();
-  const waiting = new Set<ID>();
-  for (let r = 0; r < 12; r++) {
-    let anyNeeded = false;
+  const waiting: Replay['waiting'] = [];
+  const waitingSet = new Set<ID>();
+  const maxStored = Math.max(0, ...Object.values(acts).map((a) => a.length));
+  let lastCol = 0;
+  for (let r = 0; r < 16; r++) {
+    let any = false;
     for (const p of order) {
+      const isBlind = p in blindPosts;
+      if (r === 0 && isBlind) { cells[p][0] = { ...blankCell(bets[p] ?? 0), post: true }; continue; }
       const owe = round2(high - (bets[p] ?? 0));
-      const needed = !folded.includes(p) && !allIn.has(p) && !waiting.has(p) && (r === 0 || (acted.has(p) && owe > 0));
-      const cell: Cell = { needed, act: needed ? acts[p]?.[r] ?? null : null, implied: false, amount: bets[p] ?? 0, toCall: Math.max(0, owe) };
+      const live = !folded.includes(p) && !allIn.has(p) && !waitingSet.has(p);
+      const othersIn = inHand.some((q) => q !== p && !folded.includes(q));
+      const othersCanBet = inHand.some((q) => q !== p && !folded.includes(q) && !allIn.has(q));
+      const first = !acted.has(p);
+      // a decision is owed for a first action or an unmatched bet; with nothing to call and nobody
+      // left who can bet (everyone else all-in), there is nothing to decide
+      const needed = live && othersIn && (first || owe > 0) && (owe > 0 || othersCanBet);
+      const cell: Cell = { ...blankCell(bets[p] ?? 0), needed, toCall: Math.max(0, owe) };
       cells[p][r] = cell;
       if (!needed) continue;
-      anyNeeded = true;
-      let a = cell.act;
+      any = true;
+      lastCol = Math.max(lastCol, r);
+      let a = acts[p]?.[r] ?? null;
+      cell.act = a;
       if (!a) {
-        if (!closed) { waiting.add(p); if (!next) next = { p, r }; continue; }
-        a = { k: 'call' };
+        if (!closed) { waitingSet.add(p); waiting.push({ p, r }); continue; }
+        a = src.partial ? { k: 'call' } : defaultAct(owe);
         cell.implied = true;
       }
       acted.add(p);
@@ -422,26 +463,31 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
         } else if (rm !== undefined && to >= rm) {
           bets[p] = to; // all-in for less than the bet
         } else {
-          bets[p] = Math.max(have, rm === undefined ? high : Math.min(high, rm)); // a bet no higher than the current one is a call
+          bets[p] = Math.max(have, rm === undefined ? high : Math.min(high, rm)); // no higher than the bet: a call
         }
         if (a.k === 'allin' || (rm !== undefined && bets[p] >= rm)) allIn.add(p);
       }
       cell.amount = bets[p] ?? 0;
     }
-    if (!anyNeeded && r >= maxStored - 1) {
-      for (const p of order) cells[p].length = r;
-      break;
-    }
+    if (!any && r >= maxStored - 1 && r > 0) break;
   }
-  const cols = Math.max(1, ...order.map((p) => cells[p].length));
-  for (const p of order) for (let r = 0; r < cols; r++) cells[p][r] ??= { needed: false, act: null, implied: false, amount: bets[p] ?? 0, toCall: 0 };
+  // Column 2 holds only the blinds' first decisions while column 1 is still going: keep it hidden
+  // until column 1 is done, so the table grows one column at a time.
+  let cols = Math.max(1, lastCol + 1);
+  if (cols === 2 && waiting.some((w) => w.r === 0) && order.every((p) => !cells[p][1]?.needed || (p in blindPosts && !cells[p][1].act))) cols = 1;
+  for (const p of order) {
+    cells[p].length = Math.min(cells[p].length, cols);
+    for (let r = 0; r < cols; r++) cells[p][r] ??= blankCell(bets[p] ?? 0);
+  }
+  const shown = waiting.filter((w) => w.r < cols);
   return {
     street: { ...src, acts, bets, prev: { ...bets }, typed, folded, raisers },
-    allIn: [...allIn],
+    allIn: [...allIn].filter((p) => canBet.includes(p)),
     order,
     cols,
     cells,
-    next,
+    next: shown[0] ?? null,
+    waiting: shown,
     high,
   };
 }
@@ -474,11 +520,19 @@ export function setAct(g: Game, log: HandLog, street: StreetName, p: ID, r: numb
   return rederive(g, { ...log, streets: { ...log.streets, [street]: { ...s, acts } } }, stacks);
 }
 
-/** Tap cycle for a box: empty, call, fold, empty. A bet or all-in goes to fold. */
-export function cycleAct(a: Act | null): Act | null {
-  if (!a) return { k: 'call' };
-  if (a.k === 'fold') return null;
-  return { k: 'fold' };
+/** Picking a box further on: every waiting box before it (in time order) takes its default. */
+export function fillBefore(g: Game, log: HandLog, street: StreetName, p: ID, r: number, stacks?: Record<ID, number>): HandLog {
+  let l = log;
+  for (let guard = 0; guard < 64; guard++) {
+    const rp = replayStreet(g, l, street, stacks);
+    const w = rp.next;
+    if (!w || (w.p === p && w.r === r)) break;
+    const order = rp.order;
+    const before = w.r < r || (w.r === r && order.indexOf(w.p) < order.indexOf(p));
+    if (!before) break;
+    l = setAct(g, l, street, w.p, w.r, defaultAct(rp.cells[w.p][w.r].toCall), stacks);
+  }
+  return l;
 }
 
 /** Open a street with action boxes: everyone who can still bet gets an empty box. */
@@ -492,15 +546,32 @@ export function newBoxLog(g: Game, dealt: ID[], button?: ID, stacks?: Record<ID,
   return openStreetBoxes(g, base, 'preflop', stacks);
 }
 
-/** Close a street (empty boxes count as calls), or reopen it with `at` undefined. */
-export function closeStreet(g: Game, log: HandLog, street: StreetName, at: number | undefined, stacks?: Record<ID, number>): HandLog {
+/** Close a street (empty boxes take their default, or a call when `partial`), or reopen it with `at` undefined. */
+export function closeStreet(g: Game, log: HandLog, street: StreetName, at: number | undefined, stacks?: Record<ID, number>, partial = false): HandLog {
   const s = log.streets[street];
   if (!s) return log;
-  return rederive(g, { ...log, streets: { ...log.streets, [street]: { ...s, at } } }, stacks);
+  return rederive(g, { ...log, streets: { ...log.streets, [street]: { ...s, at, partial: at ? partial || s.partial || undefined : undefined } } }, stacks);
 }
 
 /** Drop the streets after `street` (used when an earlier street changes so the hand ends sooner). */
 export function dropAfter(log: HandLog, street: StreetName): HandLog {
   const keep = STREETS.slice(0, STREETS.indexOf(street) + 1);
   return { ...log, streets: Object.fromEntries(Object.entries(log.streets).filter(([k]) => keep.includes(k as StreetName))) };
+}
+
+/** Any action typed into a box yet (defaults included)? */
+export function hasActs(log: HandLog): boolean {
+  return Object.values(log.streets).some((s) => Object.values(s?.acts ?? {}).some((row) => row.some(Boolean)));
+}
+
+/** Showdown order: the last player to bet or raise on the final street shows first, then clockwise.
+    With no bet on the final street, the first player left of the button shows first. */
+export function showdownOrder(g: Game, log: HandLog, live: ID[]): ID[] {
+  const last = lastStreet(log);
+  const s = log.streets[last];
+  const order = streetOrder(g, log, last === 'preflop' ? 'flop' : last).filter((p) => live.includes(p));
+  const aggressor = s?.raisers[s.raisers.length - 1];
+  if (!aggressor || !order.includes(aggressor)) return order;
+  const i = order.indexOf(aggressor);
+  return [...order.slice(i), ...order.slice(0, i)];
 }

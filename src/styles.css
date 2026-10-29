@@ -238,43 +238,91 @@ button.felt-row { color: inherit; }
 .felt-rec-status b { color: var(--sat-text); }
 .felt-rec-status > span:last-child b { font-size: 1.0625rem; }
 
-.felt-acts { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--sat-gutter-mobile) * -1); padding: 0 var(--sat-gutter-mobile); }
+/* Action table: name column, spacer, then one 54px column per pass, flush right (newest on the
+   right). Past the screen width the table scrolls sideways; it starts scrolled to the newest column
+   and an "Earlier" tag shows there is more to the left. */
+.felt-acts-wrap { position: relative; }
+.felt-acts { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .felt-acts::-webkit-scrollbar { display: none; }
-.felt-acts-row { display: grid; grid-template-columns: 112px repeat(var(--cols), minmax(68px, 1fr)); gap: 4px; align-items: stretch; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
-.felt-acts-row.is-folded { opacity: 0.38; }
-.felt-acts-name { position: sticky; left: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 4px 8px; border-radius: var(--sat-radius-sm); background: var(--sat-well); }
+.felt-acts-row { display: grid; grid-template-columns: 104px minmax(0, 1fr) repeat(var(--cols), 54px); gap: 4px; align-items: stretch;
+  min-width: 100%; width: max-content; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
+.felt-acts-row.is-folded { opacity: 0.4; }
+.felt-acts-head { min-height: 0; }
+.felt-acts-col { text-align: center; font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); letter-spacing: var(--sat-track-caption); }
+.felt-acts-name { position: sticky; left: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 2px 8px;
+  border-radius: var(--sat-radius-sm); background: var(--sat-solid-1); }
+.felt-acts.is-scrolled .felt-acts-name { box-shadow: 6px 0 10px -6px rgba(0,0,0,0.45); }
+.felt-acts-head .felt-acts-name { background: transparent; box-shadow: none !important; }
 .felt-acts-name > span:first-child { font-weight: 600; }
 .felt-acts-sub { font-size: var(--sat-fs-caption); color: var(--sat-muted); }
-.felt-box { min-height: 48px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; gap: 1px;
-  border: 1.5px solid var(--sat-accent); background: var(--sat-glass-2); color: var(--sat-text); -webkit-tap-highlight-color: transparent; user-select: none; }
+.felt-acts-more { position: absolute; left: 108px; top: -2px; z-index: 2; font-size: var(--sat-fs-caption); color: var(--sat-accent-text); font-weight: 600; }
+.felt-acts-more::before { content: '\2039  '; }
+.felt-box { min-height: 44px; scroll-margin: 200px 0 300px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; gap: 1px;
+  border: 1.5px solid var(--sat-accent); background: var(--sat-glass-2); color: var(--sat-text); -webkit-tap-highlight-color: transparent; user-select: none; padding: 0 2px; }
 .felt-box .v { font-size: var(--sat-fs-caption); font-weight: 600; }
 .felt-box .n { font-size: 0.9375rem; font-weight: 600; }
-.felt-box.is-off { border: 0; background: transparent; }
-.felt-box.is-empty { border-style: dashed; border-color: var(--sat-line-strong); background: transparent; color: var(--sat-muted); }
-.felt-box.is-empty .v, .felt-box.is-empty .n { font-weight: 500; }
-.felt-box.is-implied { border-style: dashed; color: var(--sat-muted); background: transparent; }
+.felt-box.is-off { border: 1px solid var(--sat-line); background: color-mix(in srgb, var(--sat-muted) 22%, transparent); }
+.felt-box.is-post { border: 0; background: var(--sat-well); color: var(--sat-muted); }
+.felt-box.is-empty { border: 1.5px dashed var(--sat-line-strong); background: transparent; }
+.felt-box.is-next { border-color: var(--sat-accent); }
 .felt-box.is-fold { border: 1.5px solid var(--sat-line-strong); background: var(--sat-well); color: var(--sat-muted); }
 .felt-box.is-bet, .felt-box.is-allin { background: var(--sat-accent-soft); color: var(--sat-accent-text); }
+.felt-box.is-default { border-style: dashed; font-style: italic; color: var(--sat-muted); background: transparent; }
 .felt-box.is-sel { outline: 2.5px solid var(--sat-focus); outline-offset: 1px; }
-.felt-box:active:not(.is-off) { transform: scale(0.96); }
+button.felt-box:active { transform: scale(0.96); }
+
+.felt-tabs button.is-done:not([aria-selected="true"]) { color: var(--sat-text); }
+fieldset.felt-setup { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--sat-space-4); }
+fieldset.felt-setup:disabled { opacity: 0.5; }
+
+/* Showdown: hands list, partly-recorded box, and the result card each look different */
+.felt-board-mini { display: flex; align-items: center; gap: 4px; }
+.felt-board-mini .sat-caption { margin-right: var(--sat-space-2); }
+.felt-showlist { display: flex; flex-direction: column; gap: 6px; }
+.felt-show { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 56px; padding: 6px var(--sat-space-3) 6px var(--sat-space-2); border-radius: var(--sat-radius-md);
+  border: 1px solid var(--sat-line); background: transparent; }
+.felt-show.is-winner { border-color: var(--sat-pos); background: color-mix(in srgb, var(--sat-pos) 10%, transparent); }
+.felt-show.is-mucked { opacity: 0.55; }
+.felt-show-n { width: 20px; text-align: center; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+.felt-partial { padding: var(--sat-space-4); border-radius: var(--sat-radius-md); border: 1.5px dashed var(--sat-warn); background: color-mix(in srgb, var(--sat-warn) 8%, transparent); }
+.felt-result { display: flex; flex-direction: column; gap: var(--sat-space-3); padding: var(--sat-space-5); border-radius: var(--sat-radius-lg);
+  background: var(--sat-accent-soft); border: 1.5px solid var(--sat-accent); }
+.felt-result.is-open { background: transparent; border-style: dashed; }
+.felt-result-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sat-space-3); }
+.felt-result-name { font: 400 1.75rem/1.15 var(--sat-font-display); min-width: 0; }
+.felt-result-pot { font-size: 1.75rem; font-weight: 600; white-space: nowrap; }
+.felt-result-pot small { font-size: var(--sat-fs-small); font-weight: 500; color: var(--sat-muted); }
+.felt-result-pot-row { display: flex; flex-direction: column; gap: var(--sat-space-2); padding-top: var(--sat-space-2); border-top: 1px solid var(--sat-line); }
+.felt-pickwin { display: flex; flex-wrap: wrap; gap: var(--sat-space-2); align-items: center; }
+.felt-pickwin-btn { min-height: 48px; padding: 0 var(--sat-space-4); border-radius: var(--sat-radius-md); border: 1.5px solid var(--sat-line-strong); font-weight: 600; font-size: 1rem; color: var(--sat-text); }
+.felt-pickwin-btn[aria-pressed="true"] { border-color: var(--sat-accent); background: var(--sat-accent-fill); color: #fff; }
+.felt-result-split { display: flex; flex-wrap: wrap; gap: var(--sat-space-2) var(--sat-space-4); font-size: var(--sat-fs-small); }
 
 .felt-rec-dock { flex-direction: column; align-items: stretch; }
 .felt-app .felt-rec-dock > * { flex: none; }
 .felt-dock-actions { display: flex; gap: var(--sat-space-2); }
 .felt-dock-actions > * { flex: 1; }
 .felt-picker-wrap { display: flex; flex-direction: column; gap: var(--sat-space-2); padding: 2px 2px var(--sat-space-1); }
+/* Keypad: actions row, then the amount field (backspace key inside it) with Bet or Raise, then 0-9 */
 .felt-keypad { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px var(--sat-space-1); }
-.felt-keypad-head { display: flex; justify-content: space-between; gap: var(--sat-space-2); font-size: var(--sat-fs-small); padding: 0 4px; min-height: 20px; }
-.felt-keypad-val { color: var(--sat-accent-text); font-weight: 600; white-space: nowrap; }
-.felt-keypad-quick { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-.felt-keypad-digits { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
-.felt-keypad button { min-height: 42px; border-radius: var(--sat-radius-sm); background: var(--sat-well); color: var(--sat-text); font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
-.felt-keypad-quick button { font-size: var(--sat-fs-small); background: var(--sat-glass); border: 1px solid var(--sat-line); }
-.felt-keypad-quick small { font-size: var(--sat-fs-caption); color: var(--sat-muted); font-weight: 500; }
-.felt-keypad-digits button { font-size: 1.125rem; }
-.felt-keypad-digits .is-ok { background: var(--sat-accent-fill); color: #fff; font-size: var(--sat-fs-small); }
-.felt-keypad-digits .is-ok[aria-disabled="true"] { opacity: 0.4; }
-.felt-keypad button:active { transform: scale(0.95); }
+.felt-keypad-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sat-space-2); font-size: var(--sat-fs-small); padding: 0 4px; min-height: 22px; }
+.felt-keypad button { min-height: 44px; border-radius: var(--sat-radius-sm); color: var(--sat-text); font-weight: 600; display: flex; align-items: center; justify-content: center; line-height: 1.1; }
+.felt-keypad button:active:not(:disabled) { transform: scale(0.96); }
+.felt-keypad .felt-keypad-clear { min-height: 28px; padding: 0 8px; color: var(--sat-neg); font-size: var(--sat-fs-caption); }
+.felt-keypad-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.felt-keypad-quick button { font-size: var(--sat-fs-small); background: var(--sat-glass); border: 1px solid var(--sat-line-strong); }
+.felt-keypad-amount { display: grid; grid-template-columns: 1fr 96px; gap: 6px; }
+.felt-keypad-field { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0 0 0 var(--sat-space-3); border-radius: var(--sat-radius-sm);
+  background: var(--sat-well); border: 1.5px solid var(--sat-line); color: var(--sat-muted); }
+.felt-keypad-field.has-value { border-color: var(--sat-accent); color: var(--sat-text); }
+.felt-keypad-label { font-size: var(--sat-fs-caption); font-weight: 600; letter-spacing: var(--sat-track-caption); text-transform: uppercase; }
+.felt-keypad-val { flex: 1; font-size: 1.25rem; font-weight: 600; text-align: right; }
+.felt-keypad .felt-keypad-bs { width: 48px; min-height: 40px; color: var(--sat-text); background: transparent; }
+.felt-keypad .felt-keypad-bs:disabled { opacity: 0.3; }
+.felt-keypad .felt-keypad-ok { background: var(--sat-accent-fill); color: #fff; }
+.felt-keypad .felt-keypad-ok[aria-disabled="true"] { opacity: 0.4; }
+.felt-keypad-digits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.felt-keypad-digits button { font-size: 1.25rem; background: var(--sat-glass-2); border: 1px solid var(--sat-line); font-variant-numeric: tabular-nums; }
 
 /* Street-by-street recorder (earlier version, kept for old hands) */
 .felt-step-closed { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: var(--sat-space-3) var(--sat-space-4); min-height: 56px; color: inherit; }

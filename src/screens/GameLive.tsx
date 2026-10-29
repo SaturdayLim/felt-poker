@@ -376,7 +376,7 @@ function SeatDrawSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   const draw = () => {
     const a = [...active];
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    return { order: a, button: a[Math.floor(Math.random() * a.length)] ?? null };
+    return { order: a };
   };
   const [d, setD] = useState(draw);
   const pos = useMemo(() => d.order.map((_, i) => {
@@ -385,13 +385,13 @@ function SeatDrawSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   }), [d]);
   return (
     <Sheet open onClose={onClose} title="Shuffle seats">
-      <p className="sat-small sat-muted">Seats run clockwise from seat 1. <Help k="seatDraw" /></p>
+      <p className="sat-small sat-muted">Seats run clockwise. Seat 1 has the button, then the small blind and big blind. <Help k="seatDraw" /></p>
       <div className="felt-seats">
         <div className="felt-table" />
         {d.order.map((p, i) => (
           <div key={p} className="felt-seat" style={{ left: `${pos[i].left}%`, top: `${pos[i].top}%` }}>
             <span className="felt-avatar sm sat-num">{i + 1}</span>
-            {d.button === p && <span className="felt-dealer">D</span>}
+            {i === 0 && <span className="felt-dealer">D</span>}
             <span>{name(p)}</span>
           </div>
         ))}
@@ -405,9 +405,11 @@ function SeatDrawSheet({ g, onClose }: { g: Game; onClose: () => void }) {
             let s = d.order.length + 1;
             for (const p of x.playerIds) if (!(p in next)) next[p] = s++;
             x.seats = next;
-            if (d.button) x.firstDealer = d.button;
+            // seat 1 takes the button for the next hand, seat 2 the small blind, seat 3 the big blind
+            x.firstDealer = d.order[0];
+            x.reseatN = (x.hands[x.hands.length - 1]?.n ?? 0) + 1;
           });
-          toast('Seats and button saved to the game');
+          toast('Seats saved. Seat 1 has the button for the next hand.');
           onClose();
         }}>Use these seats</button>
       </div>

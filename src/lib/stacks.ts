@@ -4,10 +4,12 @@
    - pot-count hands (wagers shared evenly per street): spread of 30% of the estimated wager
    - hands logged with pot and winner only: the pot is charged evenly to everyone still in the game,
      and that share is added to each player's spread
+   - partly recorded hands: chips in the pot beyond the recorded wagers are charged evenly to the
+     players still in at the end, and added to their spread
    A player who clocks out resets to 0 with no spread (the count is real). */
 import type { Game, ID } from '../types';
 import { playerStatus, round2 } from './calc';
-import { contributions } from './hand';
+import { contributions, finalists } from './hand';
 
 export interface StackEstimate {
   /** Chips in front of each player (best guess). */
@@ -61,6 +63,16 @@ export function estimateStacks(g: Game, beforeN?: number): StackEstimate {
       }
       for (const w of h.winners) stack[w.playerId] = round2((stack[w.playerId] ?? 0) + w.amount);
       for (const [p, a] of Object.entries(h.returned ?? {})) stack[p] = round2((stack[p] ?? 0) + a);
+      if (h.partial) {
+        // chips in the pot beyond the recorded wagers: charged evenly to the players still in at the end
+        const recorded = Object.values(c).reduce((a, b) => a + b, 0) - Object.values(h.returned ?? {}).reduce((a, b) => a + b, 0);
+        const extra = round2(h.pot - recorded);
+        const fin = finalists(h.log);
+        if (extra > 0 && fin.length) {
+          complete = false;
+          for (const p of fin) { stack[p] = round2((stack[p] ?? 0) - extra / fin.length); spread[p] = round2((spread[p] ?? 0) + extra / fin.length); }
+        }
+      }
     }
   }
   return { stack, spread, complete };

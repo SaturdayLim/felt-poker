@@ -236,7 +236,7 @@ export interface GameHandStats {
 
 export function handStats(g: Game): GameHandStats {
   const s: GameHandStats = {
-    hands: g.hands.length,
+    hands: 0,
     totalPot: 0,
     avgPot: 0,
     allIns: 0,
@@ -247,6 +247,8 @@ export function handStats(g: Game): GameHandStats {
     categoryCounts: {},
   };
   for (const h of g.hands) {
+    if (h.excluded) continue; // left out of stats by the host (a partly recorded hand)
+    s.hands++;
     s.totalPot += h.pot;
     if (!s.biggest || h.pot > s.biggest.pot)
       s.biggest = { handId: h.id, n: h.n, pot: h.pot, winners: h.winners.map((w) => w.playerId) };

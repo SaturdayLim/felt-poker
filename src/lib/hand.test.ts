@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '../types';
-import { actionClosed, closeStreet, contributions, finalists, inAtStart, newBoxLog, newLog, openStreet, pfr, potTotal, replayStreet, resolve, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
+import { actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -106,55 +106,108 @@ describe('action order', () => {
 });
 
 describe('action boxes', () => {
-  // button Edwin: SB Mike 1, BB Fabian 2, preflop order Everett, CY, Edwin, Mike, Fabian
-  it('only the blinds are in at the start; empty boxes wait', () => {
-    const g = game();
-    const log = newBoxLog(g, ids, 'Edwin');
-    const rp = replayStreet(g, log, 'preflop');
-    expect(rp.order).toEqual(['Everett', 'CY', 'Edwin', 'Mike', 'Fabian']);
-    expect(rp.street.bets).toMatchObject({ Mike: 1, Fabian: 2, Everett: 0, CY: 0 });
-    expect(rp.next).toEqual({ p: 'Everett', r: 0 });
+  // The user's mockup: button Bel, SB Gab, BB Clar, then Nat, Ev, Nic. Everyone has 200.
+  const six = ['Bel', 'Gab', 'Clar', 'Nat', 'Ev', 'Nic'];
+  const g6 = () => ({ ...game(), playerIds: six, seats: Object.fromEntries(six.map((p, i) => [p, i + 1])) }) as unknown as Game;
+  const stacks = Object.fromEntries(six.map((p) => [p, 200]));
+
+  it('rows run from the small blind to the button; blinds post in column 1 and act from column 2', () => {
+    const g = g6();
+    const log = newBoxLog(g, six, 'Bel', stacks);
+    expect(rowOrder(g, log)).toEqual(['Gab', 'Clar', 'Nat', 'Ev', 'Nic', 'Bel']);
+    const rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Gab[0]).toMatchObject({ post: true, amount: 1 });
+    expect(rp.cells.Clar[0]).toMatchObject({ post: true, amount: 2 });
+    expect(rp.cols).toBe(1);
+    expect(rp.next).toEqual({ p: 'Nat', r: 0 });
     expect(potTotal(g, log)).toBe(3);
   });
 
-  it('a raise opens a second pass for players who called before it', () => {
-    const g = game();
-    let log = newBoxLog(g, ids, 'Edwin');
-    log = setAct(g, log, 'preflop', 'Everett', 0, { k: 'call' });
-    log = setAct(g, log, 'preflop', 'CY', 0, { k: 'bet', to: 8 });
-    log = setAct(g, log, 'preflop', 'Edwin', 0, { k: 'fold' });
-    log = setAct(g, log, 'preflop', 'Mike', 0, { k: 'fold' });
-    log = setAct(g, log, 'preflop', 'Fabian', 0, { k: 'call' });
-    let rp = replayStreet(g, log, 'preflop');
-    expect(rp.cols).toBe(2);
-    expect(rp.cells.Everett[1].needed).toBe(true);
-    expect(rp.cells.CY[1].needed).toBe(false);
-    expect(rp.next).toEqual({ p: 'Everett', r: 1 });
-    log = setAct(g, log, 'preflop', 'Everett', 1, { k: 'call' });
-    rp = replayStreet(g, log, 'preflop');
+  it('replays the mockup: a raise opens column 2, a re-raise opens column 3 for one player', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'call' }, stacks);
+    log = setAct(g, log, 'preflop', 'Ev', 0, { k: 'call' }, stacks);
+    expect(replayStreet(g, log, 'preflop', stacks).cols).toBe(1);
+    log = setAct(g, log, 'preflop', 'Nic', 0, { k: 'bet', to: 4 }, stacks);
+    let rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cols).toBe(2); // action reopens
+    log = setAct(g, log, 'preflop', 'Bel', 0, { k: 'fold' }, stacks);
+    rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Bel[1].needed).toBe(false); // folded: greyed in column 2
+    expect(rp.next).toEqual({ p: 'Gab', r: 1 });
+    log = setAct(g, log, 'preflop', 'Gab', 1, { k: 'call' }, stacks);
+    log = setAct(g, log, 'preflop', 'Clar', 1, { k: 'fold' }, stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 1, { k: 'bet', to: 10 }, stacks);
+    log = setAct(g, log, 'preflop', 'Ev', 1, { k: 'fold' }, stacks);
+    log = setAct(g, log, 'preflop', 'Nic', 1, { k: 'call' }, stacks);
+    rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cols).toBe(3);
+    expect(six.filter((p) => rp.cells[p][2].needed)).toEqual(['Gab']);
+    log = setAct(g, log, 'preflop', 'Gab', 2, { k: 'call' }, stacks);
+    rp = replayStreet(g, log, 'preflop', stacks);
     expect(rp.next).toBeNull();
-    expect(rp.street.bets).toMatchObject({ Everett: 8, CY: 8, Edwin: 0, Mike: 1, Fabian: 8 });
-    expect(rp.street.folded).toEqual(['Edwin', 'Mike']);
-    expect(pfr(log, 'CY')).toBe(true);
-    expect(potTotal(g, log)).toBe(25);
+    expect(rp.street.bets).toEqual({ Bel: 0, Gab: 10, Clar: 2, Nat: 10, Ev: 2, Nic: 10 });
+    expect(potTotal(g, log)).toBe(34);
+    expect(inAtEnd(log, 'preflop')).toEqual(['Gab', 'Nat', 'Nic']);
   });
 
-  it('closing a street turns empty boxes into calls', () => {
-    const g = game();
-    let log = newBoxLog(g, ids, 'Edwin');
-    log = setAct(g, log, 'preflop', 'CY', 0, { k: 'bet', to: 6 });
-    log = closeStreet(g, log, 'preflop', 1);
-    expect(log.streets.preflop!.bets).toMatchObject({ Everett: 6, CY: 6, Edwin: 6, Mike: 6, Fabian: 6 });
-    // Everett called 2 before the raise and then had to act again: that box is a call too
-    expect(potTotal(g, log)).toBe(30);
+  it('limped pot: column 2 opens for the blinds once column 1 is done', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    for (const p of ['Nat', 'Ev', 'Nic', 'Bel']) log = setAct(g, log, 'preflop', p, 0, { k: 'call' }, stacks);
+    const rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cols).toBe(2);
+    expect(rp.next).toEqual({ p: 'Gab', r: 1 });
+    expect(rp.cells.Clar[1]).toMatchObject({ needed: true, toCall: 0 }); // big blind option
+  });
+
+  it('picking a later box fills the boxes before it: fold facing a bet, check otherwise', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = fillBefore(g, log, 'preflop', 'Nic', 0, stacks);
+    log = setAct(g, log, 'preflop', 'Nic', 0, { k: 'bet', to: 6 }, stacks);
+    const rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Nat[0].act).toEqual({ k: 'fold', d: true });
+    expect(rp.cells.Ev[0].act).toEqual({ k: 'fold', d: true });
+    expect(rp.next).toEqual({ p: 'Bel', r: 0 });
+    log = setAct(g, log, 'preflop', 'Bel', 0, { k: 'call' }, stacks);
+    // on the flop nobody has bet: skipped boxes check
+    let l2 = closeStreet(g, log, 'preflop', 1, stacks);
+    expect(inAtEnd(l2, 'preflop')).toEqual(['Bel', 'Nic']);
+    l2 = openStreetBoxes(g, l2, 'flop', stacks);
+    const fo = replayStreet(g, l2, 'flop', stacks).order;
+    l2 = fillBefore(g, l2, 'flop', fo[fo.length - 1], 0, stacks);
+    expect(replayStreet(g, l2, 'flop', stacks).cells[fo[0]][0].act).toEqual({ k: 'call', d: true });
+  });
+
+  it('closing a street: empty boxes fold when facing a bet; a skipped-ahead street keeps them in', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 6 }, stacks);
+    const closed = closeStreet(g, log, 'preflop', 1, stacks);
+    expect(inAtEnd(closed, 'preflop')).toEqual(['Nat']);
+    const partial = closeStreet(g, log, 'preflop', 1, stacks, true);
+    expect(inAtEnd(partial, 'preflop')).toEqual(six);
+    expect(potTotal(g, partial)).toBe(36);
+  });
+
+  it('heads-up: the button posts the small blind and acts first preflop', () => {
+    const g = g6();
+    const log = newBoxLog(g, ['Bel', 'Gab'], 'Bel', stacks);
+    expect(streetOrder(g, log, 'preflop')).toEqual(['Bel', 'Gab']);
+    const rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Bel[0].post && rp.cells.Gab[0].post).toBe(true);
+    expect(rp.next).toEqual({ p: 'Bel', r: 1 });
+    expect(streetOrder(g, log, 'flop')).toEqual(['Gab', 'Bel']);
   });
 
   it('all-in is capped at the stack and marks the player', () => {
-    const g = game();
-    const stacks = { CY: 50, Edwin: 1000, Mike: 1000, Fabian: 1000, Everett: 1000 };
-    let log = newBoxLog(g, ids, 'Edwin', stacks);
-    log = setAct(g, log, 'preflop', 'CY', 0, { k: 'allin' }, stacks);
-    expect(log.streets.preflop!.bets.CY).toBe(50);
-    expect(log.allInAt?.CY).toBe('preflop');
+    const g = g6();
+    const st = { ...stacks, Nat: 50 };
+    let log = newBoxLog(g, six, 'Bel', st);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'allin' }, st);
+    expect(log.streets.preflop!.bets.Nat).toBe(50);
+    expect(log.allInAt?.Nat).toBe('preflop');
   });
 });

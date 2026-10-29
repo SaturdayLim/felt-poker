@@ -275,4 +275,48 @@ describe('action boxes', () => {
     const c = replayStreet(g, log, 'preflop', stacks).cells.Ev[0];
     expect([c.high, c.inc]).toEqual([8, 6]);
   });
+
+  it('only the first to act (or the next after straddles) can straddle', () => {
+    const g = g6();
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'call' }, stacks);
+    log = setAct(g, log, 'preflop', 'Ev', 0, { k: 'bet', to: 4, dark: true }, stacks); // not first: a plain raise
+    let rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.straddles).toEqual([]);
+    expect(rp.cells.Ev[0].canStraddle).toBe(false);
+    expect(rp.street.raisers).toEqual(['Ev']);
+    // a chain from the first to act: Nat straddles, Ev re-straddles
+    log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 4, dark: true }, stacks);
+    log = setAct(g, log, 'preflop', 'Ev', 0, { k: 'bet', to: 6, dark: true }, stacks);
+    rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.straddles).toEqual(['Nat', 'Ev']);
+    expect(rp.cells.Nic[0].canStraddle).toBe(true); // next in the chain may re-straddle
+    log = setAct(g, log, 'preflop', 'Nic', 0, { k: 'call' }, stacks);
+    expect(replayStreet(g, log, 'preflop', stacks).cells.Bel[0].canStraddle).toBe(false); // chain broken
+  });
+
+  it('the last live player cannot reopen the action against nobody', () => {
+    const g = g6();
+    // everyone folds to the straddler: no turn left for them
+    let log = newBoxLog(g, six, 'Bel', stacks);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 4, dark: true }, stacks);
+    for (const p of ['Ev', 'Nic', 'Bel']) log = setAct(g, log, 'preflop', p, 0, { k: 'fold' }, stacks);
+    for (const p of ['Gab', 'Clar']) log = setAct(g, log, 'preflop', p, 1, { k: 'fold' }, stacks);
+    let rp = replayStreet(g, log, 'preflop', stacks);
+    expect(rp.cells.Nat[1]?.needed ?? false).toBe(false);
+    expect(rp.next).toBeNull();
+    // everyone else all-in: the last player can call but not raise
+    const st = { ...stacks, Nat: 10 };
+    log = newBoxLog(g, six, 'Bel', st);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'allin' }, st);
+    for (const p of ['Ev', 'Nic', 'Bel']) log = setAct(g, log, 'preflop', p, 0, { k: 'fold' }, st);
+    log = setAct(g, log, 'preflop', 'Gab', 1, { k: 'fold' }, st);
+    rp = replayStreet(g, log, 'preflop', st);
+    expect(rp.cells.Clar[1]).toMatchObject({ needed: true, canRaise: false, toCall: 8 });
+    log = setAct(g, log, 'preflop', 'Clar', 1, { k: 'bet', to: 50 }, st);
+    rp = replayStreet(g, log, 'preflop', st);
+    expect(rp.street.bets.Clar).toBe(10); // the raise counts as a call
+    expect(rp.cells.Clar[1].act?.k).toBe('call');
+  });
 });

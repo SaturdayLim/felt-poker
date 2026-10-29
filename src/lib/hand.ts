@@ -374,6 +374,10 @@ export interface Cell {
   high: number;
   /** Largest raise so far on the street when this box came up (for the minimum raise). */
   inc: number;
+  /** Someone else could still answer a bet or raise from this box (not everyone else folded or all-in). */
+  canRaise: boolean;
+  /** Preflop first-to-act box (or the next one after straddles): a dark raise here is a straddle. */
+  canStraddle: boolean;
 }
 
 export interface Replay {
@@ -393,7 +397,7 @@ export interface Replay {
   straddles: ID[];
 }
 
-const blankCell = (amount: number): Cell => ({ needed: false, act: null, implied: false, post: false, past: false, amount, toCall: 0, high: 0, inc: 0 });
+const blankCell = (amount: number): Cell => ({ needed: false, act: null, implied: false, post: false, past: false, amount, toCall: 0, high: 0, inc: 0, canRaise: false, canStraddle: false });
 
 /** Default for a skipped box: check when nothing is owed, fold when facing a bet. */
 export function defaultAct(toCall: number): Act {
@@ -447,6 +451,8 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
   const waitingSet = new Set<ID>();
   const maxStored = Math.max(0, ...Object.values(acts).map((a) => a.length));
   let lastCol = 0;
+  // straddles come first: once someone in column 1 acts normally (or has not acted yet), no more straddles
+  let straddleOpen = street === 'preflop';
   for (let r = 0; r < 16; r++) {
     let any = false;
     for (const p of order) {
@@ -460,7 +466,8 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
       // a decision is owed for a first action or an unmatched bet; with nothing to call and nobody
       // left who can bet (everyone else all-in), there is nothing to decide
       const needed = live && othersIn && (first || owe > 0) && (owe > 0 || othersCanBet);
-      const cell: Cell = { ...blankCell(bets[p] ?? 0), needed, toCall: Math.max(0, owe), high, inc };
+      const canStraddle = straddleOpen && r === 0 && !isBlind;
+      const cell: Cell = { ...blankCell(bets[p] ?? 0), needed, toCall: Math.max(0, owe), high, inc, canRaise: othersCanBet, canStraddle };
       cells[p][r] = cell;
       if (!needed) continue;
       any = true;
@@ -471,12 +478,16 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
       cell.act = a;
       if (a) (kept[p] ??= [])[r] = a;
       if (!a) {
+        if (r === 0) straddleOpen = false;
         if (!closed) { waitingSet.add(p); waiting.push({ p, r }); continue; }
         a = src.partial ? { k: 'call' } : defaultAct(owe);
         cell.implied = true;
       }
-      // a dark raise before the flop is a straddle: like a blind, the player still gets a turn later
-      const straddle = street === 'preflop' && r === 0 && !!a.dark && (a.k === 'bet' || a.k === 'allin');
+      // a dark raise by the first to act before the flop is a straddle: like a blind, the player gets a
+      // turn later. A raise needs someone left to answer it; with nobody, it counts as a call.
+      const straddle = canStraddle && !!a.dark && (a.k === 'bet' || a.k === 'allin') && othersCanBet;
+      if (r === 0 && !straddle) straddleOpen = false;
+      if (!othersCanBet && a.k === 'bet') { a = { ...a, k: 'call' }; if (cell.act) cell.act = a; }
       if (straddle) straddles.push(p); else acted.add(p);
       const rm = roomOf(p);
       const have = bets[p] ?? 0;

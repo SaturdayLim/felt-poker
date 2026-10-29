@@ -322,6 +322,8 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad-tools { display: flex; align-items: center; gap: 4px; flex: none; }
 .felt-keypad .felt-keypad-dark { min-height: 28px; padding: 0 10px; gap: 4px; flex-direction: row; font-size: var(--sat-fs-caption); color: var(--sat-muted);
   border: 1px solid var(--sat-line-strong); border-radius: var(--sat-radius-pill); }
+.felt-keypad button:disabled { opacity: 0.35; }
+.felt-keypad-amount.is-off .felt-keypad-field { opacity: 0.5; }
 .felt-keypad .felt-keypad-dark[aria-pressed="true"] { color: var(--sat-accent-text); border-color: var(--sat-accent); background: var(--sat-accent-soft); }
 .felt-keypad-min { font-size: var(--sat-fs-small); font-weight: 500; color: var(--sat-muted); }
 .felt-keypad-err { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: var(--sat-radius-sm);

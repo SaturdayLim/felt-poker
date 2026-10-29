@@ -21,5 +21,8 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Amounts are totals, never added: only a player's latest box stands, earlier boxes fade hard.
 - An action answers a specific bet; if an earlier change moves that bet, the action is dropped (blank box).
 - Minimum raise is a house rule in Settings (Last raise by default, SB steps, Double). A smaller raise is refused with C or the minimum raise offered.
-- Dark actions carry a shut-eye mark. Preflop, a dark raise is a straddle and gives that player a later turn.
+- Keypad buttons say Call (Check when nothing is owed), Fold, All-in, with no amounts under them. Only the boxes use C and F.
+- Minimum-raise error: "Raise minimum = 14" with "Call 4" and "Raise to 14" buttons. No brackets, no "(house rule)".
+- Dark actions carry a shut-eye mark; the SB and BB posts always show it. Straddle only for the first to act preflop (or the next after straddles), at the minimum raise of the house rule; it gives that player a later turn.
+- A player with nobody left to answer (everyone else folded or all-in) cannot bet or raise: those keys are greyed and a stored raise counts as a call.
 - Use "SB" and "BB" in labels, not "Small blind" and "Big blind".

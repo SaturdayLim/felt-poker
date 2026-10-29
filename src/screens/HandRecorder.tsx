@@ -388,7 +388,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   /* --------- keypad --------- */
   const selCell = sel && replay?.cells[sel.p]?.[sel.r]?.needed ? replay.cells[sel.p][sel.r] : null;
   const darkOn = selCell?.act ? !!selCell.act.dark : dark;
-  const mark = (a: Act): Act => (darkOn ? { ...a, dark: true } : a);
+  const mark = (a: Act): Act => (darkOn && street !== 'preflop' ? { ...a, dark: true } : a);
   // chips the player can still put in on this street (when the stack is known exactly)
   const roomFor = (p: ID) => (stacks?.[p] === undefined || !street ? undefined
     : round2(stacks[p] - STREETS.slice(0, STREETS.indexOf(street)).reduce((a, x) => a + (log.streets[x]?.bets[p] ?? 0), 0)));
@@ -397,16 +397,25 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       unless it puts the player all-in; the keypad then offers the call or the minimum raise. */
   const commitBet = (v = Number(typed)) => {
     if (!sel || !selCell || !(v > 0)) return;
-    if (v <= selCell.high) { act(sel.p, sel.r, mark({ k: 'call' })); return; }
+    if (v <= selCell.high || !selCell.canRaise) { act(sel.p, sel.r, mark({ k: 'call' })); return; }
     const rm = roomFor(sel.p);
     if (v < minTo && !(rm !== undefined && v >= rm)) { setRaiseErr(minTo); return; }
     act(sel.p, sel.r, mark({ k: 'bet', to: v }));
   };
+  // Preflop the toggle is Straddle: first to act only (or next after straddles), at the minimum raise.
+  // After the flop it is Dark: a mark only.
+  const isPre = street === 'preflop';
   const toggleDark = () => {
-    if (sel && selCell?.act) act(sel.p, sel.r, { ...selCell.act, dark: !selCell.act.dark || undefined }, true);
+    if (!sel || !selCell) return;
+    if (isPre) {
+      if (!selCell.canStraddle || !selCell.canRaise) return;
+      if (selCell.act?.dark) act(sel.p, sel.r, null, true);
+      else act(sel.p, sel.r, { k: 'bet', to: typed && Number(typed) >= minTo ? Number(typed) : minTo, dark: true });
+      return;
+    }
+    if (selCell.act) act(sel.p, sel.r, { ...selCell.act, dark: !selCell.act.dark || undefined }, true);
     else setDark(!dark);
   };
-  const isStraddleBox = !!(sel && street === 'preflop' && sel.r === 0);
 
   const lastStreet = STREETS.filter((s) => log.streets[s]).pop() ?? 'preflop';
   const legacy = street && log.streets[street] && !log.streets[street]!.acts;
@@ -520,7 +529,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           </div>
         ) : replay && selCell && sel ? (
           <Keypad who={name(sel.p)} toCall={selCell.toCall} filled={!!selCell.act} typed={typed} setTyped={(v) => { setTyped(v); setRaiseErr(null); }} isRaise={selCell.high > 0}
-            dark={darkOn} darkLabel={isStraddleBox ? 'Straddle' : 'Dark'} onDark={toggleDark} minErr={raiseErr} minTo={minTo}
+            dark={darkOn} darkLabel={isPre ? 'Straddle' : 'Dark'} darkEnabled={isPre ? selCell.canStraddle && selCell.canRaise : true} canRaise={selCell.canRaise}
+            onDark={toggleDark} minErr={raiseErr} minTo={minTo}
             onCall={() => act(sel.p, sel.r, mark({ k: 'call' }))} onFold={() => act(sel.p, sel.r, mark({ k: 'fold' }))}
             onAllIn={() => act(sel.p, sel.r, mark({ k: 'allin', to: typed ? Number(typed) : undefined }))}
             onClear={() => act(sel.p, sel.r, null)} onOk={() => commitBet()} onMin={() => commitBet(minTo)} />
@@ -647,7 +657,7 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
                 <span />
                 {Array.from({ length: replay.cols }, (_, r) => {
                   const c = canAct ? replay.cells[p]?.[r] : undefined;
-                  if (c?.post) return <span key={r} className={`felt-box is-post ${c.past ? 'is-past' : ''}`} aria-label={`${name(p)} posted ${units(c.amount)}`}><span className="n sat-num">{units(c.amount)}</span></span>;
+                  if (c?.post) return <span key={r} className={`felt-box is-post ${c.past ? 'is-past' : ''}`} aria-label={`${name(p)} posted ${units(c.amount)} in the dark`}><span className="n sat-num">{units(c.amount)}</span><span className="felt-box-dark" aria-hidden="true"><Icon name="dark" size={12} stroke={2} /></span></span>;
                   if (!c?.needed) return <span key={r} className="felt-box is-off" aria-hidden="true" />;
                   const isSel = sel?.p === p && sel.r === r;
                   const isNext = replay.next?.p === p && replay.next.r === r;
@@ -673,51 +683,53 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick }: {
   );
 }
 
-/** Choices for the selected box: C (call or check), F (fold), All-in, or an amount (the street total
-    they bet or raised to). The amount has its own field with a backspace key inside it. Dark marks
-    the action as made blind (a straddle before the flop). A raise under the house minimum shows an
-    error with the call and the minimum raise as one-tap fixes. */
-function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel, onDark, minErr, minTo, onCall, onFold, onAllIn, onClear, onOk, onMin }: {
+/** Choices for the selected box: Call (Check when nothing is owed), Fold, All-in, or an amount (the street
+    total they bet or raised to). The boxes show these as C, F and the number. The amount has its own field
+    with a backspace key inside it. Straddle (preflop, first to act only) or Dark (after the flop) marks a
+    blind action. Raising is greyed out when nobody else is left to answer it. A raise under the house
+    minimum shows the minimum, with the call and the minimum raise as one-tap fixes. */
+function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel, darkEnabled, canRaise, onDark, minErr, minTo, onCall, onFold, onAllIn, onClear, onOk, onMin }: {
   who: string; toCall: number; filled: boolean; typed: string; setTyped: (v: string) => void; isRaise: boolean;
-  dark: boolean; darkLabel: string; onDark: () => void; minErr: number | null; minTo: number;
+  dark: boolean; darkLabel: string; darkEnabled: boolean; canRaise: boolean; onDark: () => void; minErr: number | null; minTo: number;
   onCall: () => void; onFold: () => void; onAllIn: () => void; onClear: () => void; onOk: () => void; onMin: () => void;
 }) {
   const press = (k: string) => setTyped((typed + k).replace(/^0+(?=\d)/, '').slice(0, 6));
   const verb = isRaise ? 'Raise' : 'Bet';
+  const callLabel = toCall ? 'Call' : 'Check';
   return (
     <div className="felt-keypad" role="group" aria-label={`Action for ${who}`}>
       <div className="felt-keypad-head">
         <span className="felt-ellipsis"><b>{who}</b>{toCall ? `, ${units(toCall)} to call` : ''}</span>
         <span className="felt-keypad-tools">
           {filled && <button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button>}
-          <button type="button" className="felt-keypad-dark" aria-pressed={dark} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
+          <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
         </span>
       </div>
       <div className="felt-keypad-quick">
-        <button type="button" onClick={onCall}><b>C</b><small>{toCall ? `call ${units(toCall)}` : 'check'}</small></button>
-        <button type="button" onClick={onFold}><b>F</b><small>fold</small></button>
-        <button type="button" onClick={onAllIn}><b>All-in</b></button>
+        <button type="button" onClick={onCall}>{callLabel}</button>
+        <button type="button" onClick={onFold}>Fold</button>
+        <button type="button" onClick={onAllIn} disabled={!canRaise && !toCall}>All-in</button>
       </div>
       {minErr !== null ? (
         <div className="felt-keypad-err" role="alert">
-          <span>{verb} must be at least {units(minErr)} (house rule).</span>
+          <span>{verb} minimum = {units(minErr)}</span>
           <span className="felt-keypad-err-acts">
-            <button type="button" onClick={onCall}>C {toCall ? `(call ${units(toCall)})` : '(check)'}</button>
+            <button type="button" onClick={onCall}>{toCall ? `Call ${units(toCall)}` : 'Check'}</button>
             <button type="button" className="is-primary" onClick={onMin}>{verb} to {units(minErr)}</button>
           </span>
         </div>
       ) : (
-        <div className="felt-keypad-amount">
+        <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
           <div className={`felt-keypad-field ${typed ? 'has-value' : ''}`} aria-live="polite">
             <span className="felt-keypad-label">{verb} to</span>
-            <span className="felt-keypad-val sat-num">{typed || <span className="felt-keypad-min">min {units(minTo)}</span>}</span>
-            <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
+            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">nobody left to raise</span> : typed || <span className="felt-keypad-min">min {units(minTo)}</span>}</span>
+            <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
           </div>
-          <button type="button" className="felt-keypad-ok" aria-disabled={!typed} onClick={onOk}>{verb}</button>
+          <button type="button" className="felt-keypad-ok" aria-disabled={!typed || !canRaise} disabled={!canRaise} onClick={onOk}>{verb}</button>
         </div>
       )}
       <div className="felt-keypad-digits">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((k) => <button key={k} type="button" onClick={() => press(k)}>{k}</button>)}
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((k) => <button key={k} type="button" disabled={!canRaise} onClick={() => press(k)}>{k}</button>)}
       </div>
     </div>
   );

@@ -29,7 +29,10 @@ export default function NewGame({ type }: { type: GameType }) {
   const uv = num(unitValue) ?? 0, bi = num(buyIn) ?? 0, bbN = num(bb) ?? 0;
   const valid = type === 'cash' ? uv > 0 && bi >= 0 && bbN > 0 && (num(sb) ?? 0) > 0 : (num(tBuyIn) ?? -1) >= 0;
 
+  // a game needs at least 2 players (heads-up)
+  const enough = sel.length >= 2;
   const start = () => {
+    if (!enough) { toast(`Pick at least 2 players (${sel.length} picked).`); return; }
     if (!valid) { toast('Use numbers only (e.g. 200).'); return; }
     const g = createGame({
       type, name, playerIds: sel, currency: currency.trim() || 'S$',
@@ -127,8 +130,8 @@ export default function NewGame({ type }: { type: GameType }) {
       </div>
 
       <div className="sat-bottombar sat-glass-2">
-        <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={start} aria-disabled={!valid}>
-          Start {type === 'cash' ? 'game' : 'tournament'}{sel.length ? ` with ${sel.length} players` : ''}
+        <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={start} aria-disabled={!valid || !enough}>
+          {enough ? `Start ${type === 'cash' ? 'game' : 'tournament'} with ${sel.length} players` : `Pick ${2 - sel.length} more player${sel.length === 1 ? '' : 's'}`}
         </button>
       </div>
     </div>

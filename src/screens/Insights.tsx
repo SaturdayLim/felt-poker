@@ -159,7 +159,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
             { label: 'Pre-flop', value: s.wonAt.preflop }, { label: 'Flop', value: s.wonAt.flop }, { label: 'Turn', value: s.wonAt.turn },
             { label: 'River', value: s.wonAt.river }, { label: 'Showdown', value: s.wonAt.showdown },
           ]} />
-          <p className="sat-small sat-muted">{s.wonAt.showdown} of {Object.values(s.wonAt).reduce((a, b) => a + b, 0)} hands won at showdown. The rest were won when everyone else folded.</p>
+          <p className="sat-small"><b>Showdown = {s.wonAt.showdown} of {Object.values(s.wonAt).reduce((a, b) => a + b, 0)} hands won.</b> All other players folded in the rest.</p>
         </section>
       )}
 
@@ -174,7 +174,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
               { label: 'Showdown', win: f.winShowdown, loss: f.lossShowdown },
               { label: 'Others', win: f.winOther, loss: f.lossOther },
             ]} />
-            <p className="sat-small sat-muted">Net {net > 0 ? '+' : ''}{units(net)} chips from logged hands, 2-7 bounties and chip moves.</p>
+            <p className="sat-small"><b>Net = {net > 0 ? '+' : ''}{units(net)} chips</b> (logged hands, 2-7 bounties, chip moves).</p>
           </section>
         );
       })()}

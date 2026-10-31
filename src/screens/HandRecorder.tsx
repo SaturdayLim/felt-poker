@@ -166,7 +166,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
-      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip')) return;
+      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip, .sat-tip-body')) return;
       e.preventDefault();
       e.stopPropagation();
       setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false);
@@ -529,13 +529,12 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             {!existing && !started && (
               <div className="sat-flat sat-card sat-stack" style={gap(2)}>
                 <div className="sat-split"><span className="sat-small"><b>Missed this hand?</b></span><Help k="missed" /></div>
-                <p className="sat-small sat-muted">Records hand {st.n} as missed and deals hand {st.n + 1}. Stacks become ranges until a count or an all-in.</p>
-                <button className="sat-btn sat-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={saveMissed}>Skip hand {st.n}</button>
+                <button className="sat-btn sat-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={saveMissed}>Mark hand {st.n} missed</button>
               </div>
             )}
             <fieldset className="felt-setup" disabled={started}>
               <section className="sat-stack" style={gap(2)}>
-                <Caption>Active players ({dealt.length})</Caption>
+                <Caption>Dealt in ({dealt.length})</Caption>
                 <div className="sat-cluster" style={gap(2)}>
                   {bySeat(g, g.playerIds.filter((p) => playerStatus(g, p) !== 'out')).map((p) => (
                     <button key={p} className="sat-chip" aria-pressed={dealt.includes(p)} onClick={() => toggleDealt(p)}>
@@ -546,7 +545,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
               </section>
               <section className="sat-stack" style={gap(2)}>
                 <Caption tip="dealer">Button</Caption>
-                <div className="felt-scroll">
+                <div className="sat-cluster" style={gap(2)}>
                   {bySeat(g, dealt).map((p) => <button key={p} className="sat-chip" aria-pressed={button === p} onClick={() => { setButton(p); rebuild(dealt, p, sbN, bbN); }}>{name(p)}</button>)}
                 </div>
                 {dealt.length >= 2 && (() => {
@@ -557,8 +556,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
               <section className="sat-stack" style={gap(2)}>
                 <Caption tip="blinds">Blinds</Caption>
                 <div className="sat-grid" style={{ ['--sat-min' as string]: '110px', ...gap(3) }}>
-                  <div className="sat-field"><label htmlFor="h-sb">SB</label><input id="h-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
-                  <div className="sat-field"><label htmlFor="h-bb">BB</label><input id="h-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
+                  <div className="sat-field"><label htmlFor="h-sb">SB (chips)</label><input id="h-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
+                  <div className="sat-field"><label htmlFor="h-bb">BB (chips)</label><input id="h-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} onBlur={() => rebuild(dealt, button, sbN, bbN)} /></div>
                 </div>
               </section>
             </fieldset>
@@ -598,7 +597,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           <div className="felt-picker-wrap">
             <div className="sat-split">
               <Caption>{targetLabel(target, name)}</Caption>
-              <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>{target.kind === 'shown' ? 'Done' : 'Skip cards'}</button>
+              <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
             </div>
             <div className="felt-picker">
               {SUITS.flatMap((su) => RANKS.map((r) => {
@@ -634,8 +633,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           ))}
           {st.tab === 'showdown' && (
             <>
-              {!existing && <button className="sat-btn sat-btn--lg" aria-disabled={!!res?.missing} onClick={() => save(true)}>Save, next</button>}
-              <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!!res?.missing} onClick={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</button>
+              <button className={`sat-btn sat-btn--lg ${existing ? 'sat-btn--primary' : ''}`} aria-disabled={!!res?.missing} onClick={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</button>
+              {!existing && <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!!res?.missing} onClick={() => save(true)}>Save, next hand</button>}
             </>
           )}
         </div>
@@ -739,7 +738,7 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
             const folded = gone || s.folded.includes(p);
             const left = stacks?.[p] !== undefined ? round2(stacks[p] - spentBefore(p) - (s.bets[p] ?? 0)) : undefined;
             const cards = (shown[p] ?? []).filter(Boolean) as Card[];
-            const sub = [cards.map(cardText).join(' '), tag(p), street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : ''].filter(Boolean).join(', ');
+            const sub = [tag(p), gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
             return (
               <div key={p} className={`felt-acts-row ${folded ? 'is-folded' : ''}`}>
                 {/* tap a name to enter the cards that player shows, on any street, before they are mucked */}
@@ -817,7 +816,7 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
         <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
           <div className={`felt-keypad-field ${typed ? 'has-value' : ''}`} aria-live="polite">
             <span className="felt-keypad-label">{allInAsk ? 'All-in for' : `${verb} to`}</span>
-            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">nobody left to raise</span> : typed || <span className="felt-keypad-min">{allInAsk ? 'stack unknown: type it' : `min ${units(minTo)}`}</span>}</span>
+            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || <span className="felt-keypad-min">{allInAsk ? 'Type the all-in amount' : `Minimum ${units(minTo)}`}</span>}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
           </div>
           <button type="button" className="felt-keypad-ok" aria-disabled={!typed || !canRaise} disabled={!canRaise} onClick={onOk}>{verb}</button>
@@ -874,10 +873,10 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
         <section className="felt-section">
           <div className="sat-split">
             <h2 className="sat-caption felt-section-cap">Cards shown <Help k="shown" /></h2>
-            <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { set({ skipReveal: !st.skipReveal }); setTarget(null); }}>{st.skipReveal ? 'Show cards' : 'Skip'}</button>
+            <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { set({ skipReveal: !st.skipReveal }); setTarget(null); }}>{st.skipReveal ? 'Show cards' : 'No cards'}</button>
           </div>
           {!st.skipReveal && b.length > 0 && <div className="felt-board-mini"><span className="sat-caption">Board</span>{b.map((c) => <PlayingCard key={c} card={c} size="sm" />)}</div>}
-          {st.skipReveal ? <p className="sat-small sat-muted">Cards skipped. Pick who won below.</p> : (
+          {st.skipReveal ? <p className="sat-small sat-muted">No cards entered. Pick the winner below.</p> : (
             <div className="felt-showlist">
               {order.map((p, i) => {
                 const cards = st.shown[p] ?? [null, null];
@@ -973,7 +972,6 @@ function Result({ res, live, runs, name, manual, onManual }: {
         </div>
       )}
       {Object.entries(res.returned).map(([p, a]) => <p key={p} className="sat-small sat-muted"><span className="sat-num">{units(a)}</span> returned to {name(p)}: nobody matched it.</p>)}
-      {runs > 1 && <p className="sat-small sat-muted">Each run wins an equal share of each pot; an odd chip goes to run 1. <Help k="runs" /></p>}
     </section>
   );
 }
@@ -998,7 +996,7 @@ function BountyBlock({ live, dealt, to, auto, amount, off, name, busted, payOf, 
       {to ? (
         <>
           <p className="felt-bounty-head"><b>{name(to)}</b> collects <b className="sat-num">{units(total)}</b> chips{auto ? ' for the shown 2-7' : ''}.</p>
-          <span className="sat-small sat-muted">{short ? `Paid by ${payers.length} players, ${units(amount)} each or all they had left.` : `Paid by ${payers.length} x ${units(amount)}.`} Tap a name to leave them out.</span>
+          <span className="sat-small sat-muted">{short ? `${payers.length} players pay ${units(amount)} chips each, or the chips they have left.` : `${payers.length} players pay ${units(amount)} chips each.`} Tap a name to leave that player out.</span>
           <div className="sat-cluster" style={gap(2)}>
             {others.map((p) => (busted.includes(p)
               ? <button key={p} className="sat-chip felt-mini" aria-pressed={false} disabled>{name(p)}, busted</button>

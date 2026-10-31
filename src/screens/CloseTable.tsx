@@ -35,7 +35,7 @@ export default function CloseTable({ gameId }: { gameId: string }) {
 
   return (
     <div className="felt-page">
-      <Header back={() => back(closed ? 'games' : `game/${g.id}`)} title={closed ? 'Settle Up' : g.type === 'cash' ? 'Finish Game' : 'Finish Tournament'}
+      <Header back={() => back(closed ? 'games' : `game/${g.id}`)} title={closed ? 'Settle Up' : g.type === 'cash' ? 'End Game' : 'End Tournament'}
         sub={`${g.name}, ${gameSubtitle(g)}`}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => go(`game/${g.id}`)} aria-label="Open the game"><Icon name="cards" /></button>} />
 

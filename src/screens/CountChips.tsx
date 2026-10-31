@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Caption, Delta, Empty, Header, Icon, num, toast } from '../components/ui';
+import { Caption, Delta, Empty, Header, Help, Icon, num, toast } from '../components/ui';
 import { buyInUnits, cashOutUnits, hasCashedOut, totalBuyInUnits } from '../lib/calc';
 import { estimateStacks } from '../lib/stacks';
 import { units } from '../lib/format';
@@ -46,12 +46,18 @@ export default function CountChips({ gameId }: { gameId: string }) {
     setCashOut(g.id, p, n);
   };
   const idx = sel ? ordered.indexOf(sel) : -1;
+  // Next (or Enter on the keyboard): the next player not counted yet
+  const goNext = () => {
+    const next = ordered.slice(idx + 1).find((p) => !hasCashedOut(g, p)) ?? ordered.find((p) => !hasCashedOut(g, p) && p !== sel);
+    if (next) setSel(next);
+    else toast('All players are counted.');
+  };
   const selIn = sel ? buyInUnits(g, sel) : 0;
   const selOut = sel ? num(text[sel] ?? '') : null;
 
   const finish = () => {
     if (!allIn) { toast(`${ordered.length - entered} players not counted. Enter a count for each player.`); return; }
-    if (diff !== 0 && !confirm) { setConfirm(true); toast(`Counts differ from buy-ins by ${units(diff)} chips. Tap Finish again to close anyway.`); return; }
+    if (diff !== 0 && !confirm) { setConfirm(true); toast(`Counts differ from buy-ins by ${units(diff)} chips. Tap Close game again to close anyway.`); return; }
     finishGame(g.id);
     go(`game/${g.id}/close`, true);
   };
@@ -59,12 +65,12 @@ export default function CountChips({ gameId }: { gameId: string }) {
 
   return (
     <div className="felt-page">
-      <Header back={() => back(`game/${g.id}`)} title="Count Chips" sub={`${entered} of ${ordered.length} Counted`} />
+      <Header back={() => back(`game/${g.id}`)} title="End Game" sub={`Final chip count: ${entered} of ${ordered.length} players`} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '42% 1fr', gap: 'var(--sat-space-3)', alignItems: 'start' }}>
         <div className="sat-stack" style={gap(2)}>
           <input className="sat-input" aria-label="Find a player" placeholder="Find player" value={q} onChange={(e) => setQ(e.target.value)} />
-          {fillable.length > 0 && <button className="sat-btn sat-btn--sm" onClick={fillEstimates}>Use estimates ({fillable.length})</button>}
+          {fillable.length > 0 && <button className="sat-btn sat-btn--sm" style={{ whiteSpace: 'normal', minHeight: 40 }} onClick={fillEstimates}>Use estimates ({fillable.length})</button>}
           {list.map((p) => {
             const done = hasCashedOut(g, p);
             const net = done ? cashOutUnits(g, p) - buyInUnits(g, p) : null;
@@ -88,9 +94,9 @@ export default function CountChips({ gameId }: { gameId: string }) {
             <>
               <h2 className="sat-h2">{name(sel)}</h2>
               <div className="sat-field">
-                <label htmlFor="cnt">Chips at the end</label>
+                <label htmlFor="cnt">Chips at the end <Help k="endGame" /></label>
                 <input key={sel} id="cnt" className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }} autoFocus inputMode="decimal" placeholder="0" value={text[sel] ?? ''}
-                  onChange={(e) => update(sel, e.target.value)} />
+                  enterKeyHint="next" onChange={(e) => update(sel, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') goNext(); }} />
               </div>
               <div className="sat-split sat-small"><span className="sat-muted">Bought in</span><span className="sat-num">{units(selIn)}</span></div>
               <div className="sat-split sat-small"><span className="sat-muted">Result</span>
@@ -103,12 +109,8 @@ export default function CountChips({ gameId }: { gameId: string }) {
                 {allIn && <span className="sat-small sat-muted">{diff === 0 ? 'Counts match the buy-ins.' : diff > 0 ? 'More chips counted than bought.' : 'Fewer chips counted than bought.'}{offTable ? ` Allows for ${units(offTable)} chips tipped off the table.` : ''}</span>}
               </div>
               <div className="sat-cluster" style={gap(2)}>
-                <button className="sat-btn sat-btn--sm felt-grow" aria-disabled={idx <= 0} onClick={() => idx > 0 && setSel(ordered[idx - 1])}>Back</button>
-                <button className="sat-btn sat-btn--sm felt-grow" onClick={() => {
-                  const next = ordered.slice(idx + 1).find((p) => !hasCashedOut(g, p)) ?? ordered.find((p) => !hasCashedOut(g, p) && p !== sel);
-                  if (next) setSel(next);
-                  else toast('Every player is counted');
-                }}>Next</button>
+                <button className="sat-btn sat-btn--sm felt-grow" aria-disabled={idx <= 0} onClick={() => idx > 0 && setSel(ordered[idx - 1])}>Previous</button>
+                <button className="sat-btn sat-btn--sm felt-grow" onClick={goNext}>Next</button>
               </div>
             </>
           ) : <Empty title="No players" />}
@@ -117,7 +119,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
 
       <div className="sat-bottombar sat-glass-2">
         <button className="sat-btn sat-btn--lg" onClick={() => back(`game/${g.id}`)}>Back to game</button>
-        <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={finish}>Finish</button>
+        <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={finish}>{confirm ? 'Close anyway' : 'Close game'}</button>
       </div>
     </div>
   );

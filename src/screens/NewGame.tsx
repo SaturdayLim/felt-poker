@@ -64,56 +64,9 @@ export default function NewGame({ type }: { type: GameType }) {
           <input id="g-name" className="sat-input" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
 
-        {type === 'cash' ? (
-          <section className="sat-glass sat-card sat-stack">
-            <div className="sat-split"><h2 className="sat-h3">Blinds and buy-in</h2><Help k="units" /></div>
-            <div className="sat-grid" style={{ ['--sat-min' as string]: '90px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-              {field('g-sb', 'SB (chips)', sb, setSb, { decimal: true })}
-              {field('g-bb', 'BB (chips)', bb, setBb, { decimal: true })}
-            </div>
-            <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-              <div className="sat-field">
-                <label htmlFor="g-cur">Currency</label>
-                <input id="g-cur" className="sat-input" value={currency} onChange={(e) => setCurrency(e.target.value)} />
-                <span className="sat-hint">Symbol (e.g. S$)</span>
-              </div>
-              <div className="sat-field">
-                <label htmlFor="g-uv">Multiplier <Help k="unitValue" /></label>
-                <div style={{ position: 'relative' }}>
-                  <span className="sat-muted" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>{currency || 'S$'}</span>
-                  <input id="g-uv" className="sat-input sat-num" style={{ paddingLeft: `${Math.max(2, (currency || 'S$').length) * 10 + 18}px` }} inputMode="decimal" value={unitValue} onChange={(e) => setUnitValue(e.target.value)} />
-                </div>
-                <span className="sat-hint">Per unit (e.g. 0.1)</span>
-              </div>
-            </div>
-            {field('g-bi', 'Buy-in (chips)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} BB` : '-'} = ${money(bi * uv, currency)}` })}
-            <div className="sat-switch-row">
-              <span>Buy everyone in now <Help k="autoBuyIn" /></span>
-              <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Buy everyone in now" />
-            </div>
-          </section>
-        ) : (
-          <section className="sat-glass sat-card sat-stack">
-            <div className="sat-split"><h2 className="sat-h3">Entry and blinds</h2><Help k="payouts" /></div>
-            <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-              {field('t-fee', `Entry fee (${currency})`, tBuyIn, setTBuyIn, { decimal: true })}
-              {field('t-stack', 'Starting stack', stack, setStack)}
-              {field('t-sb', 'SB', sb, setSb, { decimal: true })}
-              {field('t-bb', 'BB', bb, setBb, { decimal: true })}
-            </div>
-            <p className="sat-small sat-muted">Payouts are set when the tournament ends.</p>
-          </section>
-        )}
-
-        <section className="sat-glass sat-card sat-stack">
-          <h2 className="sat-h3">House rules</h2>
-          <RulesFields rules={rules} onChange={setRules} players={Math.max(sel.length, 2)} idPrefix="g" />
-          <p className="sat-small sat-muted">{games.some((x) => x.rules && x.type === type) ? `Copied from your last ${type === 'cash' ? 'cash game' : 'tournament'}. ` : ''}Change them later in the game settings.</p>
-        </section>
-
-        <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)', marginTop: 'var(--sat-space-2)' }}>
+        <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)', marginBottom: 'var(--sat-space-2)' }}>
           <div className="sat-split">
-            <h2 className="sat-h2">Players</h2>
+            <h2 className="sat-h2">Players <Help k="pickPlayers" /></h2>
             <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
               <Caption>{sel.length} picked</Caption>
               {players.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setSel(sel.length === players.length ? [] : players.map((p) => p.id))}>{sel.length === players.length ? 'Clear' : 'Pick all'}</button>}
@@ -128,16 +81,57 @@ export default function NewGame({ type }: { type: GameType }) {
                   <button key={grp.id} className="sat-chip" aria-pressed={groupId === grp.id} onClick={() => { setGroupId(grp.id); setSel(grp.playerIds.filter((p) => players.some((x) => x.id === p))); }}>{grp.name}</button>
                 ))}
               </div>
-              {groupId && <p className="sat-small sat-muted">Picks the group's players. Payments settle with the group's other games.</p>}
             </div>
           )}
           <NameEntry onPick={(p) => setSel((v) => (v.includes(p.id) ? v : [...v, p.id]))} />
           <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
             {players.map((p) => <PlayerChip key={p.id} player={p} pressed={sel.includes(p.id)} onTap={() => toggle(p.id)} />)}
           </div>
-          {players.length > 0 && <p className="sat-small sat-muted">Tap to pick. Press and hold a name to edit or delete it.</p>}
-          {players.length === 0 && <p className="sat-small sat-muted">Players you add are saved for later games.</p>}
         </section>
+
+        {type === 'cash' ? (
+          <section className="sat-glass sat-card sat-stack">
+            <div className="sat-split"><h2 className="sat-h3">Blinds and buy-in</h2><Help k="units" /></div>
+            <div className="sat-grid" style={{ ['--sat-min' as string]: '90px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+              {field('g-sb', 'SB (chips)', sb, setSb, { decimal: true })}
+              {field('g-bb', 'BB (chips)', bb, setBb, { decimal: true })}
+            </div>
+            <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+              <div className="sat-field">
+                <label htmlFor="g-cur">Currency <Help k="currency" /></label>
+                <input id="g-cur" className="sat-input" value={currency} onChange={(e) => setCurrency(e.target.value)} />
+              </div>
+              <div className="sat-field">
+                <label htmlFor="g-uv">Multiplier <Help k="unitValue" /></label>
+                <div style={{ position: 'relative' }}>
+                  <span className="sat-muted" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>{currency || 'S$'}</span>
+                  <input id="g-uv" className="sat-input sat-num" style={{ paddingLeft: `${Math.max(2, (currency || 'S$').length) * 10 + 18}px` }} inputMode="decimal" value={unitValue} onChange={(e) => setUnitValue(e.target.value)} />
+                </div>
+              </div>
+            </div>
+            {field('g-bi', 'Buy-in (chips)', buyIn, setBuyIn, { hint: `${bbN ? `${(bi / bbN).toFixed(0)} BB` : '-'} = ${money(bi * uv, currency)}` })}
+            <div className="sat-switch-row">
+              <span>Buy everyone in now <Help k="autoBuyIn" /></span>
+              <Toggle on={autoBuyIn} onChange={setAutoBuyIn} label="Buy everyone in now" />
+            </div>
+          </section>
+        ) : (
+          <section className="sat-glass sat-card sat-stack">
+            <div className="sat-split"><h2 className="sat-h3">Entry and blinds</h2><Help k="payouts" /></div>
+            <div className="sat-grid" style={{ ['--sat-min' as string]: '120px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+              {field('t-fee', `Entry fee (${currency})`, tBuyIn, setTBuyIn, { decimal: true })}
+              {field('t-stack', 'Starting stack (chips)', stack, setStack)}
+              {field('t-sb', 'SB (chips)', sb, setSb, { decimal: true })}
+              {field('t-bb', 'BB (chips)', bb, setBb, { decimal: true })}
+            </div>
+          </section>
+        )}
+
+        <section className="sat-glass sat-card sat-stack">
+          <div className="sat-split"><h2 className="sat-h3">House rules</h2><Help k="rules" /></div>
+          <RulesFields rules={rules} onChange={setRules} players={Math.max(sel.length, 2)} idPrefix="g" />
+        </section>
+
       </div>
 
       <div className="sat-bottombar sat-glass-2">

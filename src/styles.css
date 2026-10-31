@@ -228,12 +228,13 @@ button.felt-row { color: inherit; }
 .felt-split { padding: var(--sat-space-1) var(--sat-space-3); }
 
 /* Hand recorder: stage tabs and status inside the sticky header, action table, keypad dock */
-.felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + 340px); }
+.felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + 358px); }
 .felt-rec-bar { margin-top: var(--sat-space-2); padding: 4px; border-radius: var(--sat-radius-md); }
 .felt-tabs { display: flex; gap: 2px; }
-.felt-tabs button { flex: 1 1 auto; min-width: 0; min-height: 36px; padding: 0 5px; border-radius: calc(var(--sat-radius-md) - 4px); font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); white-space: nowrap; }
+.felt-tabs button { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 0 5px; border-radius: calc(var(--sat-radius-md) - 4px); font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); white-space: nowrap; }
 .felt-tabs button[aria-selected="true"] { color: var(--sat-accent-text); background: var(--sat-accent-soft); }
 .felt-tabs button:disabled { opacity: 0.35; }
+@media (pointer: coarse) { .felt-tabs button { min-height: 44px; } }
 .felt-rec-status { display: flex; justify-content: space-between; gap: var(--sat-space-2); padding: 6px var(--sat-space-2) 2px; font-size: var(--sat-fs-small); color: var(--sat-muted); }
 .felt-rec-status b { color: var(--sat-text); }
 .felt-rec-status > span:last-child b { font-size: 1.0625rem; }
@@ -264,7 +265,7 @@ button.felt-row { color: inherit; }
 .felt-box.is-off { border: 1px solid var(--sat-line); background: color-mix(in srgb, var(--sat-muted) 22%, transparent); }
 .felt-box.is-post { border: 0; background: var(--sat-well); color: var(--sat-muted); }
 .felt-box.is-empty { border: 1.5px dashed var(--sat-line-strong); background: transparent; }
-.felt-box.is-next { border-color: var(--sat-accent); }
+.felt-box.is-next { border: 2px solid var(--sat-accent); background: transparent; }
 .felt-box.is-fold { border: 1.5px solid var(--sat-line-strong); background: var(--sat-well); color: var(--sat-muted); }
 .felt-box.is-bet, .felt-box.is-allin { background: var(--sat-accent-soft); color: var(--sat-accent-text); }
 .felt-box.is-default { border-style: dashed; font-style: italic; color: var(--sat-muted); background: transparent; }
@@ -301,7 +302,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-result-pot-row { display: flex; flex-direction: column; gap: var(--sat-space-2); padding-top: var(--sat-space-2); border-top: 1px solid var(--sat-line); }
 .felt-pickwin { display: flex; flex-wrap: wrap; gap: var(--sat-space-2); align-items: center; }
 .felt-pickwin-btn { min-height: 48px; padding: 0 var(--sat-space-4); border-radius: var(--sat-radius-md); border: 1.5px solid var(--sat-line-strong); font-weight: 600; font-size: 1rem; color: var(--sat-text); }
-.felt-pickwin-btn[aria-pressed="true"] { border-color: var(--sat-accent); background: var(--sat-accent-fill); color: #fff; }
+.felt-pickwin-btn[aria-pressed="true"] { border-color: var(--sat-accent); background: var(--sat-accent-fill); color: var(--sat-on-accent); }
 .felt-result-split { display: flex; flex-wrap: wrap; gap: var(--sat-space-2) var(--sat-space-4); font-size: var(--sat-fs-small); }
 
 .felt-rec-dock { flex-direction: column; align-items: stretch; }
@@ -311,16 +312,16 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-picker-wrap { display: flex; flex-direction: column; gap: var(--sat-space-2); padding: 2px 2px var(--sat-space-1); }
 /* Keypad: actions row, then the amount field (backspace key inside it) with Bet or Raise, then 0-9 */
 .felt-keypad { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px var(--sat-space-1); }
-.felt-keypad-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sat-space-2); font-size: var(--sat-fs-small); padding: 0 4px; min-height: 22px; }
+.felt-keypad-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sat-space-2); font-size: var(--sat-fs-small); padding: 0 4px; min-height: 40px; }
 .felt-keypad button { min-height: 44px; border-radius: var(--sat-radius-sm); color: var(--sat-text); font-weight: 600; display: flex; align-items: center; justify-content: center; line-height: 1.1; }
 .felt-keypad button:active:not(:disabled) { transform: scale(0.96); }
-.felt-keypad .felt-keypad-clear { min-height: 28px; padding: 0 8px; color: var(--sat-neg); font-size: var(--sat-fs-caption); }
+.felt-keypad .felt-keypad-clear { min-height: 40px; padding: 0 12px; color: var(--sat-neg); font-size: var(--sat-fs-caption); }
 .felt-keypad-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .felt-keypad-quick button { flex-direction: column; gap: 0; font-size: var(--sat-fs-small); background: var(--sat-glass); border: 1px solid var(--sat-line-strong); }
 .felt-keypad-quick b { font-size: 1.0625rem; }
 .felt-keypad-quick small { font-size: var(--sat-fs-caption); font-weight: 500; color: var(--sat-muted); }
 .felt-keypad-tools { display: flex; align-items: center; gap: 4px; flex: none; }
-.felt-keypad .felt-keypad-dark { min-height: 28px; padding: 0 10px; gap: 4px; flex-direction: row; font-size: var(--sat-fs-caption); color: var(--sat-muted);
+.felt-keypad .felt-keypad-dark { min-height: 40px; padding: 0 12px; gap: 4px; flex-direction: row; font-size: var(--sat-fs-caption); color: var(--sat-muted);
   border: 1px solid var(--sat-line-strong); border-radius: var(--sat-radius-pill); }
 .felt-keypad button:disabled { opacity: 0.35; }
 .felt-keypad-amount.is-off .felt-keypad-field { opacity: 0.5; }
@@ -330,7 +331,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
   border: 1.5px solid var(--sat-neg); background: color-mix(in srgb, var(--sat-neg) 10%, transparent); font-size: var(--sat-fs-small); font-weight: 600; }
 .felt-keypad-err-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .felt-keypad-err-acts button { background: var(--sat-glass); border: 1px solid var(--sat-line-strong); font-size: var(--sat-fs-small); }
-.felt-keypad-err-acts .is-primary { background: var(--sat-accent-fill); color: #fff; border-color: transparent; }
+.felt-keypad-err-acts .is-primary { background: var(--sat-accent-fill); color: var(--sat-on-accent); border-color: transparent; }
 .felt-keypad-amount { display: grid; grid-template-columns: 1fr 96px; gap: 6px; }
 .felt-keypad-field { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0 0 0 var(--sat-space-3); border-radius: var(--sat-radius-sm);
   background: var(--sat-well); border: 1.5px solid var(--sat-line); color: var(--sat-muted); }
@@ -339,7 +340,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad-val { flex: 1; font-size: 1.25rem; font-weight: 600; text-align: right; }
 .felt-keypad .felt-keypad-bs { width: 48px; min-height: 40px; color: var(--sat-text); background: transparent; }
 .felt-keypad .felt-keypad-bs:disabled { opacity: 0.3; }
-.felt-keypad .felt-keypad-ok { background: var(--sat-accent-fill); color: #fff; }
+.felt-keypad .felt-keypad-ok { background: var(--sat-accent-fill); color: var(--sat-on-accent); }
 .felt-keypad .felt-keypad-ok[aria-disabled="true"] { opacity: 0.4; }
 .felt-keypad-digits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .felt-keypad-digits button { font-size: 1.25rem; background: var(--sat-glass-2); border: 1px solid var(--sat-line); font-variant-numeric: tabular-nums; }
@@ -373,7 +374,8 @@ button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: le
 /* keypad open: everything but the keypad and the action boxes is greyed out; a tap there closes the keypad */
 .felt-recorder.has-keypad .felt-rec-bar, .felt-recorder.has-keypad .felt-dock-actions, .felt-recorder.has-keypad .sat-header-bar,
 .felt-recorder.has-keypad .felt-acts-name, .felt-recorder.has-keypad .felt-acts-head { opacity: 0.45; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
-.felt-stat-btn { border: 0; background: none; font: inherit; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.felt-stat-btn { border: 0; background: none; font: inherit; color: inherit; min-height: 36px; padding: 0 6px; margin: -8px -6px; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+@media (pointer: coarse) { .felt-stat-btn { min-height: 40px; } }
 .felt-hand--missed { opacity: 0.7; }
 /* hand list: log hand and chip move side by side; a chip move row is dashed so it never reads as a hand */
 .felt-addrow { display: grid; grid-template-columns: 2fr 1fr; gap: var(--sat-space-2); }
@@ -398,3 +400,5 @@ button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: le
 .felt-b2b-side.is-loss .felt-b2b-bar { background: var(--sat-neg); border-radius: 4px 0 0 4px; }
 .felt-b2b-side.is-win .felt-b2b-bar { background: var(--sat-pos); border-radius: 0 4px 4px 0; }
 .felt-b2b-val { flex: none; font-weight: 600; }
+/* open info tip: rendered on <body> (see Info in ui.tsx) so no glass card above it in the page can cover it */
+.sat-tip-body.felt-tip-float { display: block; position: fixed; transform: none; z-index: 300; }

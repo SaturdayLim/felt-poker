@@ -88,7 +88,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
         {tab === 'players' && (
           <>
             <div className="sat-split">
-              <Caption>{isCash ? 'Playing' : 'Still in'} ({inPlayers.length})</Caption>
+              <Caption tip="stack">{isCash ? 'Playing' : 'Still in'} ({inPlayers.length})</Caption>
               {!closed && inPlayers.length > 1 && (
                 <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'seats' })} aria-label="Shuffle seats" title="Shuffle seats"><Icon name="shuffle" /></button>
               )}
@@ -113,10 +113,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
         {tab === 'hands' && (
           <>
             {!closed && (
-              <div className="felt-addrow">
-                <button className="felt-addbar" onClick={() => go(`game/${g.id}/hand/new`)}><Icon name="plus" /> Log hand {nextN}</button>
-                <button className="felt-addbar felt-addbar--alt" onClick={() => setSheet({ k: 'move' })}><Icon name="plus" /> Chip move</button>
-              </div>
+              <button className="felt-addbar" onClick={() => setSheet({ k: 'move' })}><Icon name="plus" /> Chip move</button>
             )}
             <HandList g={g} name={name} />
           </>
@@ -125,7 +122,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
 
       {!closed && (
         <div className="sat-bottombar sat-glass-2">
-          <button className="sat-btn sat-btn--lg" onClick={() => go(isCash ? `game/${g.id}/count` : `game/${g.id}/close`)}>{isCash ? 'Count chips' : 'Finish'}</button>
+          <button className="sat-btn sat-btn--ghost sat-btn--lg" style={{ flex: '0 0 auto' }} onClick={() => go(isCash ? `game/${g.id}/count` : `game/${g.id}/close`)}>End game</button>
           <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => go(`game/${g.id}/hand/new`)}>Log hand {nextN}</button>
         </div>
       )}
@@ -257,7 +254,7 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
             <span className="felt-stat">
               {onCount && !closed
                 ? <button type="button" className="felt-stat-btn" onClick={onCount} aria-label={`Stack ${stack}. Tap to count ${name}'s chips`}>Stack <b className="sat-num">{stack}</b></button>
-                : <>Stack <b className="sat-num">{stack}</b></>} <Help k="stack" />
+                : <>Stack <b className="sat-num">{stack}</b></>}
             </span>
           )}
           {isCash && hasCashedOut(g, pid) && status === 'out' && <span className="felt-stat">Left with <b className="sat-num">{units(cashOutUnits(g, pid))}</b></span>}
@@ -278,14 +275,13 @@ function AddPlayerCard({ g }: { g: Game }) {
   return (
     <div className="sat-flat sat-card sat-stack felt-addcard" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
       <div className="sat-split">
-        <Caption>Add player</Caption>
+        <Caption tip="addPlayer">Add player</Caption>
         <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setOpen(false)}>Done</button>
       </div>
       <NameEntry exclude={g.playerIds} onPick={(p) => {
         st.addPlayerToGame(g.id, p.id);
         toast(`${p.name} seated${isCash ? ` with ${units(g.defaultBuyIn)} chips` : ''}`);
       }} />
-      <p className="sat-small sat-muted">Each player starts with {isCash ? `one buy-in of ${units(g.defaultBuyIn)} chips` : `one entry of ${money(g.tournament!.buyIn, g.currency)}`}. Change it with the buy-in count.</p>
     </div>
   );
 }
@@ -403,7 +399,7 @@ function MoveSheet({ g, name, onClose }: { g: Game; name: (id: ID) => string; on
   };
   return (
     <Sheet open onClose={onClose} title="Chip move">
-      <p className="sat-small sat-muted">Chips that changed hands outside a pot: a side game, a tip, a settled bet. Stacks change; pots and hand stats do not. <Help k="moves" /></p>
+      <Caption tip="moves">Kind</Caption>
       <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Kind of move">
         {MOVE_KIND.map((o) => <button key={o.k} type="button" role="radio" aria-checked={kind === o.k} onClick={() => setKind(o.k)}>{o.label}</button>)}
       </div>
@@ -503,7 +499,7 @@ function SeatDrawSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   }), [d]);
   return (
     <Sheet open onClose={onClose} title="Shuffle seats">
-      <p className="sat-small sat-muted">Seats run clockwise. Seat 1 has the button, then SB and BB. <Help k="seatDraw" /></p>
+      <div className="sat-split"><Caption>Seats, clockwise</Caption><Help k="seatDraw" /></div>
       <div className="felt-seats">
         <div className="felt-table" />
         {d.order.map((p, i) => (
@@ -551,10 +547,10 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
     <Sheet open onClose={onClose} title="Game settings">
       <div className="sat-field"><label htmlFor="eg-n">Game name</label><input id="eg-n" className="sat-input" value={nm} onChange={(e) => setNm(e.target.value)} /></div>
       <div className="sat-grid" style={{ ['--sat-min' as string]: '110px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-        <div className="sat-field"><label htmlFor="eg-sb">SB</label><input id="eg-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></div>
-        <div className="sat-field"><label htmlFor="eg-bb">BB</label><input id="eg-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></div>
+        <div className="sat-field"><label htmlFor="eg-sb">SB (chips)</label><input id="eg-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></div>
+        <div className="sat-field"><label htmlFor="eg-bb">BB (chips)</label><input id="eg-bb" className="sat-input sat-num" inputMode="decimal" value={bb} onChange={(e) => setBb(e.target.value)} /></div>
         {g.type === 'cash' && <div className="sat-field"><label htmlFor="eg-u">Multiplier ({g.currency}) <Help k="unitValue" /></label><input id="eg-u" className="sat-input sat-num" inputMode="decimal" value={uv} onChange={(e) => setUv(e.target.value)} /></div>}
-        {g.type === 'cash' && <div className="sat-field"><label htmlFor="eg-b">Rebuy (chips)</label><input id="eg-b" className="sat-input sat-num" inputMode="numeric" value={bi} onChange={(e) => setBi(e.target.value)} /></div>}
+        {g.type === 'cash' && <div className="sat-field"><label htmlFor="eg-b">Buy-in (chips)</label><input id="eg-b" className="sat-input sat-num" inputMode="numeric" value={bi} onChange={(e) => setBi(e.target.value)} /></div>}
       </div>
       {groups.length > 0 && (
         <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
@@ -566,9 +562,8 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
         </div>
       )}
       <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-        <h3 className="sat-h3">House rules</h3>
+        <div className="sat-split"><h3 className="sat-h3">House rules</h3><Help k="rules" /></div>
         <RulesFields rules={rules} onChange={setRules} players={g.playerIds.length} idPrefix="eg" />
-        <p className="sat-small sat-muted">Changes apply to the next hands. Saved hands keep their bounty.</p>
       </section>
       <div className="sat-field"><label htmlFor="eg-x">Notes</label><textarea id="eg-x" className="sat-input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => {

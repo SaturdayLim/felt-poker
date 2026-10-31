@@ -8,9 +8,13 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - **Source only as a tip.** A figure's source is never printed on the page. Use `SourceTip` (an info tip titled Source) beside the heading or block it belongs to.
 - **One line per field in a tip.** When an info tip covers two or more separate fields or options (for example Bet entry and Pot count), give each its own line: write `text` as an array in `src/lib/help.ts`; `Help` renders each entry as its own paragraph.
 - Saturday WRITING.md still applies: no contractions, no middle-dot chains, Title Case page titles.
+- **ASD-STE100 for all copy.** Short sentences (procedures 20 words max, descriptions 25), active voice, one fact or instruction per sentence, one word per meaning. No filler or AI phrasing ("The usual rule", "simply", "just").
+- **Tips, not captions.** On setup and settings screens, an explanation lives in its field's info tip, one tip per field. The page shows only labels and live figures (for example "4 players: 30 chips to the 2-7").
+- **Tips sit on top.** An open info tip renders on <body> (fixed position), so no card or frame can cover it.
 
 ## Behaviour
 
+- The end-of-game button says End game. It opens the final chip count (cash) or the finish screen (tournament).
 - Theme and opening-screen length belong to the phone. A backup restore must never change them.
 - Player status: dealt into a hand or acting in it turns the player green (playing). An away player is paused and not dealt in by default.
 - Hand recorder rows run in time order: small blind first, button last. Columns are passes around the table, newest flush right.

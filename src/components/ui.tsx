@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cardText, rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { HELP, type HelpKey } from '../lib/help';
@@ -155,36 +156,57 @@ export function Sheet({ open, onClose, title, sub, children }: {
 
 /** Kit info tip (.sat-tip). Opens on tap, focus or hover; Escape or a tap elsewhere closes it.
     Placement copies saturday.js: centre under the button, then pull inside the screen edge. */
+/** Info tip. The open body renders at page level (a portal on <body>, fixed position), so a glass card
+    further down the page can never cover it: each card's blur starts its own layer. It opens below the
+    button, or above when there is no room, inside the screen edges. It follows the button on scroll and
+    closes once the button leaves the screen. */
+let closeOpenTip: (() => void) | null = null;
 export function Info({ title, children }: { title?: string; children: ReactNode }) {
   const wrap = useRef<HTMLSpanElement>(null);
+  const body = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const show = open || hover;
+  const fine = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
   const place = () => {
-    const tip = wrap.current;
-    const body = tip?.querySelector<HTMLElement>('.sat-tip-body');
-    if (!tip || !body) return;
-    body.style.left = '0px';
-    body.style.transform = 'none';
-    const w = body.getBoundingClientRect().width;
-    if (!w) return;
-    const t = tip.getBoundingClientRect();
-    const vw = document.documentElement.clientWidth;
-    const left = Math.max(8, Math.min(t.left + t.width / 2 - w / 2, vw - 8 - w));
-    body.style.left = `${left - t.left}px`;
+    const btn = wrap.current?.getBoundingClientRect();
+    const b = body.current?.getBoundingClientRect();
+    if (!btn || !b) return;
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    if (btn.bottom < 0 || btn.top > vh) { setOpen(false); setHover(false); return; }
+    const left = Math.max(8, Math.min(btn.left + btn.width / 2 - b.width / 2, vw - 8 - b.width));
+    const below = btn.bottom + 8;
+    const top = below + b.height > vh - 8 && btn.top - 8 - b.height > 8 ? btn.top - 8 - b.height : below;
+    setPos({ top, left });
   };
-  useLayoutEffect(() => { if (open) place(); }, [open]);
+  useLayoutEffect(() => {
+    if (!show) { setPos(null); return; }
+    // one tip open at a time
+    const close = () => { setOpen(false); setHover(false); };
+    if (closeOpenTip && closeOpenTip !== close) closeOpenTip();
+    closeOpenTip = close;
+    place();
+    return () => { if (closeOpenTip === close) closeOpenTip = null; };
+  }, [show]);
   useEffect(() => {
-    if (!open) return;
+    if (!show) return;
     const onDoc = (e: MouseEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); setHover(false); } };
+    const onScroll = () => place();
     document.addEventListener('click', onDoc);
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [open]);
+    window.addEventListener('scroll', onScroll, true);
+    return () => { document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey); window.removeEventListener('scroll', onScroll, true); };
+  }, [show]);
   return (
-    <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onMouseEnter={place}>
+    <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onMouseEnter={() => fine && setHover(true)} onMouseLeave={() => setHover(false)}>
       <button type="button" className="sat-tip-btn" aria-expanded={open} aria-label={title ? `About ${title.toLowerCase()}` : 'More information'}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>i</button>
-      <span className="sat-tip-body" role="tooltip">{children}</span>
+      {show && createPortal(
+        <span ref={body} className="sat-tip-body felt-tip-float" role="tooltip" style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}>{children}</span>,
+        document.body,
+      )}
     </span>
   );
 }

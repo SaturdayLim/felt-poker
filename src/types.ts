@@ -8,6 +8,8 @@ export interface Player {
   name: string;
   createdAt: number;
   archived?: boolean;
+  /** Player code (6 characters): opens their stats in a shared report and their private cards. */
+  code?: string;
 }
 
 /** Players who play together. Games tagged with a group settle together (netted payments). */
@@ -170,8 +172,11 @@ export interface Hand {
   bounty?: Bounty;
   /** Hand played but not logged: it moves the button on and turns every stack into a range. */
   missed?: boolean;
-  /** The phone owner's own hole cards, entered at any point in the hand. Private: never in reports or CSV. */
+  /** Earlier form of `private` (the phone owner only). Moved into `private` when the data loads. */
   mine?: { playerId: ID; cards: Card[] };
+  /** Each player's own hole cards, recorded apart from the cards shown at the table. Private: only that
+      player (with their code) sees them after the game, and they are never in reports or CSV in the open. */
+  private?: Record<ID, Card[]>;
 }
 
 /** Chips that changed hands outside a pot: a side game, a tip, or anything else settled in chips. */

@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
-import { Icon, Sheet, toast } from './ui';
+import { Help, Icon, Sheet, toast } from './ui';
+import { showCode } from '../lib/codes';
 import type { Player } from '../types';
 
 /* ---------------------------- name autocorrect ---------------------------- */
@@ -127,6 +128,9 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
   const st = useStore();
   const [nm, setNm] = useState(p.name);
   const [confirm, setConfirm] = useState(false);
+  const [showCodeNow, setShowCodeNow] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const live = st.players.find((x) => x.id === p.id) ?? p;
   const inGames = st.games.filter((g) => g.playerIds.includes(p.id)).length;
   const save = () => {
     const n = titleCase(nm);
@@ -143,6 +147,17 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
         <input id="pe-name" className="sat-input" value={nm} autoCapitalize="words" onChange={(e) => setNm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
       </div>
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={save}>Save name</button>
+      <div className="sat-field">
+        <label>Player code <Help k="playerCode" /></label>
+        <div className="felt-code-row">
+          <span className={`felt-code ${showCodeNow ? '' : 'is-hidden'}`} aria-label={showCodeNow ? `Code ${live.code}` : 'Code hidden'}>{showCodeNow && live.code ? showCode(live.code) : '••• •••'}</span>
+          <button type="button" className="sat-btn sat-btn--sm" onClick={() => setShowCodeNow(!showCodeNow)}>{showCodeNow ? 'Hide' : 'Show'}</button>
+          <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" style={resetting ? { color: 'var(--sat-neg)' } : undefined}
+            onClick={() => { if (!resetting) { setResetting(true); return; } st.resetPlayerCode(p.id); setResetting(false); setShowCodeNow(true); toast(`New code for ${p.name}. The old code no longer works.`); }}>
+            {resetting ? 'Tap again for a new code' : 'New code'}
+          </button>
+        </div>
+      </div>
       {inGames ? (
         <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
           <button className="sat-btn sat-btn--block" onClick={() => { st.setPlayerArchived(p.id, !p.archived); toast(p.archived ? `${p.name} restored to the list` : `${p.name} removed from the list`); onClose(); }}>

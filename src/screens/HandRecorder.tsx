@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast } from '../components/ui';
+import { Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, Toggle, num, toast } from '../components/ui';
+import { codeMatches } from '../lib/codes';
 import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
@@ -138,7 +139,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         shown: Object.fromEntries(Object.entries(L.shown ?? {}).map(([p, c]) => [p, [c[0] ?? null, c[1] ?? null]])),
         manual: Object.fromEntries(pots.map((p, i) => [i, p.winners.map((w) => w.playerId)]).filter((_, i) => !auto.pots[i]?.runs.every((r) => r.winners.length))),
         partial: !!existing.partial, finalPot: existing.partial && existing.pot > recorded ? String(existing.pot) : '', exclude: existing.excluded,
-        mine: [existing.mine?.cards[0] ?? null, existing.mine?.cards[1] ?? null],
+        mine: [null, null],
         // a saved hand keeps the bounty it was saved with; it never adds one by itself
         bounty: existing.bounty?.playerId ?? null,
         bountyOff: existing.bounty ? L.dealt.filter((p) => p !== existing.bounty!.playerId && !existing.bounty!.payers.includes(p)) : [],
@@ -158,6 +159,16 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const prevHand = existing ? [...reviewable].reverse().find((h) => h.n < existing.n) : undefined;
   const nextReview = existing ? reviewable.find((h) => h.n > existing.n) : undefined;
   const me = settings.me;
+  const players = useStore((s) => s.players);
+  const [cardsFor, setCardsFor] = useState<ID | null>(() => (readOnly ? (reviewPlayer && existing?.log?.dealt.includes(reviewPlayer) ? reviewPlayer : null) : me ?? null));
+  const [askCode, setAskCode] = useState(false);
+  // load the private cards already saved for that player in this hand
+  useEffect(() => {
+    if (!existing || !cardsFor) return;
+    const c = existing.private?.[cardsFor] ?? [];
+    setSt((x) => (x ? { ...x, mine: [c[0] ?? null, c[1] ?? null] } : x));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardsFor, existing?.id]);
   const { minRaise: minRule, bounty27: bountyRule } = g ? gameRules(g, settings) : settings;
   const [dark, setDark] = useState(false);
   const [raiseErr, setRaiseErr] = useState<number | null>(null);
@@ -198,7 +209,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   const log = st.log;
   const set = (patch: Partial<RState>) => setSt({ ...st, ...patch });
-  const meIn = !!me && log.dealt.includes(me);
+  const meIn = !!cardsFor && log.dealt.includes(cardsFor);
   const mineCards = (st.mine ?? []).filter(Boolean) as Card[];
   const street = isStreet(st.tab) ? st.tab : null;
   const replay: Replay | null = street && log.streets[street]?.acts ? replayStreet(g, log, street, stacks) : null;
@@ -398,7 +409,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       allIn: Object.keys(L.allInAt ?? {}).length > 0, straddle: false, tags: existing?.tags ?? [], note: st.note.trim() || undefined, log: L,
       partial: partial || undefined, excluded: exclude || undefined,
       bounty: bountyTo && bountyPayers.length ? { playerId: bountyTo, amount: bountyAmt, payers: bountyPayers, short: Object.keys(bountyShort).length ? bountyShort : undefined } : undefined,
-      mine: me && log.dealt.includes(me) && mineCards.length ? { playerId: me, cards: mineCards } : undefined,
+      private: privateWith(existing?.private, me && log.dealt.includes(me) ? me : null, mineCards),
+      mine: undefined,
     };
     saveHand(g.id, hand);
     try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }
@@ -431,15 +443,27 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     nextHand(st.n + 1, `Hand ${st.n} marked missed. Hand ${st.n + 1} dealt.`);
   };
 
+  /** Private cards: kept in the hand state while recording; in review they save at once (the game is closed). */
+  const setMine = (m: (Card | null)[]) => {
+    set({ mine: m });
+    if (readOnly && cardsFor) {
+      updateGame(g.id, (x) => {
+        const h = x.hands.find((y) => y.id === st.id);
+        if (h) h.private = privateWith(h.private, cardsFor, m.filter(Boolean) as Card[]);
+      });
+    }
+  };
+
   /* --------- cards --------- */
   const pick = (c: Card) => {
-    if (!target || readOnly) return;
+    if (!target) return;
     if (target.kind === 'mine') {
       const m = [...(st.mine ?? [null, null])]; m[target.ci] = c;
-      set({ mine: m });
+      setMine(m);
       setTarget(target.ci === 0 && !m[1] ? { kind: 'mine', ci: 1 } : null);
       return;
     }
+    if (readOnly) return;
     if (target.kind === 'board') {
       const b = [...st.board]; b[target.i] = c;
       set({ board: b });
@@ -478,8 +502,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const currentCard = (t: Exclude<Target, null>) => (t.kind === 'board' ? st.board[t.i] : t.kind === 'run' ? st.runSlots[t.r]?.[t.i] : t.kind === 'mine' ? st.mine?.[t.ci] : st.shown[t.p]?.[t.ci]);
   // my own cards and my shown cards are the same two cards: picking one never blocks the other
   const pickable = (c: Card) => !used.has(c) || c === currentCard(target!)
-    || (target?.kind === 'shown' && target.p === me && mineCards.includes(c))
-    || (target?.kind === 'mine' && !!me && (st.shown[me] ?? []).includes(c));
+    || (target?.kind === 'shown' && target.p === cardsFor && mineCards.includes(c))
+    || (target?.kind === 'mine' && !!cardsFor && (st.shown[cardsFor] ?? []).includes(c));
   const setRuns = (n: number) => {
     const from = log.runFrom ?? 0;
     const rs = Array.from({ length: n }, (_, r) => st.runSlots[r] ?? Array(5 - from).fill(null));
@@ -541,12 +565,14 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           </div>
           <div className="felt-rec-status" aria-live="polite">
             <span><b>{LABEL[st.tab === 'setup' ? lastStreet : st.tab]}</b>{street && toAct && !readOnly ? `, ${toAct} to act` : ''}{partial ? ', partly recorded' : ''}</span>
-            {meIn && (
-              <button type="button" className={`felt-mine ${mineCards.length ? 'has-cards' : ''}`} disabled={readOnly && !mineCards.length}
-                aria-label={mineCards.length ? `My cards: ${mineCards.map(cardText).join(' ')}. Tap to change` : 'Enter my cards (private)'}
-                onClick={() => { if (readOnly) return; setSel(null); setTyped(''); setTarget({ kind: 'mine', ci: st.mine?.[0] ? (st.mine?.[1] ? 0 : 1) : 0 }); }}>
-                {mineCards.length ? mineCards.map(cardText).join(' ') : 'My cards'}
+            {meIn ? (
+              <button type="button" className={`felt-mine ${mineCards.length ? 'has-cards' : ''}`}
+                aria-label={mineCards.length ? `${readOnly ? `${name(cardsFor!)}'s` : 'My'} cards: ${mineCards.map(cardText).join(' ')}. Tap to change` : `Enter ${readOnly ? `${name(cardsFor!)}'s` : 'my'} cards (private)`}
+                onClick={() => { setSel(null); setTyped(''); setTarget({ kind: 'mine', ci: st.mine?.[0] ? (st.mine?.[1] ? 0 : 1) : 0 }); }}>
+                {readOnly ? `${name(cardsFor!)}: ` : ''}{mineCards.length ? mineCards.map(cardText).join(' ') : readOnly ? 'add cards' : 'My cards'}
               </button>
+            ) : readOnly && (
+              <button type="button" className="felt-mine" onClick={() => setAskCode(true)}>Player cards</button>
             )}
             <span>Pot <b className="sat-num">{units(extra ? recordedPot + extra : potNow)}</b></span>
           </div>
@@ -633,13 +659,17 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         )}
       </div>
 
+      {askCode && (
+        <CodeSheet dealt={log.dealt} players={players} name={name} onClose={() => setAskCode(false)}
+          onOpen={(p) => { setAskCode(false); setCardsFor(p); setTarget({ kind: 'mine', ci: 0 }); toast(`${name(p)}'s private cards are open for this review.`); }} />
+      )}
       <div className="sat-bottombar sat-glass-2 felt-rec-dock">
         {target ? (
           <div className="felt-picker-wrap">
             <div className="sat-split">
               <Caption>{targetLabel(target, name)}</Caption>
               <span className="sat-cluster" style={gap(1)}>
-                {target.kind === 'mine' && mineCards.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { set({ mine: [null, null] }); setTarget({ kind: 'mine', ci: 0 }); }}>Clear</button>}
+                {target.kind === 'mine' && mineCards.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { setMine([null, null]); setTarget({ kind: 'mine', ci: 0 }); }}>Clear</button>}
                 <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
               </span>
             </div>
@@ -700,8 +730,48 @@ function tabDone(log: HandLog, t: Tab, ended: boolean) {
   return !!log.streets[t]?.at;
 }
 
+/** The hand's private cards with one player's cards set (or removed when empty). */
+function privateWith(cur: Record<ID, Card[]> | undefined, p: ID | null, cards: Card[]): Record<ID, Card[]> | undefined {
+  const out = { ...(cur ?? {}) };
+  if (p) { if (cards.length) out[p] = cards; else delete out[p]; }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** In review, the player who last gave their code: their private cards stay open from hand to hand. */
+let reviewPlayer: ID | null = null;
+
+/** Review of a closed game: a player opens their own private cards with their player code. */
+function CodeSheet({ dealt, players, name, onOpen, onClose }: {
+  dealt: ID[]; players: { id: ID; code?: string }[]; name: (id: ID) => string; onOpen: (p: ID) => void; onClose: () => void;
+}) {
+  const [p, setP] = useState<ID | null>(null);
+  const [code, setCode] = useState('');
+  const [bad, setBad] = useState(false);
+  const open = () => {
+    if (!p) return;
+    if (!codeMatches(players.find((x) => x.id === p)?.code, code)) { setBad(true); return; }
+    reviewPlayer = p;
+    onOpen(p);
+  };
+  return (
+    <Sheet open onClose={onClose} title="Player cards">
+      <p className="sat-small sat-muted">Enter player code to access player cards.</p>
+      <div className="sat-cluster" style={gap(2)}>
+        {dealt.map((x) => <button key={x} className="sat-chip" aria-pressed={p === x} onClick={() => { setP(x); setBad(false); }}>{name(x)}</button>)}
+      </div>
+      <div className="sat-field">
+        <label htmlFor="pc-code">Player code <Help k="playerCode" /></label>
+        <input id="pc-code" className="sat-input sat-mono felt-code-input" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={9} value={code}
+          aria-invalid={bad} onChange={(e) => { setCode(e.target.value); setBad(false); }} onKeyDown={(e) => { if (e.key === 'Enter') open(); }} />
+        {bad && <span className="sat-error">Code does not match.</span>}
+      </div>
+      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!p || !code} onClick={open}>Open</button>
+    </Sheet>
+  );
+}
+
 function targetLabel(t: Exclude<Target, null>, name: (id: ID) => string) {
-  if (t.kind === 'mine') return `My cards (private), card ${t.ci + 1}`;
+  if (t.kind === 'mine') return `Private cards, card ${t.ci + 1}`;
   if (t.kind === 'board') return BOARD_SLOT[t.i];
   if (t.kind === 'run') return `Run ${t.r + 1}, card ${t.i + 1}`;
   return `${name(t.p)}, card ${t.ci + 1}`;

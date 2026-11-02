@@ -33,8 +33,18 @@
 - `scripts/trial-model.ts` builds every report figure from a Felt backup with the app logic; `scripts/trial-data.ts` prints it (`npx vite-node scripts/trial-data.ts trial/<backup>.json`).
 - `scripts/trial-report.html` + `.tsx` + `.css`: 3 trial pages (The night, Players, Compare) with app CSS and charts. Open with the felt-test server: http://localhost:5174/scripts/trial-report.html (reads `/trial/potato-backup.json`).
 - Data in `trial/` is git-ignored. Waiting on the user's review before any of it goes into the app.
+- Round 3 (2 Nov): felt table (pill, rail, cloth), award sentences, par chart with rebuy dots, target as a grey dot, funnel labels "Flop (33)", tips one line each, coaching advice per strength or weakness.
+- Shared report: `npm run trial:report -- trial/<backup>.json` writes `trial/<game>-report.html` (one file, fonts inlined) and `trial/<game>-codes.txt`. Game Summary and Compare are open; each player page is AES-GCM encrypted with that player's 6-character code (`scripts/trial-lock.ts`).
+
+## Done (2 Nov 2026, round 4)
+- Player codes in the app (`src/lib/codes.ts`, `Player.code`, player settings: Show, New code). Codes made for older players on load and saved at once.
+- Private cards: `Hand.private` per player (old `Hand.mine` moves there on load). Review of a closed game: Player cards, pick player, enter code, add cards; saves without reopening.
+- Report: uses each player's stored code; rebuy circles on the line with a running count; Your Cards section in the locked page; award list with minimums; lock text.
+- Tests: 46 pass.
 
 ## Next
+- Export a new backup from the phone once this version is on it: the app then gives every player a code, and the report must be rebuilt from that backup so its codes match the app.
+- Build the trial report into the app (Download or Share: Interactive report).
 - Bounties and chip moves are not in the image report or the CSV ledger yet.
 - Check on the iPhone.
 

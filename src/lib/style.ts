@@ -164,9 +164,9 @@ export function myHands(games: Game[], me: ID): MyHand[] {
   const out: MyHand[] = [];
   for (const g of games) {
     for (const h of g.hands) {
-      if (h.missed || !h.log || h.mine?.playerId !== me || h.mine.cards.length < 2) continue;
+      const cards = h.private?.[me] ?? (h.mine?.playerId === me ? h.mine.cards : undefined);
+      if (h.missed || !h.log || !cards || cards.length < 2) continue;
       const L = h.log;
-      const cards = h.mine.cards;
       let aggressive = false, bluff = false;
       for (const st of STREETS.slice(1)) {
         if (!streetMoves(g, L, st).some((m) => m.p === me && (m.k === 'bet' || m.k === 'raise'))) continue;

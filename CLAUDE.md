@@ -45,5 +45,8 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Chip moves (side game, tip, other) change stacks, not pots or hand stats, and show as dashed rows between hands.
 - Chip move sits on both the Players tab and the Hands tab. The End game count shows each player's estimate and flags a count that differs (a missing chip move).
 - A closed game's hands open read-only for review (every stage, Previous and Next hand). No reopening needed.
-- My cards: the phone owner (Settings, You) enters their own hole cards at any point in a hand. They are private: never in reports, images or CSV files.
+- Player codes: every player gets a random 6-character code when created (older players on load). The code shows view-only in the player's settings (hidden until Show) with New code for a lost one. Codes can repeat but very rarely.
+- Private cards: each player's own hole cards are kept apart from the cards shown at the table. While recording, the phone owner uses My cards. After the game, any player opens their own cards in hand review with their player code and can add or change them; the game stays closed. Nobody else sees them; they are never in images or CSV in the open.
+- Shared report (trial): Game Summary and Compare are open; each player page is encrypted with that player's code. Lock text: "Enter player code to access player stats."
+- Awards come from a fixed list, each with a minimum to count (scripts/trial-model.ts, AWARD_LIST). A tie shares an award.
 - Download options name the content and the file type: Results (1 image), Results and stats, Full game record, Spreadsheet data (3 CSV files).

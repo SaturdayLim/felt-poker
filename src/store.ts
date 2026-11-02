@@ -3,6 +3,7 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 import type { Game, GameRules, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
 import { uid } from './lib/ids';
+import { newCode } from './lib/codes';
 import { defaultPayoutPercents, playerStatus, rebuildTransfers, round2, totalPotMoney } from './lib/calc';
 
 const idbStorage: StateStorage = {
@@ -72,6 +73,8 @@ interface State {
   settleGroup: (id: ID) => void;
 
   addPlayer: (name: string) => Player;
+  /** Issues a new code (for a player who lost theirs). */
+  resetPlayerCode: (id: ID) => string;
   renamePlayer: (id: ID, name: string) => void;
   setPlayerArchived: (id: ID, archived: boolean) => void;
   deletePlayer: (id: ID) => boolean;
@@ -104,6 +107,24 @@ interface State {
 }
 
 const now = () => Date.now();
+
+/** Every player has a code: players saved before codes existed get one when the data loads. */
+function withCodes(players: Player[]): Player[] {
+  return players.some((p) => !p.code) ? players.map((p) => (p.code ? p : { ...p, code: newCode() })) : players;
+}
+
+/** Hands saved with `mine` (the phone owner's cards) move into `private`. */
+function withPrivate(games: Game[]): Game[] {
+  if (!games.some((g) => g.hands.some((h) => h.mine))) return games;
+  return games.map((g) => ({
+    ...g,
+    hands: g.hands.map((h) => {
+      if (!h.mine) return h;
+      const { mine, ...rest } = h;
+      return { ...rest, private: { ...(h.private ?? {}), [mine.playerId]: mine.cards } };
+    }),
+  }));
+}
 
 export const useStore = create<State>()(
   persist(
@@ -144,9 +165,14 @@ export const useStore = create<State>()(
           }),
 
         addPlayer: (name) => {
-          const p: Player = { id: uid(), name: name.trim(), createdAt: now() };
+          const p: Player = { id: uid(), name: name.trim(), createdAt: now(), code: newCode() };
           set((s) => ({ players: [...s.players, p] }));
           return p;
+        },
+        resetPlayerCode: (id) => {
+          const code = newCode();
+          set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, code } : p)) }));
+          return code;
         },
         renamePlayer: (id, name) =>
           set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, name: name.trim() } : p)) })),
@@ -309,8 +335,8 @@ export const useStore = create<State>()(
         // Theme and opening screen are this phone's own preferences: a restore never changes them.
         importBackup: (data) =>
           set((s) => ({
-            players: data.players,
-            games: data.games,
+            players: withCodes(data.players),
+            games: withPrivate(data.games),
             groups: data.groups ?? [],
             settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
           })),
@@ -331,6 +357,8 @@ export const useStore = create<State>()(
         return {
           ...current,
           ...p,
+          players: withCodes(p.players ?? current.players),
+          games: withPrivate(p.games ?? current.games),
           groups: p.groups ?? [],
           settings: {
             ...DEFAULT_SETTINGS,
@@ -343,7 +371,9 @@ export const useStore = create<State>()(
         };
       },
       onRehydrateStorage: () => () => {
-        useStore.setState({ hydrated: true });
+        // write back at once: codes given to older players during the load must be kept, not made again next launch
+        const s = useStore.getState();
+        useStore.setState({ hydrated: true, players: [...s.players], games: [...s.games] });
       },
     },
   ),

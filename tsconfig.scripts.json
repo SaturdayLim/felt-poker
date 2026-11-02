@@ -1,5 +1,11 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["src", "scripts"],
-  "exclude": ["scripts/trial-data.ts"]
+  "include": [
+    "src",
+    "scripts"
+  ],
+  "exclude": [
+    "scripts/trial-data.ts",
+    "scripts/trial-build.ts"
+  ]
 }

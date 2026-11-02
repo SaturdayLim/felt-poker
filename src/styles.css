@@ -416,3 +416,7 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-choice[aria-checked="true"] .felt-choice-dot { border: 5px solid var(--sat-accent); }
 .felt-choice .felt-row-main { display: flex; flex-direction: column; }
 .felt-choice .felt-right { max-width: 92px; text-align: right; }
+/* player code in the player settings: view-only, hidden until Show */
+.felt-code-row { display: flex; align-items: center; gap: var(--sat-space-2); flex-wrap: wrap; }
+.felt-code { font-family: var(--sat-font-mono, monospace); font-size: 1.25rem; font-weight: 700; letter-spacing: 0.12em; min-width: 110px; }
+.felt-code.is-hidden { color: var(--sat-muted); }

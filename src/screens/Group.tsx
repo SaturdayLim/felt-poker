@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore, usePlayerName } from '../store';
-import { back, go } from '../router';
+import { back, backTo, go } from '../router';
 import { Caption, Delta, Empty, Header, Help, Icon, Sheet, SourceTip, toast } from '../components/ui';
 import { openTransfers, round2, suggestTransfers } from '../lib/calc';
 import { dateLabel, money, shortDate } from '../lib/format';
@@ -131,7 +131,7 @@ export function GroupSheet({ grp, onClose }: { grp?: G; onClose: () => void }) {
           if (!confirm) { setConfirm(true); return; }
           deleteGroup(grp.id);
           onClose();
-          go('players', true);
+          backTo('players');
         }}><Icon name="trash" /> {confirm ? 'Tap again to delete (games are kept)' : 'Delete group'}</button>
       )}
     </Sheet>

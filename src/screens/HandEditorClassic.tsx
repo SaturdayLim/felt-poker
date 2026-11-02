@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { back, go } from '../router';
+import { back, backTo, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, num, toast } from '../components/ui';
 import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand, type HandValue } from '../lib/cards';
 import { buildPots, fromSmallBlind, playerStatus, positionSplit, round2 } from '../lib/calc';
@@ -253,7 +253,7 @@ export default function HandEditorClassic({ gameId, handId }: { gameId: string; 
       <Header back={() => back(`game/${g.id}`)} title={`Hand ${d.n}`} sub={g.name}
         right={existing ? (
           <button className="sat-btn sat-btn--ghost sat-iconbtn" style={confirmDel ? { color: 'var(--sat-neg)' } : undefined} aria-label={confirmDel ? 'Tap again to delete this hand' : 'Delete hand'}
-            onClick={() => { if (!confirmDel) { setConfirmDel(true); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, d.id); go(`game/${g.id}`, true); }}>
+            onClick={() => { if (!confirmDel) { setConfirmDel(true); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, d.id); backTo(`game/${g.id}`); }}>
             <Icon name="trash" />
           </button>
         ) : undefined} />

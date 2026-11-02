@@ -266,7 +266,7 @@ function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undef
   if (back.length) out.push({ title: 'Comeback', to: ids(back), detail: `Climbed ${back[0].net - back[0].low} from ${back[0].low} after hand #${back[0].lowAt} to finish ${back[0].net > 0 ? '+' : ''}${back[0].net}.` });
   const cb = top((p) => ratio(p.s.style.cbet, p.s.style.cbetOpp), (p) => p.s.style.cbetOpp >= 5);
   if (cb.length) out.push({ title: 'Unrelenting', to: ids(cb), detail: `Bet the flop after raising ${cb[0].s.style.cbet} of ${cb[0].s.style.cbetOpp} times.` });
-  const rock = top((p) => -p.vpip, (p) => p.vpip < 40);
+  const rock = top((p) => -p.vpip, (p) => p.s.logged > 0 && p.vpip < 40);
   if (rock.length) out.push({ title: 'The Rock', to: ids(rock), detail: `Played ${rock[0].s.vpip} of ${rock[0].s.logged} hands, the fewest at the table.` });
   const bountyN = (p: TrialPlayer) => bounties.filter((b) => b.to === p.name).length;
   const hunt = top(bountyN, (p) => bountyN(p) >= 1);
@@ -281,7 +281,7 @@ function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undef
 export function publicPlayer(p: TrialPlayer): TrialPlayer {
   const zero = { BTN: 0, SB: 0, BB: 0, UTG: 0 };
   return {
-    ...p, notes: [], shown: [], mine: [], byPos: { ...zero }, byPosN: { ...zero }, locked: true,
+    ...p, notes: [], shown: [], mine: [], byPos: { ...zero }, byPosN: { ...zero }, sdNet: 0, foldNet: 0, locked: true,
     s: {
       ...p.s, history: [],
       flow: { winFold: 0, winShowdown: 0, winOther: 0, lossFold: 0, lossShowdown: 0, lossOther: 0 },

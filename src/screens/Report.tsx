@@ -43,10 +43,10 @@ export default function Report({ gameId }: { gameId: string }) {
         const base = `${slug(g.name)}-${new Date(g.startedAt).toLocaleDateString('en-CA')}`;
         let out: File[];
         if (tier === 'html') {
-          if (!reportReady(g)) throw new Error(`record at least ${MIN_REPORT_HANDS} hands first`);
-          const made = await makeHtmlReport(g, allPlayers, settings);
-          out = [made.file];
-          if (!cancelled) setCodes(made.codes);
+          // a game too short for the report gets the card below that says why, not an error
+          const made = reportReady(g) ? await makeHtmlReport(g, allPlayers, settings) : undefined;
+          out = made ? [made.file] : [];
+          if (!cancelled) setCodes(made?.codes ?? []);
         } else if (tier === 'data') {
           const list = [g];
           out = [

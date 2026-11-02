@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { back, go } from '../router';
+import { back, backTo, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, Toggle, num, toast } from '../components/ui';
 import { codeMatches } from '../lib/codes';
 import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand, cardText } from '../lib/cards';
@@ -553,7 +553,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       <Header back={() => back(readOnly ? `game/${g.id}/hands` : `game/${g.id}`)} title={`Hand ${st.n}`} sub={readOnly ? `${g.name}, review` : g.name}
         right={existing && !readOnly ? (
           <button className="sat-btn sat-btn--ghost sat-iconbtn" style={confirm === 'delete' ? { color: 'var(--sat-neg)' } : undefined} aria-label={confirm === 'delete' ? 'Tap again to delete this hand' : 'Delete hand'}
-            onClick={() => { if (confirm !== 'delete') { setConfirm('delete'); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, st.id); go(`game/${g.id}`, true); }}>
+            onClick={() => { if (confirm !== 'delete') { setConfirm('delete'); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, st.id); backTo(`game/${g.id}`); }}>
             <Icon name="trash" />
           </button>
         ) : undefined}>

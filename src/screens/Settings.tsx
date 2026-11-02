@@ -18,6 +18,7 @@ const SPLASH: { ms: number; label: string }[] = [
   { ms: SPLASH_DEFAULT, label: 'Standard' },
   { ms: 4500, label: 'Long' },
 ];
+const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
 export default function Settings() {
@@ -75,7 +76,7 @@ export default function Settings() {
       const data = JSON.parse(await file.text()) as BackupData;
       if (data.app !== 'felt' || !Array.isArray(data.games) || !Array.isArray(data.players)) throw new Error('not a Felt backup');
       importBackup(data);
-      toast(`Restored ${data.games.length} games and ${data.players.length} players`);
+      toast(`Restored ${count(data.games.length, 'game')} and ${count(data.players.length, 'player')}`);
     } catch (e) {
       toast(`Backup unable to load (${(e as Error).message}). Pick a felt-backup file.`);
     }
@@ -150,7 +151,7 @@ export default function Settings() {
 
         <section className="sat-glass sat-card sat-stack">
           <div className="sat-split"><h2 className="sat-h2">Data</h2><Help k="backup" /></div>
-          <p className="sat-small sat-muted">{games.length} games and {players.length} players stored on this phone{usage ? ` (${usage})` : ''}. Nothing is sent online.</p>
+          <p className="sat-small sat-muted">{count(games.length, 'game')} and {count(players.length, 'player')} stored on this phone{usage ? ` (${usage})` : ''}. Nothing is sent online.</p>
           <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(2) }}>
             <button className="sat-btn sat-btn--primary" onClick={backup}><Icon name="download" /> Back up (1 file)</button>
             <button className="sat-btn" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Restore</button>

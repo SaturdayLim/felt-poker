@@ -55,7 +55,7 @@ function App() {
         <header className="trial-head">
           <div>
             <div className="felt-header-title">{m.game}</div>
-            <small className="sat-muted">{m.date}, {m.hands} hands, {m.minutes} min</small>
+            <small className="sat-muted">{m.date}, {m.hands} {m.hands === 1 ? 'hand' : 'hands'}, {m.minutes} min</small>
           </div>
           <div className="sat-seg" role="radiogroup" aria-label="Theme">
             <button role="radio" aria-checked={theme === 'dark'} aria-label="Dark" onClick={() => setTheme('dark')}><Icon name="moon" size={16} /></button>
@@ -202,7 +202,7 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
       </Section>
       <Section title="House Rules" tip={['The rules this game used.', 'Set in New Game or the game settings.']}>
         <div className="sat-glass-2 felt-list">
-          {m.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main">{r.label}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>)}
+          {m.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>{r.label}</span><span className="sat-small" style={{ textAlign: 'right', flex: '1 1 auto', minWidth: 0 }}>{r.value}</span></div>)}
         </div>
       </Section>
 
@@ -315,7 +315,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         </Section>
       )}
 
-      <Section title="Playing Style" tip={['NA = <5 chances']}>
+      <Section title="Playing Style" tip={['NA: fewer than 5 chances.']}>
         <dl className="trial-lines">
           {lines.map(([k, v, n, tip]) => (
             <div key={k}><dt>{k} <Tip title={k} lines={tip} /></dt><dd><b className={v === 'NA' ? 'sat-muted' : ''}>{v}</b> <span className="sat-muted">({n})</span></dd></div>
@@ -576,7 +576,7 @@ function Funnel({ m }: { m: TrialModel }) {
 function Pips({ label, hint, hit, total, bad }: { label: string; hint: string; hit: number; total: number; bad?: boolean }) {
   return (
     <div className="trial-pips">
-      <span className="sat-small"><b>{label}</b> <span className="sat-muted">{hint}</span></span>
+      <span className="sat-small"><b>{label}</b> <Tip title={label} lines={[`${hint}.`]} /></span>
       <span className="trial-pips-row" aria-label={`${hit} of ${total}`}>
         {total === 0 ? <span className="sat-small sat-muted">No chances</span> : Array.from({ length: total }, (_, i) => <i key={i} className={i < hit ? (bad ? 'is-bad' : 'is-hit') : ''} />)}
         {total > 0 && <b className="sat-small">{hit}/{total}</b>}

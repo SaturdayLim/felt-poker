@@ -50,9 +50,10 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
   .felt-app .sat-bottombar > * { flex: 1; }
 }
 @media (max-width: 639px) { .felt-app .sat-bottombar { bottom: calc(var(--sat-space-3) + var(--felt-safe-bottom)); } }
-/* Narrow phones (320px): two bar buttons must fit side by side, so the first sizes to its text. */
-@media (max-width: 359px) {
+/* Narrow phones (320px to 414px): two bar buttons must fit side by side, so the first sizes to its text. */
+@media (max-width: 419px) {
   .felt-app .sat-bottombar > * { min-width: 0; padding-inline: var(--sat-space-3); font-size: var(--sat-fs-small); }
+  .felt-dock-actions > * { padding-inline: var(--sat-space-3); font-size: var(--sat-fs-small); }
   .felt-app .sat-bottombar > :first-child:not(:last-child) { flex: 0 0 auto; }
   .felt-period button { padding-inline: var(--sat-space-2); }
 }
@@ -314,7 +315,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-rec-dock { flex-direction: column; align-items: stretch; }
 .felt-app .felt-rec-dock > * { flex: none; }
 .felt-dock-actions { display: flex; gap: var(--sat-space-2); }
-.felt-dock-actions > * { flex: 1; }
+.felt-dock-actions > * { flex: 1; min-width: 0; }
 .felt-picker-wrap { display: flex; flex-direction: column; gap: var(--sat-space-2); padding: 2px 2px var(--sat-space-1); }
 /* Keypad: actions row, then the amount field (backspace key inside it) with Bet or Raise, then 0-9 */
 .felt-keypad { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px var(--sat-space-1); }

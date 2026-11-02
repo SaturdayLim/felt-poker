@@ -2,7 +2,7 @@
    player's code (PBKDF2, SHA-256, 150 000 rounds, AES-GCM 256), so the report file holds nothing readable
    without the code. Runs the same in Node (building the report) and in the browser (opening it). */
 
-import { normalCode } from '../src/lib/codes';
+import { normalCode } from '../lib/codes';
 
 export interface LockBox { salt: string; iv: string; data: string; iter: number }
 

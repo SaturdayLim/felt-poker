@@ -1,14 +1,14 @@
 /* Trial report model: every figure the trial report pages show, worked out from a Felt backup with the
    app's own logic (src/lib). The backup holds the group's game data and stays in trial/ (git-ignored).
    All amounts are chips; the report never converts to money. */
-import type { Card, Game, ID, Player } from '../src/types';
-import { playerSummary, type PlayerSummary } from '../src/lib/stats';
-import { estimateStacks } from '../src/lib/stacks';
-import { actingOrder, bountyPay, bountyTotal, contributions, finalists, inAtEnd } from '../src/lib/hand';
-import { bestHand } from '../src/lib/cards';
-import { gameRules } from '../src/lib/rules';
-import type { Settings } from '../src/types';
-import { playerResult, suggestTransfers } from '../src/lib/calc';
+import type { Card, Game, ID, Player } from '../types';
+import { playerSummary, type PlayerSummary } from '../lib/stats';
+import { estimateStacks } from '../lib/stacks';
+import { actingOrder, bountyPay, bountyTotal, contributions, finalists, inAtEnd } from '../lib/hand';
+import { bestHand } from '../lib/cards';
+import { gameRules } from '../lib/rules';
+import type { Settings } from '../types';
+import { playerResult, suggestTransfers } from '../lib/calc';
 
 export type Pos = 'BTN' | 'SB' | 'BB' | 'UTG';
 /** A strength or weakness: "Strength: Aggression - Won 42 in takedowns", with what to do about it. */

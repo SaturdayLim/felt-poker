@@ -6,6 +6,7 @@
   ],
   "exclude": [
     "scripts/trial-data.ts",
-    "scripts/trial-build.ts"
+    "scripts/trial-build.ts",
+    "scripts/report-template.ts"
   ]
 }

@@ -16,8 +16,8 @@ import './trial-report.css';
 import { Cards, Icon, Info } from '../src/components/ui';
 import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
-import { AWARD_LIST, buildModel, type Award, type Pos, type TrialModel, type TrialPlayer } from './trial-model';
-import { unlock, type LockBox } from './trial-lock';
+import { AWARD_LIST, buildModel, type Award, type Pos, type TrialModel, type TrialPlayer } from '../src/report/model';
+import { unlock, type LockBox } from '../src/report/lock';
 
 type View = 'summary' | 'players' | 'compare';
 interface ReportFile { model: TrialModel; locks: Record<string, LockBox> }

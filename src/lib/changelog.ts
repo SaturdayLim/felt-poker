@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.0.0', date: '2 Nov 2026', notes: [
+    'Game report: one HTML file to share, made on the phone (Download or Share).',
+    'Report pages: awards, charts, stats, house rules and a short who-pays-whom list with a copy button.',
+    'Each player page opens with that player code. Copy a message with the code for each player.',
+    'Back button no longer loops between Settle Up and Hands.',
+  ] },
   { version: '0.2.0', date: '2 Nov 2026', notes: [
     'Check for update button in Settings.',
     'Player codes and private cards.',

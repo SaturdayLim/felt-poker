@@ -1,6 +1,6 @@
 # Felt PRD: Player Codes, Card Entry and Live Link
 
-Status: draft for review. Not built. Covers release 1.0.1 (no server) and release 1.1.0 (Firebase live link).
+Status: 1.0.1 built and pushed. 1.1.0 built (code complete, tested with the mock driver); the Firebase project `felt-live` still needs to be created (docs/FIREBASE-SETUP.md).
 Source of the flow: the host's nine-step description of 2 Nov 2026. Source of the Firebase notes: the Stack trivia app (`Stack App v6 260611`: `FIREBASE-SETUP.md`, `DECISIONS-V2.md`, `js/sync/adapter.js`, `driver-firebase.js`, `driver-mock.js`).
 
 ## 1. Goal
@@ -113,25 +113,7 @@ Stack's open rules do not fit. The design below keeps Firebase as a store of dat
 6. **Residual risk**: someone who holds the link can download the locked boxes and guess codes offline. A 6-character code is guessable at roughly one GPU day. This is the same risk as the HTML file in a group chat. The link alone also needs `k`. Accepted. Option: 8-character codes later.
 7. **Host phone lost or reset**: restoring a backup on a new phone loses the Firebase owner. The host taps "Share live link" again. This makes a new room and a new link. The old room expires.
 
-Rules to publish:
-
-```json
-{
-  "rules": {
-    ".read": false,
-    ".write": false,
-    "rooms": {
-      "$room": {
-        ".read": true,
-        ".write": "auth != null && (!data.exists() || data.child('owner').val() === auth.uid)",
-        ".validate": "newData.hasChildren(['owner', 'updatedAt', 'pub'])",
-        "pub": { ".validate": "newData.isString() && newData.val().length < 700000" },
-        "pages": { "$pid": { ".validate": "newData.hasChildren(['salt', 'iv', 'data']) && newData.child('data').val().length < 400000" } }
-      }
-    }
-  }
-}
-```
+Rules to publish: see `database.rules.json` in the repository. Viewers can read `meta`, `pub`, `now` and `ident`. Only the owner can read the whole room, which includes `inbox` and `flags`. Any signed-in visitor can create an inbox entry or a flag. Only the owner can write everything else.
 
 ### 4.4 Data layout
 

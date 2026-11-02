@@ -152,7 +152,7 @@ export default function Settings() {
 
         <section className="sat-glass sat-card sat-stack">
           <div className="sat-split"><h2 className="sat-h2">Data</h2><Help k="backup" /></div>
-          <p className="sat-small sat-muted">{count(games.length, 'game')} and {count(players.length, 'player')} stored on this phone{usage ? ` (${usage})` : ''}. Nothing is sent online.</p>
+          <p className="sat-small sat-muted">{count(games.length, 'game')} and {count(players.length, 'player')} stored on this phone{usage ? ` (${usage})` : ''}. Nothing is sent online unless you turn on a live link.</p>
           <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(2) }}>
             <button className="sat-btn sat-btn--primary" onClick={backup}><Icon name="download" /> Back up (1 file)</button>
             <button className="sat-btn" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Restore</button>

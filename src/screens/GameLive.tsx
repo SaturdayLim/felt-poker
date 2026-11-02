@@ -10,6 +10,7 @@ import { buyInsEquivalent, dateLabel, duration, inBB, money, timeLabel, units } 
 import { estimateStacks, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
+import { LiveSheet, useLive } from '../components/live';
 import { uid } from '../lib/ids';
 import type { ChipMove, Game, Hand, ID } from '../types';
 
@@ -38,6 +39,8 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const st = useStore();
   const [tab, setTab] = useState<'players' | 'hands'>(initialTab);
   const [sheet, setSheet] = useState<SheetKind>(null);
+  const [liveOpen, setLiveOpen] = useState(false);
+  const live = useLive(gameId);
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Game" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
   const isCash = g.type === 'cash';
@@ -78,6 +81,13 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
             <span>This game is closed.</span><span className="sat-small" style={{ color: 'var(--sat-accent-text)', fontWeight: 600 }}>Show results</span>
           </button>
         )}
+
+        <button className="sat-flat sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => setLiveOpen(true)}>
+          <span><Icon name="share" size={18} /> Live link</span>
+          <span className="sat-small" style={{ color: live.on ? 'var(--sat-accent-text)' : undefined, fontWeight: 600 }}>
+            {live.on ? `On${live.flags.length ? `, ${live.flags.length} ${live.flags.length === 1 ? 'flag' : 'flags'}` : ''}` : 'Off'}
+          </span>
+        </button>
 
         <div className="felt-summary">
           <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins` : money(totalPotMoney(g), g.currency)}</b></span>
@@ -145,6 +155,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
           cta="Save count" onClose={() => setSheet(null)}
           onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips`); }} />;
       })()}
+      {liveOpen && <LiveSheet g={g} onClose={() => setLiveOpen(false)} />}
       {sheet?.k === 'move' && <MoveSheet g={g} name={name} onClose={() => setSheet(null)} />}
       {sheet?.k === 'buyins' && <BuyInsSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'back' && <BackInSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}

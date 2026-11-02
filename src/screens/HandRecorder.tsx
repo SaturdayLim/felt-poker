@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
+import { liveStatus, publishNow } from '../live/host';
+import { buildNow } from '../live/snapshot';
 import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast } from '../components/ui';
 import { bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
@@ -180,6 +182,16 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     if (existing || !st) return;
     try { localStorage.setItem(draftKey(gameId), JSON.stringify({ v: 1, st, dealt, button, sb, bb } satisfies Draft)); } catch { /* storage full or private mode */ }
   }, [st, dealt, button, sb, bb, existing, gameId]);
+
+  // Live link: send the hand in progress to viewers after each change (public information only)
+  useEffect(() => {
+    if (!g || !st || readOnly || !liveStatus(g.id).on) return;
+    const t = window.setTimeout(() => {
+      publishNow(g.id, buildNow(g, useStore.getState().players, { n: st.n, tab: st.tab, log: st.log, board: st.board, ended: st.ended })).catch(() => undefined);
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [g, st, readOnly]);
+  useEffect(() => () => { if (!readOnly) publishNow(gameId, null).catch(() => undefined); }, [gameId, readOnly]);
 
   // While the keypad is open the rest of the screen is greyed out: a tap anywhere outside the keypad and
   // the action boxes only puts the keypad away (that tap does nothing else). Scrolling leaves it open.

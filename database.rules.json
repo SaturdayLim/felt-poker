@@ -1,0 +1,31 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        ".read": "auth != null && data.child('owner').val() === auth.uid",
+        ".write": "auth != null && (!data.exists() || data.child('owner').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['owner', 'createdAt'])",
+        "meta": { ".read": true },
+        "pub": { ".read": true, ".validate": "newData.isString() && newData.val().length < 700000" },
+        "now": { ".read": true, ".validate": "newData.isString() && newData.val().length < 100000" },
+        "ident": { ".read": true },
+        "inbox": {
+          "$pid": {
+            "$n": {
+              ".write": "auth != null",
+              ".validate": "newData.hasChildren(['salt', 'iv', 'data']) && newData.child('data').val().length < 2000"
+            }
+          }
+        },
+        "flags": {
+          "$fid": {
+            ".write": "auth != null && !data.exists()",
+            ".validate": "newData.isString() && newData.val().length < 2000"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.1.0', date: '2 Nov 2026', notes: [
+    'Live link: players follow a game from one link or QR and see the action, settings, hands and table.',
+    'Players add their own cards from their phone with their code. Cards are write only.',
+    'Players can flag a wrong update. The host sees the flags.',
+    'Game data online is encrypted. A join passphrase can lock a game. Stop sharing deletes the room.',
+  ] },
   { version: '1.0.1', date: '2 Nov 2026', notes: [
     'Eye icon on a player: show a new code once, or copy it without showing it.',
     'Player cards: write-only entry after a hand. Nobody can see saved cards.',

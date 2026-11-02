@@ -182,7 +182,7 @@ const WIN_RULE = { shown: 'Revealed at showdown', won: 'Winning the pot', sole: 
 const MIN_RAISE = { last: 'Last raise', sb: 'SB steps', double: 'Double' } as const;
 
 /** The house rules a game was played under, as label and value pairs for the report. */
-function rulesList(g: Game, s?: Settings): { label: string; value: string }[] {
+export function rulesList(g: Game, s?: Settings): { label: string; value: string }[] {
   const r = s || g.rules ? gameRules(g, s as Settings) : undefined;
   const out = [
     { label: 'Game', value: g.type === 'cash' ? 'Cash' : 'Tournament' },

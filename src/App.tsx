@@ -17,6 +17,8 @@ import Insights from './screens/Insights';
 import Players from './screens/Players';
 import Settings from './screens/Settings';
 import Group from './screens/Group';
+import Join from './screens/Join';
+import { resumeSharing, watchGames } from './live/host';
 
 const NAV = [
   { path: '', label: 'Home', icon: 'home' },
@@ -32,6 +34,12 @@ export default function App() {
   const splashMs = useStore((s) => s.settings.splashMs);
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
+  // live link: reconnect to rooms that were open, and publish changes to shared games
+  useEffect(() => {
+    if (!hydrated) return;
+    resumeSharing();
+    return watchGames();
+  }, [hydrated]);
   useEffect(() => { if (hydrated) try { localStorage.setItem(SPLASH_KEY, String(splashMs)); } catch { /* private mode */ } }, [hydrated, splashMs]);
   if (!hydrated) return <div className="felt-app" />;
 
@@ -49,6 +57,7 @@ export default function App() {
     else if (c === 'hands') screen = <GameLive gameId={b} initialTab="hands" />;
     else screen = <GameLive gameId={b} />;
   }
+  else if (a === 'join' && b) { screen = <Join room={b} keyFromLink={c} />; nav = false; }
   else if (a === 'insights') screen = <Insights initialPlayer={b} />;
   else if (a === 'players') screen = <Players />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;

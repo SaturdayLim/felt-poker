@@ -5,11 +5,15 @@ import { CardPickerGrid, Caption, PlayingCard, Sheet, toast } from './ui';
 
 /** Write-only entry of a player's hole cards for one hand. The sheet never shows cards that were saved before:
     it only says whether an entry exists. Entering again replaces the old entry. No code is asked on this phone. */
-export function CardEntrySheet({ players, name, entered, blocked, onSave, onClose }: {
+export function CardEntrySheet({ players, name, entered, blocked, onSave, onClose, initial, closeOnSave }: {
   players: ID[]; name: (id: ID) => string; entered: ID[]; blocked: Card[];
   onSave: (p: ID, cards: Card[]) => void; onClose: () => void;
+  /** Start on this player's cards, without the player list. */
+  initial?: ID;
+  /** Close the sheet after saving. */
+  closeOnSave?: boolean;
 }) {
-  const [pid, setPid] = useState<ID | null>(null);
+  const [pid, setPid] = useState<ID | null>(initial ?? null);
   const [cards, setCards] = useState<Card[]>([]);
   const [ask, setAsk] = useState(false);
 
@@ -23,7 +27,7 @@ export function CardEntrySheet({ players, name, entered, blocked, onSave, onClos
     if (!pid || cards.length !== 2) return;
     onSave(pid, cards);
     toast(`Saved for ${name(pid)}. Nobody can see these cards.`);
-    reset();
+    if (closeOnSave) onClose(); else reset();
   };
 
   if (!pid) {
@@ -61,7 +65,7 @@ export function CardEntrySheet({ players, name, entered, blocked, onSave, onClos
         {[0, 1].map((i) => <PlayingCard key={i} card={cards[i] ?? null} size="lg" placeholder={`Card ${i + 1}`} />)}
       </div>
       <CardPickerGrid disabled={(c) => blocked.includes(c) || cards.includes(c)} onPick={pick} />
-      <button className="sat-btn sat-btn--ghost sat-btn--block" onClick={reset}>Back to players</button>
+      <button className="sat-btn sat-btn--ghost sat-btn--block" onClick={initial ? onClose : reset}>{initial ? 'Cancel' : 'Back to players'}</button>
     </Sheet>
   );
 }

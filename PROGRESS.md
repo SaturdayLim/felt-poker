@@ -29,6 +29,11 @@
 - Fix: stack estimate before a hand ignored later cash-outs (review showed 0 stacks).
 - Tests: 43 pass.
 
+## Trial reports (2 Nov 2026)
+- `scripts/trial-model.ts` builds every report figure from a Felt backup with the app logic; `scripts/trial-data.ts` prints it (`npx vite-node scripts/trial-data.ts trial/<backup>.json`).
+- `scripts/trial-report.html` + `.tsx` + `.css`: 3 trial pages (The night, Players, Compare) with app CSS and charts. Open with the felt-test server: http://localhost:5174/scripts/trial-report.html (reads `/trial/potato-backup.json`).
+- Data in `trial/` is git-ignored. Waiting on the user's review before any of it goes into the app.
+
 ## Next
 - Bounties and chip moves are not in the image report or the CSV ledger yet.
 - Check on the iPhone.

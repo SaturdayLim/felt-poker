@@ -1,0 +1,45 @@
+/* Trial report pages. Player colours: categorical slots 1 to 4 of the dataviz reference palette,
+   light and dark steps (validated adjacent pairs; lines also carry end labels and a legend). */
+:root { --trial-s1: #2a78d6; --trial-s2: #eb6834; --trial-s3: #1baf7a; --trial-s4: #eda100; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --trial-s1: #3987e5; --trial-s2: #d95926; --trial-s3: #199e70; --trial-s4: #c98500; } }
+:root[data-theme="dark"] { --trial-s1: #3987e5; --trial-s2: #d95926; --trial-s3: #199e70; --trial-s4: #c98500; }
+
+.trial { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; display: flex; flex-direction: column; gap: var(--sat-space-4); }
+.trial-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sat-space-3); }
+.trial-lead { margin: 0; font-size: 1.0625rem; }
+.trial-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; margin-right: 6px; vertical-align: 0; }
+.trial-num { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
+.trial-num small { color: var(--sat-muted); font-size: var(--sat-fs-caption); }
+.trial-num--big b { font-size: 1.75rem; font-family: var(--sat-font-display); }
+.trial-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--sat-fs-small); color: var(--sat-muted); }
+.trial-legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: 3px; }
+.trial-chart { position: relative; }
+.trial-chart svg { display: block; overflow: visible; touch-action: pan-y; }
+.trial-grid { stroke: var(--sat-line); stroke-width: 1; }
+.trial-grid.is-base { stroke: var(--sat-line-strong); stroke-dasharray: 4 4; }
+.trial-axis { fill: var(--sat-muted); font-size: 10px; font-family: var(--sat-font-body, inherit); }
+.trial-endlabel { font-size: 11px; font-weight: 600; font-family: var(--sat-font-body, inherit); }
+.trial-cross { stroke: var(--sat-line-strong); stroke-dasharray: 3 3; stroke-width: 1; }
+.trial-tip { position: absolute; top: 0; transform: translateX(-50%); pointer-events: none; z-index: 2; display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 10px; border-radius: var(--sat-radius-sm); background: var(--sat-solid-2); border: 1px solid var(--sat-line); box-shadow: var(--sat-shadow-lg);
+  font-size: var(--sat-fs-caption); white-space: nowrap; }
+.trial-insights { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: var(--sat-fs-small); line-height: 1.45; }
+.trial-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sat-space-3); }
+.trial-tile { padding: var(--sat-space-3); border-radius: var(--sat-radius-md); background: var(--sat-well); }
+.trial-hand { padding: var(--sat-space-3); border-radius: var(--sat-radius-md); background: var(--sat-well); display: grid; gap: 6px; }
+.trial-shown { display: flex; align-items: center; gap: 8px; font-size: var(--sat-fs-small); }
+.trial-shown > span:first-child { width: 64px; font-weight: 600; }
+.trial-table-wrap { overflow-x: auto; }
+.trial-table { width: 100%; border-collapse: collapse; font-size: var(--sat-fs-small); font-variant-numeric: tabular-nums; }
+.trial-table th, .trial-table td { padding: 8px 4px; text-align: right; border-bottom: 1px solid var(--sat-line); }
+.trial-table th:first-child { text-align: left; color: var(--sat-muted); font-weight: 500; }
+.trial-table thead th { font-weight: 600; white-space: nowrap; }
+.trial-table td.is-best { font-weight: 700; color: var(--sat-accent-text); }
+.trial .felt-row-main { display: flex; flex-direction: column; min-width: 0; }
+.trial .felt-row { text-align: left; width: 100%; }
+.trial-who { display: grid; gap: 4px; }
+.trial-net b { font-family: var(--sat-font-display); font-size: 2rem; line-height: 1; }
+/* the player chips carry their own colour dot: drop the kit's pressed dot */
+.trial .sat-chip[aria-pressed="true"]::before { display: none; }
+.trial-tile.is-few .sat-kpi { color: var(--sat-muted); }
+.trial-table td.is-few { color: var(--sat-muted); }

@@ -61,7 +61,7 @@ export function LineChart({ series, height = 180 }: {
 export function NetBars({ rows, format }: { rows: { label: string; value: number }[]; format: (v: number) => string }) {
   const max = Math.max(1e-9, ...rows.map((r) => Math.abs(r.value)));
   return (
-    <div className="stack">
+    <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
       {rows.map((r) => (
         <div key={r.label}>
           <div className="sat-split sat-small"><span>{r.label}</span><span className={`sat-num felt-${tone(r.value) || 'flat'}`} style={{ fontWeight: 700 }}>{format(r.value)}</span></div>

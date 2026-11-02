@@ -3,7 +3,10 @@ import type { Card } from '../types';
 export const RANKS = 'AKQJT98765432'.split('');
 export const SUITS = ['s', 'h', 'd', 'c'] as const;
 export const SUIT_SYMBOL: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
-export const SUIT_COLOR: Record<string, string> = { s: '#111', h: '#d62839', d: '#1f6fd6', c: '#1b8a4b' };
+/** Two colours: hearts and diamonds red, spades and clubs black. */
+export const SUIT_COLOR: Record<string, string> = { s: '#111', h: '#d62839', d: '#d62839', c: '#111' };
+/** Card picker rows from top to bottom: spades, hearts, clubs, diamonds. */
+export const PICKER_SUITS = ['s', 'h', 'c', 'd'] as const;
 
 export const DECK: Card[] = SUITS.flatMap((s) => RANKS.map((r) => r + s));
 

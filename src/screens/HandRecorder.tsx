@@ -3,7 +3,7 @@ import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, Toggle, num, toast } from '../components/ui';
 import { codeMatches } from '../lib/codes';
-import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand, cardText } from '../lib/cards';
+import { PICKER_SUITS, RANKS, SUIT_COLOR, SUIT_SYMBOL, bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
 import { uid } from '../lib/ids';
@@ -674,7 +674,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
               </span>
             </div>
             <div className="felt-picker">
-              {SUITS.flatMap((su) => RANKS.map((r) => {
+              {PICKER_SUITS.flatMap((su) => RANKS.map((r) => {
                 const c = r + su;
                 return (
                   <button key={c} disabled={!pickable(c)} onClick={() => pick(c)} aria-label={c}>

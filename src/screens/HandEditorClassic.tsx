@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, num, toast } from '../components/ui';
-import { RANKS, SUITS, SUIT_COLOR, SUIT_SYMBOL, bestHand, type HandValue } from '../lib/cards';
+import { PICKER_SUITS, RANKS, SUIT_COLOR, SUIT_SYMBOL, bestHand, type HandValue } from '../lib/cards';
 import { buildPots, fromSmallBlind, playerStatus, positionSplit, round2 } from '../lib/calc';
 import { inBB, units } from '../lib/format';
 import { uid } from '../lib/ids';
@@ -355,7 +355,7 @@ export default function HandEditorClassic({ gameId, handId }: { gameId: string; 
               <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
             </div>
             <div className="felt-picker">
-              {SUITS.flatMap((s) => RANKS.map((r) => {
+              {PICKER_SUITS.flatMap((s) => RANKS.map((r) => {
                 const c = r + s;
                 const current = target.kind === 'board' ? d.board[target.i] : d.shown[target.idx]?.cards[target.ci];
                 return (

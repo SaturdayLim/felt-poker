@@ -68,8 +68,12 @@ The "Player codes" card on Download or Share goes away in 1.0.1. Codes belong to
 
 The host taps "Share live link" on a game. The app makes a link. Players open it in any browser. They see the same pages as the HTML report, and the pages update after each recorded hand. The host's phone stays the only place where the game is recorded. Firebase holds a copy, and Felt works fully without it.
 
-Scope in 1.1.0: read only for players.
-Out of scope: players sending cards from their own phones (decided: the host enters all cards). A later release can add a write-only inbox using the same data layout (section 4.7).
+Scope in 1.1.0 (decided in workshop 1, 2 Nov):
+- Players join by link or QR only. There is no public list of games.
+- A player opens the link, enters their player code, and sees their name. The code is kept until the player closes the page.
+- Players can read all public information of the game, including the game settings, as the host logs it.
+- Players can enter their own hole cards for each hand (section 4.7). The entry is write only.
+- A host can run several live games at once. A player belongs to one live game at a time.
 
 ### 4.2 What we reuse from Stack, and what we change
 
@@ -93,7 +97,9 @@ Stack's open rules do not fit. The design below keeps Firebase as a store of dat
 
 1. **Room id**: 128 random bits, base32. Nobody can guess it or list rooms (the `rooms` node has no read rule).
 2. **Writes**: the host signs in with Firebase Anonymous Auth (free). The room stores `owner = uid`. Only that uid can write or delete the room.
-3. **Viewer key in the link fragment**: the link is `https://<site>/live/#r=<roomId>&k=<key>`. The part after `#` never goes to any server. The public part of the report (Game Summary, Compare, house rules) is encrypted with `k` (AES-GCM) before upload. Firebase sees ciphertext only.
+3. **Viewer key in the link fragment**: for an open game the link is `https://<site>/live/#r=<roomId>&k=<key>`. The part after `#` never goes to any server. The public part of the report (Game Summary, Compare, house rules, hand log) is encrypted with `k` (AES-GCM) before upload. Firebase sees ciphertext only.
+   For a locked game the link holds only `r`. The key comes from a join passphrase that the host sets and that players type (PBKDF2, same as player codes). The host can change the passphrase. The old one then stops working after the next publish.
+   Room ids are random and unique. There is no list of rooms.
 4. **Player pages**: encrypted with the player's code exactly as in the HTML report (PBKDF2 150 000 rounds, AES-GCM). Firebase sees ciphertext only. A viewer needs the link and the code.
 5. **Private cards** are inside the locked player page, as today.
 6. **Residual risk**: someone who holds the link can download the locked boxes and guess codes offline. A 6-character code is guessable at roughly one GPU day. This is the same risk as the HTML file in a group chat. The link alone also needs `k`. Accepted. Option: 8-character codes later.
@@ -139,8 +145,10 @@ Plain text in Firebase: owner uid, timestamps, hand count. Everything else is ci
 - On: sign in, create room, publish, show the link with Copy and Show QR (QR makes it easy to open on other phones, a Stack feature R7/R20).
 - After each saved hand: publish again (debounced 3 seconds). Offline: queue the last snapshot and publish when the network returns. A badge shows "Live, updated after hand 12" or "Offline, will update".
 - Publishing needs each player's code to lock pages. A player without a code shows as "No code yet" in the viewer and has no page until the host issues one.
-- Stop sharing: deletes the room. Closing the game does not delete it. The 7-day expiry deletes rooms the host forgot.
-- The room id and the viewer key are stored in `Game.live`, so backups keep them. The host's Firebase owner is not in a backup. Open question Q3.
+- The host can turn sharing on and off at any time, per game, and lock it with a join passphrase. Turning sharing off deletes the room. Turning it on again makes a new room, a new id and a new link.
+- Firebase is used only while a session is live. Closing the game does not end the session, so players can still add cards after the game (step 6 of the flow). The host ends the session with Stop sharing.
+- A room that nobody updated for 7 days is deleted by the next host publish or by the host app on start. Open question Q4.
+- The room id and viewer key live in memory and in `Game.live` on this phone only. Backups leave them out, so a restored phone starts a new session.
 
 ### 4.6 Viewer behavior
 
@@ -150,9 +158,19 @@ Plain text in Firebase: owner uid, timestamps, hand count. Everything else is ci
 - Cached copy: the last snapshot is kept in the browser, so a viewer with no signal still sees the last update.
 - A deleted room shows "The host stopped sharing."
 
-### 4.7 Later: write-only card inbox (not in 1.1.0)
+### 4.7 Player card entry (write only)
 
-`rooms/<id>/inbox/<pid>/<handN>` where a player writes cards encrypted with the host's public key. The player's page must not read them back. Rules allow create but not read for the inbox. Not planned now because the host enters all cards.
+- The player scans the link or QR, enters their code, and sees their name. All entries on this screen are for that player only.
+- The screen says: "Your cards are saved but nobody can see them, not even you. Enter them again to replace them."
+- The player picks a hand (a list of the recorded hands, newest first) and two cards with the card picker.
+- Before saving the app asks: "You selected 7 of Hearts and K of Spades. Confirm submission?" with Confirm and Change.
+- The entry is encrypted with the key made from the player's code and stored at `rooms/<id>/inbox/<pid>/<handN>`. Only the host app can decrypt it, because only the host app knows every code.
+- The host app reads new entries, decrypts them, and stores them as the private cards of that hand. It then removes the entry from Firebase. If the host is offline, entries wait in Firebase and are applied when the host is online again.
+- The entry replaces any earlier entry of the same player and hand.
+- Clash rule is the same as in 3.3: the hands of both players are left out of the report until one player enters again. No player is told about a clash. The confirmation prompt above is the only check.
+- Firebase cannot check a code. Another person in the same game could overwrite or erase an entry. The host app ignores entries that do not decrypt. The player can enter again. Open question Q7.
+
+Rules: the inbox allows create and update for any signed-in visitor, and allows read and delete for the owner only.
 
 ### 4.8 Limits on the free plan
 
@@ -200,9 +218,20 @@ Each release is committed and pushed when done, and gets a Version history entry
 
 | # | Question | Recommendation |
 |---|---|---|
-| Q1 | Use a new Firebase project `felt-live` or the Stack project `stack-ep5`? | New project. Stack rules are open. A new one costs 10 minutes and no money. |
-| Q2 | Should the public part (Game Summary, Compare) also be encrypted with the link key? | Yes. It costs nothing and Firebase then holds no readable game data. |
-| Q3 | Keep the room id and key in backups, so a restored phone keeps the same link? | Keep the key and id, not the owner. After a restore the host reclaims by making a new room. |
-| Q4 | Auto-delete a room after how long? | 7 days after the last publish. |
-| Q5 | Should codes grow to 8 characters to harden offline guessing? | Not now. Revisit if the live link is used with people outside the home game. |
-| Q6 | Is the host allowed to turn on sharing during the game, or only after it closes? | During the game, off by default, as players asked to follow live. |
+Answered in workshop 1:
+
+| # | Answer |
+|---|---|
+| Q1 | New Firebase project `felt-live`. |
+| Q2 | Yes, encrypt the public pages. |
+| Q3 | Room ids are random and unique. Because a stopped room is deleted and a new session makes a new room, a backup does not need to keep a live link. Decision: do not store the room id in backups. |
+| Q6 | The host can turn sharing on and off at any time. |
+| List | No list. Link or QR only. A locked game also needs the join passphrase. |
+
+Still open:
+
+| # | Question | Recommendation |
+|---|---|---|
+| Q4 | Is a safety expiry needed for rooms the host forgot to stop? | Yes: 7 days after the last publish. |
+| Q5 | Should codes grow to 8 characters? | Not now. |
+| Q7 | Should a card entry carry a signature, so an outsider cannot overwrite it? | No for 1.1.0. Entries are cheap to redo. |

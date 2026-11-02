@@ -8,6 +8,7 @@ const version = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf
 
 export default defineConfig({
   base: './',
+  define: { __APP_VERSION__: JSON.stringify(version), __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)) },
   // The site root is the splash screen; the app itself lives at app/.
   build: { rollupOptions: { input: { landing: resolve(__dirname, 'index.html'), app: resolve(__dirname, 'app/index.html') } } },
   plugins: [

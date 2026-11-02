@@ -3,6 +3,7 @@ import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../sto
 import { Caption, Header, Help, Icon, Toggle, num, toast } from '../components/ui';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
+import { CHANGELOG } from '../lib/changelog';
 import { money } from '../lib/format';
 import type { Markers, Settings as S, ThemePref } from '../types';
 
@@ -167,7 +168,19 @@ export default function Settings() {
 
         <section className="sat-glass sat-card sat-stack">
           <h2 className="sat-h2">App update</h2>
+          <p className="sat-small sat-muted">Version {__APP_VERSION__}, built {__BUILD_DATE__}.</p>
           <button className="sat-btn" onClick={checkUpdate}><Icon name="refresh" /> Check for update</button>
+          <details>
+            <summary className="sat-small" style={{ cursor: 'pointer' }}>Version history</summary>
+            <div className="sat-stack" style={{ ...gap(3), marginTop: 'var(--sat-space-3)' }}>
+              {CHANGELOG.map((c) => (
+                <div key={c.version}>
+                  <b>{c.version}</b> <span className="sat-small sat-muted">{c.date}</span>
+                  <ul className="sat-small" style={{ margin: '4px 0 0', paddingLeft: 20 }}>{c.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+                </div>
+              ))}
+            </div>
+          </details>
         </section>
 
         <section className="sat-flat sat-card sat-stack" style={gap(3)}>

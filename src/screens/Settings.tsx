@@ -52,6 +52,23 @@ export default function Settings() {
     if (r === 'downloaded') toast('Backup exported to Downloads');
     else if (r === 'shared') toast('Backup shared');
   };
+  /** Ask the service worker for a new build, then open the live site again so the phone downloads it.
+      Data stays: it lives in this origin's storage, which the live site shares. */
+  const checkUpdate = async () => {
+    const site = new URL('../', location.href);
+    try {
+      toast('Checking for update');
+      await fetch(site.href, { cache: 'no-store', method: 'HEAD' });
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update();
+    } catch {
+      toast('No connection. Connect to the internet and try again.');
+      return;
+    }
+    site.searchParams.set('u', String(Date.now()));
+    location.replace(site.href);
+  };
+
   const restore = async (file: File) => {
     try {
       const data = JSON.parse(await file.text()) as BackupData;
@@ -146,6 +163,11 @@ export default function Settings() {
             setErase(0);
             toast('All data erased from this phone');
           }}><Icon name="trash" /> {erase === 0 ? 'Erase all data' : erase === 1 ? 'Tap again to confirm' : 'Erase for good'}</button>
+        </section>
+
+        <section className="sat-glass sat-card sat-stack">
+          <h2 className="sat-h2">App update</h2>
+          <button className="sat-btn" onClick={checkUpdate}><Icon name="refresh" /> Check for update</button>
         </section>
 
         <section className="sat-flat sat-card sat-stack" style={gap(3)}>

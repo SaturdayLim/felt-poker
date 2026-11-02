@@ -73,8 +73,8 @@ interface State {
   settleGroup: (id: ID) => void;
 
   addPlayer: (name: string) => Player;
-  /** Issues a new code (for a player who lost theirs). */
-  resetPlayerCode: (id: ID) => string;
+  /** Makes a new code for a player (the old one stops working) and marks it as issued. The caller shows or copies it once. */
+  issueCode: (id: ID) => string;
   renamePlayer: (id: ID, name: string) => void;
   setPlayerArchived: (id: ID, archived: boolean) => void;
   deletePlayer: (id: ID) => boolean;
@@ -169,9 +169,9 @@ export const useStore = create<State>()(
           set((s) => ({ players: [...s.players, p] }));
           return p;
         },
-        resetPlayerCode: (id) => {
+        issueCode: (id) => {
           const code = newCode();
-          set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, code } : p)) }));
+          set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, code, codeIssued: true } : p)) }));
           return code;
         },
         renamePlayer: (id, name) =>
@@ -338,13 +338,13 @@ export const useStore = create<State>()(
             players: withCodes(data.players),
             games: withPrivate(data.games),
             groups: data.groups ?? [],
-            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
+            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
           })),
         exportBackup: () => {
           const s = get();
           return { app: 'felt', version: 1, exportedAt: now(), players: s.players, games: s.games, groups: s.groups, settings: s.settings };
         },
-        eraseAll: () => set((s) => ({ players: [], games: [], groups: [], settings: { ...DEFAULT_SETTINGS, theme: s.settings.theme, splashMs: s.settings.splashMs } })),
+        eraseAll: () => set((s) => ({ players: [], games: [], groups: [], settings: { ...DEFAULT_SETTINGS, theme: s.settings.theme, splashMs: s.settings.splashMs, cards: s.settings.cards } })),
       };
     },
     {

@@ -1,12 +1,29 @@
-import type { Card } from '../types';
+import type { Card, CardLook, SuitKey } from '../types';
 
 export const RANKS = 'AKQJT98765432'.split('');
 export const SUITS = ['s', 'h', 'd', 'c'] as const;
 export const SUIT_SYMBOL: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
 /** Two colours: hearts and diamonds red, spades and clubs black. */
 export const SUIT_COLOR: Record<string, string> = { s: '#111', h: '#d62839', d: '#d62839', c: '#111' };
-/** Card picker rows from top to bottom: spades, hearts, clubs, diamonds. */
-export const PICKER_SUITS = ['s', 'h', 'c', 'd'] as const;
+/** Colours a player can give a suit. */
+export const SUIT_PALETTE: Record<string, { label: string; hex: string }> = {
+  red: { label: 'Red', hex: '#d62839' },
+  black: { label: 'Black', hex: '#111' },
+  blue: { label: 'Blue', hex: '#1f6fd6' },
+  green: { label: 'Green', hex: '#1b8a4b' },
+  orange: { label: 'Orange', hex: '#d96a00' },
+  purple: { label: 'Purple', hex: '#7b3fb8' },
+};
+export const SUIT_NAME: Record<SuitKey, string> = { s: 'Spades', h: 'Hearts', c: 'Clubs', d: 'Diamonds' };
+/** Default look: picker rows from top to bottom are spades, hearts, clubs, diamonds; hearts and diamonds red. */
+export const DEFAULT_LOOK: CardLook = { order: ['s', 'h', 'c', 'd'], colors: { s: 'black', h: 'red', c: 'black', d: 'red' } };
+export const lookColor = (look: CardLook | undefined, s: string) => SUIT_PALETTE[(look ?? DEFAULT_LOOK).colors[s as SuitKey]]?.hex ?? SUIT_COLOR[s];
+/** A saved look with every suit present (an older or partial value falls back to the default). */
+export function cleanLook(l: Partial<CardLook> | undefined): CardLook {
+  const order = (l?.order ?? []).filter((s, i, a) => DEFAULT_LOOK.order.includes(s) && a.indexOf(s) === i);
+  for (const s of DEFAULT_LOOK.order) if (!order.includes(s)) order.push(s);
+  return { order, colors: { ...DEFAULT_LOOK.colors, ...(l?.colors ?? {}) } };
+}
 
 export const DECK: Card[] = SUITS.flatMap((s) => RANKS.map((r) => r + s));
 

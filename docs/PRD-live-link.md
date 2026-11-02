@@ -167,6 +167,7 @@ Plain text in Firebase: owner uid, timestamps, hand count. Everything else is ci
   1. See the action: the hand in progress (board, actions, pot) and the game settings (blinds, house rules, 2-7 bounty).
   2. See unprocessed stats: match history (closed hands with results) and showdown hands, as plain tables. No awards, no advice, no charts of style, no report download.
   3. Add their own cards (section 4.7).
+  4. Flag an update that looks wrong (for example a wrong amount or action). The flag goes to the host as a short note with the hand and action, and the host decides. A flag never changes the game.
 - A viewer cannot change a setting, record an action, or see private cards of anyone, including their own after saving.
 - Without a code, a viewer sees 1 and 2. A code is needed only for 3 and shows the player's name for reference. The code is kept in the browser tab until it closes (session storage). The browser keeps the key made from the code, not the code.
 - Subscribes with `on('value')` on `pub` and `now`. The page updates in place.

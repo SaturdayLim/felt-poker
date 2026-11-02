@@ -427,3 +427,12 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-code-row { display: flex; align-items: center; gap: var(--sat-space-2); flex-wrap: wrap; }
 .felt-code { font-family: var(--sat-font-mono, monospace); font-size: 1.25rem; font-weight: 700; letter-spacing: 0.12em; min-width: 110px; }
 .felt-code.is-hidden { color: var(--sat-muted); }
+.felt-code-big { font-family: var(--sat-font-mono, monospace); font-size: 2.5rem; font-weight: 700; letter-spacing: 0.14em; text-align: center; padding: var(--sat-space-4) 0; }
+
+/* Settings, Cards */
+.felt-suit-row { display: grid; grid-template-columns: 2rem 1fr auto; align-items: center; column-gap: var(--sat-space-3); row-gap: var(--sat-space-2); }
+.felt-suit-mark { font-size: 1.75rem; text-align: center; line-height: 1; }
+.felt-suit-colors { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: var(--sat-space-2); }
+.felt-swatch { flex: 1; max-width: 44px; height: 36px; border-radius: 10px; border: 2px solid transparent; box-shadow: 0 0 0 1px var(--sat-line-strong); }
+.felt-swatch[aria-checked="true"] { border-color: #fff; box-shadow: 0 0 0 3px var(--sat-accent); }
+.felt-suit-move { display: flex; }

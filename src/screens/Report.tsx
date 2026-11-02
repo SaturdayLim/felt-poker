@@ -6,7 +6,7 @@ import { renderReport, type Tier } from '../report/reports';
 import { loadReportFonts, type ReportTheme } from '../report/canvas';
 import { handsCsv, ledgerCsv, playersCsv, slug } from '../report/csv';
 import { canvasToFile, shareFiles, textFile } from '../report/share';
-import { MIN_REPORT_HANDS, makeHtmlReport, recordedHands, reportReady, type PlayerCode } from '../report/htmlReport';
+import { MIN_REPORT_HANDS, makeHtmlReport, recordedHands, reportReady } from '../report/htmlReport';
 import { useResolvedTheme } from '../theme';
 
 type Choice = Tier | 'data' | 'html';
@@ -28,7 +28,6 @@ export default function Report({ gameId }: { gameId: string }) {
   const settings = useStore((s) => s.settings);
   const allPlayers = useStore((s) => s.players);
   const [tier, setTier] = useState<Choice>('html');
-  const [codes, setCodes] = useState<PlayerCode[]>([]);
   const [look, setLook] = useState<ReportTheme>(appTheme);
   const [files, setFiles] = useState<File[]>([]);
   const [urls, setUrls] = useState<string[]>([]);
@@ -46,7 +45,6 @@ export default function Report({ gameId }: { gameId: string }) {
           // a game too short for the report gets the card below that says why, not an error
           const made = reportReady(g) ? await makeHtmlReport(g, allPlayers, settings) : undefined;
           out = made ? [made.file] : [];
-          if (!cancelled) setCodes(made?.codes ?? []);
         } else if (tier === 'data') {
           const list = [g];
           out = [
@@ -75,6 +73,7 @@ export default function Report({ gameId }: { gameId: string }) {
 
   useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
 
+  const noCode = g ? allPlayers.filter((p) => g.playerIds.includes(p.id) && !p.codeIssued) : [];
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Report" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
 
   const share = async () => {
@@ -123,7 +122,9 @@ export default function Report({ gameId }: { gameId: string }) {
           <div className="sat-flat sat-card sat-small">The game report needs a closed game with at least {MIN_REPORT_HANDS} recorded hands. This game has {recordedHands(g)}.</div>
         )}
 
-        {!busy && tier === 'html' && files.length > 0 && <CodesCard codes={codes} game={g.name} />}
+        {tier === 'html' && noCode.length > 0 && (
+          <div className="sat-flat sat-card sat-small">{noCode.map((p) => p.name).join(', ')} {noCode.length === 1 ? 'has' : 'have'} no code yet. Open Stats, pick the player and tap the eye to give a code. The report still builds.</div>
+        )}
 
         {!busy && (tier === 'data' || tier === 'html') && (
           <div className="sat-glass-2 felt-list">
@@ -146,26 +147,3 @@ export default function Report({ gameId }: { gameId: string }) {
   );
 }
 
-/** One code per player. The host sends each player only their own, so the code never travels with the file. */
-function CodesCard({ codes, game }: { codes: PlayerCode[]; game: string }) {
-  const [shown, setShown] = useState(false);
-  const copy = async (c: PlayerCode) => {
-    const text = `${c.name}, your code for the ${game} report is ${c.code}.`;
-    try { await navigator.clipboard.writeText(text); toast(`Message for ${c.name} copied`); }
-    catch { toast(`${c.name}: ${c.code}`); }
-  };
-  return (
-    <section className="sat-glass sat-card sat-stack">
-      <div className="sat-split"><h2 className="sat-h3">Player codes</h2><Help k="reportCodes" /></div>
-      <div className="sat-glass-2 felt-list">
-        {codes.map((c) => (
-          <div key={c.id} className="felt-row">
-            <span className="felt-row-main"><span className="felt-row-title">{c.name}</span><span className="felt-row-sub sat-mono">{shown ? c.code : '******'}</span></span>
-            <button className="sat-btn" onClick={() => copy(c)}><Icon name="file" /> Copy message</button>
-          </div>
-        ))}
-      </div>
-      <button className="sat-btn sat-btn--ghost" onClick={() => setShown(!shown)}>{shown ? 'Hide codes' : 'Show codes'}</button>
-    </section>
-  );
-}

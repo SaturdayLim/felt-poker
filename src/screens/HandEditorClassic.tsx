@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
-import { Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, num, toast } from '../components/ui';
-import { PICKER_SUITS, RANKS, SUIT_COLOR, SUIT_SYMBOL, bestHand, type HandValue } from '../lib/cards';
+import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, num, toast } from '../components/ui';
+import { bestHand, type HandValue } from '../lib/cards';
 import { buildPots, fromSmallBlind, playerStatus, positionSplit, round2 } from '../lib/calc';
 import { inBB, units } from '../lib/format';
 import { uid } from '../lib/ids';
@@ -354,18 +354,7 @@ export default function HandEditorClassic({ gameId, handId }: { gameId: string; 
               </Caption>
               <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
             </div>
-            <div className="felt-picker">
-              {PICKER_SUITS.flatMap((s) => RANKS.map((r) => {
-                const c = r + s;
-                const current = target.kind === 'board' ? d.board[target.i] : d.shown[target.idx]?.cards[target.ci];
-                return (
-                  <button key={c} disabled={used.has(c) && c !== current} onClick={() => pick(c)} aria-label={c}>
-                    <span className="r" style={{ color: SUIT_COLOR[s] }}>{r === 'T' ? '10' : r}</span>
-                    <span className="s" style={{ color: SUIT_COLOR[s] }}>{SUIT_SYMBOL[s]}</span>
-                  </button>
-                );
-              }))}
-            </div>
+            <CardPickerGrid disabled={(c) => used.has(c) && c !== (target.kind === 'board' ? d.board[target.i] : d.shown[target.idx]?.cards[target.ci])} onPick={pick} />
           </div>
         )}
 

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
-import { Caption, Header, Help, Icon, Toggle, num, toast } from '../components/ui';
+import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook } from '../components/ui';
+import { DEFAULT_LOOK, SUIT_NAME, SUIT_PALETTE, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
 import { money } from '../lib/format';
-import type { Markers, Settings as S, ThemePref } from '../types';
+import type { CardLook, Markers, Settings as S, SuitKey, ThemePref } from '../types';
 
 const THEMES: { k: ThemePref; label: string; icon: string }[] = [
   { k: 'auto', label: 'Auto', icon: 'phone' },
@@ -168,6 +169,11 @@ export default function Settings() {
         </section>
 
         <section className="sat-glass sat-card sat-stack">
+          <div className="sat-split"><h2 className="sat-h2">Cards</h2><Help k="cardLook" /></div>
+          <CardLookEditor />
+        </section>
+
+        <section className="sat-glass sat-card sat-stack">
           <h2 className="sat-h2">App update</h2>
           <p className="sat-small sat-muted">Version {__APP_VERSION__}, built {__BUILD_DATE__}.</p>
           <button className="sat-btn" onClick={checkUpdate}><Icon name="refresh" /> Check for update</button>
@@ -194,6 +200,39 @@ export default function Settings() {
           </ol>
         </section>
       </div>
+    </div>
+  );
+}
+
+/** Suit colours and the order of the suit rows in the card picker. Kept on this phone. */
+function CardLookEditor() {
+  const look = useCardLook();
+  const update = useStore((s) => s.updateSettings);
+  const save = (next: CardLook) => update({ cards: next });
+  const move = (i: number, d: -1 | 1) => {
+    const order = [...look.order];
+    [order[i], order[i + d]] = [order[i + d], order[i]];
+    save({ ...look, order });
+  };
+  return (
+    <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
+      {look.order.map((s: SuitKey, i: number) => (
+        <div key={s} className="felt-suit-row">
+          <span className="felt-suit-mark" style={{ color: lookColor(look, s) }} aria-hidden="true">{SUIT_SYMBOL[s]}</span>
+          <span className="felt-row-title">{SUIT_NAME[s]}</span>
+          <span className="felt-suit-move">
+            <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Move ${SUIT_NAME[s]} up`} disabled={i === 0} onClick={() => move(i, -1)}><span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}><Icon name="chevron" /></span></button>
+            <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Move ${SUIT_NAME[s]} down`} disabled={i === look.order.length - 1} onClick={() => move(i, 1)}><Icon name="chevron" /></button>
+          </span>
+          <span className="felt-suit-colors" role="radiogroup" aria-label={`${SUIT_NAME[s]} colour`}>
+            {Object.entries(SUIT_PALETTE).map(([k, c]) => (
+              <button key={k} type="button" role="radio" aria-checked={look.colors[s] === k} aria-label={c.label} className="felt-swatch" style={{ background: c.hex }}
+                onClick={() => save({ ...look, colors: { ...look.colors, [s]: k } })} />
+            ))}
+          </span>
+        </div>
+      ))}
+      <button className="sat-btn sat-btn--ghost" onClick={() => save(DEFAULT_LOOK)}>Reset to default</button>
     </div>
   );
 }

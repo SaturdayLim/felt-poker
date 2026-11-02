@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
+import { PlayerCodeSheet } from '../components/players';
 import { Avatar, Caption, Cards, Delta, Empty, Header, Help, Icon, toast, SourceTip } from '../components/ui';
 import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
@@ -82,6 +83,8 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
   setPid: (p: ID) => void; currency: string; name: (id: ID) => string;
 }) {
   const me = useStore((x) => x.settings.me);
+  const [codeFor, setCodeFor] = useState<ID | null>(null);
+  const codePlayer = useStore((x) => x.players.find((p) => p.id === codeFor));
   if (!selected) return null;
   const s = playerSummary(games, selected);
   const played = games.filter((g) => g.playerIds.includes(selected));
@@ -102,8 +105,13 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         {board.map((b) => <button key={b.playerId} className="sat-chip" aria-pressed={selected === b.playerId} onClick={() => setPid(b.playerId)}>{name(b.playerId)}</button>)}
       </div>
 
+      {codePlayer && <PlayerCodeSheet p={codePlayer} onClose={() => setCodeFor(null)} />}
+
       <section className="sat-glass sat-card sat-stack" style={gap(2)}>
-        <h2 className="sat-h2">{name(selected)}</h2>
+        <div className="sat-split">
+          <h2 className="sat-h2">{name(selected)}</h2>
+          <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Player code for ${name(selected)}`} onClick={() => setCodeFor(selected)}><Icon name="eye" /></button>
+        </div>
         <div className="sat-split" style={{ alignItems: 'flex-end' }}>
           <div className="sat-stack" style={gap(1)}>
             <Caption q={currency}>Net result</Caption>

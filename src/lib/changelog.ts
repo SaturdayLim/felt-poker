@@ -1,5 +1,12 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.0.1', date: '2 Nov 2026', notes: [
+    'Eye icon on a player: show a new code once, or copy it without showing it.',
+    'Player cards: write-only entry after a hand. Nobody can see saved cards.',
+    'Hands with clashing private cards are left out of the report.',
+    'Settings, Cards: suit colours and row order in the card picker.',
+    'Player codes card removed from Download or Share.',
+  ] },
   { version: '1.0.0', date: '2 Nov 2026', notes: [
     'Game report: one HTML file to share, made on the phone (Download or Share).',
     'Report pages: awards, charts, stats, house rules and a short who-pays-whom list with a copy button.',

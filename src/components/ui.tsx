@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { cardText, rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
+import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { HELP, type HelpKey } from '../lib/help';
-import type { Card } from '../types';
+import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
 import { NEXT_THEME } from '../theme';
 
@@ -23,6 +23,7 @@ const paths: Record<string, ReactNode> = {
   shuffle: <><path d="M16 3h5v5" /><path d="M4 20 21 3" /><path d="M21 16v5h-5" /><path d="M15 15l6 6" /><path d="M4 4l5 5" /></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></>,
   more: <><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></>,
+  eye: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   trophy: <><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10v5a5 5 0 0 1-10 0V4z" /><path d="M17 5h3v2a3 3 0 0 1-3 3" /><path d="M7 5H4v2a3 3 0 0 0 3 3" /></>,
   cards: <><rect x="3" y="5" width="11" height="15" rx="2" /><path d="M14 7.5l4.5 1.2a2 2 0 0 1 1.4 2.4l-2.6 9.7a2 2 0 0 1-2.4 1.4L11 21" /></>,
@@ -247,15 +248,40 @@ export function Delta({ value, format, vs, className }: { value: number; format:
 
 /* ------------------------------- cards ------------------------------- */
 
+/** The card look chosen on this phone (suit colours and picker row order). */
+export function useCardLook(): CardLook {
+  const saved = useStore((s) => s.settings.cards);
+  return cleanLook(saved);
+}
+
+/** The card picker: 13 ranks by 4 suits, rows in the order this phone chose. */
+export function CardPickerGrid({ disabled, onPick }: { disabled: (c: Card) => boolean; onPick: (c: Card) => void }) {
+  const look = useCardLook();
+  return (
+    <div className="felt-picker">
+      {look.order.flatMap((su) => RANKS.map((r) => {
+        const c = r + su;
+        return (
+          <button key={c} disabled={disabled(c)} onClick={() => onPick(c)} aria-label={c}>
+            <span className="r" style={{ color: lookColor(look, su) }}>{r === 'T' ? '10' : r}</span>
+            <span className="s" style={{ color: lookColor(look, su) }}>{SUIT_SYMBOL[su]}</span>
+          </button>
+        );
+      }))}
+    </div>
+  );
+}
+
 export function PlayingCard({ card, size, target, onClick, placeholder }: {
   card?: Card | null; size?: 'sm' | 'lg'; target?: boolean; onClick?: () => void; placeholder?: string;
 }) {
+  const look = useCardLook();
   const removable = !!(onClick && card && target);
   const cls = `felt-card ${size ?? ''} ${card ? '' : 'empty'} ${target ? 'target' : ''}`;
   const inner = card ? (
     <>
-      <span className="r" style={{ color: SUIT_COLOR[card[1]] }}>{rankLabel(card)}</span>
-      <span className="s" style={{ color: SUIT_COLOR[card[1]] }}>{SUIT_SYMBOL[card[1]]}</span>
+      <span className="r" style={{ color: lookColor(look, card[1]) }}>{rankLabel(card)}</span>
+      <span className="s" style={{ color: lookColor(look, card[1]) }}>{SUIT_SYMBOL[card[1]]}</span>
       {removable && <span className="felt-card-x" aria-hidden="true" />}
     </>
   ) : <span className="s">{placeholder ?? ''}</span>;

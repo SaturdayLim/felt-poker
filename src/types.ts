@@ -10,6 +10,8 @@ export interface Player {
   archived?: boolean;
   /** Player code (6 characters): opens their stats in a shared report and their private cards. */
   code?: string;
+  /** True once the host has shown or copied the current code. A code nobody has seen cannot be used. */
+  codeIssued?: boolean;
 }
 
 /** Players who play together. Games tagged with a group settle together (netted payments). */
@@ -300,8 +302,14 @@ export interface BountyRule {
   amount: number;
 }
 
+export type SuitKey = 's' | 'h' | 'c' | 'd';
+/** How cards look on this phone: the order of the suit rows in the card picker (top to bottom) and a colour per suit. */
+export interface CardLook { order: SuitKey[]; colors: Record<SuitKey, string> }
+
 export interface Settings {
   theme: ThemePref;
+  /** Card picker order and suit colours. This phone's own preference: a restore never changes it. */
+  cards?: CardLook;
   /** How long the opening screen shows, in ms. 0 = skip it. */
   splashMs: number;
   /** The player who uses this phone: the recorder offers My cards for that player. Kept on restore. */

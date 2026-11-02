@@ -117,6 +117,13 @@ export default function Settings() {
 
         <section className="sat-glass sat-card sat-stack">
           <h2 className="sat-h2">Hands</h2>
+          <div className="sat-stack" style={gap(2)}>
+            <Caption tip="me">You</Caption>
+            <div className="sat-cluster" style={gap(2)}>
+              <button className="sat-chip" aria-pressed={!settings.me} onClick={() => update({ me: undefined })}>Nobody</button>
+              {players.filter((p) => !p.archived || p.id === settings.me).map((p) => <button key={p.id} className="sat-chip" aria-pressed={settings.me === p.id} onClick={() => update({ me: p.id })}>{p.name}</button>)}
+            </div>
+          </div>
           <div className="sat-switch-row">
             <span><span style={{ display: 'block' }}>Track the button</span><span className="sat-small sat-muted">Moves one seat clockwise after each hand. Sets who gets odd chips in a split pot.</span></span>
             <Toggle on={settings.markers.dealer} onChange={(v) => setMarker('dealer', v)} label="Track the button" />
@@ -127,12 +134,12 @@ export default function Settings() {
           <div className="sat-split"><h2 className="sat-h2">Data</h2><Help k="backup" /></div>
           <p className="sat-small sat-muted">{games.length} games and {players.length} players stored on this phone{usage ? ` (${usage})` : ''}. Nothing is sent online.</p>
           <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(2) }}>
-            <button className="sat-btn sat-btn--primary" onClick={backup}><Icon name="download" /> Back up</button>
+            <button className="sat-btn sat-btn--primary" onClick={backup}><Icon name="download" /> Back up (1 file)</button>
             <button className="sat-btn" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Restore</button>
           </div>
           <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) restore(f); e.target.value = ''; }} />
-          <button className="sat-btn" onClick={exportAllCsv}><Icon name="file" /> Export all games (CSV)</button>
+          <button className="sat-btn" onClick={exportAllCsv}><Icon name="file" /> Download all games (3 CSV files)</button>
           <button className="sat-btn sat-btn--ghost" style={{ color: 'var(--sat-neg)' }} onClick={() => {
             if (erase < 2) { setErase(erase + 1); toast(erase === 0 ? 'Tap 2 more times to erase all data' : 'Tap once more to erase all data for good'); return; }
             eraseAll();

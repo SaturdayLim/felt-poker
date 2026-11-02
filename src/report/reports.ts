@@ -388,9 +388,10 @@ export function renderReport(g: Game, tier: Tier, name: NameFn, theme: ReportThe
       ...highlights(g, name), ...playerStats(g, name), spacer(10), ...payments(g, name));
     if (tier === 'full') {
       blocks.push(...buyInLog(g, name));
-      blocks.push(sectionTitle('Hands', `${g.hands.length} logged, pots in chips`));
-      if (!g.hands.length) blocks.push({ h: 80, draw: (ctx, y) => text(ctx, 'No hands were logged.', PAD, y + 46, font(400, 26), C.muted) });
-      for (const h of g.hands) blocks.push(handRow(h, name));
+      const played = g.hands.filter((h) => !h.missed);
+      blocks.push(sectionTitle('Hands', `${played.length} logged, pots in chips`));
+      if (!played.length) blocks.push({ h: 80, draw: (ctx, y) => text(ctx, 'No hands were logged.', PAD, y + 46, font(400, 26), C.muted) });
+      for (const h of played) blocks.push(handRow(h, name));
     }
   }
   blocks.push(spacer(20));

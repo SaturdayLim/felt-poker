@@ -152,7 +152,8 @@ export default function CloseTable({ gameId }: { gameId: string }) {
 
       {closed && (
         <div className="sat-bottombar sat-glass-2">
-          <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => go(`game/${g.id}/report`)}><Icon name="share" /> Share report</button>
+          <button className="sat-btn sat-btn--lg" onClick={() => go(`game/${g.id}/hands`)}><Icon name="cards" /> Hands ({g.hands.filter((h) => !h.missed).length})</button>
+          <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => go(`game/${g.id}/report`)}><Icon name="share" /> Download or share</button>
         </div>
       )}
 

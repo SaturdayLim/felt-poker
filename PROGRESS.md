@@ -20,6 +20,15 @@
 - End game replaces Count chips / Finish; count screen titled End Game, button Close game.
 - Design review (ui-ux-pro-max + impeccable lenses), all 15 findings applied: dark-theme contrast on accent buttons, 40-44px tap targets in keypad and stage tabs, stronger next-box cue, Save, next hand as primary, stack shown before cards in row labels, term fixes (Dealt in, Mark hand missed, No cards, Buy-in), players first on New Game, Enter-to-next on the chip count, finding-first chart captions.
 
+## Done (2 Nov 2026, not committed): after the first live test (Potato Day)
+- Exports: ledger CSV now has chip moves, stack counts, bounties and missed hands. Players CSV adds chips put in, bounty net, chip-move net, estimate and count minus estimate. Hands CSV adds chips in by player, missed, partly recorded.
+- End game count shows each player's estimate and flags a mismatch. Chip move also on the Players tab.
+- Closed games: Settle Up has Hands; hands open read-only with Previous and Next hand.
+- My cards (Settings, You): private hole cards at any point; Show my cards at showdown; Your hands in stats (bluff rate, bluffs won, net, list).
+- Downloads renamed (Download or Share screen, list of 4 options with file type).
+- Fix: stack estimate before a hand ignored later cash-outs (review showed 0 stacks).
+- Tests: 43 pass.
+
 ## Next
 - Bounties and chip moves are not in the image report or the CSV ledger yet.
 - Check on the iPhone.

@@ -235,7 +235,7 @@ button.felt-row { color: inherit; }
 .felt-tabs button[aria-selected="true"] { color: var(--sat-accent-text); background: var(--sat-accent-soft); }
 .felt-tabs button:disabled { opacity: 0.35; }
 @media (pointer: coarse) { .felt-tabs button { min-height: 44px; } }
-.felt-rec-status { display: flex; justify-content: space-between; gap: var(--sat-space-2); padding: 6px var(--sat-space-2) 2px; font-size: var(--sat-fs-small); color: var(--sat-muted); }
+.felt-rec-status { display: flex; justify-content: space-between; align-items: center; gap: var(--sat-space-2); padding: 6px var(--sat-space-2) 2px; font-size: var(--sat-fs-small); color: var(--sat-muted); }
 .felt-rec-status b { color: var(--sat-text); }
 .felt-rec-status > span:last-child b { font-size: 1.0625rem; }
 
@@ -402,3 +402,17 @@ button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: le
 .felt-b2b-val { flex: none; font-weight: 600; }
 /* open info tip: rendered on <body> (see Info in ui.tsx) so no glass card above it in the page can cover it */
 .sat-tip-body.felt-tip-float { display: block; position: fixed; transform: none; z-index: 300; }
+.felt-warn-text { color: var(--sat-warn); }
+/* review of a closed game: the showdown is a disabled fieldset, laid out like the page stack */
+fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+/* My cards: private hole cards of the phone owner, in the recorder status bar */
+.felt-mine { border: 1px dashed var(--sat-line-strong); border-radius: var(--sat-radius-pill); background: none; font: inherit; font-size: var(--sat-fs-caption); font-weight: 600;
+  color: var(--sat-muted); min-height: 32px; padding: 0 10px; cursor: pointer; white-space: nowrap; }
+.felt-mine.has-cards { border-style: solid; border-color: var(--sat-accent); color: var(--sat-accent-text); }
+.felt-mine:disabled { cursor: default; opacity: 0.5; }
+/* download choice list: radio rows with what each option gives */
+.felt-choice { text-align: left; width: 100%; }
+.felt-choice-dot { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--sat-line-strong); }
+.felt-choice[aria-checked="true"] .felt-choice-dot { border: 5px solid var(--sat-accent); }
+.felt-choice .felt-row-main { display: flex; flex-direction: column; }
+.felt-choice .felt-right { max-width: 92px; text-align: right; }

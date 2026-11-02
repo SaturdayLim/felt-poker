@@ -2,6 +2,11 @@
 
 Standing instructions from the user. They apply to every screen, report and tip.
 
+## Workflow
+
+- **Commit and push after each set of work** (user's standing order). Exception: when a question to the user is still open, do not push; list the open questions at the very end of the reply, each with the context needed to answer it.
+- Never commit the user's game data (backups, exports, trial reports built from them). They stay in `trial/`, which git ignores.
+
 ## UI copy
 
 - **Chips, not units.** Amounts at the table are "chips" (1 chip = 1 small blind). Code names such as `units()` and `inUnits` stay as they are.
@@ -38,3 +43,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - The close-street button names the outcome ("Eve wins 9") and offers Undo when empty boxes took the default.
 - Stacks: a missed hand turns them into ranges; a count (tap the stack) or a typed all-in makes one exact again. With a range, All-in asks for the amount.
 - Chip moves (side game, tip, other) change stacks, not pots or hand stats, and show as dashed rows between hands.
+- Chip move sits on both the Players tab and the Hands tab. The End game count shows each player's estimate and flags a count that differs (a missing chip move).
+- A closed game's hands open read-only for review (every stage, Previous and Next hand). No reopening needed.
+- My cards: the phone owner (Settings, You) enters their own hole cards at any point in a hand. They are private: never in reports, images or CSV files.
+- Download options name the content and the file type: Results (1 image), Results and stats, Full game record, Spreadsheet data (3 CSV files).

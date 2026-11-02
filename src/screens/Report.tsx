@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Empty, Header, Help, Icon, toast } from '../components/ui';
+import { Caption, Empty, Header, Help, Icon, toast } from '../components/ui';
 import { renderReport, type Tier } from '../report/reports';
 import { loadReportFonts, type ReportTheme } from '../report/canvas';
 import { handsCsv, ledgerCsv, playersCsv, slug } from '../report/csv';
@@ -10,11 +10,12 @@ import { useResolvedTheme } from '../theme';
 
 type Choice = Tier | 'data';
 
-const TIERS: { k: Choice; label: string; desc: string }[] = [
-  { k: 'summary', label: 'Summary', desc: 'Buy-ins, results and payments.' },
-  { k: 'detailed', label: 'Detailed', desc: 'Results, game stats, the money chart and highlights.' },
-  { k: 'full', label: 'Full', desc: 'Everything, including the buy-in log and every hand with its cards.' },
-  { k: 'data', label: 'Data', desc: '3 CSV files: players, hands and a ledger of every event.' },
+/** Each option says what it contains and which files it gives, so nobody has to guess before sharing. */
+const TIERS: { k: Choice; label: string; file: string; desc: string }[] = [
+  { k: 'summary', label: 'Results', file: '1 image (PNG)', desc: 'Buy-ins, results and who pays whom.' },
+  { k: 'detailed', label: 'Results and stats', file: 'Image (PNG)', desc: 'Adds game stats, the money chart and highlights.' },
+  { k: 'full', label: 'Full game record', file: 'Images (PNG)', desc: 'Adds the buy-in log and every hand with its cards.' },
+  { k: 'data', label: 'Spreadsheet data', file: '3 CSV files', desc: 'Players, hands and an event ledger, for Excel or Google Sheets.' },
 ];
 
 export default function Report({ gameId }: { gameId: string }) {
@@ -68,19 +69,29 @@ export default function Report({ gameId }: { gameId: string }) {
 
   const share = async () => {
     const r = await shareFiles(files, `${g.name} report`);
-    if (r === 'downloaded') toast('Report exported to Downloads');
+    if (r === 'downloaded') toast(`${info.label} saved to Downloads`);
   };
   const info = TIERS.find((t) => t.k === tier)!;
 
   return (
     <div className="felt-page">
-      <Header back={() => back(`game/${g.id}/close`)} title="Share Report" sub={g.name} />
+      <Header back={() => back(`game/${g.id}/close`)} title="Download or Share" sub={g.name} />
       <div className="sat-stack">
-        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Report type">
-          {TIERS.map((t) => <button key={t.k} role="radio" aria-checked={tier === t.k} onClick={() => setTier(t.k)}>{t.label}</button>)}
+        <div className="sat-split"><Caption>What to download</Caption><Help k="tiers" /></div>
+        <div className="sat-glass-2 felt-list" role="radiogroup" aria-label="What to download">
+          {TIERS.map((t) => (
+            <button key={t.k} role="radio" aria-checked={tier === t.k} className="felt-row felt-choice" onClick={() => setTier(t.k)}>
+              <span className="felt-choice-dot" aria-hidden="true" />
+              <span className="felt-row-main">
+                <span className="felt-row-title">{t.label}</span>
+                <span className="felt-row-sub">{t.desc}</span>
+              </span>
+              <span className="sat-small sat-muted felt-right">{t.file}</span>
+            </button>
+          ))}
         </div>
         <div className="sat-split">
-          <p className="sat-small sat-muted felt-grow">{info.desc} <Help k="tiers" /></p>
+          <span className="sat-small sat-muted">{tier === 'data' ? 'Opens in any spreadsheet app.' : 'Image colours:'}</span>
           {tier !== 'data' && (
             <div className="sat-seg" role="radiogroup" aria-label="Image theme">
               <button role="radio" aria-checked={look === 'light'} onClick={() => setLook('light')} aria-label="Light image"><Icon name="sun" /></button>
@@ -112,7 +123,7 @@ export default function Report({ gameId }: { gameId: string }) {
 
       <div className="sat-bottombar sat-glass-2">
         <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={busy || !files.length} onClick={() => !busy && files.length && share()}>
-          <Icon name="share" /> Share {tier === 'data' ? '3 files' : files.length > 1 ? `${files.length} images` : 'image'}
+          <Icon name="share" /> Download or share {tier === 'data' ? '3 CSV files' : files.length > 1 ? `${files.length} images` : 'image'}
         </button>
       </div>
     </div>

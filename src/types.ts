@@ -170,6 +170,8 @@ export interface Hand {
   bounty?: Bounty;
   /** Hand played but not logged: it moves the button on and turns every stack into a range. */
   missed?: boolean;
+  /** The phone owner's own hole cards, entered at any point in the hand. Private: never in reports or CSV. */
+  mine?: { playerId: ID; cards: Card[] };
 }
 
 /** Chips that changed hands outside a pot: a side game, a tip, or anything else settled in chips. */
@@ -297,6 +299,8 @@ export interface Settings {
   theme: ThemePref;
   /** How long the opening screen shows, in ms. 0 = skip it. */
   splashMs: number;
+  /** The player who uses this phone: the recorder offers My cards for that player. Kept on restore. */
+  me?: ID;
   /** Fallback rules for games created before rules were set per game (see Game.rules). */
   minRaise: GameRules['minRaise'];
   bounty27: BountyRule;

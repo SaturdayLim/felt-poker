@@ -31,12 +31,12 @@ export function gameSubtitle(g: Game) {
    Players: one slim card per player, every part adjustable in place (name, seat by dragging, status light,
    buy-ins, stack estimate). A blank card at the bottom adds a player.
    Hands: newest first, with the button to log the next hand on top. */
-export default function GameLive({ gameId }: { gameId: string }) {
+export default function GameLive({ gameId, initialTab = 'players' }: { gameId: string; initialTab?: 'players' | 'hands' }) {
   useTick(20000);
   const g = useGame(gameId);
   const name = usePlayerName();
   const st = useStore();
-  const [tab, setTab] = useState<'players' | 'hands'>('players');
+  const [tab, setTab] = useState<'players' | 'hands'>(initialTab);
   const [sheet, setSheet] = useState<SheetKind>(null);
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Game" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
@@ -64,7 +64,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
 
   return (
     <div className="felt-page">
-      <Header back={() => go('')} title={g.name} sub={gameSubtitle(g)}
+      <Header back={() => go(closed ? `game/${g.id}/close` : '')} title={g.name} sub={gameSubtitle(g)}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>}>
         <div className="felt-subnav sat-glass" role="tablist" aria-label="Game sections">
           <button role="tab" aria-selected={tab === 'players'} onClick={() => setTab('players')}><Icon name="users" size={18} /> Players <span className="sat-num">{inPlayers.length}</span></button>
@@ -90,7 +90,10 @@ export default function GameLive({ gameId }: { gameId: string }) {
             <div className="sat-split">
               <Caption tip="stack">{isCash ? 'Playing' : 'Still in'} ({inPlayers.length})</Caption>
               {!closed && inPlayers.length > 1 && (
-                <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'seats' })} aria-label="Shuffle seats" title="Shuffle seats"><Icon name="shuffle" /></button>
+                <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
+                  <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setSheet({ k: 'move' })}><Icon name="plus" /> Chip move</button>
+                  <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'seats' })} aria-label="Shuffle seats" title="Shuffle seats"><Icon name="shuffle" /></button>
+                </span>
               )}
             </div>
             <SeatList g={g} ids={inPlayers} disabled={closed} render={(pid, handle) => (
@@ -115,7 +118,7 @@ export default function GameLive({ gameId }: { gameId: string }) {
             {!closed && (
               <button className="felt-addbar" onClick={() => setSheet({ k: 'move' })}><Icon name="plus" /> Chip move</button>
             )}
-            <HandList g={g} name={name} />
+            <HandList g={g} name={name} closed={closed} />
           </>
         )}
       </div>
@@ -305,7 +308,7 @@ function BackInSheet({ g, pid, name, onClose }: { g: Game; pid: ID; name: string
   );
 }
 
-function HandList({ g, name }: { g: Game; name: (id: ID) => string }) {
+function HandList({ g, name, closed }: { g: Game; name: (id: ID) => string; closed: boolean }) {
   const st = useStore();
   const hands = [...g.hands].reverse();
   const moves = [...(g.moves ?? [])].sort((a, b) => b.afterN - a.afterN || b.at - a.at);
@@ -321,12 +324,12 @@ function HandList({ g, name }: { g: Game; name: (id: ID) => string }) {
   return (
     <div className="sat-glass-2 felt-list">
       {rows.map((row) => row.k === 'move' ? (
-        <MoveRow key={row.m.id} m={row.m} name={name} onRemove={() => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); }} />
+        <MoveRow key={row.m.id} m={row.m} name={name} onRemove={closed ? undefined : () => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); }} />
       ) : (() => { const h = row.h; return h.missed ? (
         <div key={h.id} className="felt-hand felt-hand--missed">
           <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
             <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}><span className="sat-mono sat-small sat-muted">{h.n}</span><span className="sat-muted">Missed hand</span></span>
-            <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { st.deleteHand(g.id, h.id); toast(`Hand ${h.n} removed`); }}>Remove</button>
+            {!closed && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { st.deleteHand(g.id, h.id); toast(`Hand ${h.n} removed`); }}>Remove</button>}
           </div>
         </div>
       ) : (
@@ -361,7 +364,7 @@ const MOVE_KIND: { k: ChipMove['kind']; label: string }[] = [
 ];
 
 /** A chip move in the hand list: a dashed row between hands, so it never reads as a hand. */
-function MoveRow({ m, name, onRemove }: { m: ChipMove; name: (id: ID) => string; onRemove: () => void }) {
+function MoveRow({ m, name, onRemove }: { m: ChipMove; name: (id: ID) => string; onRemove?: () => void }) {
   const kind = MOVE_KIND.find((k) => k.k === m.kind)?.label ?? 'Other';
   return (
     <div className="felt-move">
@@ -371,7 +374,7 @@ function MoveRow({ m, name, onRemove }: { m: ChipMove; name: (id: ID) => string;
       </div>
       <div className="sat-split">
         <span className="sat-small sat-muted felt-ellipsis">{m.note || `After hand ${m.afterN}`}</span>
-        <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={onRemove}>Remove</button>
+        {onRemove && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={onRemove}>Remove</button>}
       </div>
     </div>
   );

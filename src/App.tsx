@@ -46,6 +46,7 @@ export default function App() {
     else if (c === 'count') screen = <CountChips gameId={b} />;
     else if (c === 'close') screen = <CloseTable gameId={b} />;
     else if (c === 'report') screen = <Report gameId={b} />;
+    else if (c === 'hands') screen = <GameLive gameId={b} initialTab="hands" />;
     else screen = <GameLive gameId={b} />;
   }
   else if (a === 'insights') screen = <Insights initialPlayer={b} />;

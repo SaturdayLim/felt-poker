@@ -23,7 +23,7 @@ import type { Act, Card, Game, Hand, HandLog, ID, StreetName } from '../types';
    calls need a tap. Any tab can be opened at any time; skipping ahead marks the hand partly recorded. */
 
 type Tab = 'setup' | StreetName | 'showdown';
-type Target = { kind: 'board'; i: number } | { kind: 'run'; r: number; i: number } | { kind: 'shown'; p: ID; ci: number } | null;
+type Target = { kind: 'board'; i: number } | { kind: 'run'; r: number; i: number } | { kind: 'shown'; p: ID; ci: number } | { kind: 'mine'; ci: number } | null;
 type Sel = { p: ID; r: number } | null;
 
 interface RState {
@@ -50,6 +50,8 @@ interface RState {
   bounty?: ID | null;
   /** Players dealt in who did not pay the bounty. */
   bountyOff?: ID[];
+  /** The phone owner's own hole cards (private). */
+  mine?: (Card | null)[];
 }
 
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
@@ -136,6 +138,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         shown: Object.fromEntries(Object.entries(L.shown ?? {}).map(([p, c]) => [p, [c[0] ?? null, c[1] ?? null]])),
         manual: Object.fromEntries(pots.map((p, i) => [i, p.winners.map((w) => w.playerId)]).filter((_, i) => !auto.pots[i]?.runs.every((r) => r.winners.length))),
         partial: !!existing.partial, finalPot: existing.partial && existing.pot > recorded ? String(existing.pot) : '', exclude: existing.excluded,
+        mine: [existing.mine?.cards[0] ?? null, existing.mine?.cards[1] ?? null],
         // a saved hand keeps the bounty it was saved with; it never adds one by itself
         bounty: existing.bounty?.playerId ?? null,
         bountyOff: existing.bounty ? L.dealt.filter((p) => p !== existing.bounty!.playerId && !existing.bounty!.payers.includes(p)) : [],
@@ -149,6 +152,12 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const [confirm, setConfirm] = useState<'delete' | 'reset' | null>(null);
   // keypad: dark (blind) mark for the next action, and a raise under the house minimum
   const settings = useStore((s) => s.settings);
+  // a closed game opens its hands for review only: browse every stage, change nothing
+  const readOnly = g?.status === 'closed' && !!existing;
+  const reviewable = (g?.hands ?? []).filter((h) => !h.missed && h.log);
+  const prevHand = existing ? [...reviewable].reverse().find((h) => h.n < existing.n) : undefined;
+  const nextReview = existing ? reviewable.find((h) => h.n > existing.n) : undefined;
+  const me = settings.me;
   const { minRaise: minRule, bounty27: bountyRule } = g ? gameRules(g, settings) : settings;
   const [dark, setDark] = useState(false);
   const [raiseErr, setRaiseErr] = useState<number | null>(null);
@@ -166,7 +175,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
-      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip, .sat-tip-body')) return;
+      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip, .sat-tip-body, .felt-mine')) return;
       e.preventDefault();
       e.stopPropagation();
       setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false);
@@ -181,6 +190,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     st.board.forEach((c) => c && s.add(c));
     st.runSlots.forEach((r) => r.forEach((c) => c && s.add(c)));
     Object.values(st.shown).forEach((x) => x.forEach((c) => c && s.add(c)));
+    (st.mine ?? []).forEach((c) => c && s.add(c));
     return s;
   }, [st]);
 
@@ -188,6 +198,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   const log = st.log;
   const set = (patch: Partial<RState>) => setSt({ ...st, ...patch });
+  const meIn = !!me && log.dealt.includes(me);
+  const mineCards = (st.mine ?? []).filter(Boolean) as Card[];
   const street = isStreet(st.tab) ? st.tab : null;
   const replay: Replay | null = street && log.streets[street]?.acts ? replayStreet(g, log, street, stacks) : null;
   const live = finalists(log);
@@ -231,12 +243,20 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   // A shown 2-7 gets a Pay bounty tag: pressed when the bounty is paid to it. Felt presses it when the
   // game's rule is met; the table can press it anyway, or clear it.
   const shown27 = (p: ID) => bountyOn && is27((st.shown[p] ?? []).filter(Boolean) as Card[], bountyRule.suited);
-  const payTag = (p: ID) => (shown27(p) && live.includes(p) ? (
-    <span className="felt-paytag-wrap">
-      <button type="button" className="sat-chip felt-mini felt-paytag" aria-pressed={bountyTo === p} onClick={() => set({ bounty: bountyTo === p ? null : p })}>Pay bounty</button>
-      <Help k="payBounty" />
-    </span>
-  ) : null);
+  const payTag = (p: ID) => (
+    <>
+      {/* my own cards entered earlier: one tap shows them, when I show at the table */}
+      {p === me && mineCards.length === 2 && !(st.shown[p] ?? []).some(Boolean) && (
+        <button type="button" className="sat-chip felt-mini" onClick={() => set({ shown: { ...st.shown, [p]: [...mineCards] } })}>Show my cards</button>
+      )}
+      {shown27(p) && live.includes(p) && (
+        <span className="felt-paytag-wrap">
+          <button type="button" className="sat-chip felt-mini felt-paytag" aria-pressed={bountyTo === p} onClick={() => set({ bounty: bountyTo === p ? null : p })}>Pay bounty</button>
+          <Help k="payBounty" />
+        </span>
+      )}
+    </>
+  );
   const sbN = Number(sb), bbN = Number(bb);
   const nextStreet = street ? STREETS[STREETS.indexOf(street) + 1] : undefined;
   const started = hasActs(log);
@@ -348,7 +368,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     setSel(keepSel ? { p, r } : replayStreet(g, l, street, stacks).next);
   };
   const pickBox = (p: ID, r: number) => {
-    if (!replay || !street) return;
+    if (!replay || !street || readOnly) return;
     const c = replay.cells[p]?.[r];
     if (!c?.needed) return;
     setTarget(null);
@@ -378,6 +398,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       allIn: Object.keys(L.allInAt ?? {}).length > 0, straddle: false, tags: existing?.tags ?? [], note: st.note.trim() || undefined, log: L,
       partial: partial || undefined, excluded: exclude || undefined,
       bounty: bountyTo && bountyPayers.length ? { playerId: bountyTo, amount: bountyAmt, payers: bountyPayers, short: Object.keys(bountyShort).length ? bountyShort : undefined } : undefined,
+      mine: me && log.dealt.includes(me) && mineCards.length ? { playerId: me, cards: mineCards } : undefined,
     };
     saveHand(g.id, hand);
     try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }
@@ -412,7 +433,13 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   /* --------- cards --------- */
   const pick = (c: Card) => {
-    if (!target) return;
+    if (!target || readOnly) return;
+    if (target.kind === 'mine') {
+      const m = [...(st.mine ?? [null, null])]; m[target.ci] = c;
+      set({ mine: m });
+      setTarget(target.ci === 0 && !m[1] ? { kind: 'mine', ci: 1 } : null);
+      return;
+    }
     if (target.kind === 'board') {
       const b = [...st.board]; b[target.i] = c;
       set({ board: b });
@@ -439,15 +466,20 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   };
   const isTarget = (t: Exclude<Target, null>) => JSON.stringify(t) === JSON.stringify(target);
   const tapSlot = (t: Exclude<Target, null>, filled: boolean) => {
+    if (readOnly) return;
     if (isTarget(t) && filled) {
       if (t.kind === 'board') { const b = [...st.board]; b[t.i] = null; set({ board: b }); }
       else if (t.kind === 'run') { const rs = st.runSlots.map((r) => [...r]); rs[t.r][t.i] = null; set({ runSlots: rs }); }
-      else { const cur = [...(st.shown[t.p] ?? [null, null])]; cur[t.ci] = null; set({ shown: { ...st.shown, [t.p]: cur } }); }
+      else if (t.kind === 'shown') { const cur = [...(st.shown[t.p] ?? [null, null])]; cur[t.ci] = null; set({ shown: { ...st.shown, [t.p]: cur } }); }
     }
     setSel(null);
     setTarget(t);
   };
-  const currentCard = (t: Exclude<Target, null>) => (t.kind === 'board' ? st.board[t.i] : t.kind === 'run' ? st.runSlots[t.r]?.[t.i] : st.shown[t.p]?.[t.ci]);
+  const currentCard = (t: Exclude<Target, null>) => (t.kind === 'board' ? st.board[t.i] : t.kind === 'run' ? st.runSlots[t.r]?.[t.i] : t.kind === 'mine' ? st.mine?.[t.ci] : st.shown[t.p]?.[t.ci]);
+  // my own cards and my shown cards are the same two cards: picking one never blocks the other
+  const pickable = (c: Card) => !used.has(c) || c === currentCard(target!)
+    || (target?.kind === 'shown' && target.p === me && mineCards.includes(c))
+    || (target?.kind === 'mine' && !!me && (st.shown[me] ?? []).includes(c));
   const setRuns = (n: number) => {
     const from = log.runFrom ?? 0;
     const rs = Array.from({ length: n }, (_, r) => st.runSlots[r] ?? Array(5 - from).fill(null));
@@ -494,8 +526,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   return (
     <div className={`felt-page felt-recorder ${!target && selCell ? 'has-keypad' : ''}`}>
-      <Header back={() => back(`game/${g.id}`)} title={`Hand ${st.n}`} sub={g.name}
-        right={existing ? (
+      <Header back={() => back(readOnly ? `game/${g.id}/hands` : `game/${g.id}`)} title={`Hand ${st.n}`} sub={readOnly ? `${g.name}, review` : g.name}
+        right={existing && !readOnly ? (
           <button className="sat-btn sat-btn--ghost sat-iconbtn" style={confirm === 'delete' ? { color: 'var(--sat-neg)' } : undefined} aria-label={confirm === 'delete' ? 'Tap again to delete this hand' : 'Delete hand'}
             onClick={() => { if (confirm !== 'delete') { setConfirm('delete'); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, st.id); go(`game/${g.id}`, true); }}>
             <Icon name="trash" />
@@ -508,7 +540,14 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             ))}
           </div>
           <div className="felt-rec-status" aria-live="polite">
-            <span><b>{LABEL[st.tab === 'setup' ? lastStreet : st.tab]}</b>{street && toAct ? `, ${toAct} to act` : ''}{partial ? ', partly recorded' : ''}</span>
+            <span><b>{LABEL[st.tab === 'setup' ? lastStreet : st.tab]}</b>{street && toAct && !readOnly ? `, ${toAct} to act` : ''}{partial ? ', partly recorded' : ''}</span>
+            {meIn && (
+              <button type="button" className={`felt-mine ${mineCards.length ? 'has-cards' : ''}`} disabled={readOnly && !mineCards.length}
+                aria-label={mineCards.length ? `My cards: ${mineCards.map(cardText).join(' ')}. Tap to change` : 'Enter my cards (private)'}
+                onClick={() => { if (readOnly) return; setSel(null); setTyped(''); setTarget({ kind: 'mine', ci: st.mine?.[0] ? (st.mine?.[1] ? 0 : 1) : 0 }); }}>
+                {mineCards.length ? mineCards.map(cardText).join(' ') : 'My cards'}
+              </button>
+            )}
             <span>Pot <b className="sat-num">{units(extra ? recordedPot + extra : potNow)}</b></span>
           </div>
         </div>
@@ -573,13 +612,14 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             {legacy ? (
               <p className="sat-small sat-muted">This hand was logged with the earlier recorder. {inAtEnd(log, street).length} players were still in after the {LABEL[street].toLowerCase()}, pot {units(potTotal(g, log, log.button, street))}.</p>
             ) : replay && (
-              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} name={name} onPick={pickBox}
-                shown={st.shown} onName={(p) => { setSel(null); setTyped(''); setTarget({ kind: 'shown', p, ci: st.shown[p]?.[0] ? 1 : 0 }); }} />
+              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} name={name} onPick={readOnly ? () => {} : pickBox}
+                shown={st.shown} onName={(p) => { if (readOnly) return; setSel(null); setTyped(''); setTarget({ kind: 'shown', p, ci: st.shown[p]?.[0] ? 1 : 0 }); }} />
             )}
           </>
         )}
 
         {st.tab === 'showdown' && (
+          <fieldset className="felt-review sat-stack" style={gap(3)} disabled={readOnly}>
           <Showdown g={g} st={st} log={log} live={live} res={res} partial={partial} extra={extra} recordedPot={recordedPot} exclude={exclude} name={name}
             boardForResolve={boardForResolve} commonCards={commonCards} isTarget={isTarget} tapSlot={tapSlot} setRuns={setRuns}
             set={set} setTarget={setTarget} bountyOn={bountyOn} payTag={payTag}>
@@ -589,6 +629,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
                 onPick={(p) => set({ bounty: p })} onOff={(p) => set({ bountyOff: (st.bountyOff ?? []).includes(p) ? st.bountyOff!.filter((x) => x !== p) : [...(st.bountyOff ?? []), p] })} />
             )}
           </Showdown>
+          </fieldset>
         )}
       </div>
 
@@ -597,13 +638,16 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           <div className="felt-picker-wrap">
             <div className="sat-split">
               <Caption>{targetLabel(target, name)}</Caption>
-              <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
+              <span className="sat-cluster" style={gap(1)}>
+                {target.kind === 'mine' && mineCards.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { set({ mine: [null, null] }); setTarget({ kind: 'mine', ci: 0 }); }}>Clear</button>}
+                <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
+              </span>
             </div>
             <div className="felt-picker">
               {SUITS.flatMap((su) => RANKS.map((r) => {
                 const c = r + su;
                 return (
-                  <button key={c} disabled={used.has(c) && c !== currentCard(target)} onClick={() => pick(c)} aria-label={c}>
+                  <button key={c} disabled={!pickable(c)} onClick={() => pick(c)} aria-label={c}>
                     <span className="r" style={{ color: SUIT_COLOR[su] }}>{r === 'T' ? '10' : r}</span>
                     <span className="s" style={{ color: SUIT_COLOR[su] }}>{SUIT_SYMBOL[su]}</span>
                   </button>
@@ -622,6 +666,12 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             }}
             onClear={() => act(sel.p, sel.r, null)} onOk={() => (allInAsk ? Number(typed) > 0 && act(sel.p, sel.r, mark({ k: 'allin', to: Number(typed) })) : commitBet())} onMin={() => commitBet(minTo)} />
         ) : null}
+        {readOnly ? (
+          <div className="felt-dock-actions">
+            <button className="sat-btn sat-btn--lg" aria-disabled={!prevHand} onClick={() => prevHand && go(`game/${g.id}/hand/${prevHand.id}`, true)}>Previous hand</button>
+            <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!nextReview} onClick={() => nextReview && go(`game/${g.id}/hand/${nextReview.id}`, true)}>Next hand</button>
+          </div>
+        ) : (
         <div className="felt-dock-actions">
           {st.tab === 'setup' && <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => goTab(st.ended ? 'showdown' : lastStreet)}>Next</button>}
           {street && (nextStreet && log.streets[nextStreet] ? (
@@ -638,6 +688,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             </>
           )}
         </div>
+        )}
       </div>
     </div>
   );
@@ -650,6 +701,7 @@ function tabDone(log: HandLog, t: Tab, ended: boolean) {
 }
 
 function targetLabel(t: Exclude<Target, null>, name: (id: ID) => string) {
+  if (t.kind === 'mine') return `My cards (private), card ${t.ci + 1}`;
   if (t.kind === 'board') return BOARD_SLOT[t.i];
   if (t.kind === 'run') return `Run ${t.r + 1}, card ${t.i + 1}`;
   return `${name(t.p)}, card ${t.ci + 1}`;

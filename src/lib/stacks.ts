@@ -39,9 +39,12 @@ export function estimateStacks(g: Game, beforeN?: number): StackEstimate {
   const stack: Record<ID, number | undefined> = Object.fromEntries(g.playerIds.map((p) => [p, 0]));
   const spread: Record<ID, number> = Object.fromEntries(g.playerIds.map((p) => [p, 0]));
   const seated = new Set<ID>();
+  // before hand n: buy-ins, cash-outs, counts and moves after that hand started do not count yet
+  const cutoff = beforeN === undefined ? Infinity : Math.min(Infinity, ...g.hands.filter((h) => h.n >= beforeN).map((h) => h.at));
   // a missed hand's spread: the average pot of the logged hands so far (10 BB before any)
   let potSum = 0, potN = 0;
   for (const e of evs) {
+    if (e.kind !== 'hand' && e.at > cutoff) continue;
     if (e.kind === 'buy') {
       const b = g.buyIns[e.i];
       stack[b.playerId] = round2((stack[b.playerId] ?? 0) + b.amount);

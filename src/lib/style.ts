@@ -9,9 +9,10 @@
    - Steal: everyone before them folded, they sit in the seat before the button, on the button or in the SB,
      and they raise.
    A straddle counts as a blind, not a raise. */
-import type { Game, Hand, HandLog, ID, StreetName } from '../types';
+import type { Card, Game, Hand, HandLog, ID, StreetName } from '../types';
+import { bestHand } from './cards';
 import { round2 } from './calc';
-import { STREETS, actingOrder, bountyPay, contributions, defaultAct, finalists, lastStreet, replayStreet, streetOrder } from './hand';
+import { STREETS, actingOrder, bountyPay, contributions, defaultAct, finalists, inAtEnd, lastStreet, pfr, replayStreet, streetOrder, vpip } from './hand';
 
 export interface StyleCounts {
   threeBet: number; threeBetOpp: number;
@@ -130,4 +131,59 @@ export function addMoves(f: ChipFlow, g: Game, p: ID) {
     if (m.to === p) f.winOther = round2(f.winOther + m.amount);
     if (m.from === p) f.lossOther = round2(f.lossOther + m.amount);
   }
+}
+
+/* ------------------------------- your own hands ------------------------------- */
+
+/** Made-hand category of cards on the board alone (fewer than 5 cards: pairs and sets only). */
+function boardCategory(board: Card[]): number {
+  if (board.length >= 5) return bestHand(board)?.category ?? 0;
+  const n = Object.values(board.reduce<Record<string, number>>((a, c) => ({ ...a, [c[0]]: (a[c[0]] ?? 0) + 1 }), {})).sort((a, b) => b - a);
+  return n[0] === 4 ? 7 : n[0] === 3 ? 3 : n[0] === 2 && n[1] === 2 ? 2 : n[0] === 2 ? 1 : 0;
+}
+
+/** My cards made a pair or better that the board alone does not have. */
+export function cardsHelp(hole: Card[], board: Card[]): boolean {
+  const all = bestHand([...hole, ...board]);
+  return !!all && all.category > 0 && all.category > boardCategory(board);
+}
+
+export interface MyHand {
+  gameId: ID; handId: ID; n: number; at: number; cards: Card[];
+  vpip: boolean; pfr: boolean; sawFlop: boolean; showdown: boolean; won: boolean;
+  /** Chips: pots won + chips returned - chips put in. */
+  net: number;
+  /** Bet or raise after the flop. */
+  aggressive: boolean;
+  /** Bet or raise after the flop with no pair or better from my cards. */
+  bluff: boolean;
+}
+
+/** The phone owner's hands with My cards entered, newest last. */
+export function myHands(games: Game[], me: ID): MyHand[] {
+  const out: MyHand[] = [];
+  for (const g of games) {
+    for (const h of g.hands) {
+      if (h.missed || !h.log || h.mine?.playerId !== me || h.mine.cards.length < 2) continue;
+      const L = h.log;
+      const cards = h.mine.cards;
+      let aggressive = false, bluff = false;
+      for (const st of STREETS.slice(1)) {
+        if (!streetMoves(g, L, st).some((m) => m.p === me && (m.k === 'bet' || m.k === 'raise'))) continue;
+        aggressive = true;
+        const board = h.board.slice(0, st === 'flop' ? 3 : st === 'turn' ? 4 : 5);
+        if (board.length >= 3 && !cardsHelp(cards, board)) bluff = true;
+      }
+      const put = L.mode === 'bets' ? contributions(g, L, L.button)[me] ?? 0 : 0;
+      const got = (h.winners.find((w) => w.playerId === me)?.amount ?? 0) + (h.returned?.[me] ?? 0);
+      const fin = finalists(L);
+      out.push({
+        gameId: g.id, handId: h.id, n: h.n, at: h.at, cards,
+        vpip: vpip(g, L, me, L.button), pfr: pfr(L, me), sawFlop: !!L.streets.flop && inAtEnd(L, 'preflop').includes(me),
+        showdown: fin.length > 1 && fin.includes(me), won: h.winners.some((w) => w.playerId === me),
+        net: round2(got - put), aggressive, bluff,
+      });
+    }
+  }
+  return out;
 }

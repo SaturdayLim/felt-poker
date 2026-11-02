@@ -33,6 +33,10 @@ export default function CountChips({ gameId }: { gameId: string }) {
   const allIn = entered === ordered.length;
 
   const est = estimateStacks(g);
+  // each player's stack estimate before the count (a count resets the estimate, so leave it out)
+  const before = estimateStacks({ ...g, cashOuts: [] });
+  const estOf = (p: ID): number | null => (before.stack[p] !== undefined && !(before.spread[p] > 0) ? Math.round(before.stack[p]!) : null);
+  const off = ordered.filter((p) => hasCashedOut(g, p) && estOf(p) !== null && cashOutUnits(g, p) !== estOf(p));
   const fillable = est.complete ? ordered.filter((p) => !hasCashedOut(g, p) && est.stack[p] !== undefined) : [];
   const fillEstimates = () => {
     const t = { ...text };
@@ -82,7 +86,8 @@ export default function CountChips({ gameId }: { gameId: string }) {
                   <span className="felt-ellipsis" style={{ fontWeight: 600 }}>{name(p)}</span>
                   {done && <span className="felt-up" aria-label="Counted"><Icon name="check" size={14} /></span>}
                 </div>
-                <div className="sat-small sat-muted"><span className="sat-num">{units(buyInUnits(g, p))}</span> in</div>
+                <div className="sat-small sat-muted"><span className="sat-num">{units(buyInUnits(g, p))}</span> in{estOf(p) !== null ? <>, est <span className="sat-num">{units(estOf(p)!)}</span></> : null}</div>
+                {done && estOf(p) !== null && cashOutUnits(g, p) !== estOf(p) && <div className="sat-small felt-warn-text">{units(Math.abs(cashOutUnits(g, p) - estOf(p)!))} {cashOutUnits(g, p) > estOf(p)! ? 'over' : 'under'} the estimate</div>}
                 {net !== null && <Delta value={net} format={(a) => units(a)} />}
               </button>
             );
@@ -107,6 +112,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
                 <Caption q="chips" tip="count">{allIn ? 'Difference' : 'Left to count'}</Caption>
                 <span className={`sat-kpi ${diff === 0 ? 'felt-up' : ''}`} style={{ fontSize: '1.75rem' }}>{allIn ? units(diff) : units(-diff)}</span>
                 {allIn && <span className="sat-small sat-muted">{diff === 0 ? 'Counts match the buy-ins.' : diff > 0 ? 'More chips counted than bought.' : 'Fewer chips counted than bought.'}{offTable ? ` Allows for ${units(offTable)} chips tipped off the table.` : ''}</span>}
+                {allIn && diff === 0 && off.length > 0 && <span className="sat-small felt-warn-text">{off.length} counts differ from the estimate. Log a missing chip move or side bet from the game page before you close.</span>}
               </div>
               <div className="sat-cluster" style={gap(2)}>
                 <button className="sat-btn sat-btn--sm felt-grow" aria-disabled={idx <= 0} onClick={() => idx > 0 && setSel(ordered[idx - 1])}>Previous</button>

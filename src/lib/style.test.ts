@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Game, Hand, HandLog } from '../types';
 import { bountyPay, bountyTotal, closeStreet, fillBefore, newBoxLog, openStreetBoxes, replayStreet, resolve, setAct } from './hand';
-import { addFlow, addStyle, emptyFlow, emptyStyle, wonAt } from './style';
+import { addFlow, addStyle, cardsHelp, emptyFlow, emptyStyle, myHands, wonAt } from './style';
 import { estimateStacks } from './stacks';
 
 // button Bel, SB Gab, BB Clar, then Nat, Ev, Nic act first preflop
@@ -80,6 +80,28 @@ describe('playing style', () => {
   });
 });
 
+describe('your hands', () => {
+  it('my cards help only with a pair or better that the board alone does not have', () => {
+    expect(cardsHelp(['7s', '2d'], ['Kh', 'Kd', '9c'])).toBe(false); // board pair only
+    expect(cardsHelp(['9s', '2d'], ['Kh', 'Kd', '9c'])).toBe(true); // two pair with a 9
+    expect(cardsHelp(['As', 'Qd'], ['Kh', '8d', '3c', '4s'])).toBe(false); // high card
+    expect(cardsHelp(['5s', '6s'], ['7h', '8d', '9c', 'Ks', '2h'])).toBe(true); // straight
+  });
+
+  it('a c-bet with nothing is a bluff; the hand is listed with its net', () => {
+    const g = game();
+    const l = threeBetHand(g);
+    const res = resolve(g, l, ['Kh', 'Qd', '3c'], 'Bel', {});
+    g.hands = [{
+      id: 'h', n: 1, at: 1, pot: 41, winners: res.winners, returned: res.returned, board: ['Kh', 'Qd', '3c'], boardNA: false, shown: [],
+      allIn: false, straddle: false, tags: [], log: l, mine: { playerId: 'Bel', cards: ['7s', '2d'] },
+    }];
+    const [h] = myHands([g], 'Bel');
+    expect(h).toMatchObject({ pfr: true, aggressive: true, bluff: true, won: true, net: 21 });
+    expect(myHands([g], 'Nat')).toEqual([]);
+  });
+});
+
 describe('stack estimate anchors', () => {
   const hand = (n: number, at: number, extra: Partial<Hand> = {}): Hand => ({
     id: `h${n}`, n, at, endedAt: at, pot: 0, winners: [], board: [], boardNA: true, shown: [], allIn: false, straddle: false, tags: [], ...extra,
@@ -111,6 +133,14 @@ describe('stack estimate anchors', () => {
     const est = estimateStacks(g);
     expect(est.stack.Nat).toBe(0);
     expect(est.spread.Nat).toBe(0);
+  });
+
+  it('stacks before a hand ignore the cash-outs at the end of the game', () => {
+    const g = game();
+    g.hands = [hand(1, 10), hand(2, 20)];
+    g.cashOuts = [{ id: 'c', playerId: 'Bel', amount: 150, at: 30 }];
+    expect(estimateStacks(g, 2).stack.Bel).toBe(200);
+    expect(estimateStacks(g).stack.Bel).toBe(0);
   });
 
   it('chip moves change both stacks; a tip off the table leaves it', () => {

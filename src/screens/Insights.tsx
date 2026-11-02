@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Empty, Header, Help, Icon, toast, SourceTip } from '../components/ui';
+import { Avatar, Caption, Cards, Delta, Empty, Header, Help, Icon, toast, SourceTip } from '../components/ui';
+import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
 import { dateLabel, money, shortDate, units } from '../lib/format';
@@ -80,6 +81,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
   games: Game[]; board: ReturnType<typeof leaderboard>; selected?: ID;
   setPid: (p: ID) => void; currency: string; name: (id: ID) => string;
 }) {
+  const me = useStore((x) => x.settings.me);
   if (!selected) return null;
   const s = playerSummary(games, selected);
   const played = games.filter((g) => g.playerIds.includes(selected));
@@ -178,6 +180,8 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
           </section>
         );
       })()}
+
+      {me === selected && <YourHands games={games} me={selected} />}
 
       <section className="sat-glass sat-card sat-stack" style={gap(3)}>
         <div className="sat-split"><h2 className="sat-h3">Rebuys</h2><Help k="rebuys" /></div>
@@ -292,5 +296,43 @@ function Standings({ games, board, currency, name, scope }: {
         </figure>
       </section>
     </>
+  );
+}
+
+/** The phone owner's own hands (My cards), shown or not: bluff rate and a list to review each decision. */
+function YourHands({ games, me }: { games: Game[]; me: ID }) {
+  const list = myHands(games, me);
+  if (!list.length) {
+    return (
+      <section className="sat-flat sat-card sat-stack" style={gap(2)}>
+        <div className="sat-split"><h2 className="sat-h3">Your hands</h2><Help k="myHands" /></div>
+        <p className="sat-small sat-muted">No hands with My cards yet. In the recorder, tap My cards at any point in a hand.</p>
+      </section>
+    );
+  }
+  const n = (f: (h: (typeof list)[number]) => boolean) => list.filter(f).length;
+  const bluffs = n((h) => h.bluff), aggr = n((h) => h.aggressive);
+  return (
+    <section className="sat-stack" style={gap(3)} aria-label="Your hands">
+      <div className="sat-split"><h2 className="sat-h2">Your hands</h2><Help k="myHands" /></div>
+      <div className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }}>
+        <div className="sat-glass sat-stat"><Caption>Tracked</Caption><span className="sat-kpi">{list.length}</span><span className="sat-note">{n((h) => h.vpip)} played, {n((h) => h.won)} won</span></div>
+        <div className="sat-glass sat-stat"><Caption>Bluff rate</Caption><span className="sat-kpi">{pct(bluffs, aggr)}</span><span className="sat-note">{bluffs} of {aggr} hands with a bet or raise</span></div>
+        <div className="sat-glass sat-stat"><Caption>Bluffs won</Caption><span className="sat-kpi">{pct(n((h) => h.bluff && h.won), bluffs)}</span><span className="sat-note">{n((h) => h.bluff && h.won)} of {bluffs} bluffs</span></div>
+        <div className="sat-glass sat-stat"><Caption q="chips">Net</Caption><span className="sat-kpi">{units(list.reduce((a, h) => a + h.net, 0), { sign: true })}</span><span className="sat-note">Over the tracked hands</span></div>
+      </div>
+      <div className="sat-glass-2 felt-list">
+        {[...list].reverse().slice(0, 40).map((h) => (
+          <button key={h.handId} className="felt-row" onClick={() => go(`game/${h.gameId}/hand/${h.handId}`)}>
+            <span className="sat-mono sat-small sat-muted" style={{ width: 24 }}>{h.n}</span>
+            <Cards cards={h.cards} size="sm" />
+            <div className="felt-row-main">
+              <div className="felt-row-sub">{[h.pfr ? 'Raised pre-flop' : h.vpip ? 'Played' : 'Folded pre-flop', h.bluff ? 'Bluff' : h.aggressive ? 'Bet with a hand' : '', h.showdown ? 'Showdown' : ''].filter(Boolean).join(', ')}</div>
+            </div>
+            <Delta value={h.net} format={(a) => units(a)} />
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

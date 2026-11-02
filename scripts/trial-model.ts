@@ -6,7 +6,9 @@ import { playerSummary, type PlayerSummary } from '../src/lib/stats';
 import { estimateStacks } from '../src/lib/stacks';
 import { actingOrder, bountyPay, bountyTotal, contributions, finalists, inAtEnd } from '../src/lib/hand';
 import { bestHand } from '../src/lib/cards';
-import { playerResult } from '../src/lib/calc';
+import { gameRules } from '../src/lib/rules';
+import type { Settings } from '../src/types';
+import { playerResult, suggestTransfers } from '../src/lib/calc';
 
 export type Pos = 'BTN' | 'SB' | 'BB' | 'UTG';
 /** A strength or weakness: "Strength: Aggression - Won 42 in takedowns", with what to do about it. */
@@ -53,6 +55,10 @@ export interface TrialModel {
   /** Target for the number of players dealt in: VPIP % and aggression (a point, shown like a player). */
   target: { vpip: number; af: number };
   awards: Award[];
+  /** The house rules this game used, as label and value pairs. */
+  rules: { label: string; value: string }[];
+  /** Who pays whom, in chips, to close the accounts. */
+  settle: { from: string; to: string; amount: number }[];
   players: TrialPlayer[];
 }
 
@@ -64,7 +70,7 @@ export function targetFor(n: number): TrialModel['target'] {
   return { vpip: v[Math.min(6, Math.max(2, n))] ?? 21, af: 2.5 };
 }
 
-export function buildModel(backup: { players: Player[]; games: Game[] }, gameIndex = 0): TrialModel {
+export function buildModel(backup: { players: Player[]; games: Game[]; settings?: Settings }, gameIndex = 0): TrialModel {
   const name = (id: ID) => backup.players.find((p) => p.id === id)?.name ?? id;
   const g = backup.games[gameIndex];
   const hands = g.hands.filter((h) => !h.missed && h.log);
@@ -158,9 +164,29 @@ export function buildModel(backup: { players: Player[]; games: Game[] }, gameInd
     avgVpip: players.reduce((a, x) => a + x.vpip, 0) / players.length,
     avgAf: players.reduce((a, x) => a + x.af, 0) / players.length,
     target,
+    rules: rulesList(g, backup.settings),
+    settle: suggestTransfers(players.map((x) => ({ playerId: x.id, balance: x.net }))).map((t) => ({ from: name(t.from), to: name(t.to), amount: t.amount })),
     awards: awardsFor(players, biggest[0], bounties, g.bb, streaks),
     players,
   };
+}
+
+const WIN_RULE = { shown: 'Revealed at showdown', won: 'Winning the pot', sole: 'Best hand' } as const;
+const MIN_RAISE = { last: 'Last raise', sb: 'SB steps', double: 'Double' } as const;
+
+/** The house rules a game was played under, as label and value pairs for the report. */
+function rulesList(g: Game, s?: Settings): { label: string; value: string }[] {
+  const r = s || g.rules ? gameRules(g, s as Settings) : undefined;
+  const out = [
+    { label: 'Game', value: g.type === 'cash' ? 'Cash' : 'Tournament' },
+    { label: 'Blinds', value: `${g.sb}/${g.bb} chips` },
+    { label: 'Buy-in', value: `${g.buyIns[0]?.amount ?? 0} chips` },
+  ];
+  if (!r) return out;
+  out.push({ label: 'Minimum raise', value: MIN_RAISE[r.minRaise] });
+  const b = r.bounty27;
+  out.push({ label: '2-7 bounty', value: b.on ? `${WIN_RULE[b.win]}, ${b.suited ? 'suited allowed' : 'offsuit only'}, ${b.amount} chips from each player` : 'Off' });
+  return out;
 }
 
 /** Strengths, then weaknesses, each with what to do next. Each needs at least 5 chances (or 30 chips). */

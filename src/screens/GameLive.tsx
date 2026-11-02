@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { go } from '../router';
+import { back, go } from '../router';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light } from '../components/ui';
 import { NameEntry, titleCase } from '../components/players';
 import {
@@ -64,7 +64,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
   return (
     <div className="felt-page">
-      <Header back={() => go(closed ? `game/${g.id}/close` : '')} title={g.name} sub={gameSubtitle(g)}
+      <Header back={() => (closed ? back(`game/${g.id}/close`) : go(''))} title={g.name} sub={gameSubtitle(g)}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>}>
         <div className="felt-subnav sat-glass" role="tablist" aria-label="Game sections">
           <button role="tab" aria-selected={tab === 'players'} onClick={() => setTab('players')}><Icon name="users" size={18} /> Players <span className="sat-num">{inPlayers.length}</span></button>
@@ -74,7 +74,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
       <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
         {closed && (
-          <button className="sat-flat sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => go(`game/${g.id}/close`)}>
+          <button className="sat-flat sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => go(`game/${g.id}/close`, closed)}>
             <span>This game is closed.</span><span className="sat-small" style={{ color: 'var(--sat-accent-text)', fontWeight: 600 }}>Show results</span>
           </button>
         )}

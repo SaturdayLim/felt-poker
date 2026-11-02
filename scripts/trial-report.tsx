@@ -200,8 +200,31 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
           {m.moves.map((x, i) => <div key={`m${i}`} className="felt-row"><span className="trial-tag">Move</span><span className="felt-row-main">{x.from} to {x.to}, after hand #{x.afterN}{x.note ? <span className="felt-row-sub">{x.note}</span> : null}</span><b>{x.amount}</b></div>)}
         </div>
       </Section>
+      <Section title="House Rules" tip={['The rules this game used.', 'Set in New Game or the game settings.']}>
+        <div className="sat-glass-2 felt-list">
+          {m.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main">{r.label}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>)}
+        </div>
+      </Section>
+
+      <Section title="Settle Up" tip={['Smallest set of payments that closes every account.', 'Chips, before any money rate.', 'Copy puts the list on your clipboard.']}>
+        <div className="sat-glass-2 felt-list">
+          {m.settle.length === 0 && <div className="felt-row"><span className="felt-row-main">All square.</span></div>}
+          {m.settle.map((t, i) => <div key={i} className="felt-row"><span className="felt-row-main">{t.from} pays {t.to}</span><b className="sat-num">{t.amount}</b></div>)}
+        </div>
+        {m.settle.length > 0 && <CopyButton text={[`${m.game}, ${m.date}`, ...m.settle.map((t) => `${t.from} pays ${t.to} ${t.amount} chips`)].join(String.fromCharCode(10))} />}
+      </Section>
     </div>
   );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); }
+    catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+    setDone(true); setTimeout(() => setDone(false), 1800);
+  };
+  return <button type="button" className="sat-btn" onClick={copy}><Icon name="file" /> {done ? 'Copied' : 'Copy payments'}</button>;
 }
 
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] ?? 0; };

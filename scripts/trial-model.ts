@@ -202,16 +202,16 @@ function notesFor(x: TrialPlayer, target: TrialModel['target'], n: number): Note
 /** The award list. Each award goes to the best player in its category, but only once that player clears
     the minimum, so a thin sample never hands out an award. Ties share it. */
 export const AWARD_LIST: { title: string; best: string; min: string }[] = [
-  { title: 'Most Aggressive', best: 'Highest aggression after the flop', min: '10 bets, raises or calls after the flop' },
-  { title: 'Showdown King', best: 'Best share of showdowns won', min: '5 showdowns, half of them won' },
-  { title: 'Most Pots', best: 'Most pots won', min: '3 pots' },
-  { title: 'Biggest Pot', best: 'Largest single pot won', min: 'A pot of 20 BB' },
-  { title: 'Hot Streak', best: 'Most pots won in a row (hands dealt in)', min: '3 in a row' },
-  { title: 'Comeback', best: 'Largest climb from the lowest point to the final result', min: '50 chips' },
-  { title: 'Iron Defender', best: 'Best BB defense', min: '5 raises faced in the BB, 60% defended' },
-  { title: 'C-bet Machine', best: 'Highest c-bet rate', min: '5 chances, 60% bet' },
-  { title: 'The Rock', best: 'Lowest VPIP', min: '20 hands, VPIP 40% or less' },
-  { title: '2-7 Bounty', best: 'Collected a 2-7 bounty', min: '1 bounty' },
+  { title: 'Diamond Hands', best: 'Seen the most showdowns', min: 'More than 5 showdowns' },
+  { title: 'King Of The Hill', best: 'Most pots won', min: 'More than 5 pots' },
+  { title: 'Leprechaun', best: 'Biggest single pot won', min: 'A pot of more than 50 BB' },
+  { title: 'Apollo', best: 'Most pots won in a row', min: 'More than 3 in a row' },
+  { title: 'Ice Cold', best: 'Lowest pots won against bets and raises made', min: 'Fewer than 10% won' },
+  { title: 'Comeback', best: 'Largest climb from the lowest point to the final result', min: 'At least 50 BB' },
+  { title: 'Unrelenting', best: 'Highest c-bet rate', min: '5 c-bet chances' },
+  { title: 'The Rock', best: 'Lowest VPIP', min: 'VPIP under 40%' },
+  { title: 'Bounty Hunter', best: 'Most 2-7 bounties won', min: '1 bounty' },
+  { title: 'Iron Defender', best: 'Highest BB defense rate', min: '5 raises faced in the BB, more than 60% defended' },
 ];
 
 /** Table awards from AWARD_LIST, each with one sentence of the figures behind it. */
@@ -224,27 +224,29 @@ function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undef
   };
   const ids = (xs: TrialPlayer[]) => xs.map((p) => p.id);
   const out: Award[] = [];
-  const aggr = top((p) => p.af, (p) => p.s.style.betsRaises + p.s.style.calls >= 10);
-  if (aggr.length) { const st = aggr[0].s.style; out.push({ title: 'Most Aggressive', to: ids(aggr), detail: `${st.betsRaises} bets or raises against ${st.calls} calls after the flop. Bet the flop after raising ${st.cbet} of ${st.cbetOpp} times.` }); }
-  const sd = top((p) => ratio(p.s.wsd, p.s.wtsd), (p) => p.s.wtsd >= 5 && p.s.wsd / p.s.wtsd >= 0.5);
-  if (sd.length) out.push({ title: 'Showdown King', to: ids(sd), detail: `Won ${sd[0].s.wsd} of ${sd[0].s.wtsd} showdowns, ${sd[0].sdNet > 0 ? '+' : ''}${sd[0].sdNet} from them.` });
-  const won = top((p) => p.s.handsWon, (p) => p.s.handsWon >= 3);
-  if (won.length) out.push({ title: 'Most Pots', to: ids(won), detail: `${won[0].s.handsWon} pots${won.length > 1 ? ' each' : ''}. ${won.map((p) => `${p.name}: ${p.s.handsWon - p.s.wsd} without a showdown`).join('. ')}.` });
-  if (big && big.pot >= 20 * bb) {
+  const sd = top((p) => p.s.wtsd, (p) => p.s.wtsd > 5);
+  if (sd.length) out.push({ title: 'Diamond Hands', to: ids(sd), detail: `Saw ${sd[0].s.wtsd} showdowns and won ${sd[0].s.wsd}, ${sd[0].sdNet > 0 ? '+' : ''}${sd[0].sdNet} from them.` });
+  const won = top((p) => p.s.handsWon, (p) => p.s.handsWon > 5);
+  if (won.length) out.push({ title: 'King Of The Hill', to: ids(won), detail: `${won[0].s.handsWon} pots${won.length > 1 ? ' each' : ''}. ${won.map((p) => `${p.name}: ${p.s.handsWon - p.s.wsd} without a showdown`).join('. ')}.` });
+  if (big && big.pot > 50 * bb) {
     const rank = big.shown.find((s) => big.winners.includes(s.p))?.rank;
-    out.push({ title: 'Biggest Pot', to: ps.filter((p) => big.winners.includes(p.name)).map((p) => p.id), detail: `Won ${big.pot} on hand #${big.n}${rank ? ` with a ${rank.toLowerCase()}` : ''}.` });
+    out.push({ title: 'Leprechaun', to: ps.filter((p) => big.winners.includes(p.name)).map((p) => p.id), detail: `Won ${big.pot} on hand #${big.n}${rank ? ` with a ${rank.toLowerCase()}` : ''}.` });
   }
-  const hot = top((p) => streaks[p.id] ?? 0, (p) => (streaks[p.id] ?? 0) >= 3);
-  if (hot.length) out.push({ title: 'Hot Streak', to: ids(hot), detail: `Won ${streaks[hot[0].id]} pots in a row.` });
-  const back = top((p) => p.net - p.low, (p) => p.net - p.low >= 50 && p.lowAt < p.dev.length - 1);
+  const hot = top((p) => streaks[p.id] ?? 0, (p) => (streaks[p.id] ?? 0) > 3);
+  if (hot.length) out.push({ title: 'Apollo', to: ids(hot), detail: `Won ${streaks[hot[0].id]} pots in a row.` });
+  const cold = top((p) => -ratio(p.s.handsWon, p.s.style.betsRaises), (p) => p.s.style.betsRaises > 0 && p.s.handsWon / p.s.style.betsRaises < 0.1);
+  if (cold.length) out.push({ title: 'Ice Cold', to: ids(cold), detail: `Won ${cold[0].s.handsWon} pots after ${cold[0].s.style.betsRaises} bets or raises.` });
+  const back = top((p) => p.net - p.low, (p) => p.net - p.low >= 50 * bb && p.lowAt < p.dev.length - 1);
   if (back.length) out.push({ title: 'Comeback', to: ids(back), detail: `Climbed ${back[0].net - back[0].low} from ${back[0].low} after hand #${back[0].lowAt} to finish ${back[0].net > 0 ? '+' : ''}${back[0].net}.` });
-  const def = top((p) => ratio(p.s.style.bbDefend, p.s.style.bbDefendOpp), (p) => p.s.style.bbDefendOpp >= 5 && p.s.style.bbDefend / p.s.style.bbDefendOpp >= 0.6);
-  if (def.length) out.push({ title: 'Iron Defender', to: ids(def), detail: `Defended the BB ${def[0].s.style.bbDefend} of ${def[0].s.style.bbDefendOpp} times against a raise.` });
-  const cb = top((p) => ratio(p.s.style.cbet, p.s.style.cbetOpp), (p) => p.s.style.cbetOpp >= 5 && p.s.style.cbet / p.s.style.cbetOpp >= 0.6);
-  if (cb.length) out.push({ title: 'C-bet Machine', to: ids(cb), detail: `Bet the flop after raising ${cb[0].s.style.cbet} of ${cb[0].s.style.cbetOpp} times.` });
-  const rock = top((p) => -p.vpip, (p) => p.s.logged >= 20 && p.vpip <= 40);
+  const cb = top((p) => ratio(p.s.style.cbet, p.s.style.cbetOpp), (p) => p.s.style.cbetOpp >= 5);
+  if (cb.length) out.push({ title: 'Unrelenting', to: ids(cb), detail: `Bet the flop after raising ${cb[0].s.style.cbet} of ${cb[0].s.style.cbetOpp} times.` });
+  const rock = top((p) => -p.vpip, (p) => p.vpip < 40);
   if (rock.length) out.push({ title: 'The Rock', to: ids(rock), detail: `Played ${rock[0].s.vpip} of ${rock[0].s.logged} hands, the fewest at the table.` });
-  for (const b of bounties) out.push({ title: '2-7 Bounty', to: ps.filter((p) => p.name === b.to).map((p) => p.id), detail: `Showed 7-2 on hand #${b.n} and collected ${b.total}.` });
+  const bountyN = (p: TrialPlayer) => bounties.filter((b) => b.to === p.name).length;
+  const hunt = top(bountyN, (p) => bountyN(p) >= 1);
+  if (hunt.length) out.push({ title: 'Bounty Hunter', to: ids(hunt), detail: `Collected ${bountyN(hunt[0])} ${bountyN(hunt[0]) === 1 ? 'bounty' : 'bounties'} for a shown 2-7: ${bounties.filter((b) => b.to === hunt[0].name).map((b) => `${b.total} chips on hand #${b.n}`).join(', ')}.` });
+  const def = top((p) => ratio(p.s.style.bbDefend, p.s.style.bbDefendOpp), (p) => p.s.style.bbDefendOpp >= 5 && p.s.style.bbDefend / p.s.style.bbDefendOpp > 0.6);
+  if (def.length) out.push({ title: 'Iron Defender', to: ids(def), detail: `Defended the BB ${def[0].s.style.bbDefend} of ${def[0].s.style.bbDefendOpp} times against a raise.` });
   return out;
 }
 

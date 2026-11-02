@@ -401,19 +401,21 @@ function Scale({ m, p, label, lo, hi, min, max, unit = '', you, avg, target, tip
 }) {
   const pos = (v: number) => ((Math.min(max, Math.max(min, v)) - min) / (max - min)) * 100;
   const fmt = (v: number) => (unit ? `${Math.round(v)}${unit}` : v.toFixed(1));
-  // name tags under the line; nudge apart when they would overlap
-  const tags = [{ k: 'You', v: you }, { k: 'Avg', v: avg }, { k: 'Target', v: target }].map((t) => ({ ...t, x: pos(t.v) })).sort((a, b) => a.x - b.x);
-  for (let i = 1; i < tags.length; i++) if (tags[i].x - tags[i - 1].x < 15) tags[i].x = tags[i - 1].x + 15;
+  // Avg sits right under its tick. You goes above the line and Target on a second row below, so no tag
+  // needs to move off its mark.
+  const at = (v: number) => ({ left: `${pos(v)}%` });
   return (
     <div className="trial-scale">
       <div className="trial-scale-head"><span className="sat-caption">{label} <Tip title={label} lines={tip} /></span><b>{fmt(you)}</b></div>
+      <div className="trial-scale-tags is-top"><span className="is-you" style={at(you)}>You</span></div>
       <div className="trial-scale-track">
-        <span className="trial-scale-avg" style={{ left: `${pos(avg)}%` }} />
-        <span className="trial-scale-dot is-target" style={{ left: `${pos(target)}%` }} />
-        <span className="trial-scale-dot is-you" style={{ left: `${pos(you)}%`, background: colorOf(m, p.id) }} />
+        <span className="trial-scale-avg" style={at(avg)} />
+        <span className="trial-scale-dot is-target" style={at(target)} />
+        <span className="trial-scale-dot is-you" style={{ ...at(you), background: colorOf(m, p.id) }} />
       </div>
-      <div className="trial-scale-tags">
-        {tags.map((t) => <span key={t.k} className={`is-${t.k.toLowerCase()}`} style={{ left: `${Math.min(92, t.x)}%` }}>{t.k}</span>)}
+      <div className="trial-scale-tags is-low">
+        <span className="is-avg" style={at(avg)}>Avg</span>
+        <span className="is-target" style={at(target)}>Target</span>
       </div>
       <div className="sat-split trial-scale-ends"><span>{lo}</span><span>{hi}</span></div>
     </div>

@@ -42,6 +42,12 @@
 - Report: uses each player's stored code; rebuy circles on the line with a running count; Your Cards section in the locked page; award list with minimums; lock text.
 - Tests: 46 pass.
 
+## Done (2 Nov 2026, round 5)
+- Awards renamed and re-ruled (`AWARD_LIST`): Diamond Hands, King Of The Hill, Leprechaun, Apollo, Ice Cold, Comeback, Unrelenting, The Rock, Bounty Hunter, Iron Defender. Ice Cold reading: pots won / (bets + raises) under 10%. Assumption, not confirmed.
+- Player report: Avg label sits under its tick; You label above the line; Target on a second row.
+- Narrow phone (320px): bottom bar buttons fit; Stats period chips fit; summary values align.
+- Test codes in `trial/potato-test-backup.json`: Everett 222222, Bel 333333, Nat 444444, Mike 555555. Import it into a test copy to match the report.
+
 ## Next
 - Export a new backup from the phone once this version is on it: the app then gives every player a code, and the report must be rebuilt from that backup so its codes match the app.
 - Build the trial report into the app (Download or Share: Interactive report).

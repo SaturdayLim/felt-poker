@@ -50,6 +50,12 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
   .felt-app .sat-bottombar > * { flex: 1; }
 }
 @media (max-width: 639px) { .felt-app .sat-bottombar { bottom: calc(var(--sat-space-3) + var(--felt-safe-bottom)); } }
+/* Narrow phones (320px): two bar buttons must fit side by side, so the first sizes to its text. */
+@media (max-width: 359px) {
+  .felt-app .sat-bottombar > * { min-width: 0; padding-inline: var(--sat-space-3); font-size: var(--sat-fs-small); }
+  .felt-app .sat-bottombar > :first-child:not(:last-child) { flex: 0 0 auto; }
+  .felt-period button { padding-inline: var(--sat-space-2); }
+}
 
 /* Rows inside a glass-2 list */
 .felt-list { padding: var(--sat-space-1) var(--sat-space-4); }
@@ -189,7 +195,7 @@ button.felt-row { color: inherit; }
 
 /* Live game summary strip */
 .felt-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sat-space-2); padding: var(--sat-space-3) var(--sat-space-4); border-radius: var(--sat-radius-md); background: var(--sat-well); }
-.felt-summary > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.felt-summary > span { display: flex; flex-direction: column; justify-content: space-between; gap: 2px; min-width: 0; }
 .felt-summary b { font-size: 1.0625rem; white-space: nowrap; }
 
 /* Player card: grip (seat) | name and light, then buy-ins, stack, time */

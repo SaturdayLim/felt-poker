@@ -139,7 +139,10 @@
 .trial-scale-dot { position: absolute; border-radius: 50%; }
 .trial-scale-dot.is-target { top: 5px; width: 12px; height: 12px; margin-left: -6px; background: var(--sat-muted); }
 .trial-scale-dot.is-you { top: 3px; width: 16px; height: 16px; margin-left: -8px; border: 2px solid var(--sat-solid-1); z-index: 1; }
+.trial-scale { padding-inline: 14px; }
 .trial-scale-tags { position: relative; height: 14px; font-size: 10px; font-weight: 600; }
+.trial-scale-tags.is-low { height: 30px; }
+.trial-scale-tags.is-low .is-target { top: 16px; }
 .trial-scale-tags span { position: absolute; transform: translateX(-50%); white-space: nowrap; color: var(--sat-muted); }
 .trial-scale-tags .is-you { color: var(--sat-text); }
 .trial-scale-ends { font-size: var(--sat-fs-caption); color: var(--sat-muted); }

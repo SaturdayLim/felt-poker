@@ -51,8 +51,8 @@ export default function Insights({ initialPlayer }: { initialPlayer?: string }) 
             <button key={t} role="radio" aria-checked={type === t} onClick={() => setType(t)}>{t === 'all' ? 'All' : t === 'cash' ? 'Cash' : 'Tournaments'}</button>
           ))}
         </div>
-        <div className="sat-cluster" style={gap(2)}>
-          <div className="sat-seg" role="radiogroup" aria-label="Period">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sat-space-2)' }}>
+          <div className="sat-seg felt-period" role="radiogroup" aria-label="Period" style={{ flex: 1, minWidth: 0 }}>
             {RANGES.map((r) => <button key={r.k} role="radio" aria-checked={range === r.k} onClick={() => setRange(r.k)}>{r.label}</button>)}
           </div>
           <Help k="periods" />

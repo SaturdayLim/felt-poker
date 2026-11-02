@@ -14,14 +14,14 @@ The host records a game on one phone. After the game, every player can open a re
 | 1 | Host creates a game with players. | Exists |
 | 2 | Host records hands through the night. | Exists |
 | 2a | After each hand the host can add a player's hole cards: pick the player, enter the two cards. The cards are stored and never shown again. Entering again replaces them. At showdown the host still enters shown cards into the game log by hand. | 1.0.1 |
-| 3 | At the end, host opens Players, then a player. | Exists |
+| 3 | At game start (new), host opens Players, then a player, and issues each code with the eye. Players who need one later get it the same way. | Exists |
 | 4 | Top right of the player summary card: an eye icon. Tap it to make a new code and show it once. The old code stops working. If a code was already issued, the app asks first. | 1.0.1 |
 | 5 | Player notes the code. | n/a |
 | 6 | Host asks who wants to add or fix cards. Same entry screen as step 2a, any time, without a code. | 1.0.1 |
 | 7 | Host shares the HTML report in the group chat. | Exists (1.0.0) |
 | 8 | Player opens the report, taps their name, enters the code. | Exists |
 | 9 | A forgotten code: host resets it with "Copy new code" (copies, never shows). Old reports keep working with the old code. A new code works only in a report built after the reset. | 1.0.1 |
-| 10 | Live link: host shares one link. Players follow the game and open their own page with the code. Pages update after each hand. | 1.1.0 |
+| 10 | Live link: host shares one link or QR. Players follow each action live, read settings and match history, and add their own cards with their code. Reports stay in the HTML file. | 1.1.0 |
 
 The "Player codes" card on Download or Share goes away in 1.0.1. Codes belong to the player's screen only.
 
@@ -53,7 +53,15 @@ The "Player codes" card on Download or Share goes away in 1.0.1. Codes belong to
 - At report build, a hand where the private cards of two players share a card, or a private card matches a card on the board or a shown card, is left out for the players involved.
 - The player page shows "N hands left out (cards clash)" with no detail.
 
-### 3.4 Acceptance for 1.0.1
+### 3.4 Suit preferences
+
+- Settings, Cards: four rows, one per suit. Each row has a colour choice (Red, Black, Blue, Green, Orange, Purple) and move up and move down buttons. The order is the order of the rows in the card picker, top to bottom.
+- Defaults: Spades black, Hearts red, Clubs black, Diamonds red, in the order Spades, Hearts, Clubs, Diamonds (top to bottom).
+- A preview card for each suit shows the choice at once.
+- The preference belongs to the phone, like the theme: a backup restore never changes it. The player view keeps its own copy in the browser.
+- It changes the card picker and card faces on that phone only. Image reports, CSV files and the HTML report keep the default colours so every reader sees the same cards.
+
+### 3.5 Acceptance for 1.0.1
 
 1. Eye shows a new code once. A second tap asks first. The old code fails on a report built after the change.
 2. Reset copies a message and shows no code.
@@ -132,18 +140,20 @@ rooms/<roomId>
   owner       Firebase uid of the host (string)
   updatedAt   server time of the last publish
   createdAt   server time
-  handCount   number of hands in this copy (number, plain: lets the viewer show "updated after hand 12")
-  pub         ciphertext of the public part (string)
-  pages/<pid> lock box of one player: { salt, iv, data, iter }
+  handCount   number of closed hands (number, plain: lets the viewer show "after hand 12")
+  pub         ciphertext of the slow part: game settings, house rules, players, closed hands with showdown cards, stats tables. Written when a hand closes or a setting changes.
+  now         ciphertext of the hand in progress: board, actions, pot, who acts. Written after each action (small).
+  ident/<pid> small lock box per player: { salt, iv, data, iter }. It holds the player name and proves the code.
+  inbox/<pid>/<handN>  card entry from the player, encrypted with the code (section 4.7). The host app reads and deletes it.
 ```
 
-Plain text in Firebase: owner uid, timestamps, hand count. Everything else is ciphertext.
+Plain text in Firebase: owner uid, timestamps, hand count. Everything else is ciphertext. There are no player report pages in Firebase: the viewer shows no awards, advice or reports (section 4.6).
 
 ### 4.5 Host behavior
 
 - Toggle on the game: "Share live link" (off by default). Info tip explains: what goes online (encrypted copy), what does not (codes, private cards in readable form), how to stop.
 - On: sign in, create room, publish, show the link with Copy and Show QR (QR makes it easy to open on other phones, a Stack feature R7/R20).
-- After each saved hand: publish again (debounced 3 seconds). Offline: queue the last snapshot and publish when the network returns. A badge shows "Live, updated after hand 12" or "Offline, will update".
+- After each recorded action: write `now` (debounced 1 second). When a hand closes or a setting changes: write `pub`. Offline: keep the latest of each and send when the network returns. A badge shows "Live, hand 12" or "Offline, will update".
 - Publishing needs each player's code to lock pages. A player without a code shows as "No code yet" in the viewer and has no page until the host issues one.
 - The host can turn sharing on and off at any time, per game, and lock it with a join passphrase. Turning sharing off deletes the room. Turning it on again makes a new room, a new id and a new link.
 - Firebase is used only while a session is live. Closing the game does not end the session, so players can still add cards after the game (step 6 of the flow). The host ends the session with Stop sharing.
@@ -152,9 +162,14 @@ Plain text in Firebase: owner uid, timestamps, hand count. Everything else is ci
 
 ### 4.6 Viewer behavior
 
-- Page at `/live/` in the same site. Same code as the HTML report template, with a data source that reads Firebase instead of inline JSON.
-- Opens `pub` with `k` and shows Game Summary and Compare. Players tab shows locked pages. A code opens the player's box.
-- Subscribes with `on('value')` on `rooms/<id>`. The page updates in place and keeps the open tab and the unlocked player.
+- Page at `/live/` in the same site: the Felt app in a small player mode. It is a separate screen set from the report.
+- A viewer can do three things, and nothing else:
+  1. See the action: the hand in progress (board, actions, pot) and the game settings (blinds, house rules, 2-7 bounty).
+  2. See unprocessed stats: match history (closed hands with results) and showdown hands, as plain tables. No awards, no advice, no charts of style, no report download.
+  3. Add their own cards (section 4.7).
+- A viewer cannot change a setting, record an action, or see private cards of anyone, including their own after saving.
+- Without a code, a viewer sees 1 and 2. A code is needed only for 3 and shows the player's name for reference. The code is kept in the browser tab until it closes (session storage). The browser keeps the key made from the code, not the code.
+- Subscribes with `on('value')` on `pub` and `now`. The page updates in place.
 - Cached copy: the last snapshot is kept in the browser, so a viewer with no signal still sees the last update.
 - A deleted room shows "The host stopped sharing."
 
@@ -177,7 +192,7 @@ Rules: the inbox allows create and update for any signed-in visitor, and allows 
 | Limit (Spark) | Felt use |
 |---|---|
 | 1 GB stored | One room is under 1 MB. |
-| 10 GB per month downloaded | 4 viewers, 40 hands, 1 MB per update: about 160 MB for a night. Pages download only when the room changes. |
+| 10 GB per month downloaded | 6 viewers, 40 hands, about 400 actions. `now` is under 5 KB per action, `pub` under 300 KB per hand: about 100 MB for a night. |
 | 100 simultaneous connections | A home game has under 20. |
 | No Cloud Functions | Cleanup runs from the host app. |
 
@@ -194,7 +209,9 @@ If a room grows past the size rules, the app refuses to publish and says so.
 2. Share live link makes a link. A second phone opens it and sees Game Summary within 2 seconds.
 3. A recorded hand reaches the viewer within 5 seconds.
 4. Reading `rooms/<id>` in the Firebase console shows only ciphertext, a uid, timestamps and the hand count.
-5. A player unlocks only their own page with their own code. A wrong code fails.
+5. A viewer with no code sees the action, settings, match history and showdown hands, and sees no report, no awards, no settings controls. A correct code shows the player name and opens card entry. A wrong code fails.
+5a. A saved card entry cannot be read back anywhere in the viewer. A second entry replaces it. The confirmation prompt names the two cards before saving.
+5b. Both hands of a clash are left out of the HTML report until one player enters again.
 6. Another Firebase user cannot write to the room (rules test with a second anonymous user).
 7. Stop sharing removes the room. The viewer shows the stopped message.
 8. The mock driver passes the same adapter tests with no network.
@@ -207,9 +224,10 @@ If a room grows past the size rules, the app refuses to publish and says so.
 | 1.0.1 a | Code model: issue, reveal once, reset and copy, no stored display. Eye on the player card. Remove Player codes card. | Small |
 | 1.0.1 b | Write-only card entry screen and replace rule. Hide stored cards. | Medium |
 | 1.0.1 c | Clash filter at report build, "N hands left out" line, tests. | Small |
+| 1.0.1 d | Card suit preferences (colour and row order per suit) in Settings, used by every card picker and card face on the phone. | Small |
 | 1.1.0 a | Create `felt-live` project, rules, config file. Adapter with mock driver and tests. | Medium |
 | 1.1.0 b | Host toggle, publish queue, link, QR. | Medium |
-| 1.1.0 c | Viewer page from the report template with a Firebase data source. | Medium |
+| 1.1.0 c | Player view page: live action, settings, match history, showdown hands, code entry, card entry. | Large |
 | 1.1.0 d | Rules test, size limits, expiry, Stop sharing, copy updates. | Small |
 
 Each release is committed and pushed when done, and gets a Version history entry.

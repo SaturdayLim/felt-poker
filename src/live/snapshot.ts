@@ -4,7 +4,7 @@
 import type { Card, Game, ID, Player, Settings, StreetName } from '../types';
 import { estimateStacks } from '../lib/stacks';
 import { bestHand } from '../lib/cards';
-import { potTotal, replayStreet, rowOrder, STREETS } from '../lib/hand';
+import { finalists, hasActs, potTotal, replayStreet, rowOrder, STREETS } from '../lib/hand';
 import { units } from '../lib/format';
 import { rulesList } from '../report/model';
 import type { HandLog } from '../types';
@@ -12,7 +12,7 @@ import type { HandLog } from '../types';
 export interface ViewShown { name: string; cards: Card[]; rank: string }
 export interface ViewCell { t: string; kind: string; past?: boolean; dark?: boolean }
 export interface ViewRow { name: string; pos: string; folded: boolean; cells: ViewCell[] }
-export interface ViewStreet { key: string; label: string; old: Card[]; fresh: Card[]; lines: string[]; cols: number; rows: ViewRow[]; pot: number; shown?: ViewShown[] }
+export interface ViewStreet { key: string; label: string; old: Card[]; fresh: Card[]; lines: string[]; cols: number; rows: ViewRow[]; pot: number; shown?: ViewShown[]; mucked?: string[] }
 export interface HandView { streets: ViewStreet[]; dealt: string[]; button: string | null }
 export interface Standing { id: ID; now: number; low: number; high: number }
 export interface PubHand {
@@ -20,6 +20,8 @@ export interface PubHand {
   winners: { name: string; amount: number }[];
   board: Card[];
   shown: ViewShown[];
+  /** At showdown with no cards shown, and no share of the pot. */
+  mucked?: string[];
   dealt: string[];
   view: HandView;
 }
@@ -44,6 +46,8 @@ export interface NowSnapshot {
   toAct: string | null;
   view: HandView;
   ended: boolean;
+  /** Someone checked, called, bet, raised or folded. Before that viewers do not see the hand: blinds and card entry alone do not count. */
+  acted: boolean;
   stacks: StackLine[];
   updatedAt: number;
 }
@@ -66,10 +70,12 @@ export function buildPub(g: Game, players: Player[], settings?: Settings, at = D
     hands: g.hands.filter((h) => !h.missed && h.log).map((h) => {
       const winners = h.winners.map((w) => ({ name: name(w.playerId), amount: w.amount }));
       const shown = h.shown.map((s) => ({ name: name(s.playerId), cards: s.cards, rank: h.board.length === 5 ? bestHand([...s.cards, ...h.board])?.name ?? '' : '' }));
+      const fin = finalists(h.log!);
+      const mucked = fin.length > 1 ? fin.filter((p) => !h.shown.some((s) => s.playerId === p) && !h.winners.some((w) => w.playerId === p)).map(name) : [];
       return {
-        n: h.n, pot: h.pot, winners, board: h.board, shown,
+        n: h.n, pot: h.pot, winners, board: h.board, shown, mucked,
         dealt: (h.log?.dealt ?? []).map(name),
-        view: buildView(g, h.log!, h.board, name, { winners, shown }),
+        view: buildView(g, h.log!, h.board, name, { winners, shown, mucked }),
       };
     }),
     stacks: stackLines(g, name),
@@ -94,7 +100,7 @@ function positions(order: ID[]): Record<ID, string> {
 const cellKind = (a: { k: string } | null, post: boolean) => (post ? 'post' : a?.k ?? 'off');
 
 /** One hand as viewers read it: lines for the action log, boxes for the play-by-play view. Public facts only. */
-export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) => string, end?: { winners: { name: string; amount: number }[]; shown: ViewShown[] }, shownNow?: ViewShown[]): HandView {
+export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) => string, end?: { winners: { name: string; amount: number }[]; shown: ViewShown[]; mucked?: string[] }, shownNow?: ViewShown[]): HandView {
   const order = rowOrder(g, log), pos = positions(order);
   const who = (p: ID) => pos[p] ? `${pos[p]} (${name(p)}` : `(${name(p)}`;
   const streets: ViewStreet[] = [];
@@ -146,7 +152,7 @@ export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) =
   if (end || shown.length) {
     const lines = (end?.winners ?? []).map((w) => `${w.name} wins ${units(w.amount)}`);
     (log.runCards ?? []).forEach((run, i) => { if (run.length) lines.push(`Run ${i + 1}: ${run.join(' ')}`); });
-    streets.push({ key: 'showdown', label: STAGE.showdown, old: [], fresh: [], lines, cols: 0, rows: [], pot: 0, shown });
+    streets.push({ key: 'showdown', label: STAGE.showdown, old: [], fresh: [], lines, cols: 0, rows: [], pot: 0, shown, mucked: end?.mucked });
   }
   return { streets, dealt: log.dealt.map(name), button: log.button ? name(log.button) : null };
 }
@@ -157,6 +163,7 @@ export function viewText(n: number, sb: number, bb: number, v: HandView): string
   for (const s of v.streets) {
     if (s.key === 'showdown') {
       for (const x of s.shown ?? []) out.push(`- ${x.name} shows ${x.cards.join(' ')}`);
+      for (const m of s.mucked ?? []) out.push(`- ${m} mucks`);
       for (const l of s.lines) out.push(`- ${l}`);
     } else {
       out.push(s.fresh.length ? `- ${s.label}: ${s.fresh.join(' ')}` : `- ${s.label}`);
@@ -198,6 +205,6 @@ export function buildNow(g: Game, players: Player[], hand: { n: number; tab: str
     pot: potTotal(g, hand.log, hand.log.button),
     toAct: hand.ended ? null : toAct,
     view: buildView(g, hand.log, board, name, undefined, shown),
-    ended: hand.ended, stacks: stackLines(g, name), updatedAt: at,
+    ended: hand.ended, acted: hasActs(hand.log), stacks: stackLines(g, name), updatedAt: at,
   };
 }

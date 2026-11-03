@@ -2,10 +2,10 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings, no way to read any private cards, including their own. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Cards, Empty, Header, Help, Icon, Sheet, toast } from '../components/ui';
+import { CardBack, Cards, Empty, Header, Help, Icon, Sheet, toast } from '../components/ui';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
-import { Candle, candleScale } from '../components/candle';
+import { StandingChart } from '../components/candle';
 import { lock, unlock, type LockBox } from '../report/lock';
 import { CHECK_TEXT, keyFromPassphrase, open, seal } from '../live/crypto';
 import { pickDriver } from '../live/host';
@@ -30,6 +30,16 @@ const ls = {
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 const money = (n: number | null) => (n === null ? '-' : String(Math.round(n)));
 const stackText = (s?: StackLine) => (!s || s.stack === null ? '-' : `${s.spread ? '~' : ''}${money(s.stack)}`);
+/** A random id for this device, kept between visits. It says nothing about the player. */
+const deviceId = () => {
+  let id = ls.get('felt-device');
+  if (!id) { id = Math.random().toString(36).slice(2, 12); ls.set('felt-device', id); }
+  return id;
+};
+const PotLine = ({ h }: { h: PubSnapshot['hands'][number] }) => (
+  <span className="sat-small sat-muted felt-frame-cap"><span className="sat-num">Pot: {money(h.pot)}</span> - {h.winners.map((w) => `${w.name} (${money(w.amount)})`).join(', ') || 'No winner recorded'}</span>
+);
+const MuckedRows = ({ names }: { names?: string[] }) => <>{(names ?? []).map((m) => <div key={m} className="felt-band-shown"><span>{m}</span><span className="felt-cards"><CardBack size="sm" /><CardBack size="sm" /></span><span className="sat-small sat-muted">Mucked</span></div>)}</>;
 
 export default function Join({ room, keyFromLink }: { room: string; keyFromLink?: string }) {
   const driver = useMemo(() => pickDriver(), []);
@@ -86,6 +96,19 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ident, code]);
 
+  // tell the host this device has the game open, and who it is once a code is in; about once a minute while on screen
+  const signedName = me?.name ?? null;
+  const ready = !!(driver && key && meta);
+  useEffect(() => {
+    if (!ready) return;
+    const say = (bye = false) => { seal({ hello: deviceId(), name: signedName, bye }, key!).then((v) => driver!.set(room, `flags/${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`, v)).catch(() => undefined); };
+    say();
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') say(); }, 60000);
+    const leave = () => say(true);
+    window.addEventListener('pagehide', leave);
+    return () => { window.clearInterval(t); window.removeEventListener('pagehide', leave); };
+  }, [ready, signedName, driver, room, key]);
+
   const tryCode = async (c: string) => {
     for (const box of Object.values(ident)) {
       try {
@@ -140,9 +163,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
         {tab === 'settings' && <Rules pub={pub} />}
       </div>
 
-      {(tab === 'action' || tab === 'hands') && (
-        <button type="button" className="felt-fab felt-fab--page" aria-label={me ? 'Add my cards' : 'Enter player code to add cards'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
-      )}
+      <button type="button" className="felt-fab felt-fab--page" aria-label={me ? 'Add my cards' : 'Enter player code to add cards'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
 
       {sheet === 'code' && <CodeSheet me={me} onClose={() => setSheet(null)} onSubmit={async (c) => { const ok = await tryCode(c); if (ok) setSheet(null); return ok; }}
         onLeave={() => { setMe(null); setCode(null); ss.del(`felt-join-code:${room}`); setSheet(null); }} />}
@@ -202,6 +223,7 @@ function Band({ s }: { s: ViewStreet }) {
       {(s.shown ?? []).map((x) => (
         <div key={x.name} className="felt-band-shown"><span>{x.name}</span><Cards cards={x.cards} size="sm" />{x.rank && <span className="sat-small sat-muted">{x.rank}</span>}</div>
       ))}
+      <MuckedRows names={s.mucked} />
       {[...s.lines].reverse().map((l, i) => <div key={i} className="felt-band-line">{l}</div>)}
     </div>
   );
@@ -210,17 +232,17 @@ function Band({ s }: { s: ViewStreet }) {
 function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blinds: { sb: number; bb: number }; live?: { toAct: string | null; pot: number } }) {
   return (
     <section className="sat-glass-2 felt-frame" aria-label={`Hand ${n}`}>
-      <div className="felt-frame-head">
-        <h2 className="felt-frame-title">Hand {n}</h2>
-        <CopyHand n={n} blinds={blinds} view={view} />
-      </div>
+      <div className="felt-frame-sum"><h2 className="felt-frame-title">Hand {n}</h2></div>
+      <CopyHand n={n} blinds={blinds} view={view} />
       {live && <div className="felt-frame-live"><span>{live.toAct ? <><b>{live.toAct}</b> to act</> : ''}</span><span>Pot <b className="sat-num">{money(live.pot)}</b></span></div>}
       {[...view.streets].reverse().map((s) => <Band key={s.key} s={s} />)}
     </section>
   );
 }
 
-function ActionLog({ now, hands, blinds, onFlag }: { now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void }) {
+function ActionLog({ now: sent, hands, blinds, onFlag }: { now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void }) {
+  // a new hand shows only after real action: blinds and card entry alone do not count
+  const now = sent && sent.acted !== false ? sent : null;
   const closed = now ? hands.filter((h) => h.n !== now.n) : hands;
   return (
     <>
@@ -238,13 +260,14 @@ function HandsList({ hands, blinds, onOpen }: { hands: PubSnapshot['hands']; bli
     <div className="sat-stack" style={gap(2)}>
       {hands.map((h) => (
         <div key={h.n} role="button" tabIndex={0} className="sat-glass-2 felt-frame felt-frame--tap" onClick={() => onOpen(h.n)} onKeyDown={(e) => e.key === 'Enter' && onOpen(h.n)}>
-          <div className="felt-frame-head">
-            <span className="sat-cluster" style={gap(1)}><h2 className="felt-frame-title">Hand {h.n}</h2><CopyHand n={h.n} blinds={blinds} view={h.view} /></span>
-            <b className="sat-num">{money(h.pot)}</b>
+          <div className="felt-frame-sum">
+            <h2 className="felt-frame-title">Hand {h.n}</h2>
+            <PotLine h={h} />
           </div>
-          <span className="sat-small sat-muted">{h.winners.map((w) => `${w.name} +${money(w.amount)}`).join(', ') || 'No winner recorded'}</span>
+          <CopyHand n={h.n} blinds={blinds} view={h.view} />
           {h.board.length > 0 && <Cards cards={h.board} size="sm" />}
           {h.shown.map((s) => <div key={s.name} className="felt-band-shown"><span>{s.name}</span><Cards cards={s.cards} size="sm" /><span className="sat-small sat-muted">{s.rank}</span></div>)}
+          <MuckedRows names={h.mucked} />
         </div>
       ))}
     </div>
@@ -299,8 +322,7 @@ function PlayersTab({ pub, stacks, me, button }: { pub: PubSnapshot; stacks: Sta
   const ring = seats.map((_, i) => seats[(at + i) % seats.length]);
   const all = pub.standings;
   const nows = all.map((s) => s.now);
-  const recLow = Math.min(0, ...all.map((s) => s.low)), recHigh = Math.max(0, ...all.map((s) => s.high));
-  const scale = candleScale([recLow, recHigh]);
+  const table = { low: Math.min(0, ...all.map((s) => s.low)), high: Math.max(0, ...all.map((s) => s.high)), from: all.length ? Math.min(...nows) : 0, to: all.length ? Math.max(...nows) : 0 };
   const mine = all.find((s) => s.id === me?.id);
   return (
     <>
@@ -318,24 +340,28 @@ function PlayersTab({ pub, stacks, me, button }: { pub: PubSnapshot; stacks: Sta
         })}
       </div>
       <section className="sat-glass-2 sat-card sat-stack" style={gap(1)}>
-        <span className="sat-cluster" style={gap(1)}><b>Table</b><Help k="candleTable" /></span>
-        <Candle scale={scale} low={recLow} high={recHigh} from={all.length ? Math.min(...nows) : 0} to={all.length ? Math.max(...nows) : 0} label="Table" />
-        {mine && (
-          <>
-            <span className="sat-cluster" style={gap(1)}><b>Current standing</b><Help k="candleMine" /></span>
-            <Candle scale={scale} low={mine.low} high={mine.high} from={0} to={mine.now} mark={mine.now} tone={mine.now < 0 ? 'coral' : 'blue'} label="Current standing" />
-          </>
-        )}
+        {mine && <span className="sat-cluster" style={gap(1)}><b>Current standing</b><Help k="candleMine" /></span>}
+        <StandingChart table={table} mine={mine ? { low: mine.low, high: mine.high, now: mine.now } : undefined} />
+        <span className="sat-cluster sat-small sat-muted" style={gap(1)}>Table<Help k="candleTable" /></span>
       </section>
     </>
   );
 }
 
 function Rules({ pub }: { pub: PubSnapshot }) {
+  const row = (r: PubSnapshot['rules'][number], label = r.label) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{label}{r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>;
+  const is27 = (r: PubSnapshot['rules'][number]) => /^2-7 (win|hand|amount)$/.test(r.label);
+  const b27 = pub.rules.filter(is27);
   return (
-    <div className="sat-glass-2 felt-list">
-      {pub.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{r.label}{r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>)}
-    </div>
+    <>
+      <div className="sat-glass-2 felt-list">{pub.rules.filter((r) => !is27(r)).map((r) => row(r))}</div>
+      {b27.length > 0 && (
+        <section className="sat-glass-2 felt-list felt-rule-group" aria-label="2-7 bounty">
+          <span className="sat-caption felt-rule-cap">2-7 bounty <Help k="bounty27" /></span>
+          {b27.map((r) => row(r, r.label[4].toUpperCase() + r.label.slice(5)))}
+        </section>
+      )}
+    </>
   );
 }
 
@@ -370,7 +396,7 @@ function HandPick({ hands, now, entered, me, onSave, onClose }: {
         {mine.map((x) => (
           <button key={x.n} className="felt-row" onClick={() => setN(x.n)}>
             <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span></span>
-            <span className="sat-small sat-muted">{entered.has(x.n) ? 'Entered' : 'Not entered'}</span>
+            <span className="sat-small sat-muted">{entered.has(x.n) ? 'Filled' : 'Nil'}</span>
           </button>
         ))}
       </div>

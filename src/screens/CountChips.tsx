@@ -4,6 +4,7 @@ import { back, go } from '../router';
 import { Caption, Delta, Empty, Header, Help, Icon, num, toast } from '../components/ui';
 import { buyInUnits, cashOutUnits, hasCashedOut, totalBuyInUnits } from '../lib/calc';
 import { estimateStacks } from '../lib/stacks';
+import { lostChips } from '../lib/hand';
 import { units } from '../lib/format';
 import type { ID } from '../types';
 
@@ -66,10 +67,18 @@ export default function CountChips({ gameId }: { gameId: string }) {
     go(`game/${g.id}/close`, true);
   };
   const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
+  const leaks = g.hands.map((h) => ({ id: h.id, n: h.n, lost: lostChips(g, h) })).filter((x) => x.lost > 0);
 
   return (
     <div className="felt-page">
       <Header back={() => back(`game/${g.id}`)} title="End Game" sub={`Final chip count: ${entered} of ${ordered.length} players`} />
+
+      {leaks.map((x) => (
+        <button key={x.id} className="sat-flat sat-card sat-split felt-leak" onClick={() => go(`game/${g.id}/hand/${x.id}`)}>
+          <span className="felt-warn-text">Hand {x.n}: {units(x.lost)} chips went to nobody.</span>
+          <span className="sat-small" style={{ color: 'var(--sat-accent-text)', fontWeight: 600 }}>Open and save</span>
+        </button>
+      ))}
 
       <div style={{ display: 'grid', gridTemplateColumns: '42% 1fr', gap: 'var(--sat-space-3)', alignItems: 'start' }}>
         <div className="sat-stack" style={gap(2)}>

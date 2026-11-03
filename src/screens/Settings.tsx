@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook } from '../components/ui';
-import { SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
+import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
@@ -248,8 +248,8 @@ function CardLookEditor() {
       <div className="sat-split">
         <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Cards</h2><Help k="cardLook" /></span>
         <label className="felt-look-toggle">
-          <span className="sat-small">Default</span>
-          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default suit colours" className="felt-look-switch" onClick={() => save({ ...look, custom: isDefault })}>
+          <span className="sat-small">{isDefault ? 'Default' : 'Custom'}</span>
+          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default card colours" className="felt-look-switch" onClick={() => save({ ...look, custom: isDefault })}>
             <span className="felt-look-thumb"><i className="is-rainbow" /><i className="is-default" /></span>
           </button>
         </label>
@@ -263,19 +263,29 @@ function CardLookEditor() {
             <span className="felt-suit-mark" style={{ color: lookColor(look, s) }} aria-hidden="true">{SUIT_SYMBOL[s]}</span>
             <span className="felt-row-title felt-grow">{SUIT_NAME[s]}</span>
             <div className={`felt-suit-custom ${isDefault ? '' : 'is-open'}`} aria-hidden={isDefault}>
-              <SuitColor key={lookColor(look, s)} name={SUIT_NAME[s]} value={lookColor(look, s)} off={isDefault} onChange={(hex) => save({ ...look, colors: { ...look.colors, [s]: hex } })} />
+              <SuitColor name={SUIT_NAME[s]} value={lookColor(look, s)} off={isDefault} onChange={(hex) => save({ ...look, colors: { ...look.colors, [s]: hex } })} />
             </div>
           </div>
         ))}
+        <div className="felt-suit-row">
+          <span className="felt-suit-grip" aria-hidden="true" />
+          <span className="felt-suit-mark" aria-hidden="true" />
+          <span className="felt-row-title felt-grow">Background</span>
+          <div className={`felt-suit-custom ${isDefault ? '' : 'is-open'}`} aria-hidden={isDefault}>
+            <SuitColor name="Background" value={look.bg ?? DEFAULT_FACE} off={isDefault} onChange={(hex) => save({ ...look, bg: hex })} />
+          </div>
+        </div>
       </div>
     </>
   );
 }
 
-/** Hex box and eyedropper for one suit. The box saves on each valid code. */
+/** Hex box and eyedropper for one colour. The box saves on each valid code. The inputs stay mounted while the
+    colour changes: a remount would close the phone's colour picker in the middle of a slider drag. */
 function SuitColor({ name, value, off, onChange }: { name: string; value: string; off: boolean; onChange: (hex: string) => void }) {
   const full = (h: string) => (h.length === 4 ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h).toUpperCase();
   const [text, setText] = useState(full(value));
+  useEffect(() => { setText(full(value)); }, [value]);
   return (
     <>
       <input className="sat-input felt-suit-hex sat-num" aria-label={`${name} colour as a hex code`} value={text} maxLength={7} autoComplete="off" autoCapitalize="characters" spellCheck={false} tabIndex={off ? -1 : 0}

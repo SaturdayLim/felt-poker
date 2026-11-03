@@ -55,6 +55,7 @@ const paths: Record<string, ReactNode> = {
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.9 4.9 1.4 1.4" /><path d="m17.7 17.7 1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m4.9 19.1 1.4-1.4" /><path d="m17.7 6.3 1.4-1.4" /></>,
   moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
   phone: <><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M11 18.5h2" /></>,
+  qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3z" /><path d="M21 14v.01" /><path d="M21 21h-4v-4" /><path d="M14 21v-.01" /></>,
 };
 
 export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; stroke?: number }) {
@@ -316,6 +317,11 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
         aria-label={card ? `${cardText(card)}${removable ? ', tap again to remove' : ''}` : `Empty ${placeholder ?? ''} slot`}>{inner}</button>
     );
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
+}
+
+/** A face-down card: the white Felt mark on cobalt, with a gold trim. */
+export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
+  return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 40 : size === 'sm' ? 19 : 25} /></span>;
 }
 
 export function Cards({ cards, size }: { cards: Card[]; size?: 'sm' | 'lg' }) {

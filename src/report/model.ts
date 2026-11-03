@@ -135,10 +135,12 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
 
   const reach = { preflop: hands.length, flop: 0, turn: 0, river: 0, showdown: 0 };
   for (const h of hands) {
-    if (h.log!.streets.flop) reach.flop++;
-    if (h.log!.streets.turn) reach.turn++;
-    if (h.log!.streets.river) reach.river++;
-    if (finalists(h.log!).length > 1) reach.showdown++;
+    // a showdown means every street was dealt, even when an all-in left no betting on it
+    const sd = finalists(h.log!).length > 1;
+    if (h.log!.streets.flop || sd) reach.flop++;
+    if (h.log!.streets.turn || sd) reach.turn++;
+    if (h.log!.streets.river || sd) reach.river++;
+    if (sd) reach.showdown++;
   }
   const secs = hands.map((h) => Math.round(((h.endedAt ?? h.at) - h.at) / 1000)).sort((a, b) => a - b);
   const biggest = [...hands].sort((a, b) => b.pot - a.pot).slice(0, 3).map((h) => ({
@@ -190,7 +192,7 @@ export function rulesList(g: Game, s?: Settings): { label: string; value: string
     { label: 'Buy-in', value: `${g.buyIns[0]?.amount ?? 0} chips` },
   ];
   if (!r) return out;
-  out.push({ label: 'Minimum raise', value: MIN_RAISE[r.minRaise] });
+  out.push({ label: 'Minimum raise', value: MIN_RAISE[r.minRaise], tip: 'minRaise' });
   const b = r.bounty27;
   if (!b.on) out.push({ label: '2-7 bounty', value: 'Off' });
   else out.push(

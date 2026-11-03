@@ -2,6 +2,7 @@
    enter and the flags they send, and deletes the room when sharing stops. Runs on the host phone only. */
 import type { Card, Game, ID } from '../types';
 import { useStore } from '../store';
+import { toast } from '../components/ui';
 import { lock, unlock, type LockBox } from '../report/lock';
 import { CHECK_TEXT, keyFromPassphrase, newRoomId, newRoomKey, open, seal } from './crypto';
 import { getDriver, setDriver, type LiveDriver } from './driver';
@@ -10,10 +11,14 @@ import { mockDriver } from './mock';
 import { buildPub, type NowSnapshot } from './snapshot';
 
 export interface Flag { id: string; n: number; text: string; at: number }
+/** A device with the game open. The name is the player, once that player has signed in with a code. */
+export interface Viewer { id: string; name: string | null; at: number }
+/** A device says hello about once a minute. After this long without one it no longer counts as active. */
+const VIEWER_MS = 150000;
 interface Session {
   gameId: ID; room: string; key: string; locked: boolean; driver: LiveDriver;
   stops: (() => void)[]; flags: Flag[]; failed: Set<string>; identCodes: Record<ID, string>; inbox: Record<string, unknown>; nowN?: number; timer?: ReturnType<typeof setTimeout>;
-  connected: boolean; stopTimer?: ReturnType<typeof setTimeout>;
+  connected: boolean; stopTimer?: ReturnType<typeof setTimeout>; viewers: Record<string, Viewer>;
 }
 
 const sessions = new Map<ID, Session>();
@@ -56,7 +61,8 @@ export function linkFor(room: string, key: string, locked: boolean): string {
 
 export function liveStatus(gameId: ID) {
   const s = sessions.get(gameId);
-  return s && !s.stopTimer ? { on: true as const, connected: s.connected, locked: s.locked, room: s.room, link: linkFor(s.room, s.key, s.locked), flags: s.flags } : { on: false as const };
+  return s && !s.stopTimer ? { on: true as const, connected: s.connected, locked: s.locked, room: s.room, link: linkFor(s.room, s.key, s.locked), flags: s.flags,
+    viewers: Object.values(s.viewers).filter((v) => Date.now() - v.at < VIEWER_MS) } : { on: false as const };
 }
 
 const handCount = (g: Game) => g.hands.filter((h) => !h.missed && h.log).length;
@@ -93,6 +99,18 @@ export async function publishNow(gameId: ID, now: NowSnapshot | null) {
   await s.driver.set(s.room, 'now', now ? await seal(now, s.key) : null);
 }
 
+/** Players who sent cards for this hand that the host has not applied yet. */
+export function inboxFor(gameId: ID, n: number): ID[] {
+  const s = sessions.get(gameId);
+  return s ? Object.entries(s.inbox).filter(([, byHand]) => (byHand as Record<string, unknown> | null)?.[n]).map(([p]) => p) : [];
+}
+
+/** The host entered this player's cards: what the player sent for the hand no longer counts. */
+export async function dropInbox(gameId: ID, pid: ID, n: number) {
+  const s = sessions.get(gameId);
+  if (s && (s.inbox[pid] as Record<string, unknown> | null)?.[n]) await s.driver.set(s.room, `inbox/${pid}/${n}`, null);
+}
+
 const CARD = /^[AKQJT98765432][shdc]$/;
 
 async function applyInbox(s: Session) {
@@ -120,12 +138,22 @@ async function applyInbox(s: Session) {
   }
 }
 
+/** A viewer's hello: a pop-up for a new device, and again when that device turns into a named player. */
+function seen(s: Session, id: string, name: string | null, bye: boolean) {
+  const was = s.viewers[id];
+  if (bye) { delete s.viewers[id]; return; }
+  s.viewers[id] = { id, name, at: Date.now() };
+  if (!was || Date.now() - was.at >= VIEWER_MS) toast(name ? `${name} is viewing the game.` : 'A device joined to view the game.');
+  else if (name && was.name !== name) toast(`${name} signed in.`);
+}
+
 async function takeFlags(s: Session, tree: Record<string, string> | null) {
   for (const [fid, sealed] of Object.entries(tree ?? {})) {
     if (s.flags.some((f) => f.id === fid)) continue;
     try {
-      const v = await open<{ n: number; text: string }>(sealed, s.key);
-      s.flags.push({ id: fid, n: Number(v.n) || 0, text: String(v.text ?? '').slice(0, 200), at: Date.now() });
+      const v = await open<{ n: number; text: string; hello?: string; name?: string | null; bye?: boolean }>(sealed, s.key);
+      if (v.hello) seen(s, v.hello, v.name ?? null, !!v.bye);
+      else s.flags.push({ id: fid, n: Number(v.n) || 0, text: String(v.text ?? '').slice(0, 200), at: Date.now() });
     } catch { /* not ours */ }
     await s.driver.set(s.room, `flags/${fid}`, null);
   }
@@ -152,7 +180,7 @@ export async function startSharing(gameId: ID, passphrase?: string): Promise<str
   const locked = !!passphrase?.trim();
   const key = locked ? await keyFromPassphrase(passphrase!, room) : before && !before.locked ? before.key : newRoomKey();
   const st = useStore.getState();
-  const s: Session = { gameId, room, key, locked, driver, stops: [], flags: [], failed: new Set(), identCodes: {}, inbox: {}, connected: true };
+  const s: Session = { gameId, room, key, locked, driver, stops: [], flags: [], failed: new Set(), identCodes: {}, inbox: {}, connected: true, viewers: {} };
   await driver.create(room, {
     owner: uid, createdAt: Date.now(),
     meta: { v: 1, locked, check: locked ? await seal(CHECK_TEXT, key) : null, updatedAt: Date.now(), handCount: handCount(g) },
@@ -216,7 +244,7 @@ export async function resumeSharing() {
       await driver.signIn();
       // the app closed inside the Undo window: finish the stop
       if (saved.stopping) { await driver.remove(saved.room); localStorage.removeItem(LS(g.id)); continue; }
-      const s: Session = { gameId: g.id, room: saved.room, key: saved.key, locked: saved.locked, driver, stops: [], flags: saved.flags ?? [], failed: new Set(), identCodes: {}, inbox: {}, connected: true };
+      const s: Session = { gameId: g.id, room: saved.room, key: saved.key, locked: saved.locked, driver, stops: [], flags: saved.flags ?? [], failed: new Set(), identCodes: {}, inbox: {}, connected: true, viewers: {} };
       sessions.set(g.id, s);
       attach(s);
       publishPub(g.id);

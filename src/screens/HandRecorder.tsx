@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
-import { liveStatus, publishNow } from '../live/host';
+import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
 import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo } from '../components/ui';
 import { bestHand, cardText } from '../lib/cards';
@@ -65,9 +65,15 @@ const isStreet = (t: Tab): t is StreetName => (STREETS as Tab[]).includes(t);
 
 function bySeat(g: Game, ids: ID[]) { return [...ids].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99)); }
 
-/** Pre-filled by status: everyone playing (green). Away players can be added with a tap. */
+/** A bought-in player whose exact stack is 0 has nothing to play with until a rebuy. */
+function noChips(g: Game, p: ID): boolean {
+  const est = estimateStacks(g);
+  return g.buyIns.some((b) => b.playerId === p) && !(est.spread[p] > 0) && (est.stack[p] ?? 0) <= 0;
+}
+
+/** Pre-filled by status: everyone playing (green) who has chips. Away players can be added with a tap. */
 function dealtDefault(g: Game): ID[] {
-  return bySeat(g, g.playerIds.filter((p) => playerStatus(g, p) === 'playing'));
+  return bySeat(g, g.playerIds.filter((p) => playerStatus(g, p) === 'playing' && !noChips(g, p)));
 }
 
 /** The button moves one seat clockwise each hand. After a seat shuffle, seat 1 has it. */
@@ -197,7 +203,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
-      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip, .sat-tip-body, .felt-mine')) return;
+      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip, .sat-tip-body, .felt-mine, .felt-rec-board')) return;
       e.preventDefault();
       e.stopPropagation();
       setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false);
@@ -293,6 +299,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const toggleDealt = (p: ID) => {
     const nx = dealt.includes(p) ? dealt.filter((x) => x !== p) : bySeat(g, [...dealt, p]);
     if (nx.length < 2) { toast('Deal in at least 2 players.'); return; }
+    if (!dealt.includes(p) && noChips(g, p)) { toast(`${name(p)} has 0 chips. Add a buy-in first.`); return; }
     // dealt in = playing: an away player who is dealt in turns green
     if (!dealt.includes(p) && playerStatus(g, p) !== 'playing') setStatus(g.id, p, 'playing');
     const b = button && nx.includes(button) ? button : buttonFor(g, nx, st.n);
@@ -457,7 +464,11 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         const h = x.hands.find((y) => y.id === st.id);
         if (h) h.private = privateWith(h.private, p, cards);
       });
-    } else setExtraPriv((x) => ({ ...x, [p]: cards }));
+    } else {
+      setExtraPriv((x) => ({ ...x, [p]: cards }));
+      // the host overrides what the player sent for this hand
+      dropInbox(g.id, p, st.n).catch(() => undefined);
+    }
   };
 
   /** Private cards: kept in the hand state while recording; in review they save at once (the game is closed). */
@@ -585,6 +596,12 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           <span>{street && toAct && !readOnly ? <><b>{toAct}</b> to act</> : ''}</span>
           <span>Pot <b className="sat-num">{units(extra ? recordedPot + extra : street ? potTotal(g, log, log.button, street) : potNow)}</b></span>
         </div>
+        {street && street !== 'preflop' && (
+          <div className="felt-rec-board sat-glass">
+            <BoardRow board={st.board} to={STREET_CARDS[street]} lockedBefore={STREET_CARDS[STREETS[STREETS.indexOf(street) - 1]]} compact={!target && !!selCell}
+              isTarget={(i) => isTarget({ kind: 'board', i })} onTap={(i, f) => tapSlot({ kind: 'board', i }, f)} />
+          </div>
+        )}
       </Header>
 
       <div className="sat-stack" style={gap(3)}>
@@ -639,10 +656,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
         {street && (
           <>
-            {street !== 'preflop' && (
-              <BoardRow board={st.board} to={STREET_CARDS[street]} lockedBefore={STREET_CARDS[STREETS[STREETS.indexOf(street) - 1]]}
-                isTarget={(i) => isTarget({ kind: 'board', i })} onTap={(i, f) => tapSlot({ kind: 'board', i }, f)} />
-            )}
             {legacy ? (
               <p className="sat-small sat-muted">This hand was logged with the earlier recorder. {inAtEnd(log, street).length} players were still in after the {LABEL[street].toLowerCase()}, pot {units(potTotal(g, log, log.button, street))}.</p>
             ) : replay && (
@@ -669,7 +682,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
       {askCards && (
         <CardEntrySheet players={log.dealt} name={name} onClose={() => setAskCards(false)} onSave={savePlayerCards}
-          entered={Object.keys({ ...(existing?.private ?? {}), ...extraPriv })}
+          entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n)])]}
           blocked={[...st.board, ...Object.values(st.shown).flat()].filter(Boolean) as Card[]} />
       )}
       <div className="sat-bottombar sat-glass-2 felt-rec-dock">
@@ -774,15 +787,15 @@ function firstEmptyRun(log: HandLog, board: (Card | null)[], runSlots: (Card | n
 
 /* ------------------------------- pieces ------------------------------- */
 
-function BoardRow({ board, to, lockedBefore, isTarget, onTap }: {
-  board: (Card | null)[]; to: number; lockedBefore: number; isTarget: (i: number) => boolean; onTap: (i: number, filled: boolean) => void;
+function BoardRow({ board, to, lockedBefore, compact, isTarget, onTap }: {
+  board: (Card | null)[]; to: number; lockedBefore: number; compact?: boolean; isTarget: (i: number) => boolean; onTap: (i: number, filled: boolean) => void;
 }) {
   return (
-    <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap', paddingTop: 6 }}>
+    <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
       {Array.from({ length: to }, (_, i) => {
         const c = board[i];
         if (i < lockedBefore) return <PlayingCard key={i} card={c} size="sm" />;
-        return <PlayingCard key={i} card={c} size="lg" target={isTarget(i)} placeholder={i < 3 ? 'FLOP' : i === 3 ? 'TURN' : 'RIVER'} onClick={() => onTap(i, !!c)} />;
+        return <PlayingCard key={i} card={c} size={compact ? undefined : 'lg'} target={isTarget(i)} placeholder={compact ? '' : i < 3 ? 'FLOP' : i === 3 ? 'TURN' : 'RIVER'} onClick={() => onTap(i, !!c)} />;
       })}
     </div>
   );
@@ -804,9 +817,18 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   const spentBefore = (p: ID) => STREETS.slice(0, STREETS.indexOf(street)).reduce((a, x) => a + (log.streets[x]?.bets[p] ?? 0), 0);
   const tag = (p: ID) => (p === log.button && bl[p] !== undefined ? 'BTN, SB' : p === log.button ? 'BTN' : bl[p] !== undefined ? (p === sbSeat ? 'SB' : 'BB') : '');
   const s = replay.street;
-  // keep the box being filled in view above the keypad
+  // keep the box being filled in view between the header (which holds the board) and the keypad
   useEffect(() => {
-    document.querySelector('.felt-box.is-sel')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const box = document.querySelector('.felt-box.is-sel');
+    if (!box) return;
+    const f = requestAnimationFrame(() => {
+      const r = box.getBoundingClientRect();
+      const top = (document.querySelector('.felt-header')?.getBoundingClientRect().bottom ?? 0) + 8;
+      const bottom = window.innerHeight - (document.querySelector<HTMLElement>('.felt-rec-dock')?.offsetHeight ?? 0) - 20;
+      const dy = r.bottom > bottom ? r.bottom - bottom : r.top < top ? r.top - top : 0;
+      if (dy) window.scrollBy({ top: dy, behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(f);
   }, [sel?.p, sel?.r]);
   // keep the newest column in view
   useLayoutEffect(() => {

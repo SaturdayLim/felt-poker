@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '../types';
-import { bountyQualifiers, bountyWinner, is27, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
+import { bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -8,6 +8,27 @@ const game = () => ({
   seats: { CY: 1, Edwin: 2, Mike: 3, Fabian: 4, Everett: 5 },
   buyIns: [], cashOuts: [], expenses: [], hands: [], statusEvents: [], transfers: [],
 }) as unknown as Game;
+
+describe('a player dealt in with no chips', () => {
+  it('cannot take part in the pot: the folded chips go to the last real bettor', () => {
+    const g = game();
+    const stacks = { CY: 0, Edwin: 200, Mike: 200, Fabian: 200, Everett: 200 };
+    let log = newBoxLog(g, ids, 'Edwin', stacks);
+    const rp = () => replayStreet(g, log, 'preflop', stacks);
+    log = setAct(g, log, 'preflop', rp().next!.p, 0, { k: 'bet', to: 24 }, stacks);
+    // the player with no chips calls: all-in for nothing, still in the hand
+    while (rp().next) log = setAct(g, log, 'preflop', rp().next!.p, rp().next!.r, { k: rp().next!.p === 'CY' ? 'call' : 'fold' }, stacks);
+    log = closeStreet(g, log, 'preflop', 1, stacks);
+    const res = resolve(g, log, [], 'Edwin', {});
+    const putIn = potTotal(g, log, 'Edwin');
+    expect(inAtEnd(log, 'preflop')).toContain('CY');
+    expect(finalists(log)).not.toContain('CY');
+    expect(res.missing).toBe(false);
+    expect(res.winners.reduce((a, w) => a + w.amount, 0) + Object.values(res.returned).reduce((a, v) => a + v, 0)).toBe(putIn);
+    expect(lostChips(g, { log, winners: res.winners, returned: res.returned })).toBe(0);
+    expect(lostChips(g, { log, winners: [] })).toBe(putIn);
+  });
+});
 
 describe('bet entry', () => {
   it('posts blinds and has everyone call the big blind', () => {

@@ -1,57 +1,39 @@
-/* The standing candle. Body: between two current figures. Wicks: taper to a point at the record low and high.
-   Every candle on a screen shares one scale, so the table's record low and high fill the width. */
+/* The standing chart. The player's candle sits above a faded table candle, on one scale, so the table reads as the
+   reference for the player. Body: between two current figures. Wick: a straight line to the low and high of the session. */
 
-const W = 340, PAD = 38, CY = 44, H = 84, BODY = 22;
+const W = 340, PAD = 38;
 
-export interface CandleScale { lo: number; hi: number }
-
-export function candleScale(values: number[]): CandleScale {
-  return { lo: Math.min(0, ...values), hi: Math.max(0, ...values) };
-}
+export interface TableCandle { low: number; high: number; from: number; to: number }
+export interface MyCandle { low: number; high: number; now: number }
 
 const num = (n: number) => String(Math.round(n));
 
-/** `mark` shows a coral triangle over that end of the body: the player's own position. */
-export function Candle({ scale, low, high, from, to, mark, tone = 'blue', label }: {
-  scale: CandleScale; low: number; high: number; from: number; to: number; mark?: number; tone?: 'blue' | 'coral'; label: string;
-}) {
-  const flat = low === 0 && high === 0 && from === 0 && to === 0;
-  const span = scale.hi - scale.lo;
-  const x = (v: number) => (span ? PAD + ((v - scale.lo) / span) * (W - PAD * 2) : W / 2);
-  const x0 = x(0);
-  if (flat) {
-    return (
-      <svg className="felt-candle" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}: 0`}>
-        <line x1={W / 2} x2={W / 2} y1={CY - 16} y2={CY + 16} className="felt-candle-start" />
-        <polygon points={`${W / 2 - 6},${CY - 26} ${W / 2 + 6},${CY - 26} ${W / 2},${CY - 18}`} className="felt-candle-mark" />
-        <text x={W / 2} y={CY - 30} textAnchor="middle" className="is-strong">0</text>
-        <text x={W / 2} y={CY + 30} textAnchor="middle">0</text>
-        <text x={W / 2 - 10} y={CY + 4} textAnchor="end">0</text>
-        <text x={W / 2 + 10} y={CY + 4} textAnchor="start">0</text>
-      </svg>
-    );
-  }
-  const a = x(Math.min(from, to)), b = x(Math.max(from, to));
-  const half = BODY / 2 - 3;
+export function StandingChart({ table, mine }: { table: TableCandle; mine?: MyCandle }) {
+  const lo = Math.min(0, table.low, mine?.low ?? 0), hi = Math.max(0, table.high, mine?.high ?? 0);
+  const x = (v: number) => (hi > lo ? PAD + ((v - lo) / (hi - lo)) * (W - PAD * 2) : W / 2);
+  const flat = hi === lo;
+  const yMine = 44, yTable = mine ? 90 : 34, H = yTable + 36;
+  const a = x(Math.min(table.from, table.to)), b = x(Math.max(table.from, table.to));
+  const m0 = mine ? x(Math.min(0, mine.now)) : 0, m1 = mine ? x(Math.max(0, mine.now)) : 0;
+  const label = `Table: low ${num(table.low)}, high ${num(table.high)}.${mine ? ` You: low ${num(mine.low)}, high ${num(mine.high)}, now ${num(mine.now)}.` : ''}`;
   return (
-    <svg className="felt-candle" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}: low ${num(low)}, high ${num(high)}, now ${num(to)}`}>
-      {x(low) < a && <polygon points={`${a},${CY - half} ${x(low)},${CY} ${a},${CY + half}`} className="felt-candle-wick" />}
-      {x(high) > b && <polygon points={`${b},${CY - half} ${x(high)},${CY} ${b},${CY + half}`} className="felt-candle-wick" />}
-      <rect x={a} width={Math.max(2, b - a)} y={CY - BODY / 2} height={BODY} rx={4} className={`felt-candle-body is-${tone}`} />
-      <line x1={x0} x2={x0} y1={CY - 16} y2={CY + 16} className="felt-candle-start" />
-      <text x={x0} y={CY + 30} textAnchor="middle">0</text>
-      {low !== 0 && <text x={x(low) - 5} y={CY + 4} textAnchor="end">{num(low)}</text>}
-      {high !== 0 && <text x={x(high) + 5} y={CY + 4} textAnchor="start">{num(high)}</text>}
-      {mark !== undefined && (
+    <svg className="felt-candle" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+      <g className={mine ? 'felt-candle-ref' : undefined}>
+        <line x1={x(table.low)} x2={x(table.high)} y1={yTable} y2={yTable} className="felt-candle-wick" />
+        <rect x={a} width={Math.max(2, b - a)} y={yTable - 7} height={14} rx={3} className="felt-candle-body is-blue" />
+        {(table.low !== 0 || flat) && <text x={x(table.low) - 5} y={yTable + 4} textAnchor="end">{num(table.low)}</text>}
+        {(table.high !== 0 || flat) && <text x={x(table.high) + 5} y={yTable + 4} textAnchor="start">{num(table.high)}</text>}
+      </g>
+      <line x1={x(0)} x2={x(0)} y1={mine ? yMine - 16 : yTable - 16} y2={yTable + 14} className="felt-candle-start" />
+      <text x={x(0)} y={yTable + 30} textAnchor="middle">0</text>
+      {mine && (
         <>
-          <polygon points={`${x(mark) - 6},${CY - 26} ${x(mark) + 6},${CY - 26} ${x(mark)},${CY - 18}`} className="felt-candle-mark" />
-          <text x={x(mark)} y={CY - 30} textAnchor="middle" className="is-strong">{num(mark)}</text>
-        </>
-      )}
-      {mark === undefined && (
-        <>
-          {from !== 0 && <text x={x(from)} y={CY - 18} textAnchor="middle" className="is-strong">{num(from)}</text>}
-          {to !== 0 && to !== from && <text x={x(to)} y={CY - 18} textAnchor="middle" className="is-strong">{num(to)}</text>}
+          <line x1={x(mine.low)} x2={x(mine.high)} y1={yMine} y2={yMine} className="felt-candle-wick is-mine" />
+          <rect x={m0} width={Math.max(2, m1 - m0)} y={yMine - 11} height={22} rx={4} className={`felt-candle-body ${mine.now < 0 ? 'is-coral' : 'is-blue'}`} />
+          {(mine.low !== 0 || flat) && <text x={x(mine.low) - 5} y={yMine + 4} textAnchor="end">{num(mine.low)}</text>}
+          {(mine.high !== 0 || flat) && <text x={x(mine.high) + 5} y={yMine + 4} textAnchor="start">{num(mine.high)}</text>}
+          <polygon points={`${x(mine.now) - 6},${yMine - 26} ${x(mine.now) + 6},${yMine - 26} ${x(mine.now)},${yMine - 18}`} className="felt-candle-mark" />
+          <text x={x(mine.now)} y={yMine - 30} textAnchor="middle" className="is-strong">{num(mine.now)}</text>
         </>
       )}
     </svg>

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
+import { cleanLook, lookBg } from './lib/cards';
 import { useRoute } from './router';
 import { Icon, ToastHost } from './components/ui';
 import Home from './screens/Home';
@@ -36,8 +37,10 @@ export default function App() {
   const empty = useStore((s) => !s.games.length && !s.players.length);
   const theme = useStore((s) => s.settings.theme);
   const splashMs = useStore((s) => s.settings.splashMs);
+  const face = useStore((s) => lookBg(cleanLook(s.settings.cards)));
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
+  useEffect(() => { document.documentElement.style.setProperty('--felt-card-face', face); }, [face]);
   // live link: reconnect to rooms that were open, and publish changes to shared games
   useEffect(() => {
     if (!hydrated) return;

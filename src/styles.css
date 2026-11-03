@@ -123,9 +123,11 @@ button.felt-row { color: inherit; }
 
 /* Player view */
 .felt-join-tabs { margin-top: var(--sat-space-2); padding: 4px; border-radius: var(--sat-radius-md); }
-.felt-frame { display: flex; flex-direction: column; gap: var(--sat-space-2); padding: var(--sat-space-3); border-radius: var(--sat-radius-lg); }
+.felt-frame { position: relative; display: flex; flex-direction: column; gap: var(--sat-space-2); padding: var(--sat-space-3); border-radius: var(--sat-radius-lg); }
 .felt-frame--tap { cursor: pointer; }
-.felt-frame-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-2); min-height: 44px; }
+.felt-frame-sum { display: flex; flex-direction: column; gap: 2px; min-height: 36px; justify-content: center; padding-right: 44px; margin-bottom: var(--sat-space-1); }
+.felt-frame-cap { line-height: 1.25; }
+.felt-copy.felt-copy { position: absolute; top: 2px; right: 2px; z-index: 1; }
 .felt-frame-title { margin: 0; font: inherit; font-size: .8125rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sat-text); }
 .felt-frame-live { display: flex; justify-content: space-between; gap: var(--sat-space-2); padding: 0 var(--sat-space-1) var(--sat-space-1); }
 .felt-band { display: flex; flex-direction: column; gap: 6px; padding: var(--sat-space-2) var(--sat-space-3); border-radius: var(--sat-radius-md); background: var(--sat-well); border: 1px solid var(--sat-line); }
@@ -135,19 +137,20 @@ button.felt-row { color: inherit; }
 .felt-cards-old { opacity: .55; display: inline-flex; }
 .felt-band-line { font-variant-numeric: tabular-nums lining-nums; }
 .felt-band-shown { display: flex; align-items: center; gap: var(--sat-space-2); }
-.felt-fab--page { position: fixed; right: var(--sat-space-4); bottom: calc(env(safe-area-inset-bottom) + 20px); z-index: 20; }
+.felt-fab.felt-fab--page { position: fixed; right: var(--sat-space-4); bottom: calc(env(safe-area-inset-bottom) + 20px); z-index: 20; }
 .felt-table-card { position: relative; height: 340px; border-radius: var(--sat-radius-lg); overflow: hidden; }
 .felt-table-rail { position: absolute; inset: 74px 54px; border-radius: 96px; background: #5c3a24; padding: 10px; box-shadow: inset 0 2px 8px rgba(0,0,0,.45); }
 .felt-table-felt { width: 100%; height: 100%; border-radius: 86px; background: radial-gradient(ellipse at center, #237a59, #17553e); display: grid; place-items: center; text-align: center; padding: 0 var(--sat-space-3); color: #ddefe6; font-family: var(--sat-font-display); font-size: 1.125rem; line-height: 1.15; overflow: hidden; }
-.felt-seat { position: absolute; transform: translate(-50%, -50%); width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; padding: 4px; text-align: center; font-size: .8125rem; background: var(--sat-well-solid, #10232f); border: 1px solid var(--sat-line-strong); color: var(--sat-text); }
-html[data-theme="light"] .felt-seat { background: #fff; }
+.felt-seat { position: absolute; transform: translate(-50%, -50%); width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; padding: 4px; text-align: center; font-size: .8125rem; background: var(--sat-solid-2); border: 1px solid var(--sat-line-strong); color: var(--sat-text); }
 .felt-seat > b { max-width: 100%; }
 .felt-seat.is-me { border: 3px solid var(--felt-coral, #fc734d); }
 .felt-seat-stack { position: absolute; top: -8px; right: -12px; padding: 1px 6px; border-radius: 10px; font-size: .6875rem; font-weight: 600; background: var(--sat-bg); border: 1px solid var(--sat-line-strong); }
 .felt-seat-btn { position: absolute; bottom: -4px; left: -4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .6875rem; font-weight: 700; background: #fbfcfc; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .felt-candle { display: block; width: 100%; height: auto; overflow: visible; font-size: 13px; fill: var(--sat-muted); font-variant-numeric: tabular-nums lining-nums; }
 .felt-candle .is-strong { fill: var(--sat-text); font-weight: 700; }
-.felt-candle-wick { fill: var(--sat-muted); opacity: .75; }
+.felt-candle-wick { stroke: var(--sat-muted); stroke-width: 2; stroke-linecap: round; }
+.felt-candle-wick.is-mine { stroke: var(--sat-text); }
+.felt-candle-ref { opacity: .38; }
 .felt-candle-start { stroke: var(--sat-text); stroke-width: 2; }
 .felt-candle-body.is-blue { fill: var(--felt-blue, #0297de); }
 .felt-candle-body.is-coral { fill: var(--felt-coral, #fc734d); }
@@ -178,7 +181,7 @@ html[data-theme="light"] .felt-seat { background: #fff; }
 
 /* Playing cards: white faces in both themes, four-colour suits */
 .felt-card { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
-  width: 30px; height: 40px; border-radius: 6px; background: #FBFCFC; border: 1px solid rgba(16,32,31,0.16);
+  width: 30px; height: 40px; border-radius: 6px; background: var(--felt-card-face, #FBFCFC); border: 1px solid rgba(16,32,31,0.16);
   font-family: var(--sat-font-ui); font-weight: 600; line-height: 1; }
 .felt-card .r { font-size: 15px; letter-spacing: -0.03em; }
 .felt-card .s { font-size: 13px; margin-top: 1px; font-family: system-ui, sans-serif; }
@@ -195,7 +198,7 @@ html[data-theme="light"] .felt-seat { background: #fff; }
 
 .felt-picker-shell { position: sticky; bottom: calc(var(--felt-safe-bottom) + 92px); z-index: 30; padding: var(--sat-space-3); border-radius: var(--sat-radius-lg); }
 .felt-picker { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
-.felt-picker button { height: 44px; border-radius: 6px; background: #FBFCFC; border: 1px solid rgba(16,32,31,0.14);
+.felt-picker button { height: 44px; border-radius: 6px; background: var(--felt-card-face, #FBFCFC); border: 1px solid rgba(16,32,31,0.14);
   display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; font-weight: 600; }
 .felt-picker button .r { font-size: 13.5px; letter-spacing: -0.03em; }
 .felt-picker button .s { font-size: 11px; margin-top: 2px; font-family: system-ui, sans-serif; }
@@ -525,7 +528,7 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-suit-row { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 52px; padding: 4px 8px 4px 0; border-radius: var(--sat-radius-md); background: var(--sat-surface-2, rgba(127,127,127,.08)); border: 1px solid var(--sat-line); }
 .felt-suit-row.is-dragging { position: relative; z-index: 2; box-shadow: 0 10px 24px rgba(0,0,0,.28); }
 .felt-suit-grip { width: 40px; min-height: 44px; flex: none; display: grid; place-items: center; border: 0; background: none; color: var(--sat-muted); touch-action: none; cursor: grab; padding: 0; }
-.felt-suit-mark { flex: none; width: 34px; height: 40px; display: grid; place-items: center; font-size: 1.4rem; line-height: 1; border-radius: 6px; background: #fbfcfc; box-shadow: inset 0 0 0 1px rgba(16,32,31,.16); transition: color var(--sat-dur-fast) var(--sat-ease); }
+.felt-suit-mark { flex: none; width: 34px; height: 40px; display: grid; place-items: center; font-size: 1.4rem; line-height: 1; border-radius: 6px; background: var(--felt-card-face, #fbfcfc); box-shadow: inset 0 0 0 1px rgba(16,32,31,.16); transition: color var(--sat-dur-fast) var(--sat-ease); }
 .felt-grow { flex: 1; min-width: 0; }
 .felt-suit-custom { display: flex; align-items: center; gap: 4px; max-width: 0; opacity: 0; overflow: hidden; transition: max-width 320ms var(--sat-ease), opacity 240ms var(--sat-ease); }
 .felt-suit-custom.is-open { max-width: 160px; opacity: 1; }
@@ -553,6 +556,27 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-tiles > div { display: flex; flex-direction: column; gap: 4px; padding: var(--sat-space-3); min-width: 0; }
 .felt-tiles b { font-size: 1.25rem; }
 
+/* Face-down card: white Felt mark on cobalt, gold trim */
+.felt-card.felt-cardback { background: #0047ab; border: 2px solid #c9a227; display: inline-grid; place-items: center; --sat-mark: #fff; --sat-mark-stroke: 1.25px; }
+/* 2-7 rules as one group in the player view */
+.felt-rule-group { margin-top: var(--sat-space-1); box-shadow: inset 3px 0 0 var(--felt-coral); }
+.felt-rule-cap { display: flex; align-items: center; gap: 4px; padding: var(--sat-space-3) 0 var(--sat-space-1); }
+/* Board in the sticky header, so the keypad never pushes it away */
+.felt-rec-board { margin-top: var(--sat-space-2); padding: 6px var(--sat-space-2); border-radius: var(--sat-radius-md); }
+.felt-leak { width: 100%; text-align: left; margin-bottom: var(--sat-space-2); }
+
 /* Live link */
+.felt-liverow { display: flex; align-items: center; gap: var(--sat-space-1); padding-top: var(--sat-space-1); padding-bottom: var(--sat-space-1); }
+.felt-liverow-main { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: var(--sat-space-2); color: inherit; text-align: left; }
+.felt-linkrow { display: flex; align-items: flex-start; gap: var(--sat-space-2); }
+.felt-viewer { cursor: default; }
+.felt-qr-pop { border: 0; padding: 0; margin: auto; background: transparent; overflow: visible; transform-origin: 85% 10%; animation: felt-qr-in 280ms cubic-bezier(.32,1.28,.5,1); }
+.felt-qr-pop::backdrop { background: rgba(2,7,10,.62); animation: sat-fade 200ms var(--sat-ease); }
+.felt-qr-pop.is-leaving { animation: felt-qr-out 160ms var(--sat-ease) forwards; }
+.felt-qr-pop.is-leaving::backdrop { opacity: 0; transition: opacity 160ms var(--sat-ease); }
+.felt-qr-pop .felt-qr { width: min(78vw, 320px); height: min(78vw, 320px); padding: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+@keyframes felt-qr-in { from { opacity: 0; transform: scale(.55); } }
+@keyframes felt-qr-out { to { opacity: 0; transform: scale(.8); } }
+@media (prefers-reduced-motion: reduce) { .felt-qr-pop, .felt-qr-pop::backdrop { animation: none; } }
 .felt-qr { width: 200px; height: 200px; margin: 0 auto; background: #fff; border-radius: var(--sat-radius-md); padding: 6px; }
 .felt-qr svg { width: 100%; height: 100%; display: block; }

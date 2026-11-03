@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import type { Game } from '../types';
 import { Caption, Help, Icon, Sheet, toast } from './ui';
@@ -17,6 +17,25 @@ export function SharingLamp({ state }: { state: 'on' | 'wait' | 'off' }) {
 }
 export const lampState = (live: ReturnType<typeof liveStatus>) => (!live.on ? 'off' : live.connected ? 'on' : 'wait');
 const LAMP_TEXT = { on: 'Live', wait: 'Waiting for a connection', off: 'Off' };
+
+/** The QR of the link, large, in a pop-up that grows out of the QR button. A tap anywhere closes it. */
+export function QrPopup({ link, onClose }: { link: string; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [leaving, setLeaving] = useState(false);
+  const svg = useMemo(() => {
+    const q = qrcode(0, 'M');
+    q.addData(link);
+    q.make();
+    return q.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+  }, [link]);
+  useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal(); }, []);
+  const close = () => { setLeaving(true); window.setTimeout(onClose, 160); };
+  return (
+    <dialog ref={ref} className={`felt-qr-pop ${leaving ? 'is-leaving' : ''}`} aria-label="QR code of the live link" onClick={close} onCancel={(e) => { e.preventDefault(); close(); }}>
+      <div className="felt-qr" dangerouslySetInnerHTML={{ __html: svg }} role="img" aria-label="QR code of the live link" />
+    </dialog>
+  );
+}
 
 /** Host controls for the live link of one game: the switch and status, lock, copy the link, show a QR, read flags. */
 export function LiveSheet({ g, onClose }: { g: Game; onClose: () => void }) {
@@ -40,13 +59,7 @@ export function LiveSheet({ g, onClose }: { g: Game; onClose: () => void }) {
     if (!live.on) return;
     navigator.clipboard?.writeText(live.link).then(() => toast('Link copied.'), () => toast('Copy was blocked. Select the link and copy it.'));
   };
-  const qr = useMemo(() => {
-    if (!live.on) return '';
-    const q = qrcode(0, 'M');
-    q.addData(live.link);
-    q.make();
-    return q.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
-  }, [live.on && live.link]);
+  const [qrOpen, setQrOpen] = useState(false);
 
   return (
     <Sheet open onClose={onClose} title="Live link">
@@ -71,9 +84,20 @@ export function LiveSheet({ g, onClose }: { g: Game; onClose: () => void }) {
 
       {live.on && (
         <>
-          <div className="felt-qr" dangerouslySetInnerHTML={{ __html: qr }} aria-label="QR code of the live link" role="img" />
-          <p className="sat-small sat-mono" style={{ wordBreak: 'break-all' }}>{live.link}</p>
+          <div className="felt-linkrow">
+            <p className="sat-small sat-mono felt-grow" style={{ wordBreak: 'break-all' }}>{live.link}</p>
+            <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" onClick={() => setQrOpen(true)}><Icon name="qr" /></button>
+          </div>
+          {qrOpen && <QrPopup link={live.link} onClose={() => setQrOpen(false)} />}
           <button className="sat-btn sat-btn--block" onClick={copy}><Icon name="file" /> Copy link</button>
+          {live.viewers.length > 0 && (
+            <>
+              <Caption>Viewing now</Caption>
+              <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+                {live.viewers.map((v, i) => <span key={v.id} className="sat-chip felt-viewer">{v.name ?? `Device ${i + 1}`}</span>)}
+              </div>
+            </>
+          )}
           {live.locked && <p className="sat-small sat-muted">Locked: the link does not hold the key. Tell players the passphrase.</p>}
 
           {live.flags.length > 0 && (

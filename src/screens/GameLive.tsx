@@ -10,7 +10,7 @@ import { buyInsEquivalent, dateLabel, duration, gameLength, inBB, money, timeLab
 import { estimateStacks, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
-import { LiveSheet, SharingLamp, lampState, useLive } from '../components/live';
+import { LiveSheet, QrPopup, SharingLamp, lampState, useLive } from '../components/live';
 import { uid } from '../lib/ids';
 import type { ChipMove, Game, Hand, ID } from '../types';
 
@@ -40,6 +40,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const [tab, setTab] = useState<'players' | 'hands'>(initialTab);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [liveOpen, setLiveOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const live = useLive(gameId);
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Game" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
@@ -82,13 +83,17 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
           </button>
         )}
 
-        <button className="sat-flat sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => setLiveOpen(true)}>
-          <span><Icon name="share" size={18} /> Live link</span>
-          <span className="sat-small sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', fontWeight: 600 }}>
-            {live.on && live.flags.length > 0 && `${live.flags.length} ${live.flags.length === 1 ? 'flag' : 'flags'}`}
-            <SharingLamp state={lampState(live)} />
-          </span>
-        </button>
+        <div className="sat-flat sat-card felt-liverow">
+          <button className="felt-liverow-main" onClick={() => setLiveOpen(true)}>
+            <Icon name="share" size={18} /><span className="felt-grow">Live link</span>
+            <span className="sat-small sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', fontWeight: 600 }}>
+              {live.on && live.viewers.length > 0 && `${live.viewers.length} viewing`}
+              {live.on && live.flags.length > 0 && `${live.flags.length} ${live.flags.length === 1 ? 'flag' : 'flags'}`}
+              <SharingLamp state={lampState(live)} />
+            </span>
+          </button>
+          <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" onClick={() => (live.on ? setQrOpen(true) : setLiveOpen(true))}><Icon name="qr" /></button>
+        </div>
 
         <div className="felt-summary">
           <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins` : money(totalPotMoney(g), g.currency)}</b></span>
@@ -157,6 +162,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
           onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips`); }} />;
       })()}
       {liveOpen && <LiveSheet g={g} onClose={() => setLiveOpen(false)} />}
+      {qrOpen && live.on && <QrPopup link={live.link} onClose={() => setQrOpen(false)} />}
       {sheet?.k === 'move' && <MoveSheet g={g} name={name} onClose={() => setSheet(null)} />}
       {sheet?.k === 'buyins' && <BuyInsSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'back' && <BackInSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}

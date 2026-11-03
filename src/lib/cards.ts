@@ -22,12 +22,15 @@ export const lookColor = (look: CardLook | undefined, s: string) => {
   const c = look?.custom === false ? DEFAULT_LOOK.colors[s as SuitKey] : (look ?? DEFAULT_LOOK).colors[s as SuitKey];
   return SUIT_PALETTE[c]?.hex ?? (/^#[0-9a-fA-F]{6}$/.test(c ?? '') ? c : SUIT_COLOR[s]);
 };
+export const DEFAULT_FACE = '#FBFCFC';
+/** The card background: white unless Custom has a colour. */
+export const lookBg = (look: CardLook | undefined) => (look?.custom && /^#[0-9a-fA-F]{6}$/.test(look.bg ?? '') ? look.bg! : DEFAULT_FACE);
 const isDefault = (c: Partial<Record<SuitKey, string>> | undefined) => DEFAULT_LOOK.order.every((s) => (c?.[s] ?? DEFAULT_LOOK.colors[s]) === DEFAULT_LOOK.colors[s]);
 /** A saved look with every suit present (an older or partial value falls back to the default). */
 export function cleanLook(l: Partial<CardLook> | undefined): CardLook {
   const order = (l?.order ?? []).filter((s, i, a) => DEFAULT_LOOK.order.includes(s) && a.indexOf(s) === i);
   for (const s of DEFAULT_LOOK.order) if (!order.includes(s)) order.push(s);
-  return { order, colors: { ...DEFAULT_LOOK.colors, ...(l?.colors ?? {}) }, custom: l?.custom ?? !isDefault(l?.colors) };
+  return { order, colors: { ...DEFAULT_LOOK.colors, ...(l?.colors ?? {}) }, custom: l?.custom ?? !isDefault(l?.colors), bg: l?.bg };
 }
 
 export const DECK: Card[] = SUITS.flatMap((s) => RANKS.map((r) => r + s));

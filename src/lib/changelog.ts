@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.2', date: '3 Nov 2026', notes: [
+    'A player with 0 chips is no longer dealt in. This caused a hand with no winner, and the table ended short by the folded chips.',
+    'End game names any older hand with chips that went to nobody. Open it and save it to repair it.',
+    'The report counts all-in run-outs as reaching the river. A player with no chips no longer counts as a showdown.',
+    'Card colours: the switch says Default or Custom, the colour sliders work, and the card background can change.',
+    'Player view: add-cards button on every tab, Filled and Nil, face-down cards, mucked players, new standing chart, grouped 2-7 settings.',
+    'Viewers see a new hand only after the first real action.',
+    'Host: QR pop-up, the board stays on screen while recording, and a pop-up when a device or player joins.',
+  ] },
   { version: '1.2.1', date: '3 Nov 2026', notes: [
     'Host a game instead now leads to Home on a phone with no data.',
   ] },

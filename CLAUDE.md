@@ -44,6 +44,11 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Use "SB" and "BB" in labels, not "Small blind" and "Big blind".
 - 2-7 bounty (per game; on by default for cash, off for tournaments): Revealed, Winning, Best hand (last hand standing counts); Offsuit only or Suited allowed; chips. Every other player dealt in pays; a player who busts in the hand is exempt, a short stack pays what it has. It moves chips between stacks, never into the pot.
 - A shown 2-7 gets a Pay bounty tag at the result: pressed automatically when the rule is met, pressable by hand when it is not. Felt records what the table agreed; it never decides.
+- A bought-in player with an exact stack of 0 is not dealt in by default and cannot be added until a rebuy. A player with no chips in the pot is never a finalist.
+- Viewers see a new hand only after real action (check, call, bet, raise, fold). Blinds and card entry alone do not show it.
+- Viewers can send their own cards for a hand. The host's entry for that player replaces them.
+- Card entry says Filled or Nil. Filled cards show as two face-down cards (white Felt mark, cobalt, gold trim), no sentence.
+- A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
 - Partly recorded follows the log: filling in every skipped box makes the hand whole again.
 - Keypad open: everything else is greyed out; a tap outside only closes the keypad. Scrolling leaves it open.
 - The close-street button names the outcome ("Eve wins 9") and offers Undo when empty boxes took the default.

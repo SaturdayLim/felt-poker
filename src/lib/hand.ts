@@ -233,9 +233,20 @@ export function lastStreet(log: HandLog): StreetName {
   return last;
 }
 
-/** Players still in at the end of the hand. */
+/** Players still in at the end of the hand. A player dealt in with no chips has nothing in the pot and cannot win it,
+    so that player does not count: otherwise the only real bettor gets the bet back and the folded chips have no pot. */
 export function finalists(log: HandLog): ID[] {
-  return inAtEnd(log, lastStreet(log));
+  const fin = inAtEnd(log, lastStreet(log));
+  if (log.mode !== 'bets') return fin;
+  const inPot = fin.filter((p) => STREETS.some((s) => (log.streets[s]?.bets[p] ?? 0) > 0));
+  return inPot.length ? inPot : fin;
+}
+
+/** Chips that went into a hand and came out to nobody. A saved hand from before the finalists fix can have some. */
+export function lostChips(g: Game, h: { log?: HandLog; winners: { amount: number }[]; returned?: Record<ID, number> }): number {
+  if (!h.log) return 0;
+  const out = h.winners.reduce((a, w) => a + w.amount, 0) + Object.values(h.returned ?? {}).reduce((a, v) => a + v, 0);
+  return Math.max(0, round2(potTotal(g, h.log, h.log.button) - out));
 }
 
 /** Pots from wagers. A wager nobody could match comes back to its owner. */

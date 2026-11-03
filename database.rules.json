@@ -2,6 +2,13 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "reports": {
+      "$id": {
+        ".read": true,
+        ".write": "auth != null && (!data.exists() || data.child('owner').val() === auth.uid)",
+        ".validate": "!newData.exists() || (newData.hasChildren(['owner', 'createdAt', 'expiresAt', 'title', 'data']) && newData.child('owner').val() === auth.uid && newData.child('data').isString() && newData.child('data').val().length < 5000000)"
+      }
+    },
     "rooms": {
       "$room": {
         ".read": "auth != null && data.child('owner').val() === auth.uid",

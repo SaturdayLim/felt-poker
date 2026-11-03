@@ -60,3 +60,13 @@ Add `?live=mock` to the app address, or run `localStorage.setItem('felt-live-moc
 ## Free plan limits
 
 1 GB stored, 10 GB downloaded each month, 100 connections at once. One game night uses about 100 MB.
+
+## Report links (added in 1.1.6)
+
+Report links need the rules in `database.rules.json` again, because a `reports` block was added.
+
+1. Open the Firebase console, then Realtime Database, then Rules.
+2. Replace the rules with the full content of `database.rules.json`.
+3. Tap Publish.
+
+Without this step, the Link button says "PERMISSION_DENIED". The HTML download keeps working.

@@ -18,7 +18,10 @@ import Players from './screens/Players';
 import Settings from './screens/Settings';
 import Group from './screens/Group';
 import Join from './screens/Join';
+import JoinScan, { wantsHost } from './screens/JoinScan';
+import ReportLink from './screens/ReportLink';
 import { resumeSharing, watchGames } from './live/host';
+import { cleanReports } from './live/reportLink';
 
 const NAV = [
   { path: '', label: 'Home', icon: 'home' },
@@ -30,6 +33,7 @@ const NAV = [
 
 export default function App() {
   const hydrated = useStore((s) => s.hydrated);
+  const empty = useStore((s) => !s.games.length && !s.players.length);
   const theme = useStore((s) => s.settings.theme);
   const splashMs = useStore((s) => s.settings.splashMs);
   const r = useRoute();
@@ -38,6 +42,7 @@ export default function App() {
   useEffect(() => {
     if (!hydrated) return;
     resumeSharing();
+    cleanReports().catch(() => undefined);
     return watchGames();
   }, [hydrated]);
   useEffect(() => { if (hydrated) try { localStorage.setItem(SPLASH_KEY, String(splashMs)); } catch { /* private mode */ } }, [hydrated, splashMs]);
@@ -57,11 +62,14 @@ export default function App() {
     else if (c === 'hands') screen = <GameLive gameId={b} initialTab="hands" />;
     else screen = <GameLive gameId={b} />;
   }
+  else if (a === 'join' && !b) { screen = <JoinScan />; nav = false; }
+  else if (a === 'r' && b && c) { screen = <ReportLink id={b} reportKey={c} />; nav = false; }
   else if (a === 'join' && b) { screen = <Join key={`${b}/${c ?? ''}`} room={b} keyFromLink={c} />; nav = false; }
   else if (a === 'insights') screen = <Insights initialPlayer={b} />;
   else if (a === 'players') screen = <Players />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;
   else if (a === 'settings') screen = <Settings />;
+  else if (empty && !wantsHost()) { screen = <JoinScan />; nav = false; }
   else screen = <Home />;
 
   const active = a === 'game' || a === 'new' ? 'games' : a === 'group' ? 'players' : a ?? '';

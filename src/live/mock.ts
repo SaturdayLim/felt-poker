@@ -5,6 +5,7 @@ import type { LiveDriver } from './driver';
 export function mockDriver(opts: { shared?: boolean; uid?: string } = {}): LiveDriver {
   const mem = new Map<string, Record<string, unknown>>();
   const listeners = new Set<() => void>();
+  const reports = new Map<string, string>();
   const store = opts.shared && typeof localStorage !== 'undefined' ? localStorage : null;
   const key = (room: string) => `felt-mock-room:${room}`;
   const read = (room: string): Record<string, unknown> | undefined => {
@@ -36,6 +37,9 @@ export function mockDriver(opts: { shared?: boolean; uid?: string } = {}): LiveD
       write(room, tree);
     },
     async remove(room) { write(room, undefined); },
+    async putReport(id, tree) { reports.set(id, JSON.stringify(tree)); store?.setItem(`felt-mock-report:${id}`, JSON.stringify(tree)); },
+    async getReport(id) { const t = store?.getItem(`felt-mock-report:${id}`) ?? reports.get(id); return t ? JSON.parse(t) : null; },
+    async removeReport(id) { reports.delete(id); store?.removeItem(`felt-mock-report:${id}`); },
     connected(cb) { queueMicrotask(() => cb(true)); return () => undefined; },
     watch(room, path, cb) {
       let last = '';

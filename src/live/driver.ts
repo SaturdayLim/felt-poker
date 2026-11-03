@@ -15,6 +15,10 @@ export interface LiveDriver {
   watch(room: string, path: string, cb: (value: unknown) => void): () => void;
   /** Calls back with the connection state, then on every change. Returns a stop function. */
   connected(cb: (on: boolean) => void): () => void;
+  /** Report links live beside the rooms, at `reports/<id>`. */
+  putReport(id: string, tree: Record<string, unknown>): Promise<void>;
+  getReport(id: string): Promise<Record<string, unknown> | null>;
+  removeReport(id: string): Promise<void>;
 }
 
 let current: LiveDriver | null = null;

@@ -52,4 +52,6 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Shared report (trial): Game Summary and Compare are open; each player page is encrypted with that player's code. Lock text: "Enter player code to access player stats."
 - Awards come from a fixed list, each with a minimum to count (src/report/model.ts, AWARD_LIST). A tie shares an award.
 - Oldest phones: Felt needs iOS 16.2 or Chrome 111. `app/index.html` shows a warning below that. Do not add workarounds for older phones.
+- Report: View (in the app), Link (encrypted online for 30 days, key in the link), Download (HTML file).
+- Join: a phone with no data opens the camera scanner. Host a game instead leads to Home. Home also has Join a game.
 - Download options name the content and the file type: Results (1 image), Results and stats, Full game record, Spreadsheet data (3 CSV files).

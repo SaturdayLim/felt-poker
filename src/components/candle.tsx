@@ -40,8 +40,8 @@ export function Candle({ scale, low, high, from, to, mark, tone = 'blue', label 
       <rect x={a} width={Math.max(2, b - a)} y={CY - BODY / 2} height={BODY} rx={4} className={`felt-candle-body is-${tone}`} />
       <line x1={x0} x2={x0} y1={CY - 16} y2={CY + 16} className="felt-candle-start" />
       <text x={x0} y={CY + 30} textAnchor="middle">0</text>
-      <text x={x(low) - 5} y={CY + 4} textAnchor="end">{num(low)}</text>
-      <text x={x(high) + 5} y={CY + 4} textAnchor="start">{num(high)}</text>
+      {low !== 0 && <text x={x(low) - 5} y={CY + 4} textAnchor="end">{num(low)}</text>}
+      {high !== 0 && <text x={x(high) + 5} y={CY + 4} textAnchor="start">{num(high)}</text>}
       {mark !== undefined && (
         <>
           <polygon points={`${x(mark) - 6},${CY - 26} ${x(mark) + 6},${CY - 26} ${x(mark)},${CY - 18}`} className="felt-candle-mark" />

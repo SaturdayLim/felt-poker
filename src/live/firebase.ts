@@ -50,6 +50,19 @@ export function firebaseDriver(): LiveDriver {
       const { f, r } = await ref(room);
       await f.sdk.db.remove(r);
     },
+    async putReport(id, tree) {
+      const f = await load();
+      await f.sdk.db.set(f.sdk.db.ref(f.db, `reports/${id}`), tree);
+    },
+    async getReport(id) {
+      const f = await load();
+      const snap = await f.sdk.db.get(f.sdk.db.ref(f.db, `reports/${id}`));
+      return snap.exists() ? snap.val() : null;
+    },
+    async removeReport(id) {
+      const f = await load();
+      await f.sdk.db.remove(f.sdk.db.ref(f.db, `reports/${id}`));
+    },
     connected(cb) {
       let off: (() => void) | null = null;
       let stopped = false;

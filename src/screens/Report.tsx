@@ -1,3 +1,4 @@
+import { publishReport, reportLinkOf } from '../live/reportLink';
 import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
@@ -75,6 +76,9 @@ export default function Report({ gameId }: { gameId: string }) {
   useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
 
   const [viewing, setViewing] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [linkMade, setLinkMade] = useState<string | null>(() => (gameId ? reportLinkOf(gameId)?.link ?? null : null));
+  const st = useStore();
   const noCode = g ? allPlayers.filter((p) => g.playerIds.includes(p.id) && !p.codeIssued) : [];
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Report" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
 
@@ -83,6 +87,18 @@ export default function Report({ gameId }: { gameId: string }) {
     if (r === 'downloaded') toast(`${info.label} saved to Downloads`);
   };
   const info = TIERS.find((t) => t.k === tier)!;
+  const shareLink = async () => {
+    if (busy || linking || !files.length) return;
+    setLinking(true);
+    try {
+      const link = await publishReport(g, allPlayers, st.settings);
+      setLinkMade(link);
+      if (navigator.share) await navigator.share({ title: `${g.name} report`, url: link }).catch(() => undefined);
+      else await navigator.clipboard?.writeText(link);
+      toast('Report link is ready. It works for 30 days.');
+    } catch (e) { toast(`Report link did not save: ${(e as Error).message}`); }
+    finally { setLinking(false); }
+  };
 
   return (
     <div className="felt-page">
@@ -124,6 +140,14 @@ export default function Report({ gameId }: { gameId: string }) {
           <div className="sat-flat sat-card sat-small">The game report needs a closed game with at least {MIN_REPORT_HANDS} recorded hands. This game has {recordedHands(g)}.</div>
         )}
 
+        {tier === 'html' && linkMade && (
+          <div className="sat-flat sat-card sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+            <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><b>Report link</b><Help k="reportLink" /></span>
+            <p className="sat-small sat-mono" style={{ wordBreak: 'break-all' }}>{linkMade}</p>
+            <button className="sat-btn sat-btn--sm" onClick={() => navigator.clipboard?.writeText(linkMade).then(() => toast('Link copied.'), () => toast('Copy was blocked. Select the link and copy it.'))}><Icon name="copy" size={16} /> Copy link</button>
+          </div>
+        )}
+
         {tier === 'html' && noCode.length > 0 && (
           <div className="sat-flat sat-card sat-small">{noCode.map((p) => p.name).join(', ')} {noCode.length === 1 ? 'has' : 'have'} an unseen code. Open Players, tap the player and tap the eye. The report still builds.</div>
         )}
@@ -147,9 +171,10 @@ export default function Report({ gameId }: { gameId: string }) {
         </div>, document.body)}
 
       <div className="sat-bottombar sat-glass-2">
-        {tier === 'html' && <button className="sat-btn sat-btn--lg" aria-disabled={busy || !files.length} onClick={async () => { if (!busy && files[0]) setViewing(await files[0].text()); }}><Icon name="eye" /> View report</button>}
+        {tier === 'html' && <button className="sat-btn sat-btn--lg" aria-disabled={busy || !files.length} onClick={async () => { if (!busy && files[0]) setViewing(await files[0].text()); }}><Icon name="eye" /> View</button>}
+        {tier === 'html' && <button className="sat-btn sat-btn--lg" aria-disabled={busy || !files.length || linking} onClick={shareLink}><Icon name="share" /> {linking ? 'Saving' : 'Link'}</button>}
         <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={busy || !files.length} onClick={() => !busy && files.length && share()}>
-          <Icon name="share" /> {tier === 'html' ? 'Download' : `Download or share ${tier === 'data' ? '3 CSV files' : files.length > 1 ? `${files.length} images` : 'image'}`}
+          <Icon name={tier === 'html' ? 'download' : 'share'} /> {tier === 'html' ? 'Download' : `Download or share ${tier === 'data' ? '3 CSV files' : files.length > 1 ? `${files.length} images` : 'image'}`}
         </button>
       </div>
     </div>

@@ -1,8 +1,46 @@
 # Felt: Plan for 1.1.1 to 1.4.0
 
-Status: waiting on the answers in section 1. Nothing here is built yet.
+Status: mockups round 2 published. Section 0a is the latest decision and wins over anything below it.
 
-To answer: reply "defaults", and list only the ones you change (for example "Q4: the card picker. Q11: and board cards").
+## 0a. Mockup review decisions (3 Nov 2026)
+
+- Palette: A, blue and coral. B and C are gone. Text on blue or coral fills uses ink.
+- Q8, Q9: the hand logging mockup stands.
+- Q10: no "Raise to" text and no "Nat, 12 to call". The amount box shows the minimum as ghost text ("23"). The first digit typed replaces it. An info tip sits beside the box and says that Raise with no amount logs the minimum.
+- Q5, player pop-up: "Player code" label sits beside the eye. No "In use". White eye (full ink in light theme) means an active code. Grey eye means no active code.
+- Codes: a player gets a default code the first time they enter a game, not when created. The first press of the eye shows that default code. Each later press replaces the code and shows the new one. This replaces the "every player gets a code when created" rule.
+- Q4, Settings, Cards: a Default or Custom toggle in the Cards frame, for all suits. Custom adds a hex box to each suit row. Default rows are one line. No per-suit Black and Red buttons, no Reset button.
+- Q15: paste box at the bottom, directly above "Host a game instead".
+- Q11, Q12: the Action tab is one scrolling log. No hand box, no Copy hand button. Each street is a band, and Showdown has its own band. Board and shown cards use card marks. A text selection copies as plain text ("As Td 4c").
+- Q14, Players tab: no positions on seats. "Your result" becomes "Current standing", with no figure in the title row. "Only you see this" goes.
+- Candlestick: body blue above par, coral below par. Low figure left of the left wick, high figure right of the right wick, plain numbers. "0" under the start line. Current figure above a coral triangle that points down at the far end of the body. At buy-in: no wicks or body, only the start line with 0 above (over the triangle), below, left and right.
+- Oldest phones: no support for iOS 14. A warning shows on a phone that lacks a needed function (section 0b).
+- Q16: report link, and the HTML download stays.
+
+## 0b. Browser floor (read from the source)
+
+| Function | Where | Needs | Without it |
+|---|---|---|---|
+| `dialog.showModal` | every sheet | iOS 15.4, Chrome 37 | blank page |
+| `structuredClone` | store and hand logic | iOS 15.4, Chrome 98 | errors in the game |
+| `crypto.subtle`, `randomUUID` | live link, report lock | iOS 15.4, Chrome 92, https | no live link |
+| `dvh` | layout | iOS 15.4, Chrome 108 | layout gap |
+| `color-mix` | 12 style rules | iOS 16.2, Chrome 111 | missing colours |
+| `text-wrap`, `backdrop-filter` | polish | newer | plain look, nothing breaks |
+
+Floor: iOS 16.2, Chrome 111, set by `color-mix`. The check in `app/index.html` runs before the app loads and uses old syntax on purpose, so an old phone can still run it.
+
+## 0c. Late player test (3 Nov 2026, mock driver, two tabs on the test port)
+
+Steps: created 4 players, started a game with 3, closed 2 hands, started sharing, added the 4th player, closed a third hand with that player dealt in, joined from a second tab with the link and the code, entered cards for hand 3.
+
+- Pass: the player's identity box reached the room within 2.5 seconds of being added.
+- Pass: the code opened the player view, in lower case with a space too.
+- Pass: the cards reached the host's hand 3.
+- Bug (fixed in 1.1.1): a code replaced during sharing did not reach the room. The old code still opened and the new one did not.
+- Bug (fixed in 1.1.1): "Code does not match" stayed hidden behind the sheet.
+- Bug (fixed in 1.1.1): the hand picker offered hands 1 and 2, played before the player joined.
+- Not tested: real Firebase, a second real phone, a camera scan.
 
 ## 0. Answers received (3 Nov 2026)
 
@@ -141,30 +179,34 @@ To answer: reply "defaults", and list only the ones you change (for example "Q4:
 
 Times are rough, in agent working time.
 
-### Sprint 0: 1.1.1, bugs from your testing (about 1 hour)
+### Sprint 0: 1.1.1, bugs from your testing (built)
 
-Causes below come from reading the code. I have not reproduced them yet.
-
-- Code made after sharing starts fails. Cause: `watchGames` in `src/live/host.ts` watches games only, so a new player code never reaches Firebase.
-- No error on a failed code. Cause: toasts render under the open sheet (`showModal` top layer). This hides every toast fired from a sheet, across the app.
-- Action log clears when the host leaves. Cause: the recorder publishes `now = null` when it closes.
-- Cards screen contrast (Q4), mobile report message (Q6), duration, code wording.
+- Code made after sharing starts now reaches the room: `watchGames` also watches players.
+- Toasts show above an open sheet, by popover. On iOS 16 (no popover) the toast goes inside the sheet.
+- Action log stays when the host leaves. The hand clears when it closes.
+- New link in the same tab uses its own key: `Join` remounts on a new room or key.
+- Hand picker lists only hands the player was dealt into.
+- Warning on phones below the floor (section 0b). Duration and code wording.
+- Moved out: Cards contrast to Sprint 1 (new Default or Custom design). Mobile report message dropped: the report link replaces it.
 
 ### Sprint 1: 1.2.0, host app (about half a day)
 
-- Recorder row (Q9), pot by street, minimum raise on tap, amount label (Q10).
-- Floating card icon, My cards change (Q8).
+- Recorder row (Q9), pot by street, ghost minimum and tip on the raise box (Q10).
+- Floating card icon, My cards change (Q8). Tags removed from logging (Q13).
 - Sharing toggle and lamp (Q7), eye on the game's player cards, player pop-up (Q5).
+- Default codes at first game entry, first reveal shows the default, later reveals replace it.
+- Settings, Cards: Default or Custom, drag to reorder (Q4).
 - View report in the app. Split the 2-7 rows.
 
 ### Sprint 2: 1.3.0, player view (about a day)
 
 - 6-box login with auto-submit, in the app and the report.
-- Action log format (Q11, Q12), newest first, across all hands.
-- Copy hand. Mirrored hand view (Q13). This is the largest item: the host's hand screen must work without the host's data.
+- Action log format (Q11, Q12), street bands, newest first, across all hands. Copy converts card marks to text.
+- Mirrored hand view (Q13). This is the largest item: the host's hand screen must work without the host's data.
 - "Table" becomes "Players": visual table, stacks on bubbles, candlestick (Q14).
 - Join from the app with camera scan (Q15), using a QR library because iPhones have no built-in QR reader for web apps.
 - Last copy kept on the phone, no report template for players.
+- Report link (Q16): encrypted report stored in Firebase under its own path, with an expiry date, and the HTML download stays. Needs a new rule in `database.rules.json`, which you publish in the Firebase console.
 
 ### Sprint 3: 1.4.0, luxury pass (about half a day)
 

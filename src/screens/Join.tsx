@@ -265,6 +265,7 @@ function HandPick({ hands, entered, me, onSave, onClose }: {
 }) {
   const [n, setN] = useState<number | null>(null);
   const h = hands.find((x) => x.n === n);
+  const mine = hands.filter((x) => x.dealt.includes(me.name));
   if (h) {
     return (
       <CardEntrySheet players={[me.id]} initial={me.id} closeOnSave name={() => me.name} entered={entered.has(h.n) ? [me.id] : []}
@@ -275,7 +276,8 @@ function HandPick({ hands, entered, me, onSave, onClose }: {
   return (
     <Sheet open onClose={onClose} title="Pick a hand" sub="Newest first. Cards you enter are write only.">
       <div className="sat-glass-2 felt-list">
-        {hands.map((x) => (
+        {!mine.length && <div className="felt-row sat-small sat-muted">No hands for you yet.</div>}
+        {mine.map((x) => (
           <button key={x.n} className="felt-row" onClick={() => setN(x.n)}>
             <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span></span>
             <span className="sat-small sat-muted">{entered.has(x.n) ? 'Entered' : 'Not entered'}</span>

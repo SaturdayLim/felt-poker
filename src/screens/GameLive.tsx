@@ -6,7 +6,7 @@ import { NameEntry, titleCase } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
-import { buyInsEquivalent, dateLabel, duration, inBB, money, timeLabel, units } from '../lib/format';
+import { buyInsEquivalent, dateLabel, duration, gameLength, inBB, money, timeLabel, units } from '../lib/format';
 import { estimateStacks, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
@@ -92,7 +92,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         <div className="felt-summary">
           <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins` : money(totalPotMoney(g), g.currency)}</b></span>
           <span><Caption>Chips</Caption><b className="sat-num">{units(totalBuyInUnits(g))}</b></span>
-          <span><Caption>{closed ? 'Length' : 'Running'}</Caption><b className="sat-num">{duration((g.endedAt ?? Date.now()) - g.startedAt)}</b></span>
+          <span><Caption>{closed ? 'Length' : 'Running'}</Caption><b className="sat-num">{gameLength(g)}</b></span>
         </div>
 
         {tab === 'players' && (

@@ -336,12 +336,17 @@ export function ToastHost() {
     return () => { toastListener = null; };
   }, []);
   if (!t) return null;
-  return (
-    <div className="felt-toast sat-glass-2 sat-small" role="status">
+  // An open sheet sits in the top layer and covers everything else. A popover goes in the top layer after it.
+  const hasPopover = 'showPopover' in HTMLElement.prototype;
+  const sheet = hasPopover ? null : [...document.querySelectorAll('dialog[open]')].pop();
+  const el = (
+    <div className={`felt-toast sat-glass-2 sat-small${sheet ? ' felt-toast--sheet' : ''}`} role="status" {...(hasPopover ? { popover: 'manual' } : {})}
+      ref={(e) => { if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }}>
       {t.msg}
       {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); setT(null); }}>{t.action.label}</button>}
     </div>
   );
+  return sheet ? createPortal(el, sheet) : el;
 }
 
 /** Re-render every `ms` milliseconds (for live clocks). */

@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.1.1', date: '3 Nov 2026', notes: [
+    'A phone that lacks a function Felt needs now shows a warning. Felt needs iOS 16.2 or Chrome 111.',
+    'A code replaced during a live game now works at once.',
+    'Messages now show above open sheets, for example "Code does not match".',
+    'A new live link opened in the same tab now uses its own key.',
+    'Players see the hand in progress after the host leaves the recorder.',
+    'Players can add cards only to hands they were dealt into.',
+    'Game length now runs from the close of hand 1 to the close of the last hand.',
+  ] },
   { version: '1.1.0', date: '2 Nov 2026', notes: [
     'Live link: players follow a game from one link or QR and see the action, settings, hands and table.',
     'Players add their own cards from their phone with their code. Cards are write only.',

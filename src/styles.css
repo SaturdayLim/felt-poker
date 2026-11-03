@@ -79,7 +79,7 @@ button.felt-row { color: inherit; }
 
 .felt-empty { padding: var(--sat-space-6) var(--sat-space-5); display: flex; flex-direction: column; gap: var(--sat-space-2); align-items: flex-start; }
 
-.felt-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--felt-safe-bottom) + 96px); z-index: 80;
+.felt-toast { position: fixed; left: 50%; right: auto; top: auto; margin: 0; color: inherit; transform: translateX(-50%); bottom: calc(var(--felt-safe-bottom) + 96px); z-index: 80;
   padding: var(--sat-space-3) var(--sat-space-4); border-radius: var(--sat-radius-md); max-width: calc(100vw - 32px); font-weight: 600; animation: sat-fade var(--sat-dur-fast) var(--sat-ease); }
 
 /* Live game */
@@ -377,6 +377,7 @@ button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: le
 .felt-paytag-wrap { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
 .felt-paytag[aria-pressed="false"] { color: var(--sat-muted); }
 .felt-toast { display: flex; align-items: center; gap: var(--sat-space-3); }
+.felt-toast--sheet { position: sticky; left: auto; transform: none; bottom: 0; margin-top: var(--sat-space-3); }
 .felt-toast-act { border: 0; background: none; font: inherit; font-weight: 700; color: var(--sat-accent-text); padding: 4px 2px; cursor: pointer; }
 /* keypad open: everything but the keypad and the action boxes is greyed out; a tap there closes the keypad */
 .felt-recorder.has-keypad .felt-rec-bar, .felt-recorder.has-keypad .felt-dock-actions, .felt-recorder.has-keypad .sat-header-bar,

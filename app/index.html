@@ -16,6 +16,32 @@
   </head>
   <body class="sat">
     <div id="root"></div>
+    <!-- Oldest phones: old syntax on purpose, so a phone too old for the app can still run this. Floor is in docs/PLAN-v1.2.md. -->
+    <script data-floor>
+      (function () {
+        var css = function (p, v) { try { return window.CSS && CSS.supports(p, v); } catch (e) { return false; } };
+        var missing = [];
+        if (!window.HTMLDialogElement || !HTMLDialogElement.prototype.showModal) missing.push('pop-up sheets');
+        if (typeof structuredClone !== 'function') missing.push('data copies');
+        if (!window.crypto || !crypto.subtle || !crypto.randomUUID) missing.push('encryption');
+        if (!css('height', '1dvh')) missing.push('screen height units');
+        if (!css('color', 'color-mix(in srgb, red, blue)')) missing.push('colour mixing');
+        if (!missing.length) return;
+        var box = document.createElement('div');
+        box.id = 'felt-floor';
+        box.setAttribute('role', 'alertdialog');
+        box.setAttribute('aria-label', 'This phone cannot run Felt');
+        box.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#02070A;color:#EAF4FA;padding:32px 24px;font:16px/1.45 -apple-system,Roboto,sans-serif;overflow:auto';
+        var line = function (tag, text, style) { var e = document.createElement(tag); e.textContent = text; e.style.cssText = style || 'margin:0 0 14px'; box.appendChild(e); return e; };
+        line('h1', 'This phone cannot run Felt', 'margin:0 0 14px;font-size:26px;line-height:1.2');
+        line('p', 'Felt needs iOS 16.2 or later, or Chrome 111 or later.');
+        line('p', 'This browser does not have: ' + missing.join(', ') + '.');
+        line('p', 'Update the phone, or open Felt on a newer phone.');
+        var go = line('button', 'Open anyway', 'margin-top:10px;min-height:48px;padding:0 20px;border-radius:14px;border:1px solid #9DB4C2;background:none;color:inherit;font:inherit;font-weight:600');
+        go.onclick = function () { box.parentNode.removeChild(box); };
+        document.body.appendChild(box);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

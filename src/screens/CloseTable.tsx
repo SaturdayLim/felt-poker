@@ -3,7 +3,7 @@ import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
 import { back, go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, SourceTip } from '../components/ui';
 import { gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
-import { dateLabel, duration, money, units } from '../lib/format';
+import { dateLabel, gameLength, money, units } from '../lib/format';
 import { uid } from '../lib/ids';
 import type { Expense, Game, ID } from '../types';
 import { gameSubtitle } from './GameLive';
@@ -67,7 +67,7 @@ export default function CloseTable({ gameId }: { gameId: string }) {
             <div className="felt-track" aria-hidden="true"><span style={{ width: `${g.transfers.length ? (paid.length / g.transfers.length) * 100 : 100}%` }} /></div>
 
             <section className="sat-stack" style={gap(3)}>
-              <div className="sat-split"><h2 className="sat-h2">Results</h2><span className="sat-small sat-muted">{duration((g.endedAt ?? Date.now()) - g.startedAt)}</span></div>
+              <div className="sat-split"><h2 className="sat-h2">Results</h2><span className="sat-small sat-muted">{gameLength(g)}</span></div>
               <div className="sat-glass-2 felt-list">
                 {results.map((r, i) => (
                   <div key={r.playerId} className="felt-row">

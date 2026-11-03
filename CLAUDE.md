@@ -49,4 +49,5 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Private cards: each player's own hole cards are kept apart from the cards shown at the table. While recording, the phone owner uses My cards. After the game, any player opens their own cards in hand review with their player code and can add or change them; the game stays closed. Nobody else sees them; they are never in images or CSV in the open.
 - Shared report (trial): Game Summary and Compare are open; each player page is encrypted with that player's code. Lock text: "Enter player code to access player stats."
 - Awards come from a fixed list, each with a minimum to count (src/report/model.ts, AWARD_LIST). A tie shares an award.
+- Oldest phones: Felt needs iOS 16.2 or Chrome 111. `app/index.html` shows a warning below that. Do not add workarounds for older phones.
 - Download options name the content and the file type: Results (1 image), Results and stats, Full game record, Spreadsheet data (3 CSV files).

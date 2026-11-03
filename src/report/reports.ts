@@ -3,7 +3,7 @@ import {
   buyInTimeline, gameResults, handStats, playerResult, round2, timePlayed, totalBuyInUnits, totalPotMoney,
 } from '../lib/calc';
 import { bestHand } from '../lib/cards';
-import { dateLabel, duration, money, timeLabel, units } from '../lib/format';
+import { dateLabel, duration, gameLength, money, playMs, timeLabel, units } from '../lib/format';
 import {
   C, INNER, PAD, W, avatar, badge, caption, cardsRow, dealerChip, deltaText, feltMark, font, paginate, panel, rrect,
   sectionTitle, setReportTheme, spacer, text, textWidth, wrap, type Block, type ReportTheme,
@@ -16,7 +16,7 @@ type NameFn = (id: ID) => string;
 
 /** Page subtitle, Title Case: 23 Oct 2026, 1/2 Cash Game (1 Unit = S$0.10). */
 function subtitle(g: Game) {
-  const when = `${dateLabel(g.startedAt)}, ${duration((g.endedAt ?? Date.now()) - g.startedAt)}`;
+  const when = `${dateLabel(g.startedAt)}, ${gameLength(g)}`;
   if (g.type === 'tournament') return `${when}, Tournament (${money(g.tournament?.buyIn ?? 0, g.currency)} Entry)`;
   return `${when}, ${g.sb}/${g.bb} Cash Game (Multiplier ${money(g.unitValue, g.currency)})`;
 }
@@ -156,12 +156,11 @@ function payments(g: Game, name: NameFn): Block[] {
 
 function statTiles(g: Game, name: NameFn): Block {
   const hs = handStats(g);
-  const ended = g.endedAt ?? Date.now();
   const mostWins = Object.entries(hs.handsWon).sort((a, b) => b[1] - a[1])[0];
   const rebuys = Math.max(0, g.buyIns.length - g.playerIds.length);
-  const perHour = hs.hands ? Math.round(hs.hands / Math.max(1, (ended - g.startedAt) / 3600000)) : 0;
+  const perHour = hs.hands ? Math.round(hs.hands / Math.max(1, (playMs(g) ?? 0) / 3600000)) : 0;
   const tiles: { cap: string; q?: string; v: string; note: string; name?: boolean }[] = [
-    { cap: 'Hands', v: String(hs.hands), note: `${perHour} per hour over ${duration(ended - g.startedAt)}` },
+    { cap: 'Hands', v: String(hs.hands), note: `${perHour} per hour over ${gameLength(g)}` },
     { cap: 'Avg pot', q: 'chips', v: hs.hands ? units(Math.round(hs.avgPot)) : '-', note: g.type === 'cash' && hs.hands ? `= ${money(hs.avgPot * g.unitValue, g.currency)}` : 'Across all hands' },
     { cap: 'Top pot', q: 'chips', v: hs.biggest ? units(hs.biggest.pot) : '-', note: hs.biggest ? `Hand ${hs.biggest.n}, ${hs.biggest.winners.map(name).join(' and ')}` : '' },
     { cap: 'Most hands won', v: mostWins ? name(mostWins[0]) : '-', note: mostWins ? `${mostWins[1]} hands` : '', name: true },
@@ -218,7 +217,7 @@ function buyInChart(g: Game): Block {
       const lead = `${g.type === 'cash' ? 'In play' : 'Pool'} = ${total}`;
       const lf = font(600, 23);
       text(ctx, lead, x0, y + 366, lf, C.text);
-      text(ctx, ` after ${duration(t1 - t0)}, ${g.buyIns.length} ${g.type === 'cash' ? 'buy-ins' : 'entries'}.`, x0 + textWidth(lead, lf), y + 366, font(400, 23), C.muted);
+      text(ctx, ` after ${gameLength(g)}, ${g.buyIns.length} ${g.type === 'cash' ? 'buy-ins' : 'entries'}.`, x0 + textWidth(lead, lf), y + 366, font(400, 23), C.muted);
     },
   };
 }

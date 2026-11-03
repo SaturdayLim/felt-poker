@@ -191,7 +191,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     }, 500);
     return () => window.clearTimeout(t);
   }, [g, st, readOnly]);
-  useEffect(() => () => { if (!readOnly) publishNow(gameId, null).catch(() => undefined); }, [gameId, readOnly]);
 
   // While the keypad is open the rest of the screen is greyed out: a tap anywhere outside the keypad and
   // the action boxes only puts the keypad away (that tap does nothing else). Scrolling leaves it open.

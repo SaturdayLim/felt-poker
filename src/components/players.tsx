@@ -181,7 +181,7 @@ export function PlayerCodeSheet({ p, onClose }: { p: Player; onClose: () => void
   };
   if (shown) {
     return (
-      <Sheet open onClose={onClose} title={`${p.name}: player code`} sub="This code shows once. Close this and it is gone.">
+      <Sheet open onClose={onClose} title={`${p.name}: player code`} sub="This code cannot be retrieved once this screen closes.">
         <div className="felt-code-big" aria-label={`Code ${shown}`}>{showCode(shown)}</div>
         <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" onClick={onClose}>Done</button>
       </Sheet>

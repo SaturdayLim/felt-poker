@@ -99,3 +99,19 @@ describe('timePlayed', () => {
     expect(timePlayed(g, 'sb')).toBe(120_000);
   });
 });
+
+import { gameLength, playMs } from './format';
+
+describe('game length', () => {
+  const hand = (at: number, endedAt: number, missed = false) => ({ at, endedAt, missed }) as Game['hands'][number];
+  it('shows a dash until hand 1 closes', () => {
+    expect(playMs({ hands: [] })).toBeNull();
+    expect(gameLength({ hands: [] })).toBe('-');
+  });
+  it('runs from the close of hand 1 to the close of the last hand', () => {
+    expect(playMs({ hands: [hand(0, 600000), hand(600000, 1200000), hand(1200000, 4200000)] })).toBe(3600000);
+  });
+  it('leaves out missed hands', () => {
+    expect(playMs({ hands: [hand(0, 600000), hand(900000000, 900000000, true)] })).toBe(0);
+  });
+});

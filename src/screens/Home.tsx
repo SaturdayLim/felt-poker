@@ -2,7 +2,7 @@ import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { Delta, Empty, Header, Icon, SourceTip, ThemeCycle, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
-import { duration, money, shortDate } from '../lib/format';
+import { gameLength, money, playMs, shortDate } from '../lib/format';
 import { filterGames, leaderboard } from '../lib/stats';
 
 /* Home: what is happening now (live games), how to start one, and a short look back.
@@ -26,7 +26,7 @@ export default function Home() {
           const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
           return (
             <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
-              <span className="felt-live-tag"><span className="felt-dot felt-dot--pulse" />Live, {duration(Date.now() - g.startedAt)}</span>
+              <span className="felt-live-tag"><span className="felt-dot felt-dot--pulse" />Live{playMs(g) === null ? '' : `, ${gameLength(g)}`}</span>
               <span className="felt-live-name">{g.name}</span>
               <span className="sat-small sat-muted">{seated} playing, {g.hands.length} hands</span>
               <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>

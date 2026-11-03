@@ -6,6 +6,7 @@ import { playerSummary, type PlayerSummary } from '../lib/stats';
 import { estimateStacks } from '../lib/stacks';
 import { actingOrder, bountyPay, bountyTotal, contributions, finalists, inAtEnd } from '../lib/hand';
 import { bestHand } from '../lib/cards';
+import { playMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
 import { clashingPlayers, privateOf } from '../lib/clash';
@@ -140,7 +141,6 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
     if (finalists(h.log!).length > 1) reach.showdown++;
   }
   const secs = hands.map((h) => Math.round(((h.endedAt ?? h.at) - h.at) / 1000)).sort((a, b) => a - b);
-  const last = hands[hands.length - 1];
   const biggest = [...hands].sort((a, b) => b.pot - a.pot).slice(0, 3).map((h) => ({
     n: h.n, pot: h.pot, winners: h.winners.map((w) => name(w.playerId)), board: h.board,
     shown: h.shown.map((s) => ({ p: name(s.playerId), cards: s.cards, rank: h.board.length === 5 ? bestHand([...s.cards, ...h.board])?.name ?? '' : '' })),
@@ -159,7 +159,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
   const bounties = hands.filter((h) => h.bounty).map((h) => ({ n: h.n, to: name(h.bounty!.playerId), total: bountyTotal(h.bounty!) }));
   return {
     game: g.name, date: new Date(g.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-    hands: hands.length, minutes: Math.round(((last?.endedAt ?? last?.at ?? g.startedAt) - g.startedAt) / 60000),
+    hands: hands.length, minutes: Math.round((playMs(g) ?? 0) / 60000),
     medianSec: secs[Math.floor(secs.length / 2)] ?? 0, players4: dealtN,
     pots: hands.map((h) => ({ n: h.n, pot: h.pot, winners: h.winners.map((w) => name(w.playerId)) })),
     reach,

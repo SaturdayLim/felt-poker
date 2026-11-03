@@ -12,7 +12,7 @@ import { buildPub, type NowSnapshot } from './snapshot';
 export interface Flag { id: string; n: number; text: string; at: number }
 interface Session {
   gameId: ID; room: string; key: string; locked: boolean; driver: LiveDriver;
-  stops: (() => void)[]; flags: Flag[]; failed: Set<string>; identCodes: Record<ID, string>; inbox: Record<string, unknown>; timer?: ReturnType<typeof setTimeout>;
+  stops: (() => void)[]; flags: Flag[]; failed: Set<string>; identCodes: Record<ID, string>; inbox: Record<string, unknown>; nowN?: number; timer?: ReturnType<typeof setTimeout>;
 }
 
 const sessions = new Map<ID, Session>();
@@ -55,14 +55,15 @@ export function liveStatus(gameId: ID) {
 
 const handCount = (g: Game) => g.hands.filter((h) => !h.missed && h.log).length;
 
-/** One identity box per player: it holds the name and proves a code. Rebuilt only when a code changed. */
+/** One identity box per player: it holds the name and proves a code. Rebuilt only when the code or name changed. */
 async function syncIdent(s: Session, g: Game) {
   const players = useStore.getState().players.filter((p) => g.playerIds.includes(p.id));
   for (const p of players) {
-    if (!p.code || s.identCodes[p.id] === p.code) continue;
+    const stamp = `${p.code}:${p.name}`;
+    if (!p.code || s.identCodes[p.id] === stamp) continue;
     const box = await lock({ id: p.id, name: p.name }, p.code);
     await s.driver.set(s.room, `ident/${p.id}`, box);
-    s.identCodes[p.id] = p.code;
+    s.identCodes[p.id] = stamp;
   }
 }
 
@@ -75,12 +76,14 @@ export async function publishPub(gameId: ID) {
   await s.driver.set(s.room, 'meta/handCount', handCount(g));
   await syncIdent(s, g);
   applyInbox(s);
+  if (s.nowN !== undefined && g.hands.some((h) => h.n === s.nowN)) await publishNow(gameId, null);
 }
 
 /** The hand in progress, or null when no hand is open. */
 export async function publishNow(gameId: ID, now: NowSnapshot | null) {
   const s = sessions.get(gameId);
   if (!s) return;
+  s.nowN = now?.n;
   await s.driver.set(s.room, 'now', now ? await seal(now, s.key) : null);
 }
 
@@ -192,16 +195,18 @@ export async function resumeSharing() {
   changed();
 }
 
-/** Publishes after changes to a shared game (debounced), so viewers see closed hands and new settings. */
+/** Publishes after changes to a shared game or to a player (debounced), so viewers see closed hands, new settings and new codes. */
 export function watchGames() {
   let last = useStore.getState().games;
+  let lastPlayers = useStore.getState().players;
   return useStore.subscribe((state) => {
-    if (state.games === last) return;
-    const prev = last;
+    if (state.games === last && state.players === lastPlayers) return;
+    const prev = last, playersChanged = state.players !== lastPlayers;
     last = state.games;
+    lastPlayers = state.players;
     for (const [id, s] of sessions) {
       const a = prev.find((g) => g.id === id), b = state.games.find((g) => g.id === id);
-      if (!b || a === b) continue;
+      if (!b || (a === b && !playersChanged)) continue;
       clearTimeout(s.timer);
       s.timer = setTimeout(() => { publishPub(id).catch(() => undefined); }, 1500);
     }

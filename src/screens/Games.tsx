@@ -3,7 +3,7 @@ import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { Delta, Empty, Header, Icon } from '../components/ui';
 import { gameResults, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
-import { dateLabel, duration, money } from '../lib/format';
+import { dateLabel, gameLength, money, playMs } from '../lib/format';
 import type { Game, GameType } from '../types';
 
 /* Live games sit in their own section as solid glass cards with a pulsing dot.
@@ -42,7 +42,7 @@ export default function Games() {
               const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
               return (
                 <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
-                  <span className="felt-live-tag">{g.type === 'cash' ? `${g.sb}/${g.bb} cash` : 'Tournament'}, {duration(Date.now() - g.startedAt)}</span>
+                  <span className="felt-live-tag">{g.type === 'cash' ? `${g.sb}/${g.bb} cash` : 'Tournament'}{playMs(g) === null ? '' : `, ${gameLength(g)}`}</span>
                   <span className="felt-live-name">{g.name}</span>
                   <span className="sat-small sat-muted">{seated} playing, {g.hands.length} hands{groupName(g) ? `, ${groupName(g)}` : ''}</span>
                   <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>

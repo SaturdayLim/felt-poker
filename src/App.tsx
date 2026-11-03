@@ -57,7 +57,7 @@ export default function App() {
     else if (c === 'hands') screen = <GameLive gameId={b} initialTab="hands" />;
     else screen = <GameLive gameId={b} />;
   }
-  else if (a === 'join' && b) { screen = <Join room={b} keyFromLink={c} />; nav = false; }
+  else if (a === 'join' && b) { screen = <Join key={`${b}/${c ?? ''}`} room={b} keyFromLink={c} />; nav = false; }
   else if (a === 'insights') screen = <Insights initialPlayer={b} />;
   else if (a === 'players') screen = <Players />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;

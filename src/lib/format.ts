@@ -24,6 +24,17 @@ export function duration(ms: number): string {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
+/** Time from the close of hand 1 to the close of the last hand. Null until hand 1 closes. */
+export function playMs(g: Pick<Game, 'hands'>): number | null {
+  const closes = g.hands.filter((h) => !h.missed).map((h) => h.endedAt ?? h.at);
+  return closes.length ? Math.max(...closes) - Math.min(...closes) : null;
+}
+
+export function gameLength(g: Pick<Game, 'hands'>): string {
+  const ms = playMs(g);
+  return ms === null ? '-' : duration(ms);
+}
+
 /** Full date, as in source lines: 13 Oct 2026. */
 export function dateLabel(t: number): string {
   return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });

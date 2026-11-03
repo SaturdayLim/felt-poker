@@ -91,7 +91,7 @@ export default function JoinScan() {
             onChange={(e) => { setText(e.target.value); if (joinRoute(e.target.value)) open(e.target.value); }} onKeyDown={(e) => e.key === 'Enter' && text && open(text)} />
           <button type="button" className="sat-btn sat-btn--primary" onClick={paste}>Paste</button>
         </div>
-        <button type="button" className="sat-btn sat-btn--ghost sat-btn--block" onClick={() => { try { localStorage.setItem(HOST_FLAG, '1'); } catch { /* private mode */ } go(''); }}>Host a game instead</button>
+        <button type="button" className="sat-btn sat-btn--ghost sat-btn--block" onClick={() => { try { localStorage.setItem(HOST_FLAG, '1'); } catch { /* private mode */ } go(''); window.dispatchEvent(new HashChangeEvent('hashchange')); }}>Host a game instead</button>
       </div>
     </div>
   );

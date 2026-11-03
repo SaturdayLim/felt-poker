@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook } from '../components/ui';
-import { DEFAULT_LOOK, SUIT_NAME, SUIT_PALETTE, SUIT_SYMBOL, lookColor } from '../lib/cards';
+import { SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
@@ -169,7 +169,6 @@ export default function Settings() {
         </section>
 
         <section className="sat-glass sat-card sat-stack">
-          <div className="sat-split"><h2 className="sat-h2">Cards</h2><Help k="cardLook" /></div>
           <CardLookEditor />
         </section>
 
@@ -209,30 +208,87 @@ function CardLookEditor() {
   const look = useCardLook();
   const update = useStore((s) => s.updateSettings);
   const save = (next: CardLook) => update({ cards: next });
-  const move = (i: number, d: -1 | 1) => {
-    const order = [...look.order];
-    [order[i], order[i + d]] = [order[i + d], order[i]];
-    save({ ...look, order });
-  };
+  const [drag, setDrag] = useState<{ s: SuitKey; y: number; dy: number; h: number } | null>(null);
+  const isDefault = !look.custom;
+
+  const grip = (s: SuitKey) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const row = e.currentTarget.closest('.felt-suit-row') as HTMLElement;
+      setDrag({ s, y: e.clientY, dy: 0, h: row.offsetHeight + 6 });
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (drag?.s !== s) return;
+      let dy = e.clientY - drag.y, y = drag.y;
+      const i = look.order.indexOf(s), to = dy > drag.h / 2 ? i + 1 : dy < -drag.h / 2 ? i - 1 : i;
+      if (to !== i && to >= 0 && to < look.order.length) {
+        const order = [...look.order];
+        order.splice(i, 1);
+        order.splice(to, 0, s);
+        save({ ...look, order });
+        y += (to - i) * drag.h;
+        dy = e.clientY - y;
+      }
+      setDrag({ ...drag, y, dy });
+    },
+    onPointerUp: () => setDrag(null),
+    onPointerCancel: () => setDrag(null),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      const d = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0, i = look.order.indexOf(s);
+      if (!d || !look.order[i + d]) return;
+      e.preventDefault();
+      const order = [...look.order];
+      [order[i], order[i + d]] = [order[i + d], order[i]];
+      save({ ...look, order });
+    },
+  });
+
   return (
-    <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-      {look.order.map((s: SuitKey, i: number) => (
-        <div key={s} className="felt-suit-row">
-          <span className="felt-suit-mark" style={{ color: lookColor(look, s) }} aria-hidden="true">{SUIT_SYMBOL[s]}</span>
-          <span className="felt-row-title">{SUIT_NAME[s]}</span>
-          <span className="felt-suit-move">
-            <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Move ${SUIT_NAME[s]} up`} disabled={i === 0} onClick={() => move(i, -1)}><span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}><Icon name="chevron" /></span></button>
-            <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Move ${SUIT_NAME[s]} down`} disabled={i === look.order.length - 1} onClick={() => move(i, 1)}><Icon name="chevron" /></button>
-          </span>
-          <span className="felt-suit-colors" role="radiogroup" aria-label={`${SUIT_NAME[s]} colour`}>
-            {Object.entries(SUIT_PALETTE).map(([k, c]) => (
-              <button key={k} type="button" role="radio" aria-checked={look.colors[s] === k} aria-label={c.label} className="felt-swatch" style={{ background: c.hex }}
-                onClick={() => save({ ...look, colors: { ...look.colors, [s]: k } })} />
-            ))}
-          </span>
-        </div>
-      ))}
-      <button className="sat-btn sat-btn--ghost" onClick={() => save(DEFAULT_LOOK)}>Reset to default</button>
-    </div>
+    <>
+      <div className="sat-split">
+        <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Cards</h2><Help k="cardLook" /></span>
+        <label className="felt-look-toggle">
+          <span className="sat-small">Default</span>
+          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default suit colours" className="felt-look-switch" onClick={() => save({ ...look, custom: isDefault })}>
+            <span className="felt-look-thumb"><i className="is-rainbow" /><i className="is-default" /></span>
+          </button>
+        </label>
+      </div>
+      <div className="felt-suit-list">
+        {look.order.map((s: SuitKey) => (
+          <div key={s} className={`felt-suit-row ${drag?.s === s ? 'is-dragging' : ''}`} style={drag?.s === s ? { transform: `translateY(${drag.dy}px)` } : undefined}>
+            <button type="button" className="felt-suit-grip" aria-label={`Drag ${SUIT_NAME[s]} to change its row`} {...grip(s)}>
+              <svg viewBox="0 0 16 12" width="16" height="12" aria-hidden="true"><path d="M1 1h14M1 6h14M1 11h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            </button>
+            <span className="felt-suit-mark" style={{ color: lookColor(look, s) }} aria-hidden="true">{SUIT_SYMBOL[s]}</span>
+            <span className="felt-row-title felt-grow">{SUIT_NAME[s]}</span>
+            <div className={`felt-suit-custom ${isDefault ? '' : 'is-open'}`} aria-hidden={isDefault}>
+              <SuitColor key={lookColor(look, s)} name={SUIT_NAME[s]} value={lookColor(look, s)} off={isDefault} onChange={(hex) => save({ ...look, colors: { ...look.colors, [s]: hex } })} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Hex box and eyedropper for one suit. The box saves on each valid code. */
+function SuitColor({ name, value, off, onChange }: { name: string; value: string; off: boolean; onChange: (hex: string) => void }) {
+  const full = (h: string) => (h.length === 4 ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h).toUpperCase();
+  const [text, setText] = useState(full(value));
+  return (
+    <>
+      <input className="sat-input felt-suit-hex sat-num" aria-label={`${name} colour as a hex code`} value={text} maxLength={7} autoComplete="off" autoCapitalize="characters" spellCheck={false} tabIndex={off ? -1 : 0}
+        onChange={(e) => {
+          const v = e.target.value.trim();
+          setText(v);
+          const h = v.startsWith('#') ? v : `#${v}`;
+          if (/^#[0-9a-fA-F]{6}$/.test(h)) onChange(h.toUpperCase());
+        }} />
+      <label className="felt-suit-drop" aria-label={`Pick a colour for ${name}`}>
+        <Icon name="eyedrop" size={18} />
+        <input type="color" value={full(value).toLowerCase()} tabIndex={off ? -1 : 0} onChange={(e) => onChange(e.target.value.toUpperCase())} />
+      </label>
+    </>
   );
 }

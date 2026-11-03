@@ -16,13 +16,18 @@ export const SUIT_PALETTE: Record<string, { label: string; hex: string }> = {
 };
 export const SUIT_NAME: Record<SuitKey, string> = { s: 'Spades', h: 'Hearts', c: 'Clubs', d: 'Diamonds' };
 /** Default look: picker rows from top to bottom are spades, hearts, clubs, diamonds; hearts and diamonds red. */
-export const DEFAULT_LOOK: CardLook = { order: ['s', 'h', 'c', 'd'], colors: { s: 'black', h: 'red', c: 'black', d: 'red' } };
-export const lookColor = (look: CardLook | undefined, s: string) => SUIT_PALETTE[(look ?? DEFAULT_LOOK).colors[s as SuitKey]]?.hex ?? SUIT_COLOR[s];
+export const DEFAULT_LOOK: CardLook = { order: ['s', 'h', 'c', 'd'], colors: { s: 'black', h: 'red', c: 'black', d: 'red' }, custom: false };
+/** A suit colour is a palette name or a hex code. Custom off (the default switch) keeps the saved colours but does not use them. */
+export const lookColor = (look: CardLook | undefined, s: string) => {
+  const c = look?.custom === false ? DEFAULT_LOOK.colors[s as SuitKey] : (look ?? DEFAULT_LOOK).colors[s as SuitKey];
+  return SUIT_PALETTE[c]?.hex ?? (/^#[0-9a-fA-F]{6}$/.test(c ?? '') ? c : SUIT_COLOR[s]);
+};
+const isDefault = (c: Partial<Record<SuitKey, string>> | undefined) => DEFAULT_LOOK.order.every((s) => (c?.[s] ?? DEFAULT_LOOK.colors[s]) === DEFAULT_LOOK.colors[s]);
 /** A saved look with every suit present (an older or partial value falls back to the default). */
 export function cleanLook(l: Partial<CardLook> | undefined): CardLook {
   const order = (l?.order ?? []).filter((s, i, a) => DEFAULT_LOOK.order.includes(s) && a.indexOf(s) === i);
   for (const s of DEFAULT_LOOK.order) if (!order.includes(s)) order.push(s);
-  return { order, colors: { ...DEFAULT_LOOK.colors, ...(l?.colors ?? {}) } };
+  return { order, colors: { ...DEFAULT_LOOK.colors, ...(l?.colors ?? {}) }, custom: l?.custom ?? !isDefault(l?.colors) };
 }
 
 export const DECK: Card[] = SUITS.flatMap((s) => RANKS.map((r) => r + s));

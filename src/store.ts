@@ -75,6 +75,7 @@ interface State {
   addPlayer: (name: string) => Player;
   /** Makes a new code for a player (the old one stops working) and marks it as issued. The caller shows or copies it once. */
   issueCode: (id: ID) => string;
+  revealCode: (id: ID) => void;
   renamePlayer: (id: ID, name: string) => void;
   setPlayerArchived: (id: ID, archived: boolean) => void;
   deletePlayer: (id: ID) => boolean;
@@ -108,9 +109,10 @@ interface State {
 
 const now = () => Date.now();
 
-/** Every player has a code: players saved before codes existed get one when the data loads. */
-function withCodes(players: Player[]): Player[] {
-  return players.some((p) => !p.code) ? players.map((p) => (p.code ? p : { ...p, code: newCode() })) : players;
+/** A player gets a code on entering a first game. Players already in a game with no code get one when the data loads. */
+function withCodes(players: Player[], games: Pick<Game, 'playerIds'>[]): Player[] {
+  const seated = new Set(games.flatMap((g) => g.playerIds));
+  return players.some((p) => !p.code && seated.has(p.id)) ? players.map((p) => (p.code || !seated.has(p.id) ? p : { ...p, code: newCode() })) : players;
 }
 
 /** Hands saved with `mine` (the phone owner's cards) move into `private`. */
@@ -165,7 +167,7 @@ export const useStore = create<State>()(
           }),
 
         addPlayer: (name) => {
-          const p: Player = { id: uid(), name: name.trim(), createdAt: now(), code: newCode() };
+          const p: Player = { id: uid(), name: name.trim(), createdAt: now() };
           set((s) => ({ players: [...s.players, p] }));
           return p;
         },
@@ -174,6 +176,7 @@ export const useStore = create<State>()(
           set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, code, codeIssued: true } : p)) }));
           return code;
         },
+        revealCode: (id) => set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, codeIssued: true } : p)) })),
         renamePlayer: (id, name) =>
           set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, name: name.trim() } : p)) })),
         setPlayerArchived: (id, archived) =>
@@ -226,7 +229,7 @@ export const useStore = create<State>()(
               });
           });
           if (g.tournament && !g.tournament.customPayouts) g.tournament.payouts = suggestPayouts(g);
-          set((s) => ({ games: [g, ...s.games] }));
+          set((s) => ({ games: [g, ...s.games], players: withCodes(s.players, [g]) }));
           return g;
         },
         updateGame: mutateGame,
@@ -246,6 +249,7 @@ export const useStore = create<State>()(
             const amount = buyIn ?? (g.type === 'cash' ? g.defaultBuyIn : g.tournament!.buyIn);
             if (amount > 0) g.buyIns.push({ id: uid(), playerId, amount, at: t });
             if (g.tournament && !g.tournament.customPayouts) g.tournament.payouts = suggestPayouts(g);
+            set((s) => ({ players: withCodes(s.players, [{ playerIds: [playerId] }]) }));
           }),
         addBuyIn: (gameId, playerId, amount) =>
           mutateGame(gameId, (g) => {
@@ -335,7 +339,7 @@ export const useStore = create<State>()(
         // Theme and opening screen are this phone's own preferences: a restore never changes them.
         importBackup: (data) =>
           set((s) => ({
-            players: withCodes(data.players),
+            players: withCodes(data.players, data.games),
             games: withPrivate(data.games),
             groups: data.groups ?? [],
             settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
@@ -357,7 +361,7 @@ export const useStore = create<State>()(
         return {
           ...current,
           ...p,
-          players: withCodes(p.players ?? current.players),
+          players: withCodes(p.players ?? current.players, p.games ?? current.games),
           games: withPrivate(p.games ?? current.games),
           groups: p.groups ?? [],
           settings: {

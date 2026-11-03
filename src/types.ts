@@ -304,7 +304,7 @@ export interface BountyRule {
 
 export type SuitKey = 's' | 'h' | 'c' | 'd';
 /** How cards look on this phone: the order of the suit rows in the card picker (top to bottom) and a colour per suit. */
-export interface CardLook { order: SuitKey[]; colors: Record<SuitKey, string> }
+export interface CardLook { order: SuitKey[]; colors: Record<SuitKey, string>; custom?: boolean }
 
 export interface Settings {
   theme: ThemePref;

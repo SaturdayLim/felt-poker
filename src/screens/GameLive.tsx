@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light } from '../components/ui';
-import { NameEntry, titleCase } from '../components/players';
+import { NameEntry, titleCase, CodeControl } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
@@ -255,6 +255,7 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
             <button type="button" className="felt-pcard-name felt-ellipsis" onClick={() => { setNm(name); setEditing(true); }} aria-label={`${name}. Tap to rename`}>{name}</button>
           )}
           {!isCash && place && <span className="sat-badge">{place === 1 ? 'Winner' : `Place ${place}`}</span>}
+          <CodeControl pid={pid} />
           {!closed && <StatusLight value={status} onChange={onLight} name={name} outLabel={isCash ? 'Clock out' : 'Bust'} />}
         </div>
         <div className="felt-pcard-stats">

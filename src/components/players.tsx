@@ -1,8 +1,11 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
-import { Icon, Sheet, toast } from './ui';
+import { Help, Icon, Sheet, toast } from './ui';
 import { showCode } from '../lib/codes';
-import type { Player } from '../types';
+import { filterGames, playerSummary } from '../lib/stats';
+import { money } from '../lib/format';
+import { go } from '../router';
+import type { ID, Player } from '../types';
 
 /* ---------------------------- name autocorrect ---------------------------- */
 
@@ -163,43 +166,69 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
 
 /* ---------------------------- player code ---------------------------- */
 
-/** Gives a player a new code. "Show" reveals it once; "Copy" puts a message on the clipboard and never shows it.
-    The old code stops working at once, so a player who already has a code is asked first. */
-export function PlayerCodeSheet({ p, onClose }: { p: Player; onClose: () => void }) {
+/** The code icon. Grey shut eye: no code, the player has no game yet. Shut eye: a code is ready, tap shows it. Open eye: the code is
+    on screen, tap hides it. Refresh: the code was seen, 2 taps replace it, and the old code stops working. */
+export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
+  const p = useStore((s) => s.players.find((x) => x.id === pid));
+  const inGame = useStore((s) => s.games.some((g) => g.playerIds.includes(pid)));
   const issueCode = useStore((s) => s.issueCode);
-  const issued = useStore((s) => !!s.players.find((x) => x.id === p.id)?.codeIssued);
-  const [ask, setAsk] = useState<'show' | 'copy' | null>(null);
+  const revealCode = useStore((s) => s.revealCode);
   const [shown, setShown] = useState<string | null>(null);
-  const run = (how: 'show' | 'copy') => {
-    if (issued && ask !== how) { setAsk(how); return; }
-    const code = issueCode(p.id);
-    setAsk(null);
-    if (how === 'show') { setShown(code); return; }
-    const msg = `${p.name}, your Felt player code is ${showCode(code)}. Keep it private.`;
-    navigator.clipboard?.writeText(msg).then(() => toast(`Message for ${p.name} copied. The code stays hidden.`), () => toast('Copy was blocked. Use Show instead.'));
-    onClose();
+  const [ask, setAsk] = useState<'show' | 'copy' | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  if (!p) return null;
+  const ready = !!p.code && inGame;
+  const confirm = (how: 'show' | 'copy') => {
+    setAsk(how);
+    toast('Tap again: this cancels the current code.');
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setAsk(null), 4000);
   };
-  if (shown) {
-    return (
-      <Sheet open onClose={onClose} title={`${p.name}: player code`} sub="This code cannot be retrieved once this screen closes.">
-        <div className="felt-code-big" aria-label={`Code ${shown}`}>{showCode(shown)}</div>
-        <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" onClick={onClose}>Done</button>
-      </Sheet>
-    );
-  }
+  const tap = () => {
+    if (!ready) { toast('A code starts when this player joins a game.'); return; }
+    if (shown) { setShown(null); return; }
+    if (!p.codeIssued) { revealCode(pid); setShown(p.code!); return; }
+    if (ask !== 'show') { confirm('show'); return; }
+    setAsk(null);
+    setShown(issueCode(pid));
+  };
+  const copy = () => {
+    if (p.codeIssued && !shown && ask !== 'copy') { confirm('copy'); return; }
+    setAsk(null);
+    let code = shown ?? p.code!;
+    if (p.codeIssued && !shown) code = issueCode(pid); else revealCode(pid);
+    navigator.clipboard?.writeText(`${p.name}, your Felt player code is ${showCode(code)}. Keep it private.`)
+      .then(() => toast(`Message for ${p.name} copied.`), () => toast('Copy was blocked. Tap the eye to show the code.'));
+  };
+  const icon = !ready ? 'dark' : shown ? 'eye' : p.codeIssued ? 'refresh' : 'dark';
+  const what = !ready ? 'No code yet' : shown ? 'Hide the code' : p.codeIssued ? 'Replace the code' : 'Show the code';
   return (
-    <Sheet open onClose={onClose} title={`${p.name}: player code`} sub={issued ? 'A code is in use.' : 'No code issued yet.'}>
-      <div className="sat-flat sat-card sat-small">
-        {issued ? 'A new code cancels the current one. Old reports keep working with the old code. A report built after this needs the new code.' : 'The player needs a code to add cards and to open their page in a report.'}
+    <span className={`felt-code ${ready ? '' : 'is-none'}`}>
+      {label && <span className="felt-code-label">Player code<Help k="playerCode" /></span>}
+      {shown && <b className="felt-code-shown sat-num" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
+      {label && ready && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
+      <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-code-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>
+    </span>
+  );
+}
+
+/** The player pop-up: headline figures, the code, then Full stats and Edit name. */
+export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) {
+  const games = useStore((s) => s.games);
+  const currency = useStore((s) => s.settings.currency);
+  const [editing, setEditing] = useState(false);
+  const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
+  if (editing) return <PlayerEditSheet p={p} onClose={onClose} />;
+  return (
+    <Sheet open onClose={onClose} title={p.name}>
+      <div className="felt-tiles">
+        <div className="sat-flat sat-card"><span className="sat-caption">Net</span><b className="sat-num">{s.games ? money(s.net, currency, { sign: true }) : '-'}</b></div>
+        <div className="sat-flat sat-card"><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></div>
+        <div className="sat-flat sat-card"><span className="sat-caption">Games</span><b className="sat-num">{s.games}</b></div>
       </div>
-      <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-        <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => run('show')}>
-          <Icon name="eye" /> {ask === 'show' ? 'Tap again: cancel the current code' : 'Show new code (once)'}
-        </button>
-        <button className="sat-btn sat-btn--block" onClick={() => run('copy')}>
-          <Icon name="file" /> {ask === 'copy' ? 'Tap again: cancel the current code' : 'Copy new code (hidden)'}
-        </button>
-      </div>
+      <CodeControl pid={p.id} label />
+      <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => { onClose(); go(`insights/${p.id}`); }}>Full stats</button>
+      <button className="sat-btn sat-btn--block" onClick={() => setEditing(true)}>Edit name</button>
     </Sheet>
   );
 }

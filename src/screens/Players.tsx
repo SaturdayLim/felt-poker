@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Icon, toast, SourceTip } from '../components/ui';
-import { PlayerEditSheet, titleCase } from '../components/players';
+import { PlayerSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
 import { GroupSheet, groupSettlement } from './Group';
 import { money } from '../lib/format';
@@ -79,12 +79,11 @@ export default function Players() {
               return (
                 <div key={p.id} className="felt-row">
                   <Avatar name={p.name} />
-                  <button className="felt-row-main" style={{ textAlign: 'left', minHeight: 44 }} onClick={() => go(`insights/${p.id}`)}>
+                  <button className="felt-row-main" style={{ textAlign: 'left', minHeight: 44 }} onClick={() => setEdit(p)}>
                     <div className="felt-row-title">{p.name} {p.archived && <span className="sat-badge sat-badge--muted">Archived</span>}</div>
                     <div className="felt-row-sub">{s.games} games, {s.handsWon} hands won</div>
                   </button>
                   {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
-                  <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setEdit(p)} aria-label={`Edit ${p.name}`}><Icon name="edit" /></button>
                 </div>
               );
             })}
@@ -92,7 +91,7 @@ export default function Players() {
         )}
         {list.length > 0 && <div className="felt-source"><SourceTip>Felt game log ({closed.length} closed games). Net result in {currency}.</SourceTip></div>}
       </div>
-      {edit && <PlayerEditSheet p={edit} onClose={() => setEdit(null)} />}
+      {edit && <PlayerSheet p={edit} onClose={() => setEdit(null)} />}
       {newGroup && <GroupSheet onClose={() => setNewGroup(false)} />}
     </div>
   );

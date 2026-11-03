@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.1.2', date: '3 Nov 2026', notes: [
+    'Player pop-up: tap a player for net, win rate, games and the code. Full stats and Edit name sit below.',
+    'A code now starts when a player joins a first game. The icon shows the state: grey shut eye, shut eye, open eye, refresh.',
+    'The code icon also sits on each player card in a game.',
+    'Settings, Cards: one Default switch. Custom adds a hex box and an eyedropper for each suit. Drag a handle to reorder.',
+  ] },
   { version: '1.1.1', date: '3 Nov 2026', notes: [
     'A phone that lacks a function Felt needs now shows a warning. Felt needs iOS 16.2 or Chrome 111.',
     'A code replaced during a live game now works at once.',

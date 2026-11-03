@@ -13,6 +13,6 @@ describe('card look', () => {
   });
   it('maps a colour name to its hex, with hearts and diamonds red by default', () => {
     expect(lookColor(undefined, 'h')).toBe(lookColor(undefined, 'd'));
-    expect(lookColor({ ...DEFAULT_LOOK, colors: { ...DEFAULT_LOOK.colors, c: 'green' } }, 'c')).toBe('#1b8a4b');
+    expect(lookColor({ ...DEFAULT_LOOK, custom: true, colors: { ...DEFAULT_LOOK.colors, c: 'green' } }, 'c')).toBe('#1b8a4b');
   });
 });

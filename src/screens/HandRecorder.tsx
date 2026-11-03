@@ -4,7 +4,7 @@ import { back, backTo, go } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
 import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
-import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush } from '../components/ui';
+import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush, useSwipeDown, SlidePane, DockPanel } from '../components/ui';
 import { bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
@@ -13,7 +13,7 @@ import {
   STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
   newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, unknownBoxes, type Replay,
 } from '../lib/hand';
-import { estimateStacks } from '../lib/stacks';
+import { estimateStacks, exactStacks } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import type { Act, Card, Game, Hand, HandLog, ID, StreetName } from '../types';
 
@@ -98,11 +98,6 @@ function readDraft(gameId: string, n: number): Draft | null {
   } catch { return null; }
 }
 
-function exactStacks(g: Game, n: number): Record<ID, number> {
-  const est = estimateStacks(g, n);
-  return Object.fromEntries(Object.entries(est.stack).filter(([p, v]) => v !== undefined && !(est.spread[p] > 0))) as Record<ID, number>;
-}
-
 function freshState(g: Game, n: number, dealt: ID[], button: ID | undefined, stacks: Record<ID, number>): RState {
   return {
     id: uid(), n, log: newBoxLog(g, dealt, button, stacks), tab: 'preflop', ended: false, skipReveal: false, note: '',
@@ -183,6 +178,30 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   // All-in with the stack only a range: the keypad asks for the amount (it was the whole stack)
   const [allInAsk, setAllInAsk] = useState(false);
   const dock = useDockPush();
+  const panelOpen = !!target || !!sel;
+  useSwipeDown(dock, () => { setTarget(null); setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false); }, panelOpen);
+  // a card picker that opens under the finger must not take the second tap of a double tap
+  const pickerAt = useRef(0);
+  useEffect(() => { if (target) pickerAt.current = Date.now(); }, [!!target]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the keypad or card picker never covers the field being filled: it scrolls clear, between the header and the dock
+  const fieldKey = target ? JSON.stringify(target) : sel ? `${sel.p}/${sel.r}` : '';
+  useEffect(() => {
+    if (!fieldKey) return;
+    const clear = () => {
+      const all = [...document.querySelectorAll<HTMLElement>(target ? '.felt-recorder .felt-card.target, .felt-recorder .felt-acts-name.is-target' : '.felt-recorder .felt-box.is-sel')];
+      const el = all.find((x) => !x.closest('.felt-header, .felt-slide-out'));
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const top = (document.querySelector('.felt-header')?.getBoundingClientRect().bottom ?? 0) + 8;
+      const bottom = window.innerHeight - (document.querySelector<HTMLElement>('.felt-rec-dock')?.offsetHeight ?? 0) - 20;
+      const dy = r.bottom > bottom ? r.bottom - bottom : r.top < top ? r.top - top : 0;
+      if (dy) window.scrollBy({ top: dy, behavior: 'smooth' });
+    };
+    const f = requestAnimationFrame(clear);
+    // the header shrinks with the board: check again once it has settled
+    const t = window.setTimeout(clear, 280);
+    return () => { cancelAnimationFrame(f); window.clearTimeout(t); };
+  }, [fieldKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (existing || !st) return;
@@ -193,7 +212,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => {
     if (!g || !st || readOnly || !liveStatus(g.id).on) return;
     const t = window.setTimeout(() => {
-      publishNow(g.id, buildNow(g, useStore.getState().players, { n: st.n, tab: st.tab, log: st.log, board: st.board, ended: st.ended, shown: st.shown })).catch(() => undefined);
+      publishNow(g.id, buildNow(g, useStore.getState().players, { n: st.n, tab: st.tab, log: st.log, board: st.board, ended: st.ended, shown: st.shown, runSlots: st.runSlots })).catch(() => undefined);
     }, 500);
     return () => window.clearTimeout(t);
   }, [g, st, readOnly]);
@@ -217,7 +236,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     const s = new Set<Card>();
     if (!st) return s;
     st.board.forEach((c) => c && s.add(c));
-    st.runSlots.forEach((r) => r.forEach((c) => c && s.add(c)));
+    // run cards count only while the hand is on a run: going back to a street frees them
+    if (st.log.runFrom !== undefined) st.runSlots.forEach((r) => r.forEach((c) => c && s.add(c)));
     Object.values(st.shown).forEach((x) => x.forEach((c) => c && s.add(c)));
     (st.mine ?? []).forEach((c) => c && s.add(c));
     return s;
@@ -322,8 +342,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   };
   const openStreet = (l: HandLog, s: StreetName, patch: Partial<RState> = {}) => {
     let l2 = l.streets[s] ? l : openStreetBoxes(g, l, s, stacks);
-    l2 = { ...l2, runFrom: undefined };
-    setSt({ ...st, ...patch, log: l2, tab: s, ended: false });
+    l2 = { ...l2, runFrom: undefined, runs: 1, runCards: [] };
+    setSt({ ...st, ...patch, log: l2, runSlots: [], tab: s, ended: false });
     setSel(replayStreet(g, l2, s, stacks).next);
     setTyped('');
     const slot = st.board.findIndex((c, i) => !c && i < STREET_CARDS[s]);
@@ -485,7 +505,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   /* --------- cards --------- */
   const pick = (c: Card) => {
-    if (!target) return;
+    if (!target || Date.now() - pickerAt.current < 300) return;
     if (target.kind === 'mine') {
       const m = [...(st.mine ?? [null, null])]; m[target.ci] = c;
       setMine(m);
@@ -509,13 +529,26 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       const shown = { ...st.shown, [target.p]: nextCards };
       set({ shown });
       if (target.ci === 0 && !nextCards[1]) { setTarget({ kind: 'shown', p: target.p, ci: 1 }); return; }
-      if (st.tab !== 'showdown') { setTarget(null); return; }
+      if (st.tab !== 'showdown') {
+        const before = st.shown;
+        setTarget(null);
+        toast(`${name(target.p)} shows ${nextCards.map((x) => cardText(x!)).join(' ')}.`, { label: 'Undo', run: () => setSt((x) => (x ? { ...x, shown: before } : x)) });
+        return;
+      }
       // on to the next player still to show
       const order = showdownOrder(g, log, live);
       const after = [...order.slice(order.indexOf(target.p) + 1), ...order.slice(0, order.indexOf(target.p))];
       const nx = after.find((p) => !(shown[p]?.filter(Boolean).length === 2) && !log.mucked.includes(p));
       setTarget(nx ? { kind: 'shown', p: nx, ci: shown[nx]?.[0] ? 1 : 0 } : null);
     }
+  };
+  /** Done on the card picker. Half a pair shown mid-hand is dropped, so it does not take a card out of play. */
+  const closePicker = () => {
+    if (target?.kind === 'shown' && st.tab !== 'showdown' && (st.shown[target.p] ?? []).filter(Boolean).length === 1) {
+      const { [target.p]: _drop, ...rest } = st.shown;
+      set({ shown: rest });
+    }
+    setTarget(null);
   };
   const isTarget = (t: Exclude<Target, null>) => JSON.stringify(t) === JSON.stringify(target);
   const tapSlot = (t: Exclude<Target, null>, filled: boolean) => {
@@ -606,6 +639,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         )}
       </Header>
 
+      <SlidePane k={st.tab} i={TABS.indexOf(st.tab)}>
       <div className="sat-stack" style={gap(3)}>
         {st.tab === 'setup' && (
           <>
@@ -662,7 +696,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
               <p className="sat-small sat-muted">This hand was logged with the earlier recorder. {inAtEnd(log, street).length} players were still in after the {LABEL[street].toLowerCase()}, pot {units(potTotal(g, log, log.button, street))}.</p>
             ) : replay && (
               <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} name={name} onPick={readOnly ? () => {} : pickBox}
-                shown={st.shown} onName={(p) => { if (readOnly) return; setSel(null); setTyped(''); setTarget({ kind: 'shown', p, ci: st.shown[p]?.[0] ? 1 : 0 }); }} />
+                shown={st.shown} namingFor={target?.kind === 'shown' ? target.p : null} onName={(p) => { if (readOnly) return; setSel(null); setTyped(''); setTarget({ kind: 'shown', p, ci: st.shown[p]?.[0] ? 1 : 0 }); }} />
             )}
           </>
         )}
@@ -681,23 +715,27 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           </fieldset>
         )}
       </div>
+      </SlidePane>
 
       {askCards && (
         <CardEntrySheet players={log.dealt} name={name} onClose={() => setAskCards(false)} onSave={savePlayerCards}
           entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n)])]}
+          revealed={shownCards()}
           blocked={[...st.board, ...Object.values(st.shown).flat()].filter(Boolean) as Card[]} />
       )}
       <div ref={dock} className="sat-bottombar sat-glass-2 felt-rec-dock">
         {!target && !(replay && selCell && sel) && (
           <button type="button" className="felt-fab" aria-label="Add player cards" onClick={() => setAskCards(true)}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
         )}
+        <DockPanel k={target ? 'picker' : replay && selCell && sel ? 'keypad' : ''}>
         {target ? (
           <div className="felt-picker-wrap">
             <div className="sat-split">
               <Caption>{targetLabel(target, name)}</Caption>
               <span className="sat-cluster" style={gap(1)}>
                 {target.kind === 'mine' && mineCards.length > 0 && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { setMine([null, null]); setTarget({ kind: 'mine', ci: 0 }); }}>Clear</button>}
-                <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setTarget(null)}>Done</button>
+                {target.kind === 'shown' && (st.shown[target.p] ?? []).some(Boolean) && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { const { [target.p]: _drop, ...rest } = st.shown; set({ shown: rest }); setTarget({ kind: 'shown', p: target.p, ci: 0 }); }}>Clear</button>}
+                <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={closePicker}>Done</button>
               </span>
             </div>
             <CardPickerGrid disabled={(c) => !pickable(c)} onPick={pick} />
@@ -713,6 +751,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             }}
             onClear={() => act(sel.p, sel.r, null)} onOk={() => (allInAsk ? Number(typed) > 0 && act(sel.p, sel.r, mark({ k: 'allin', to: Number(typed) })) : commitBet(typed ? Number(typed) : minTo))} onMin={() => commitBet(minTo)} />
         ) : null}
+        </DockPanel>
         {readOnly ? (
           <div className="felt-dock-actions">
             <button className="sat-btn sat-btn--lg" aria-disabled={!prevHand} onClick={() => prevHand && go(`game/${g.id}/hand/${prevHand.id}`, true)}>Previous hand</button>
@@ -758,7 +797,7 @@ function targetLabel(t: Exclude<Target, null>, name: (id: ID) => string) {
   if (t.kind === 'mine') return `Private cards, card ${t.ci + 1}`;
   if (t.kind === 'board') return BOARD_SLOT[t.i];
   if (t.kind === 'run') return `Run ${t.r + 1}, card ${t.i + 1}`;
-  return `${name(t.p)}, card ${t.ci + 1}`;
+  return `${name(t.p)} shows, card ${t.ci + 1}`;
 }
 
 /** Label for closing the street on screen (empty boxes take their defaults). When that ends the hand,
@@ -806,10 +845,13 @@ function BoardRow({ board, to, lockedBefore, compact, isTarget, onTap }: {
 /** Rows from the small blind down to the button; columns are passes around the table, newest on the right.
     Grey boxes have nothing to decide. Players out of the hand stay as greyed rows. Amounts are street
     totals, so only a player's latest box stands; earlier boxes fade. C = call or check, F = fold. */
-function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown, onName }: {
+function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown, namingFor, onName }: {
   g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>;
-  name: (id: ID) => string; onPick: (p: ID, r: number) => void; shown: Record<ID, (Card | null)[]>; onName: (p: ID) => void;
+  name: (id: ID) => string; onPick: (p: ID, r: number) => void; shown: Record<ID, (Card | null)[]>; namingFor: ID | null; onName: (p: ID) => void;
 }) {
+  // a name opens the card picker only on a press and hold: a stray tap must not take cards out of play
+  const hold = useRef<number | undefined>(undefined);
+  const release = () => window.clearTimeout(hold.current);
   const scroller = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const bl = blinds(g, log.dealt, log.button);
@@ -819,19 +861,6 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   const spentBefore = (p: ID) => STREETS.slice(0, STREETS.indexOf(street)).reduce((a, x) => a + (log.streets[x]?.bets[p] ?? 0), 0);
   const tag = (p: ID) => (p === log.button && bl[p] !== undefined ? 'BTN, SB' : p === log.button ? 'BTN' : bl[p] !== undefined ? (p === sbSeat ? 'SB' : 'BB') : '');
   const s = replay.street;
-  // keep the box being filled in view between the header (which holds the board) and the keypad
-  useEffect(() => {
-    const box = document.querySelector('.felt-box.is-sel');
-    if (!box) return;
-    const f = requestAnimationFrame(() => {
-      const r = box.getBoundingClientRect();
-      const top = (document.querySelector('.felt-header')?.getBoundingClientRect().bottom ?? 0) + 8;
-      const bottom = window.innerHeight - (document.querySelector<HTMLElement>('.felt-rec-dock')?.offsetHeight ?? 0) - 20;
-      const dy = r.bottom > bottom ? r.bottom - bottom : r.top < top ? r.top - top : 0;
-      if (dy) window.scrollBy({ top: dy, behavior: 'smooth' });
-    });
-    return () => cancelAnimationFrame(f);
-  }, [sel?.p, sel?.r]);
   // keep the newest column in view
   useLayoutEffect(() => {
     const el = scroller.current;
@@ -843,8 +872,8 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
         {scrolled && <span className="felt-acts-more" aria-hidden="true">Earlier</span>}
         <div ref={scroller} className={`felt-acts ${scrolled ? 'is-scrolled' : ''}`} style={{ ['--cols' as string]: replay.cols }} onScroll={(e) => setScrolled(e.currentTarget.scrollLeft > 4)}>
           <div className="felt-acts-row felt-acts-head">
-            <span className="felt-acts-name"><Caption tip="betEntry">Action</Caption></span>
-            <span />
+            <span className="felt-acts-name"><Caption tip="handPlayers">Players</Caption></span>
+            <span className="felt-acts-headtip"><Caption tip="betEntry">Action</Caption></span>
             {Array.from({ length: replay.cols }, (_, r) => <span key={r} className="felt-acts-col">{r + 1}</span>)}
           </div>
           {rows.map((p) => {
@@ -856,8 +885,11 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
             const sub = [tag(p), gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
             return (
               <div key={p} className={`felt-acts-row ${folded ? 'is-folded' : ''}`}>
-                {/* tap a name to enter the cards that player shows, on any street, before they are mucked */}
-                <button type="button" className="felt-acts-name" aria-label={`${name(p)}: enter the cards they show`} onClick={() => onName(p)}>
+                {/* press and hold a name to enter the cards that player shows, on any street, before they are mucked */}
+                <button type="button" className={`felt-acts-name ${namingFor === p ? 'is-target' : ''}`} aria-label={`${name(p)}: press and hold to enter the cards they show`}
+                  onPointerDown={() => { release(); hold.current = window.setTimeout(() => { navigator.vibrate?.(10); onName(p); }, 450); }}
+                  onPointerUp={release} onPointerLeave={release} onPointerCancel={release} onContextMenu={(e) => e.preventDefault()}
+                  onClick={(e) => { if (e.detail === 0) onName(p); }}>
                   <span className="felt-ellipsis">{name(p)}</span>
                   {sub && <span className="felt-acts-sub felt-ellipsis">{sub}</span>}
                 </button>
@@ -911,6 +943,7 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
         <span className="felt-keypad-tools">
           {filled && <button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button>}
           <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
+          <Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} />
         </span>
       </div>
       <div className="felt-keypad-quick">
@@ -960,7 +993,7 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
     <>
       {log.runFrom !== undefined && live.length > 1 && (
         <section className="sat-glass sat-card sat-stack" style={gap(3)}>
-          <div className="sat-split"><h2 className="sat-h3">All-in: run it</h2><Help k="runs" /></div>
+          <div className="sat-split"><h2 className="sat-h3">No more action: run it</h2><Help k="runs" /></div>
           <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Times to run the board">
             <TabPill />
             {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={(log.runs ?? 1) === n} onClick={() => setRuns(n)}>{n === 1 ? 'Once' : `${n}x`}</button>)}

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { back, backTo, go, slideSwap } from '../router';
+import { back, backTo, go } from '../router';
 import { useDragList } from '../components/dragList';
-import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill } from '../components/ui';
+import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane } from '../components/ui';
 import { NameEntry, titleCase, CodeControl } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
@@ -11,7 +11,7 @@ import { buyInsEquivalent, dateLabel, duration, gameLength, inBB, money, timeLab
 import { estimateStacks, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
-import { LiveSheet, QrPopup, SharingLamp, lampState, useLive } from '../components/live';
+import { LiveRow } from '../components/live';
 import { uid } from '../lib/ids';
 import type { ChipMove, Game, Hand, ID } from '../types';
 
@@ -40,9 +40,6 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const st = useStore();
   const [tab, setTab] = useState<'players' | 'hands'>(initialTab);
   const [sheet, setSheet] = useState<SheetKind>(null);
-  const [liveOpen, setLiveOpen] = useState(false);
-  const [qrOpen, setQrOpen] = useState(false);
-  const live = useLive(gameId);
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Game" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
   const isCash = g.type === 'cash';
@@ -73,11 +70,12 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>}>
         <div className="felt-subnav sat-glass" role="tablist" aria-label="Game sections">
           <TabPill />
-          <button role="tab" aria-selected={tab === 'players'} onClick={() => tab !== 'players' && slideSwap('prev', () => setTab('players'), true)}><Icon name="users" size={18} /> Players <span className="sat-num">{inPlayers.length}</span></button>
-          <button role="tab" aria-selected={tab === 'hands'} onClick={() => tab !== 'hands' && slideSwap('next', () => setTab('hands'), true)}><Icon name="cards" size={18} /> Hands <span className="sat-num">{g.hands.length}</span></button>
+          <button role="tab" aria-selected={tab === 'players'} onClick={() => setTab('players')}><Icon name="users" size={18} /> Players <span className="sat-num">{inPlayers.length}</span></button>
+          <button role="tab" aria-selected={tab === 'hands'} onClick={() => setTab('hands')}><Icon name="cards" size={18} /> Hands <span className="sat-num">{g.hands.length}</span></button>
         </div>
       </Header>
 
+      <SlidePane k={tab} i={tab === 'players' ? 0 : 1}>
       <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
         {closed && (
           <button className="sat-flat sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => backTo(`game/${g.id}/close`)}>
@@ -85,17 +83,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
           </button>
         )}
 
-        <div className="sat-flat sat-card felt-liverow">
-          <button className="felt-liverow-main" onClick={() => setLiveOpen(true)}>
-            <Icon name="share" size={18} /><span className="felt-grow">Live link</span>
-            <span className="sat-small sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', fontWeight: 600 }}>
-              {live.on && live.viewers.length > 0 && `${live.viewers.length} viewing`}
-              {live.on && live.flags.length > 0 && `${live.flags.length} ${live.flags.length === 1 ? 'flag' : 'flags'}`}
-              <SharingLamp state={lampState(live)} />
-            </span>
-          </button>
-          <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" onClick={() => (live.on ? setQrOpen(true) : setLiveOpen(true))}><Icon name="qr" /></button>
-        </div>
+        <LiveRow g={g} />
 
         <div className="felt-summary">
           <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins` : money(totalPotMoney(g), g.currency)}</b></span>
@@ -140,6 +128,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
           </>
         )}
       </div>
+      </SlidePane>
 
       {!closed && (
         <div className="sat-bottombar sat-glass-2">
@@ -163,8 +152,6 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
           cta="Save count" onClose={() => setSheet(null)}
           onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips`); }} />;
       })()}
-      {liveOpen && <LiveSheet g={g} onClose={() => setLiveOpen(false)} />}
-      {qrOpen && live.on && <QrPopup link={live.link} onClose={() => setQrOpen(false)} />}
       {sheet?.k === 'move' && <MoveSheet g={g} name={name} onClose={() => setSheet(null)} />}
       {sheet?.k === 'buyins' && <BuyInsSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'back' && <BackInSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}

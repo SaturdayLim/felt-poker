@@ -122,3 +122,9 @@ export function stackLabel(g: Game, est: StackEstimate, p: ID): string | null {
   const hi = Math.max(lo, Math.ceil((v + s) / step) * step);
   return `~${lo.toLocaleString('en-US')}-${hi.toLocaleString('en-US')}`;
 }
+
+/** Stacks before hand n, only where the estimate is exact. All-ins resolve against these. */
+export function exactStacks(g: Game, n: number): Record<ID, number> {
+  const est = estimateStacks(g, n);
+  return Object.fromEntries(Object.entries(est.stack).filter(([p, v]) => v !== undefined && !(est.spread[p] > 0))) as Record<ID, number>;
+}

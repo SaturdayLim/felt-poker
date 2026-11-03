@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Component, createRef, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
@@ -124,19 +124,24 @@ export function ThemeCycle() {
 
 /* ------------------------------- sheet ------------------------------- */
 
-/** The highlight of a tab bar or segmented control. It is one layer behind the buttons, clipped to the selected one,
-    so it slides along the bar and keeps its corners. Put it first inside the bar. */
+/** The highlight of a tab bar or segmented control: a real rounded box behind the buttons. It moves with a CSS
+    transition, which retargets if a second tap comes mid-way. Put it first inside the bar. */
 export function TabPill() {
   const ref = useRef<HTMLSpanElement>(null);
+  const placed = useRef(false);
   const place = () => {
     const el = ref.current, box = el?.parentElement;
     if (!el || !box) return;
     const sel = box.querySelector<HTMLElement>(':scope > [aria-selected="true"], :scope > [aria-checked="true"], :scope > [aria-current="page"]');
     el.style.opacity = sel ? '1' : '0';
     if (!sel) return;
-    const w = box.scrollWidth, h = box.clientHeight;
-    el.style.width = `${w}px`;
-    el.style.clipPath = `inset(${sel.offsetTop}px ${w - sel.offsetLeft - sel.offsetWidth}px ${h - sel.offsetTop - sel.offsetHeight}px ${sel.offsetLeft}px round 10px)`;
+    // the first placement must not slide in from the corner
+    if (!placed.current) el.style.transition = 'none';
+    el.style.width = `${sel.offsetWidth}px`;
+    el.style.height = `${sel.offsetHeight}px`;
+    el.style.transform = `translate(${sel.offsetLeft}px, ${sel.offsetTop}px)`;
+    el.style.borderRadius = getComputedStyle(sel).borderTopLeftRadius;
+    if (!placed.current) { void el.offsetWidth; el.style.transition = ''; placed.current = true; }
   };
   useLayoutEffect(place);
   useEffect(() => {
@@ -147,6 +152,154 @@ export function TabPill() {
     return () => ro.disconnect();
   }, []);
   return <span ref={ref} className="felt-pill" aria-hidden="true" />;
+}
+
+const calm = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const DRAWER = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const SLIDE_MS = 280;
+
+/** Slides its content sideways when `k` changes: a copy of the old screen leaves on one side, the new screen comes
+    in from the other, in time with the tab highlight. `i` gives the direction; a negative `i` means no slide.
+    This needs no browser feature, so it runs the same on every phone Felt supports. */
+export class SlidePane extends Component<{ k: string; i: number; children: ReactNode }> {
+  el = createRef<HTMLDivElement>();
+  getSnapshotBeforeUpdate(prev: { k: string; i: number }) {
+    const el = this.el.current;
+    if (!el || prev.k === this.props.k || prev.i < 0 || this.props.i < 0 || calm()) return null;
+    return { copy: el.cloneNode(true) as HTMLElement, r: el.getBoundingClientRect() };
+  }
+  componentDidUpdate(prev: { k: string; i: number }, _s: unknown, snap: { copy: HTMLElement; r: DOMRect } | null) {
+    const el = this.el.current;
+    if (!snap || !el) return;
+    const { copy, r } = snap;
+    const by = (this.props.i > prev.i ? 1 : -1) * (r.width + 24);
+    copy.classList.add('felt-slide-out');
+    copy.setAttribute('aria-hidden', 'true');
+    copy.inert = true;
+    copy.style.cssText = `position:fixed;top:${r.top}px;left:${r.left}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:5;pointer-events:none`;
+    // a sticky header in the copy stays where it was on screen
+    copy.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => { if (r.top < 0) h.style.transform = `translateY(${-r.top}px)`; });
+    (el.closest('dialog') ?? document.body).append(copy);
+    const t = { duration: SLIDE_MS, easing: DRAWER };
+    const out = copy.animate({ transform: ['translateX(0)', `translateX(${-by}px)`] }, t);
+    out.onfinish = out.oncancel = () => copy.remove();
+    // a hidden tab holds back the finish event
+    window.setTimeout(() => copy.remove(), SLIDE_MS + 100);
+    el.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t);
+  }
+  render() { return <div ref={this.el} className="felt-slide">{this.props.children}</div>; }
+}
+
+/** The keypad or card picker inside the bottom dock. However it closes, a copy of it slides down behind the dock. */
+export class DockPanel extends Component<{ k: string; children: ReactNode }> {
+  el = createRef<HTMLDivElement>();
+  getSnapshotBeforeUpdate(prev: { k: string }) {
+    const el = this.el.current;
+    if (!el || !prev.k || this.props.k || calm()) return null;
+    return { copy: el.cloneNode(true) as HTMLElement, r: el.getBoundingClientRect(), host: el.parentElement?.parentElement ?? document.body };
+  }
+  componentDidUpdate(_p: unknown, _s: unknown, snap: { copy: HTMLElement; r: DOMRect; host: HTMLElement } | null) {
+    if (!snap) return;
+    const { copy, r, host } = snap;
+    copy.classList.add('felt-dock-ghost');
+    copy.setAttribute('aria-hidden', 'true');
+    copy.inert = true;
+    copy.style.cssText = `position:fixed;top:${r.top}px;left:${r.left}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:44;pointer-events:none`;
+    host.append(copy);
+    const a = copy.animate({ transform: ['translateY(0)', `translateY(${window.innerHeight - r.top}px)`] }, { duration: 240, easing: DRAWER });
+    a.onfinish = a.oncancel = () => copy.remove();
+    window.setTimeout(() => copy.remove(), 340);
+  }
+  render() { return this.props.k ? <div ref={this.el} className="felt-dock-panel">{this.props.children}</div> : null; }
+}
+
+/** Swipe down on a panel that opens from the bottom closes it, and the page behind does not scroll.
+    Inside a scrolling panel the swipe scrolls first and closes only from the top. */
+export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, on = true) {
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !on) return;
+    let s: { x: number; y: number; t: number; drag: boolean } | null = null;
+    const scroller = (from: EventTarget | null) => {
+      for (let n = from as HTMLElement | null; n; n = n === el ? null : n.parentElement) {
+        if (n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(n).overflowY)) return n;
+      }
+      return null;
+    };
+    const start = (e: TouchEvent) => {
+      const free = (e.target as HTMLElement).closest?.('input[type="range"], input[type="color"], textarea, [data-drag-row]');
+      s = e.touches.length === 1 && !free ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), drag: false } : null;
+    };
+    const move = (e: TouchEvent) => {
+      if (!s) return;
+      const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+      if (!s.drag) {
+        const sc = scroller(e.target);
+        if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { s = null; return; }
+        if (dy > 8 && (!sc || sc.scrollTop <= 0)) { s.drag = true; s.y = e.touches[0].clientY; s.t = Date.now(); }
+        else if (sc) { if (Math.abs(dy) > 8) s = null; return; }
+        else { e.preventDefault(); return; }
+      }
+      e.preventDefault();
+      el.style.translate = `0 ${Math.max(0, e.touches[0].clientY - s.y)}px`;
+    };
+    const end = (e: TouchEvent) => {
+      if (!s?.drag) { s = null; return; }
+      const dy = Math.max(0, e.changedTouches[0].clientY - s.y), speed = dy / Math.max(1, Date.now() - s.t);
+      s = null;
+      // the tap that ends a swipe must not press a button
+      const stop = (c: Event) => { c.stopPropagation(); c.preventDefault(); };
+      window.addEventListener('click', stop, { capture: true, once: true });
+      window.setTimeout(() => window.removeEventListener('click', stop, true), 350);
+      if (dy > 90 || (dy > 24 && speed > 0.6)) { close.current(); if (el.tagName !== 'DIALOG') el.style.translate = ''; return; }
+      el.animate?.({ translate: [`0 ${dy}px`, '0 0'] }, { duration: 240, easing: DRAWER });
+      el.style.translate = '';
+    };
+    const cancel = () => { s = null; el.style.translate = ''; };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', cancel);
+    return () => {
+      el.removeEventListener('touchstart', start);
+      el.removeEventListener('touchmove', move);
+      el.removeEventListener('touchend', end);
+      el.removeEventListener('touchcancel', cancel);
+      el.style.translate = '';
+    };
+  }, [ref, on]);
+}
+
+/** A button for an action that cannot be undone: hold it while the ring fills. A short tap only says so. */
+export function HoldButton({ ms = 1200, label, hint, onDone, children }: { ms?: number; label: string; hint: string; onDone: () => void; children: ReactNode }) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const at = useRef(0);
+  const release = (tap: boolean) => {
+    window.clearTimeout(timer.current);
+    if (!at.current) return;
+    if (tap && Date.now() - at.current < 350) toast(hint);
+    at.current = 0;
+    setHolding(false);
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  return (
+    <button type="button" className={`sat-btn sat-btn--ghost sat-iconbtn felt-hold ${holding ? 'is-holding' : ''}`} aria-label={label} style={{ ['--hold' as string]: `${ms}ms` }}
+      onPointerDown={() => {
+        at.current = Date.now();
+        setHolding(true);
+        navigator.vibrate?.(8);
+        timer.current = window.setTimeout(() => { at.current = 0; setHolding(false); navigator.vibrate?.([12, 40, 24]); onDone(); }, ms);
+      }}
+      onPointerUp={() => release(true)} onPointerLeave={() => release(false)} onPointerCancel={() => release(false)}
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={(e) => { if (e.detail === 0) onDone(); }}>
+      <svg className="felt-hold-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" pathLength={1} /></svg>
+      {children}
+    </button>
+  );
 }
 
 /** A bottom dock whose height changes rises and falls with the new content, so it pushes up instead of appearing.
@@ -162,6 +315,8 @@ export function useDockPush() {
       el.animate?.({ translate: [`0 ${d}px`, '0 0'] }, { duration: 240, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
     }
     last.current = now;
+    // the page keeps room for the dock, so the last row can scroll clear of it
+    el.parentElement?.style.setProperty('--felt-dock-h', `${now}px`);
   });
   return ref;
 }
@@ -172,25 +327,37 @@ export function Sheet({ open, onClose, title, sub, children }: {
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const closing = useRef(onClose);
-  const swipe = useRef<{ y: number; t: number } | null>(null);
   closing.current = onClose;
   /** Leaves the way it came in: down off the screen, then closes. */
   const leaving = useRef(false);
+  const phone = () => window.innerWidth < 640;
+  const fadeBackdrop = (d: HTMLDialogElement, from: number, to: number, ms: number) => {
+    try { d.animate({ opacity: [from, to] }, { duration: ms, easing: 'linear', fill: 'forwards', pseudoElement: '::backdrop' }); } catch { /* an older phone: the backdrop does not fade */ }
+  };
   const dismiss = () => {
     const d = ref.current;
     if (leaving.current) return;
-    if (!d?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { closing.current(); return; }
+    if (!d?.animate || calm()) { closing.current(); return; }
     leaving.current = true;
-    const phone = window.innerWidth < 640;
-    d.animate(phone ? { transform: [getComputedStyle(d).transform === 'none' ? 'translateY(0)' : getComputedStyle(d).transform, 'translateY(100%)'] } : { opacity: [1, 0], transform: ['scale(1)', 'scale(.97)'] },
-      { duration: 200, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }).onfinish = () => { leaving.current = false; closing.current(); };
+    fadeBackdrop(d, 1, 0, 240);
+    d.animate(phone() ? { translate: [d.style.translate || '0 0', '0 100%'] } : { opacity: [1, 0], transform: ['scale(1)', 'scale(.97)'] },
+      { duration: 240, easing: DRAWER, fill: 'forwards' }).onfinish = () => { leaving.current = false; closing.current(); };
   };
   const dismissRef = useRef(dismiss);
   dismissRef.current = dismiss;
+  useSwipeDown(ref, () => dismissRef.current(), open);
   useEffect(() => {
     const d = ref.current;
     if (!open || !d) return;
-    if (!d.open) d.showModal();
+    if (!d.open) {
+      d.showModal();
+      // the page behind stays still while the sheet is open
+      document.documentElement.classList.add('felt-sheet-open');
+      if (d.animate && !calm()) {
+        fadeBackdrop(d, 0, 1, 240);
+        d.animate(phone() ? { translate: ['0 100%', '0 0'] } : { opacity: [0, 1], transform: ['scale(.97)', 'scale(1)'] }, { duration: 320, easing: DRAWER });
+      }
+    }
     const onCancel = (e: Event) => { e.preventDefault(); dismissRef.current(); };
     const onClick = (e: MouseEvent) => {
       const r = d.getBoundingClientRect();
@@ -198,31 +365,20 @@ export function Sheet({ open, onClose, title, sub, children }: {
     };
     d.addEventListener('cancel', onCancel);
     d.addEventListener('click', onClick);
-    return () => { d.removeEventListener('cancel', onCancel); d.removeEventListener('click', onClick); if (d.open) d.close(); };
+    return () => {
+      d.removeEventListener('cancel', onCancel);
+      d.removeEventListener('click', onClick);
+      if (d.open) d.close();
+      if (!document.querySelector('dialog[open]')) document.documentElement.classList.remove('felt-sheet-open');
+    };
   }, [open]);
   if (!open) return null;
   return (
     <dialog ref={ref} className="sat-sheet sat-glass-2" aria-label={title}>
-      <div className="felt-sheet-grab" aria-hidden="true"
-        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); swipe.current = { y: e.clientY, t: Date.now() }; ref.current?.classList.add('is-swiping'); }}
-        onPointerMove={(e) => { if (swipe.current && ref.current) ref.current.style.transform = `translateY(${Math.max(0, e.clientY - swipe.current.y)}px)`; }}
-        onPointerUp={(e) => {
-          const s = swipe.current, d = ref.current;
-          swipe.current = null;
-          if (!s || !d) return;
-          const dy = e.clientY - s.y;
-          d.classList.remove('is-swiping');
-          // far enough, or a quick flick, closes the sheet; otherwise it springs back
-          if (dy > 90 || (dy > 24 && dy / Math.max(1, Date.now() - s.t) > 0.6)) { dismiss(); return; }
-          d.style.transition = 'transform 240ms cubic-bezier(.32,.72,0,1)';
-          d.style.transform = '';
-          window.setTimeout(() => { d.style.transition = ''; }, 260);
-        }}
-        onPointerCancel={() => { swipe.current = null; if (ref.current) { ref.current.classList.remove('is-swiping'); ref.current.style.transform = ''; } }} />
       <div className="sat-stack">
         <div className="sat-split">
           <h2 className="sat-h3">{title}</h2>
-          <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={dismiss}>Close</button>
+          <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={dismiss}>Close</button>
         </div>
         {sub && <p className="sat-small sat-muted" style={{ marginTop: -8 }}>{sub}</p>}
         {children}
@@ -377,6 +533,15 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
 /** A face-down card: the white Felt mark on cobalt, with a gold trim. */
 export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
   return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 40 : size === 'sm' ? 19 : 25} /></span>;
+}
+
+/** Two outlined empty cards (Nil) or two face-down cards (Filled). */
+export function CardPair({ filled, size = 'sm' }: { filled: boolean; size?: 'sm' | 'lg' }) {
+  return (
+    <span className="felt-cards" role="img" aria-label={filled ? 'Filled' : 'Nil'}>
+      {filled ? <><CardBack size={size} /><CardBack size={size} /></> : <><span className={`felt-card felt-cardslot ${size}`} /><span className={`felt-card felt-cardslot ${size}`} /></>}
+    </span>
+  );
 }
 
 export function Cards({ cards, size }: { cards: Card[]; size?: 'sm' | 'lg' }) {

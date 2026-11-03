@@ -60,6 +60,12 @@
 - Narrow phone (320px): bottom bar buttons fit; Stats period chips fit; summary values align.
 - Test codes in `trial/potato-test-backup.json`: Everett 222222, Bel 333333, Nat 444444, Mike 555555. Import it into a test copy to match the report.
 
+## Done (3 Nov 2026, v1.2.4)
+- Viewer boxes match the host (snapshots replay with exact stacks). `actionClosed` counts only all-ins up to that street, which also stops a later all-in dropping streets.
+- Slides no longer use view transitions: `SlidePane` and `DockPanel` copy the old content and animate it. Only the Log hand morph uses a view transition.
+- Live link is `LiveRow` on the game page. `docs/MOTION-LIST.md` lists the motion examples needed from the owner.
+- Not tested on a real iPhone: touch, keyboard lift, motion feel. Touch swipe was tested with simulated touch events only.
+
 ## Next
 - Export a new backup from the phone once this version is on it: the app then gives every player a code, and the report must be rebuilt from that backup so its codes match the app.
 - Build the trial report into the app (Download or Share: Interactive report).

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHECK_TEXT, fromB64Url, keyFromPassphrase, newRoomId, newRoomKey, open, seal } from './crypto';
 import { mockDriver } from './mock';
-import { buildNow, buildPub, standings, viewText } from './snapshot';
+import { buildNow, buildPub, buildView, standings, viewText } from './snapshot';
 import { newBoxLog, replayStreet, setAct } from '../lib/hand';
 import { lock, unlock } from '../report/lock';
 import type { Game, Player } from '../types';
@@ -89,6 +89,32 @@ describe('hand in progress', () => {
     expect(hand(log).acted).toBe(false);
     const next = replayStreet(g, log, 'preflop').next!;
     expect(hand(setAct(g, log, 'preflop', next.p, next.r, { k: 'call' })).acted).toBe(true);
+  });
+});
+
+describe('host and viewer read the same hand', () => {
+  it('an all-in key with no amount shows as all-in, and the calls stay calls', () => {
+    const g = { ...game(), hands: [], buyIns: [{ id: 'x', playerId: 'a', amount: 47, at: 1 }, { id: 'y', playerId: 'b', amount: 200, at: 1 }] } as ReturnType<typeof game>;
+    const stacks = { a: 47, b: 200 };
+    let log = newBoxLog(g, ['a', 'b'], 'a', stacks);
+    log = setAct(g, log, 'preflop', 'a', 1, { k: 'allin' }, stacks);
+    log = setAct(g, log, 'preflop', 'b', 1, { k: 'call' }, stacks);
+    log = { ...log, streets: { ...log.streets, preflop: { ...log.streets.preflop!, at: 5 } } };
+    const view = buildNow(g, players, { n: 1, tab: 'preflop', log, board: [], ended: false }).view;
+    const rows = view.streets[0].rows;
+    const last = (name: string) => { const r = rows.find((x) => x.name === name)!; return r.cells.filter((c) => c.t)[r.cells.filter((c) => c.t).length - 1]; };
+    expect(last('Everett')).toMatchObject({ kind: 'allin', t: '47' });
+    expect(last('Bel')).toMatchObject({ t: 'C' });
+    expect(rows.some((r) => r.folded)).toBe(false);
+  });
+  it('more than one run gives one board per run', () => {
+    const g = game();
+    let log = newBoxLog(g, ['a', 'b'], 'a');
+    log = { ...log, runs: 2, runFrom: 3, runCards: [['2c', '3c'], ['4c', '5c']] };
+    const v = buildView(g, log, ['As', 'Kd', 'Qh', '2c', '3c'], (p) => p, { winners: [], shown: [] });
+    expect(v.runs?.map((r) => [...r.common, ...r.cards].length)).toEqual([5, 5]);
+    expect(v.streets.some((s) => s.key === 'turn')).toBe(false);
+    expect(viewText(1, 1, 2, v)).toContain('Run 2: As Kd Qh 4c 5c');
   });
 });
 

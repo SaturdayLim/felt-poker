@@ -47,8 +47,16 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A bought-in player with an exact stack of 0 is not dealt in by default and cannot be added until a rebuy. A player with no chips in the pot is never a finalist.
 - Viewers see a new hand only after real action (check, call, bet, raise, fold). Blinds and card entry alone do not show it.
 - Viewers can send their own cards for a hand. The host's entry for that player replaces them.
-- Card entry says Filled or Nil. Filled cards show as two face-down cards (white Felt mark, cobalt, gold trim), no sentence.
+- Card entry shows no words: filled = two face-down cards (white Felt mark, cobalt, gold trim), nil = two outlined empty cards. Cards already shown at the table show face up.
 - A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
+- Live link sits on the game page, no pop-up: password space with eye and censoring, copy, QR, and a switch that glows green (on) or red (off). Copy and QR work only when on.
+- All-in run-out is offered only when no further action is possible (the street's all-ins count, not later ones). With one all-in and 2 still able to bet, the street goes on.
+- Viewers read the same boxes as the host: snapshots replay with the same stacks. More than one run shows one board per run.
+- A name in the recorder needs a press and hold to enter shown cards. A tap does nothing. Run cards stop blocking the picker when the hand goes back to a street.
+- Pop-ups never cover the field being filled: the keypad and picker scroll it clear, and the keyboard pushes sheets up.
+- Every panel from the bottom opens and closes with a slide; a swipe down or a tap outside closes it.
+- Replacing a player code: press and hold until the ring fills. A tap only says so.
+- Player view: the card button signs in. Sign out sits in its sheet.
 - Partly recorded follows the log: filling in every skipped box makes the hand whole again.
 - Keypad open: everything else is greyed out; a tap outside only closes the keypad. Scrolling leaves it open.
 - The close-street button names the outcome ("Eve wins 9") and offers Undo when empty boxes took the default.
@@ -56,7 +64,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Chip moves (side game, tip, other) change stacks, not pots or hand stats, and show as dashed rows between hands.
 - Chip move sits on both the Players tab and the Hands tab. The End game count shows each player's estimate and flags a count that differs (a missing chip move).
 - A closed game's hands open read-only for review (every stage, Previous and Next hand). No reopening needed.
-- Player codes: a player gets a random 6-character code on entering a first game. Icon: grey shut eye (no game, no code), full shut eye (code ready, unseen), open eye (code on screen), refresh (seen; 2 taps replace it). Codes can repeat but very rarely.
+- Player codes: a player gets a random 6-character code on entering a first game. Icon: grey shut eye (no game, no code), full shut eye (code ready, unseen), open eye (code on screen), refresh (seen; hold to replace it). Codes can repeat but very rarely.
 - Private cards: each player's own hole cards are kept apart from the cards shown at the table. Anyone adds them with the floating card icon on any stage of a hand, write only. After the game, any player opens their own cards in hand review with their player code and can add or change them; the game stays closed. Nobody else sees them; they are never in images or CSV in the open.
 - Shared report (trial): Game Summary and Compare are open; each player page is encrypted with that player's code. Lock text: "Enter player code to access player stats."
 - Awards come from a fixed list, each with a minimum to count (src/report/model.ts, AWARD_LIST). A tie shares an award.

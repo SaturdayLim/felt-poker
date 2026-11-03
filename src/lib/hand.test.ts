@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Game } from '../types';
+import type { Game, HandLog } from '../types';
 import { bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
@@ -400,5 +400,18 @@ describe('2-7 bounty', () => {
   it('winning uncontested and showing 2-7 counts under every rule', () => {
     const res = { pots: [pot(30, ['CY'], [['CY']])], winners: [{ playerId: 'CY', amount: 30 }], missing: false };
     for (const win of ['shown', 'won', 'sole'] as const) expect(bountyWinner(res, ['CY'], { CY: ['2h', '7s'] }, { win, suited: false })).toBe('CY');
+  });
+});
+
+describe('run-out needs no further action', () => {
+  const log3 = (allInAt: Record<string, 'preflop' | 'flop' | 'turn' | 'river'>) => ({ v: 1, mode: 'bets', dealt: ['A', 'B', 'C'], streets: { preflop: { bets: {}, prev: {}, typed: {}, folded: [], raisers: [] }, flop: { bets: {}, prev: {}, typed: {}, folded: [], raisers: [] }, turn: { bets: {}, prev: {}, typed: {}, folded: [], raisers: [] } }, allInAt, runs: 1, runCards: [], shown: {}, mucked: [], startedAt: 1 }) as unknown as HandLog;
+  it('one all-in with 2 still able to bet stays open', () => {
+    expect(actionClosed(log3({ A: 'preflop' }), 'preflop')).toBe(false);
+  });
+  it('a second all-in on the turn closes the turn, not an earlier street', () => {
+    const l = log3({ A: 'preflop', B: 'turn' });
+    expect(actionClosed(l, 'preflop')).toBe(false);
+    expect(actionClosed(l, 'flop')).toBe(false);
+    expect(actionClosed(l, 'turn')).toBe(true);
   });
 });

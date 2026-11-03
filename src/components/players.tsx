@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
-import { Help, Icon, Sheet, toast } from './ui';
+import { Help, HoldButton, Icon, Sheet, toast } from './ui';
 import { showCode } from '../lib/codes';
 import { filterGames, playerSummary } from '../lib/stats';
 import { money } from '../lib/format';
@@ -167,36 +167,26 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
 /* ---------------------------- player code ---------------------------- */
 
 /** The code icon. Grey shut eye: no code, the player has no game yet. Shut eye: a code is ready, tap shows it. Open eye: the code is
-    on screen, tap hides it. Refresh: the code was seen, 2 taps replace it, and the old code stops working. */
+    on screen, tap hides it. Refresh: the code was seen, holding it replaces the code, and the old code stops working. */
 export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   const p = useStore((s) => s.players.find((x) => x.id === pid));
   const inGame = useStore((s) => s.games.some((g) => g.playerIds.includes(pid)));
   const issueCode = useStore((s) => s.issueCode);
   const revealCode = useStore((s) => s.revealCode);
   const [shown, setShown] = useState<string | null>(null);
-  const [ask, setAsk] = useState<'show' | 'copy' | null>(null);
-  const timer = useRef<number | undefined>(undefined);
   if (!p) return null;
   const ready = !!p.code && inGame;
-  const confirm = (how: 'show' | 'copy') => {
-    setAsk(how);
-    toast('Tap again: this cancels the current code.');
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setAsk(null), 4000);
-  };
+  const replace = () => { const c = issueCode(pid); setShown(c); toast('Code replaced. The old code stops working.'); };
   const tap = () => {
     if (!ready) { toast('A code starts when this player joins a game.'); return; }
     if (shown) { setShown(null); return; }
-    if (!p.codeIssued) { revealCode(pid); setShown(p.code!); return; }
-    if (ask !== 'show') { confirm('show'); return; }
-    setAsk(null);
-    setShown(issueCode(pid));
+    revealCode(pid);
+    setShown(p.code!);
   };
   const copy = () => {
-    if (p.codeIssued && !shown && ask !== 'copy') { confirm('copy'); return; }
-    setAsk(null);
-    let code = shown ?? p.code!;
-    if (p.codeIssued && !shown) code = issueCode(pid); else revealCode(pid);
+    if (p.codeIssued && !shown) { toast('Hold the refresh icon to replace the code first.'); return; }
+    const code = shown ?? p.code!;
+    revealCode(pid);
     navigator.clipboard?.writeText(`${p.name}, your Felt player code is ${showCode(code)}. Keep it private.`)
       .then(() => toast(`Message for ${p.name} copied.`), () => toast('Copy was blocked. Tap the eye to show the code.'));
   };
@@ -207,7 +197,9 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
       {label && <span className="felt-codectl-label">Player code<Help k="playerCode" /></span>}
       {shown && <b className="felt-codectl-shown sat-num" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
       {label && ready && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
-      <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>
+      {ready && !shown && p.codeIssued
+        ? <HoldButton label={`${what}: ${p.name}`} hint="Hold to replace the code." onDone={replace}><Icon name={icon} /></HoldButton>
+        : <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>}
     </span>
   );
 }

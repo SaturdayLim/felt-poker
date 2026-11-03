@@ -106,22 +106,14 @@ button.felt-row { color: inherit; }
 /* Motion. Curves: --sat-ease to enter and leave, --felt-move for movement on screen, --felt-drawer for docks and morphs. */
 :root { --felt-move: cubic-bezier(0.77, 0, 0.175, 1); --felt-drawer: cubic-bezier(0.32, 0.72, 0, 1); }
 
-/* Screens slide with the tab highlight. The bar stays still; inside a page the header stays too. */
+/* Screens slide with the tab highlight (SlidePane in ui.tsx). The Log hand morph is the only view transition. */
+.felt-app { overflow-x: clip; }
+.felt-slide { min-width: 0; }
+.felt-slide-out, .felt-slide-out *, .felt-dock-ghost, .felt-dock-ghost * { animation: none !important; transition: none !important; view-transition-name: none !important; }
+.felt-dock-ghost { background: var(--sat-solid-2); border-radius: var(--sat-radius-lg); }
 .felt-nav { view-transition-name: felt-nav; }
-html[data-keep] .felt-header { view-transition-name: felt-head; }
-html[data-slide]::view-transition-group(root) { background: var(--sat-bg); }
-html[data-slide]::view-transition-old(root), html[data-slide]::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: var(--felt-move); animation-fill-mode: both; mix-blend-mode: normal; }
-html[data-slide="next"]::view-transition-old(root) { animation-name: felt-to-left; }
-html[data-slide="next"]::view-transition-new(root) { animation-name: felt-from-right; }
-html[data-slide="prev"]::view-transition-old(root) { animation-name: felt-to-right; }
-html[data-slide="prev"]::view-transition-new(root) { animation-name: felt-from-left; }
-@keyframes felt-to-left { to { transform: translateX(-100%); } }
-@keyframes felt-to-right { to { transform: translateX(100%); } }
-@keyframes felt-from-left { from { transform: translateX(-100%); } }
-@keyframes felt-from-right { from { transform: translateX(100%); } }
-html[data-slide]::view-transition-old(felt-nav), html[data-keep]::view-transition-old(felt-head) { display: none; }
-html[data-slide]::view-transition-new(felt-nav), html[data-keep]::view-transition-new(felt-head) { animation: none; }
-html[data-slide]::view-transition-group(felt-nav), html[data-keep]::view-transition-group(felt-head) { animation: none; }
+::view-transition-old(felt-nav) { display: none; }
+::view-transition-new(felt-nav), ::view-transition-group(felt-nav) { animation: none; }
 
 /* Log hand: the button grows into the hand page, and the page shrinks back into it */
 .felt-logbtn, .felt-recorder { view-transition-name: felt-morph; }
@@ -129,8 +121,8 @@ html[data-slide]::view-transition-group(felt-nav), html[data-keep]::view-transit
 ::view-transition-old(felt-morph), ::view-transition-new(felt-morph) { animation-duration: 200ms; height: 100%; object-fit: cover; object-position: top; }
 @media (prefers-reduced-motion: reduce) { .felt-logbtn, .felt-recorder, .felt-nav { view-transition-name: none; } }
 
-/* Tab highlight: one layer behind the buttons, clipped to the selected button (TabPill in ui.tsx) */
-.felt-pill { position: absolute; top: 0; left: 0; height: 100%; z-index: 0; pointer-events: none; background: var(--sat-accent-soft); opacity: 0; transition: clip-path 260ms var(--felt-move), opacity var(--sat-dur-fast) var(--sat-ease); }
+/* Tab highlight: a rounded box behind the buttons (TabPill in ui.tsx). Same time and curve as the screens. */
+.felt-pill { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; background: var(--sat-accent-soft); opacity: 0; transition: transform 280ms var(--felt-drawer), width 280ms var(--felt-drawer), height 280ms var(--felt-drawer), opacity var(--sat-dur-fast) var(--sat-ease); }
 .sat-seg > .felt-pill { background: var(--sat-glass-2); }
 :has(> .felt-pill) { position: relative; }
 .felt-nav :has(> .felt-pill) > a, :has(> .felt-pill) > button { position: relative; z-index: 1; transition: color var(--sat-dur-base) var(--sat-ease), transform var(--sat-dur-fast) var(--sat-ease); }
@@ -153,8 +145,36 @@ html[data-slide]::view-transition-group(felt-nav), html[data-keep]::view-transit
 .felt-row, .felt-pickwin-btn, .felt-choice-dot { transition: background-color var(--sat-dur-fast) var(--sat-ease), border-color var(--sat-dur-fast) var(--sat-ease); }
 @media (prefers-reduced-motion: reduce) { .felt-band { animation: sat-fade var(--sat-dur-base) var(--sat-ease); } }
 
-.sat-sheet.is-swiping { transition: none; }
-.felt-sheet-grab { position: absolute; top: 0; left: 0; right: 0; height: 36px; touch-action: none; cursor: grab; }
+/* Sheets: opening and closing run in Sheet (ui.tsx). A swipe down closes; the page behind stays still; the keyboard pushes the sheet up. */
+dialog.sat-sheet[open] { animation: none; overscroll-behavior: contain; margin-bottom: var(--felt-kb, 0px); }
+html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
+.felt-rec-dock { overscroll-behavior: contain; }
+/* An open panel is solid: the page behind must not show through the keys */
+.felt-app .felt-rec-dock:has(.felt-dock-panel) { background: var(--sat-solid-2); }
+.felt-dock-panel { display: flex; flex-direction: column; gap: var(--sat-space-2); }
+
+/* Buttons that close a panel stand up from it */
+.felt-btn-raised.felt-btn-raised { background: var(--sat-solid-2); border: 1px solid var(--sat-line-strong); font-weight: 600; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 2px rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.12); }
+
+/* Hold to confirm: a ring fills while held, and runs back fast on release */
+.felt-hold { position: relative; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: transform var(--sat-dur-fast) var(--sat-ease); }
+.felt-hold.is-holding { transform: scale(.92); }
+.felt-hold-ring { position: absolute; inset: 0; width: 100% !important; height: 100% !important; transform: rotate(-90deg); pointer-events: none; }
+.felt-hold-ring circle { fill: none; stroke: var(--felt-coral); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 200ms var(--sat-ease); }
+.felt-hold.is-holding .felt-hold-ring circle { stroke-dashoffset: 0; transition: stroke-dashoffset var(--hold, 1200ms) linear; }
+
+/* Player cards: two outlined slots mean no cards yet */
+.felt-card.felt-cardslot { background: transparent; border: 1.5px solid var(--sat-line-strong); display: inline-block; }
+
+/* More than one run: one board per row */
+.felt-runs { display: flex; flex-direction: column; gap: var(--sat-space-1); }
+.felt-run { display: flex; align-items: center; gap: var(--sat-space-2); }
+.felt-run > .sat-caption { width: 44px; flex: none; }
+
+/* Recorder: a name being filled, and the Action tip above the boxes */
+button.felt-acts-name { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-offset: -2px; }
+.felt-acts-headtip { display: flex; justify-content: flex-end; align-items: center; padding-right: var(--sat-space-2); }
 
 /* Join: the camera fills the screen */
 .felt-scan { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #02070a; color: #eaf4fa; display: flex; flex-direction: column; justify-content: space-between; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); }
@@ -219,10 +239,6 @@ html[data-slide]::view-transition-group(felt-nav), html[data-keep]::view-transit
 @media (prefers-reduced-motion: reduce) { .felt-skel { animation: none; } }
 
 /* Live game */
-.felt-share-lamp { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; transition: background 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease); }
-.felt-share-lamp.is-on { background: #35c46b; box-shadow: 0 0 8px rgba(53,196,107,.7); }
-.felt-share-lamp.is-wait { background: #f0a92e; box-shadow: 0 0 8px rgba(240,169,46,.7); }
-.felt-share-lamp.is-off { background: #e5484d; box-shadow: 0 0 6px rgba(229,72,77,.5); }
 .felt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-pos); margin-right: 6px; vertical-align: 1px; }
 .felt-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sat-space-3); }
 .felt-kpis .sat-kpi { font-size: 1.75rem; }
@@ -375,7 +391,7 @@ html[data-slide]::view-transition-group(felt-nav), html[data-keep]::view-transit
 .felt-split { padding: var(--sat-space-1) var(--sat-space-3); }
 
 /* Hand recorder: stage tabs and status inside the sticky header, action table, keypad dock */
-.felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + 358px); }
+.felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + var(--felt-dock-h, 358px) + 32px); }
 .felt-rec-bar { margin-top: var(--sat-space-2); padding: 4px; border-radius: var(--sat-radius-md); }
 .felt-tabs { display: flex; gap: 2px; }
 .felt-tabs button { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 0 5px; border-radius: calc(var(--sat-radius-md) - 4px); font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); white-space: nowrap; }
@@ -619,16 +635,25 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 
 /* Live link */
 .felt-liverow { display: flex; align-items: center; gap: var(--sat-space-1); padding-top: var(--sat-space-1); padding-bottom: var(--sat-space-1); }
-.felt-liverow-main { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: var(--sat-space-2); color: inherit; text-align: left; }
-.felt-linkrow { display: flex; align-items: flex-start; gap: var(--sat-space-2); }
+/* Live link row: password, copy, QR, and a switch that glows green (on) or red (off) */
+.felt-livepass { flex: 1; min-width: 0; display: flex; align-items: center; min-height: 44px; }
+.felt-livepass-in { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; padding: 0; outline: 0; }
+.felt-livepass-in::placeholder { color: var(--sat-muted); font-weight: 500; }
+.felt-livepass-in:disabled { opacity: .7; -webkit-text-fill-color: currentColor; }
+.felt-livepass-eye { flex: none; width: 32px; height: 40px; display: grid; place-items: center; border: 0; background: none; color: var(--sat-muted); padding: 0; cursor: pointer; }
+.felt-liverow .sat-iconbtn:disabled { opacity: .3; cursor: default; }
+.felt-liveswitch { flex: none; width: 34px; height: 34px; margin: 0 4px; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.55); cursor: pointer; background: var(--felt-sw); box-shadow: inset 0 2px 3px rgba(255,255,255,.4), inset 0 -3px 5px rgba(0,0,0,.2), 0 0 14px 2px color-mix(in srgb, var(--felt-sw) 70%, transparent); transition: background-color 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease), transform var(--sat-dur-fast) var(--sat-ease); }
+.felt-liveswitch:active { transform: scale(.92); }
+.felt-liveswitch.is-on { --felt-sw: #35c46b; }
+.felt-liveswitch.is-off { --felt-sw: #e5484d; }
+.felt-liveswitch.is-wait { --felt-sw: #35c46b; animation: felt-sw-wait 1.2s ease-in-out infinite; }
+@keyframes felt-sw-wait { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .felt-liveswitch.is-wait { animation: none; opacity: .7; } }
 .felt-viewer { cursor: default; }
 .felt-qr-pop { border: 0; padding: 0; margin: auto; background: transparent; overflow: visible; transform-origin: 85% 10%; animation: felt-qr-in 280ms cubic-bezier(.32,1.28,.5,1); }
 .felt-qr-pop::backdrop { background: rgba(2,7,10,.62); animation: sat-fade 200ms var(--sat-ease); }
-.felt-qr-pop.is-leaving { animation: felt-qr-out 160ms var(--sat-ease) forwards; }
-.felt-qr-pop.is-leaving::backdrop { opacity: 0; transition: opacity 160ms var(--sat-ease); }
 .felt-qr-pop .felt-qr { width: min(78vw, 320px); height: min(78vw, 320px); padding: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
 @keyframes felt-qr-in { from { opacity: 0; transform: scale(.55); } }
-@keyframes felt-qr-out { to { opacity: 0; transform: scale(.8); } }
 @media (prefers-reduced-motion: reduce) { .felt-qr-pop, .felt-qr-pop::backdrop { animation: none; } }
 .felt-qr { width: 200px; height: 200px; margin: 0 auto; background: #fff; border-radius: var(--sat-radius-md); padding: 6px; }
 .felt-qr svg { width: 100%; height: 100%; display: block; }

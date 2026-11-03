@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
-import { useRoute } from './router';
-import { Icon, TabPill, ToastHost } from './components/ui';
+import { NAV_TABS, useRoute } from './router';
+import { Icon, SlidePane, TabPill, ToastHost } from './components/ui';
 import Home from './screens/Home';
 import Games from './screens/Games';
 import NewGame from './screens/NewGame';
@@ -49,6 +49,24 @@ export default function App() {
     return watchGames();
   }, [hydrated]);
   useEffect(() => { if (hydrated) try { localStorage.setItem(SPLASH_KEY, String(splashMs)); } catch { /* private mode */ } }, [hydrated, splashMs]);
+  // an open keyboard must not cover the field being typed in
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const fit = () => { if (vv) document.documentElement.style.setProperty('--felt-kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`); };
+    let t: number | undefined;
+    const onFocus = (e: FocusEvent) => {
+      const el = e.target as HTMLElement;
+      if (!el.matches?.('input:not([type="color"]):not([type="range"]), textarea, select')) return;
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        const r = el.getBoundingClientRect(), bottom = vv ? vv.height + vv.offsetTop : window.innerHeight;
+        if (r.bottom > bottom - 12 || r.top < (vv?.offsetTop ?? 0)) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 320);
+    };
+    vv?.addEventListener('resize', fit);
+    document.addEventListener('focusin', onFocus);
+    return () => { vv?.removeEventListener('resize', fit); document.removeEventListener('focusin', onFocus); window.clearTimeout(t); };
+  }, []);
   if (!hydrated) return <div className="felt-app" />;
 
   let screen: JSX.Element;
@@ -78,7 +96,7 @@ export default function App() {
   const active = a === 'game' || a === 'new' ? 'games' : a === 'group' ? 'players' : a ?? '';
   return (
     <div className="felt-app felt-enter">
-      {screen}
+      <SlidePane k={a ?? ''} i={NAV_TABS.indexOf(a ?? '')}>{screen}</SlidePane>
       {nav && (
         <nav className="felt-nav" aria-label="Main">
           <div className="sat-glass-2">

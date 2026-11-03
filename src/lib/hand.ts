@@ -186,8 +186,10 @@ export function setStreetPot(log: HandLog, street: StreetName, pot: number | und
 export function actionClosed(log: HandLog, street: StreetName): boolean {
   const live = inAtEnd(log, street);
   if (live.length < 2) return true;
-  const canBet = live.filter((p) => !log.allInAt?.[p]);
-  return canBet.length <= 1 && live.some((p) => log.allInAt?.[p]);
+  // only all-ins up to this street count: a later all-in must not close an earlier street
+  const allInBy = (p: ID) => { const at = log.allInAt?.[p]; return !!at && STREETS.indexOf(at) <= STREETS.indexOf(street); };
+  const canBet = live.filter((p) => !allInBy(p));
+  return canBet.length <= 1 && live.some(allInBy);
 }
 
 /** Wager per player per street. Bet mode = as entered. Count mode = each street's pot increase shared
@@ -542,7 +544,8 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
         bets[p] = Math.max(have, rm === undefined ? high : Math.min(high, rm));
         if (rm !== undefined && rm > 0 && bets[p] >= rm) allIn.add(p);
       } else {
-        let to = a.k === 'allin' ? (rm ?? a.to ?? high) : (a.to ?? high);
+        // an all-in with no stack known here takes the wager saved when it was logged
+        let to = a.k === 'allin' ? (rm ?? a.to ?? (src.bets?.[p] || high)) : (a.to ?? high);
         if (rm !== undefined) to = Math.min(to, rm);
         to = Math.max(to, have);
         typed[p] = true;

@@ -2,8 +2,7 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings, no way to read any private cards, including their own. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardBack, Cards, Empty, Header, Help, Icon, Sheet, TabPill, toast } from '../components/ui';
-import { slideSwap } from '../router';
+import { CardBack, CardPair, Cards, Empty, Header, Help, Icon, Sheet, SlidePane, TabPill, toast } from '../components/ui';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
 import { StandingChart } from '../components/candle';
@@ -39,6 +38,14 @@ const deviceId = () => {
 };
 const PotLine = ({ h }: { h: PubSnapshot['hands'][number] }) => (
   <span className="sat-small sat-muted felt-frame-cap"><span className="sat-num">Pot: {money(h.pot)}</span> - {h.winners.map((w) => `${w.name} (${money(w.amount)})`).join(', ') || 'No winner recorded'}</span>
+);
+/** Every run of the board, when the rest of the board ran more than once. */
+const RunBoards = ({ runs, size }: { runs: NonNullable<HandView['runs']>; size?: 'sm' }) => (
+  <div className="felt-runs">
+    {runs.map((r, i) => (
+      <div key={i} className="felt-run"><span className="sat-caption">Run {i + 1}</span>{r.common.length > 0 && <span className="felt-cards-old"><Cards cards={r.common} size={size} /></span>}<Cards cards={r.cards} size={size} /></div>
+    ))}
+  </div>
 );
 const MuckedRows = ({ names }: { names?: string[] }) => <>{(names ?? []).map((m) => <div key={m} className="felt-band-shown"><span>{m}</span><span className="felt-cards"><CardBack size="sm" /><CardBack size="sm" /></span><span className="sat-small sat-muted">Mucked</span></div>)}</>;
 
@@ -150,26 +157,27 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
   return (
     <div className="felt-page">
-      <Header title={pub.game.name} sub={me ? me.name : `Live, ${pub.hands.length} ${pub.hands.length === 1 ? 'hand' : 'hands'}`}
-        right={<button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={me ? `Signed in as ${me.name}` : 'Enter player code'} onClick={() => setSheet('code')}><Icon name="users" /></button>}>
+      <Header title={pub.game.name} sub={me ? me.name : `Live, ${pub.hands.length} ${pub.hands.length === 1 ? 'hand' : 'hands'}`}>
         <div className="felt-tabs sat-glass felt-join-tabs" role="tablist" aria-label="Live game">
           <TabPill />
-          {TABS.map((t, i) => <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => { if (tab !== t.k) slideSwap(i > TABS.findIndex((x) => x.k === tab) ? 'next' : 'prev', () => setTab(t.k), true); }}>{t.label}</button>)}
+          {TABS.map((t) => <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => setTab(t.k)}>{t.label}</button>)}
         </div>
       </Header>
 
+      <SlidePane k={tab} i={TABS.findIndex((t) => t.k === tab)}>
       <div className="sat-stack" style={gap(3)}>
         {tab === 'action' && <ActionLog now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')} />}
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button} />}
         {tab === 'settings' && <Rules pub={pub} />}
       </div>
+      </SlidePane>
 
-      <button type="button" className="felt-fab felt-fab--page" aria-label={me ? 'Add my cards' : 'Enter player code to add cards'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
+      <button type="button" className="felt-fab felt-fab--page" aria-label={me ? 'Add my cards' : 'Sign in with your player code'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
 
-      {sheet === 'code' && <CodeSheet me={me} onClose={() => setSheet(null)} onSubmit={async (c) => { const ok = await tryCode(c); if (ok) setSheet(null); return ok; }}
+      {sheet === 'code' && <CodeSheet onClose={() => setSheet(null)} onSubmit={async (c) => { const ok = await tryCode(c); if (ok) setSheet('cards'); return ok; }} />}
+      {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} onClose={() => setSheet(null)} onSave={sendCards}
         onLeave={() => { setMe(null); setCode(null); ss.del(`felt-join-code:${room}`); setSheet(null); }} />}
-      {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} onClose={() => setSheet(null)} onSave={sendCards} />}
       {sheet === 'flag' && <FlagSheet hands={hands} now={now} onClose={() => setSheet(null)}
         onSend={async (n, text) => { await driver.set(room, `flags/${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`, await seal({ n, text }, key!)); toast('Flag sent to the host.'); setSheet(null); }} />}
     </div>
@@ -212,7 +220,7 @@ function CopyHand({ n, blinds, view }: { n: number; blinds: { sb: number; bb: nu
 }
 
 /** One band: the street name, the board so far (old cards faded, the new card clear), then the action, newest first. */
-function Band({ s }: { s: ViewStreet }) {
+function Band({ s, runs }: { s: ViewStreet; runs?: HandView['runs'] }) {
   return (
     <div className="felt-band">
       <div className="felt-band-title">{s.label}</div>
@@ -222,6 +230,7 @@ function Band({ s }: { s: ViewStreet }) {
           <Cards cards={s.fresh} size="sm" />
         </div>
       )}
+      {s.key === 'showdown' && runs && <RunBoards runs={runs} size="sm" />}
       {(s.shown ?? []).map((x) => (
         <div key={x.name} className="felt-band-shown"><span>{x.name}</span><Cards cards={x.cards} size="sm" />{x.rank && <span className="sat-small sat-muted">{x.rank}</span>}</div>
       ))}
@@ -237,7 +246,7 @@ function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blind
       <div className="felt-frame-sum"><h2 className="felt-frame-title">Hand {n}</h2></div>
       <CopyHand n={n} blinds={blinds} view={view} />
       {live && <div className="felt-frame-live"><span>{live.toAct ? <><b>{live.toAct}</b> to act</> : ''}</span><span>Pot <b className="sat-num">{money(live.pot)}</b></span></div>}
-      {[...view.streets].reverse().map((s) => <Band key={s.key} s={s} />)}
+      {[...view.streets].reverse().map((s) => <Band key={s.key} s={s} runs={view.runs} />)}
     </section>
   );
 }
@@ -267,7 +276,7 @@ function HandsList({ hands, blinds, onOpen }: { hands: PubSnapshot['hands']; bli
             <PotLine h={h} />
           </div>
           <CopyHand n={h.n} blinds={blinds} view={h.view} />
-          {h.board.length > 0 && <Cards cards={h.board} size="sm" />}
+          {h.view.runs ? <RunBoards runs={h.view.runs} size="sm" /> : h.board.length > 0 && <Cards cards={h.board} size="sm" />}
           {h.shown.map((s) => <div key={s.name} className="felt-band-shown"><span>{s.name}</span><Cards cards={s.cards} size="sm" /><span className="sat-small sat-muted">{s.rank}</span></div>)}
           <MuckedRows names={h.mucked} />
         </div>
@@ -288,10 +297,11 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
         {view.streets.map((x) => <button key={x.key} role="tab" aria-selected={x.key === at} onClick={() => setAt(x.key)}>{x.key === 'preflop' ? 'Pre' : x.key === 'showdown' ? 'End' : x.label}</button>)}
       </div>
       {s && s.key !== 'showdown' && <div className="felt-rec-status"><span /><span>Pot <b className="sat-num">{money(s.pot)}</b></span></div>}
+      <SlidePane k={at} i={view.streets.findIndex((x) => x.key === at)}>
       {s?.key === 'showdown' ? (
         <section className="sat-glass-2 felt-frame">
-          {board.length > 0 && <Cards cards={board} />}
-          <Band s={s} />
+          {!view.runs && board.length > 0 && <Cards cards={board} />}
+          <Band s={s} runs={view.runs} />
         </section>
       ) : (
         <>
@@ -304,6 +314,7 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
                   <span />
                   {r.cells.map((c, i) => (
                     <span key={i} className={`felt-box is-${c.kind} ${c.past ? 'is-past' : ''}`}>
+                      {c.kind === 'allin' && <span className="v">All-in</span>}
                       {c.kind === 'fold' || c.kind === 'call' ? <span className="l">{c.t}</span> : c.t ? <span className="n sat-num">{c.t}</span> : null}
                       {c.dark && <span className="felt-box-dark" aria-hidden="true"><Icon name="dark" size={12} stroke={2} /></span>}
                     </span>
@@ -314,6 +325,7 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
           )}
         </>
       )}
+      </SlidePane>
     </div>
   );
 }
@@ -370,16 +382,16 @@ function Rules({ pub }: { pub: PubSnapshot }) {
 
 /* ------------------------------ sheets ------------------------------ */
 
-function CodeSheet({ me, onSubmit, onClose, onLeave }: { me: Me | null; onSubmit: (c: string) => Promise<boolean>; onClose: () => void; onLeave: () => void }) {
+function CodeSheet({ onSubmit, onClose }: { onSubmit: (c: string) => Promise<boolean>; onClose: () => void }) {
   return (
-    <Sheet open onClose={onClose} title={me ? me.name : 'Player code'}>
-      {me ? <button className="sat-btn sat-btn--block" onClick={onLeave}>Sign out</button> : <CodeBoxes onSubmit={onSubmit} />}
+    <Sheet open onClose={onClose} title="Player code">
+      <CodeBoxes onSubmit={onSubmit} />
     </Sheet>
   );
 }
 
-function HandPick({ hands, now, entered, me, onSave, onClose }: {
-  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void;
+function HandPick({ hands, now, entered, me, onSave, onClose, onLeave }: {
+  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
 }) {
   const [n, setN] = useState<number | null>(null);
   const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: [...now.board, ...(now.view.streets.flatMap((s) => (s.shown ?? []).flatMap((x) => x.cards)))] }] : [];
@@ -393,16 +405,17 @@ function HandPick({ hands, now, entered, me, onSave, onClose }: {
     );
   }
   return (
-    <Sheet open onClose={onClose} title="Pick a hand" sub="Your cards are write only. Nobody can see them, not even you.">
+    <Sheet open onClose={onClose} title={me.name} sub="Your cards are write only. Nobody can see them, not even you.">
       <div className="sat-glass-2 felt-list">
         {!mine.length && <div className="felt-row sat-small sat-muted">No hands for you yet.</div>}
         {mine.map((x) => (
           <button key={x.n} className="felt-row" onClick={() => setN(x.n)}>
             <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span></span>
-            <span className="sat-small sat-muted">{entered.has(x.n) ? 'Filled' : 'Nil'}</span>
+            <CardPair filled={entered.has(x.n)} />
           </button>
         ))}
       </div>
+      <button className="sat-btn sat-btn--block" onClick={onLeave}>Sign out</button>
     </Sheet>
   );
 }

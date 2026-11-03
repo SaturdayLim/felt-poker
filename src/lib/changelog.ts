@@ -1,5 +1,15 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.4', date: '3 Nov 2026', notes: [
+    'Player view now matches the host for all-ins. An all-in with no amount made every call show as a fold.',
+    'A later all-in no longer ends the hand at an earlier street. The run-out is offered only when no action is left.',
+    'Player view shows one board for each run.',
+    'Live link sits on the game page: password, copy, QR and a glowing switch.',
+    'The tab highlight and screens slide on every phone. Bottom panels slide in and out, and a swipe down closes them.',
+    'Pop-ups no longer cover the field being filled.',
+    'Hold a name to enter shown cards. Hold the refresh icon to replace a player code.',
+    'Player cards show as face-down, empty or face-up cards. In the player view the card button signs in.',
+  ] },
   { version: '1.2.3', date: '3 Nov 2026', notes: [
     'The tab highlight slides along each bar, and screens slide with it.',
     'Log hand grows from the button into the hand page.',

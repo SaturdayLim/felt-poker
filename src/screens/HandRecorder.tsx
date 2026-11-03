@@ -221,7 +221,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
   const log = st.log;
   const set = (patch: Partial<RState>) => setSt({ ...st, ...patch });
-  const meIn = !!cardsFor && log.dealt.includes(cardsFor);
   const mineCards = (st.mine ?? []).filter(Boolean) as Card[];
   const street = isStreet(st.tab) ? st.tab : null;
   const replay: Replay | null = street && log.streets[street]?.acts ? replayStreet(g, log, street, stacks) : null;
@@ -269,9 +268,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const payTag = (p: ID) => (
     <>
       {/* my own cards entered earlier: one tap shows them, when I show at the table */}
-      {p === me && mineCards.length === 2 && !(st.shown[p] ?? []).some(Boolean) && (
-        <button type="button" className="sat-chip felt-mini" onClick={() => set({ shown: { ...st.shown, [p]: [...mineCards] } })}>Show my cards</button>
-      )}
       {shown27(p) && live.includes(p) && (
         <span className="felt-paytag-wrap">
           <button type="button" className="sat-chip felt-mini felt-paytag" aria-pressed={bountyTo === p} onClick={() => set({ bounty: bountyTo === p ? null : p })}>Pay bounty</button>
@@ -585,18 +581,10 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
               <button key={t} role="tab" aria-selected={st.tab === t} className={tabDone(log, t, st.ended) ? 'is-done' : ''} onClick={() => goTab(t)}>{LABEL[t]}</button>
             ))}
           </div>
-          <div className="felt-rec-status" aria-live="polite">
-            <span><b>{LABEL[st.tab === 'setup' ? lastStreet : st.tab]}</b>{street && toAct && !readOnly ? `, ${toAct} to act` : ''}{partial ? ', partly recorded' : ''}</span>
-            {meIn ? (
-              <button type="button" className={`felt-mine ${mineCards.length ? 'has-cards' : ''}`}
-                aria-label={mineCards.length ? `${readOnly ? `${name(cardsFor!)}'s` : 'My'} cards: ${mineCards.map(cardText).join(' ')}. Tap to change` : `Enter ${readOnly ? `${name(cardsFor!)}'s` : 'my'} cards (private)`}
-                onClick={() => { setSel(null); setTyped(''); setTarget({ kind: 'mine', ci: st.mine?.[0] ? (st.mine?.[1] ? 0 : 1) : 0 }); }}>
-                {readOnly ? `${name(cardsFor!)}: ` : ''}{mineCards.length ? mineCards.map(cardText).join(' ') : readOnly ? 'add cards' : 'My cards'}
-              </button>
-            ) : null}
-            {(readOnly || st.ended) && <button type="button" className="felt-mine" onClick={() => setAskCards(true)}>Player cards</button>}
-            <span>Pot <b className="sat-num">{units(extra ? recordedPot + extra : potNow)}</b></span>
-          </div>
+        </div>
+        <div className="felt-rec-status" aria-live="polite">
+          <span>{street && toAct && !readOnly ? <><b>{toAct}</b> to act</> : ''}</span>
+          <span>Pot <b className="sat-num">{units(extra ? recordedPot + extra : street ? potTotal(g, log, log.button, street) : potNow)}</b></span>
         </div>
       </Header>
 
@@ -686,6 +674,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           blocked={[...st.board, ...Object.values(st.shown).flat()].filter(Boolean) as Card[]} />
       )}
       <div className="sat-bottombar sat-glass-2 felt-rec-dock">
+        {!target && !(replay && selCell && sel) && (
+          <button type="button" className="felt-fab" aria-label="Add player cards" onClick={() => setAskCards(true)}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
+        )}
         {target ? (
           <div className="felt-picker-wrap">
             <div className="sat-split">
@@ -706,7 +697,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
               if (!typed && roomFor(sel.p) === undefined) { setAllInAsk(true); return; }
               act(sel.p, sel.r, mark({ k: 'allin', to: typed ? Number(typed) : undefined }));
             }}
-            onClear={() => act(sel.p, sel.r, null)} onOk={() => (allInAsk ? Number(typed) > 0 && act(sel.p, sel.r, mark({ k: 'allin', to: Number(typed) })) : commitBet())} onMin={() => commitBet(minTo)} />
+            onClear={() => act(sel.p, sel.r, null)} onOk={() => (allInAsk ? Number(typed) > 0 && act(sel.p, sel.r, mark({ k: 'allin', to: Number(typed) })) : commitBet(typed ? Number(typed) : minTo))} onMin={() => commitBet(minTo)} />
         ) : null}
         {readOnly ? (
           <div className="felt-dock-actions">
@@ -894,7 +885,6 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
   return (
     <div className="felt-keypad" role="group" aria-label={`Action for ${who}`}>
       <div className="felt-keypad-head">
-        <span className="felt-ellipsis"><b>{who}</b>{toCall ? `, ${units(toCall)} to call` : ''}</span>
         <span className="felt-keypad-tools">
           {filled && <button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button>}
           <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
@@ -916,11 +906,11 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
       ) : (
         <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
           <div className={`felt-keypad-field ${typed ? 'has-value' : ''}`} aria-live="polite">
-            <span className="felt-keypad-label">{allInAsk ? 'All-in for' : `${verb} to`}</span>
-            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || <span className="felt-keypad-min">{allInAsk ? 'Type the all-in amount' : `Minimum ${units(minTo)}`}</span>}</span>
+            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || (allInAsk ? <span className="felt-keypad-min">Type the all-in amount</span> : <span className="felt-keypad-ghost">{units(minTo)}</span>)}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
           </div>
-          <button type="button" className="felt-keypad-ok" aria-disabled={!typed || !canRaise} disabled={!canRaise} onClick={onOk}>{verb}</button>
+          <Help k="raiseBox" />
+          <button type="button" className="felt-keypad-ok" aria-disabled={!canRaise || (allInAsk && !typed)} disabled={!canRaise} onClick={onOk}>{verb}</button>
         </div>
       )}
       <div className="felt-keypad-digits">

@@ -1,5 +1,10 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.1.3', date: '3 Nov 2026', notes: [
+    'Hand logging: a floating card icon adds player cards on any stage. My cards and Show my cards are gone.',
+    'Who acts and the pot now sit under the stage tabs. Each street tab shows that closing pot.',
+    'Keypad: the minimum shows as a grey figure, and Raise with no amount logs it.',
+  ] },
   { version: '1.1.2', date: '3 Nov 2026', notes: [
     'Player pop-up: tap a player for net, win rate, games and the code. Full stats and Edit name sit below.',
     'A code now starts when a player joins a first game. The icon shows the state: grey shut eye, shut eye, open eye, refresh.',

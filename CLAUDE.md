@@ -22,6 +22,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - The end-of-game button says End game. It opens the final chip count (cash) or the finish screen (tournament).
 - Theme and opening-screen length belong to the phone. A backup restore must never change them.
 - Player status: dealt into a hand or acting in it turns the player green (playing). An away player is paused and not dealt in by default.
+- Recorder: who acts sits left and the pot right, under the stage tabs and outside the box. On a street tab the pot is that street's closing pot.
 - Hand recorder rows run in time order: small blind first, button last. Columns are passes around the table, newest flush right.
 - A skipped box takes the default: check, or fold when facing a bet. Defaults are there to save taps and stay editable.
 - Shuffling seats does not draw a button: seat 1 has the button, seat 2 the small blind, seat 3 the big blind.
@@ -32,6 +33,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - House rules (minimum raise, 2-7 bounty) belong to each game: set in New Game, changed in the game settings, copied from the last game of the same type. Not in app Settings.
 - Minimum raise: Last raise (default), SB steps, Double. A smaller raise is refused with C or the minimum raise offered.
 - Keypad buttons say Call (Check when nothing is owed), Fold, All-in, with no amounts under them. Only the boxes use C and F.
+- Amount box: the minimum shows as ghost text. The first digit replaces it. Bet or Raise with no amount logs the minimum.
 - Minimum-raise error: "Raise minimum = 14" with "Call 4" and "Raise to 14" buttons. No brackets, no "(house rule)".
 - Dark actions carry a shut-eye mark; the SB and BB posts always show it. Straddle only for the first to act preflop (or the next after straddles), at the minimum raise of the house rule; it gives that player a later turn.
 - A player with nobody left to answer (everyone else folded or all-in) cannot bet or raise: those keys are greyed and a stored raise counts as a call.
@@ -46,7 +48,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Chip move sits on both the Players tab and the Hands tab. The End game count shows each player's estimate and flags a count that differs (a missing chip move).
 - A closed game's hands open read-only for review (every stage, Previous and Next hand). No reopening needed.
 - Player codes: a player gets a random 6-character code on entering a first game. Icon: grey shut eye (no game, no code), full shut eye (code ready, unseen), open eye (code on screen), refresh (seen; 2 taps replace it). Codes can repeat but very rarely.
-- Private cards: each player's own hole cards are kept apart from the cards shown at the table. While recording, the phone owner uses My cards. After the game, any player opens their own cards in hand review with their player code and can add or change them; the game stays closed. Nobody else sees them; they are never in images or CSV in the open.
+- Private cards: each player's own hole cards are kept apart from the cards shown at the table. Anyone adds them with the floating card icon on any stage of a hand, write only. After the game, any player opens their own cards in hand review with their player code and can add or change them; the game stays closed. Nobody else sees them; they are never in images or CSV in the open.
 - Shared report (trial): Game Summary and Compare are open; each player page is encrypted with that player's code. Lock text: "Enter player code to access player stats."
 - Awards come from a fixed list, each with a minimum to count (src/report/model.ts, AWARD_LIST). A tie shares an award.
 - Oldest phones: Felt needs iOS 16.2 or Chrome 111. `app/index.html` shows a warning below that. Do not add workarounds for older phones.

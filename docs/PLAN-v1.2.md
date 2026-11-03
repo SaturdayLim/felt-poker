@@ -4,6 +4,36 @@ Status: waiting on the answers in section 1. Nothing here is built yet.
 
 To answer: reply "defaults", and list only the ones you change (for example "Q4: the card picker. Q11: and board cards").
 
+## 0. Answers received (3 Nov 2026)
+
+- Q1: mock up both palettes before any app change: the 3 colours, and the original teal with an added accent.
+- Q2: drop the 20th detail.
+- Q3: Undo per the default. Flag user issues found in testing.
+- Q4: Settings, Cards: black marks fade into the background. Add hex entry with black and red as quick picks. Drag to reorder replaces the arrows.
+- Q5: default, mock up first.
+- Q6: sent by Telegram, opened with DuckDuckGo. No way to choose Safari or Chrome.
+- Q7: after a room was deleted and reactivated: "The key does not fit this game". Reopening goes blank, then works on the next reopen. Enter player code opens blank. Device: iPhone 7 Plus, iOS 14.6.
+- Q8: icon matches the app icons. It opens the Player cards view. "My cards" goes.
+- Q9: default, action on the left, pot on the right.
+- Q10: "Raise to >=23".
+- Q11: include all cards shown and recorded publicly, and board reveals.
+- Q12: chips committed before the action.
+- Q13: players see no notes and no tags. Remove tags from logging for now.
+- Q14: default.
+- Q15: paste link and camera scan. This is the default action when the spectator view opens in the app.
+
+### Findings from these answers (read from the code, not yet reproduced)
+
+- iOS 14.6 has no `<dialog>.showModal` (Safari added it in 15.4). `Sheet` in `ui.tsx` calls it, the error unmounts the app, and the page goes blank. This matches "Enter player code opens blank". Every sheet in the app has the same problem on that phone.
+- iOS 14.6 also has no `color-mix` (Safari 16.2). `styles.css` uses it in 9 places.
+- "The key does not fit": `Join` keeps its key in state. A new link opened in the same tab changes the hash only, so the old key stays. Fix: remount on a new room.
+- Q6: iPhone chat apps and Files preview HTML without scripts, and the report is all script. A file cannot fix this. In-app view helps the host only. Decision needed: see Q16.
+- Q3 risks to test: closing the app inside the Undo window (a delayed delete must still run), a second delete during the window, viewers still seeing a room for 5 seconds after Stop sharing.
+
+### New question
+
+- Q16: how do players read the report on iPhone? Option 1 (recommended): a report link, with the encrypted report stored in Firebase. This changes "Firebase only while live", so it needs an expiry. Option 2: the file stays, and players use the live room until the host stops sharing.
+
 ## 1. Clarifications
 
 ### Luxury

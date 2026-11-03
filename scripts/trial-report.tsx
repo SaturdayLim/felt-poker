@@ -9,6 +9,7 @@
      everyone; each player page opens only with that player's code (see trial-lock.ts). */
 import { StrictMode, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CodeBoxes } from '../src/components/codeBoxes';
 import '../src/saturday/css/tokens.css';
 import '../src/saturday/css/saturday.css';
 import '../src/styles.css';
@@ -252,24 +253,17 @@ const LockMark = () => (
 
 /** A locked player page: the player types the code the host sent them. A wrong code opens nothing. */
 function PlayerLock({ p, box, onOpen }: { p: TrialPlayer; box: LockBox; onOpen: (p: TrialPlayer) => void }) {
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [bad, setBad] = useState(false);
-  const go = async () => {
-    setBusy(true); setBad(false);
-    try { onOpen(await unlock<TrialPlayer>(box, code)); } catch { setBad(true); } finally { setBusy(false); }
+  const go = async (code: string) => {
+    try { onOpen(await unlock<TrialPlayer>(box, code)); return true; } catch { return false; }
   };
   return (
     <section className="sat-glass sat-card sat-stack trial-lock" style={gap(3)}>
       <h2 className="sat-h2">{p.name}</h2>
       <p className="sat-small sat-muted">Enter player code to access player stats.</p>
       <div className="sat-field">
-        <label htmlFor="code">Player code <Tip title="Player code" lines={['Each player has a 6-character code, in their player settings in Felt.', 'Only that code opens the page.', 'Lost code: ask the host for a new one.']} /></label>
-        <input id="code" className="sat-input sat-mono trial-code" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={9} value={code} placeholder="K7M2QX"
-          aria-invalid={bad} onChange={(e) => { setCode(e.target.value); setBad(false); }} onKeyDown={(e) => { if (e.key === 'Enter' && code) go(); }} />
-        {bad && <span className="sat-error">Code does not match. Check it with the host.</span>}
+        <label>Player code <Tip title="Player code" lines={['Each player has a 6-character code, in their player settings in Felt.', 'Only that code opens the page.', 'Lost code: ask the host for a new one.']} /></label>
+        <CodeBoxes onSubmit={go} autoFocus={false} />
       </div>
-      <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!code || busy} onClick={() => code && !busy && go()}>{busy ? 'Opening' : 'Open'}</button>
     </section>
   );
 }

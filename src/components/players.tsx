@@ -203,11 +203,11 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   const icon = !ready ? 'dark' : shown ? 'eye' : p.codeIssued ? 'refresh' : 'dark';
   const what = !ready ? 'No code yet' : shown ? 'Hide the code' : p.codeIssued ? 'Replace the code' : 'Show the code';
   return (
-    <span className={`felt-code ${ready ? '' : 'is-none'}`}>
-      {label && <span className="felt-code-label">Player code<Help k="playerCode" /></span>}
-      {shown && <b className="felt-code-shown sat-num" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
+    <span className={`felt-codectl ${ready ? '' : 'is-none'}`}>
+      {label && <span className="felt-codectl-label">Player code<Help k="playerCode" /></span>}
+      {shown && <b className="felt-codectl-shown sat-num" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
       {label && ready && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
-      <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-code-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>
+      <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>
     </span>
   );
 }

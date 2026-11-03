@@ -1,5 +1,21 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.1.5', date: '3 Nov 2026', notes: [
+    'Player view: the Action tab is a scrolling log. Each hand has its own frame with a band for each street, card marks and a Copy button.',
+    'Action lines show position and chips in: SB (Chuggy, 4) calls to 8.',
+    'New street cards show clear, and old cards show faded.',
+    'Tap a hand on the Hands tab for the play-by-play boxes.',
+    'Players tab: a table with stacks on the seats, and a candle for the table and for you.',
+    'Player code: 6 boxes with auto-submit, in the app and in the report. A replaced code signs the player out.',
+  ] },
+  { version: '1.1.5', date: '3 Nov 2026', notes: [
+    'Player view: the Action tab is a scrolling log. Each hand has its own frame with a band for each street, card marks and a Copy button.',
+    'Action lines show position and chips in: SB (Chuggy, 4) calls to 8. The log stays when the host leaves the recorder.',
+    'New street cards show clear, and old cards show faded.',
+    'Player view: tap a hand on the Hands tab for the play-by-play boxes.',
+    'Players tab: a table with stacks on the seats, and a candle for the table and for you.',
+    'Player code: 6 boxes with auto-submit, in the app and in the report. A replaced code signs the player out.',
+  ] },
   { version: '1.1.4', date: '3 Nov 2026', notes: [
     'Live link: a switch with a status lamp. Green is live, amber is waiting for a connection, red is off.',
     'Sharing off has an Undo for 5 seconds. Sharing on again uses the same link.',

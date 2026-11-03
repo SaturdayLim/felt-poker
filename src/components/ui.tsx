@@ -16,6 +16,8 @@ const paths: Record<string, ReactNode> = {
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14.6c2.6.1 4.5 1.8 5 4.9" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
   back: <path d="M15 18l-6-6 6-6" />,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></>,
+  flag: <><path d="M5 21V4" /><path d="M5 4c4-2 7 2 14 0v9c-7 2-10-2-14 0" /></>,
   cardsadd: <><rect x="4" y="6.5" width="9" height="13" rx="1.6" transform="rotate(-14 8.5 13)" /><rect x="10" y="5.5" width="9" height="13" rx="1.6" transform="rotate(10 14.5 12)" fill="var(--felt-fab-bg, none)" /><path d="M14.5 9.5v5M12 12h5" transform="rotate(10 14.5 12)" /></>,
   eyedrop: <><path d="m14.5 6.5 3 3" /><path d="M16 5l1.6-1.6a2 2 0 0 1 2.9 2.9L19 8l.8.8-1.6 1.6L13.6 5.8 15.2 4.2z" /><path d="M14.5 7.5 5.6 16.4 5 19l2.6-.6 8.9-8.9" /></>,
   plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
@@ -165,9 +167,11 @@ export function Sheet({ open, onClose, title, sub, children }: {
     button, or above when there is no room, inside the screen edges. It follows the button on scroll and
     closes once the button leaves the screen. */
 let closeOpenTip: (() => void) | null = null;
+const hasPopover = typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
+
 export function Info({ title, children }: { title?: string; children: ReactNode }) {
   const wrap = useRef<HTMLSpanElement>(null);
-  const body = useRef<HTMLSpanElement>(null);
+  const body = useRef<HTMLSpanElement | null>(null);
   const [open, setOpen] = useState(false);
   const [hover, setHover] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -182,7 +186,9 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
     const left = Math.max(8, Math.min(btn.left + btn.width / 2 - b.width / 2, vw - 8 - b.width));
     const below = btn.bottom + 8;
     const top = below + b.height > vh - 8 && btn.top - 8 - b.height > 8 ? btn.top - 8 - b.height : below;
-    setPos({ top, left });
+    // an open sheet covers the page. A popover goes above it; without popover the tip sits inside the sheet.
+    const host = hasPopover ? null : wrap.current?.closest('dialog')?.getBoundingClientRect();
+    setPos(host ? { top: top - host.top, left: left - host.left } : { top, left });
   };
   useLayoutEffect(() => {
     if (!show) { setPos(null); return; }
@@ -208,8 +214,8 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
       <button type="button" className="sat-tip-btn" aria-expanded={open} aria-label={title ? `About ${title.toLowerCase()}` : 'More information'}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>i</button>
       {show && createPortal(
-        <span ref={body} className="sat-tip-body felt-tip-float" role="tooltip" style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}>{children}</span>,
-        document.body,
+        <span ref={(e) => { body.current = e; if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }} {...(hasPopover ? { popover: 'manual' } : {})} className="sat-tip-body felt-tip-float" role="tooltip" style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}>{children}</span>,
+        (hasPopover ? null : wrap.current?.closest('dialog')) ?? document.body,
       )}
     </span>
   );
@@ -339,7 +345,6 @@ export function ToastHost() {
   }, []);
   if (!t) return null;
   // An open sheet sits in the top layer and covers everything else. A popover goes in the top layer after it.
-  const hasPopover = 'showPopover' in HTMLElement.prototype;
   const sheet = hasPopover ? null : [...document.querySelectorAll('dialog[open]')].pop();
   const el = (
     <div className={`felt-toast sat-glass-2 sat-small${sheet ? ' felt-toast--sheet' : ''}`} role="status" {...(hasPopover ? { popover: 'manual' } : {})}

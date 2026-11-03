@@ -187,7 +187,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => {
     if (!g || !st || readOnly || !liveStatus(g.id).on) return;
     const t = window.setTimeout(() => {
-      publishNow(g.id, buildNow(g, useStore.getState().players, { n: st.n, tab: st.tab, log: st.log, board: st.board, ended: st.ended })).catch(() => undefined);
+      publishNow(g.id, buildNow(g, useStore.getState().players, { n: st.n, tab: st.tab, log: st.log, board: st.board, ended: st.ended, shown: st.shown })).catch(() => undefined);
     }, 500);
     return () => window.clearTimeout(t);
   }, [g, st, readOnly]);

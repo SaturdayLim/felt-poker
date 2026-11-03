@@ -87,6 +87,49 @@ button.felt-row { color: inherit; }
 .felt-report-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); padding: calc(env(safe-area-inset-top) + 8px) var(--sat-space-4) 8px; }
 .felt-report-view iframe { flex: 1; width: 100%; border: 0; background: #fff; }
 
+/* Player view */
+.felt-join-tabs { margin-top: var(--sat-space-2); padding: 4px; border-radius: var(--sat-radius-md); }
+.felt-frame { display: flex; flex-direction: column; gap: var(--sat-space-2); padding: var(--sat-space-3); border-radius: var(--sat-radius-lg); }
+.felt-frame--tap { cursor: pointer; }
+.felt-frame-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-2); min-height: 44px; }
+.felt-frame-title { margin: 0; font: inherit; font-size: .8125rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sat-text); }
+.felt-frame-live { display: flex; justify-content: space-between; gap: var(--sat-space-2); padding: 0 var(--sat-space-1) var(--sat-space-1); }
+.felt-band { display: flex; flex-direction: column; gap: 6px; padding: var(--sat-space-2) var(--sat-space-3); border-radius: var(--sat-radius-md); background: var(--sat-well); border: 1px solid var(--sat-line); }
+.felt-band:nth-of-type(even) { background: transparent; }
+.felt-band-title { font-size: var(--sat-fs-caption); font-weight: 600; letter-spacing: var(--sat-track-caption); text-transform: uppercase; color: var(--sat-accent-text); }
+.felt-band-cards { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.felt-cards-old { opacity: .55; display: inline-flex; }
+.felt-band-line { font-variant-numeric: tabular-nums lining-nums; }
+.felt-band-shown { display: flex; align-items: center; gap: var(--sat-space-2); }
+.felt-fab--page { position: fixed; right: var(--sat-space-4); bottom: calc(env(safe-area-inset-bottom) + 20px); z-index: 20; }
+.felt-table-card { position: relative; height: 340px; border-radius: var(--sat-radius-lg); overflow: hidden; }
+.felt-table-rail { position: absolute; inset: 74px 54px; border-radius: 96px; background: #5c3a24; padding: 10px; box-shadow: inset 0 2px 8px rgba(0,0,0,.45); }
+.felt-table-felt { width: 100%; height: 100%; border-radius: 86px; background: radial-gradient(ellipse at center, #237a59, #17553e); display: grid; place-items: center; text-align: center; padding: 0 var(--sat-space-3); color: #ddefe6; font-family: var(--sat-font-display); font-size: 1.125rem; line-height: 1.15; overflow: hidden; }
+.felt-seat { position: absolute; transform: translate(-50%, -50%); width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; padding: 4px; text-align: center; font-size: .8125rem; background: var(--sat-well-solid, #10232f); border: 1px solid var(--sat-line-strong); color: var(--sat-text); }
+html[data-theme="light"] .felt-seat { background: #fff; }
+.felt-seat > b { max-width: 100%; }
+.felt-seat.is-me { border: 3px solid var(--felt-coral, #fc734d); }
+.felt-seat-stack { position: absolute; top: -8px; right: -12px; padding: 1px 6px; border-radius: 10px; font-size: .6875rem; font-weight: 600; background: var(--sat-bg); border: 1px solid var(--sat-line-strong); }
+.felt-seat-btn { position: absolute; bottom: -4px; left: -4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .6875rem; font-weight: 700; background: #fbfcfc; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.felt-candle { display: block; width: 100%; height: auto; overflow: visible; font-size: 13px; fill: var(--sat-muted); font-variant-numeric: tabular-nums lining-nums; }
+.felt-candle .is-strong { fill: var(--sat-text); font-weight: 700; }
+.felt-candle-wick { fill: var(--sat-muted); opacity: .75; }
+.felt-candle-start { stroke: var(--sat-text); stroke-width: 2; }
+.felt-candle-body.is-blue { fill: var(--felt-blue, #0297de); }
+.felt-candle-body.is-coral { fill: var(--felt-coral, #fc734d); }
+.felt-candle-mark { fill: var(--felt-coral, #fc734d); }
+.felt-boxes-wrap { display: flex; flex-direction: column; gap: var(--sat-space-2); }
+.felt-boxes { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.felt-boxes-cell { height: 56px; display: grid; place-items: center; border-radius: var(--sat-radius-sm); border: 1.5px solid var(--sat-line-strong); background: var(--sat-well); font-family: var(--sat-font-mono, monospace); font-size: 1.375rem; font-weight: 700; }
+.felt-boxes-cell.is-next { border-color: var(--sat-accent); }
+.felt-boxes.is-bad .felt-boxes-cell { border-color: var(--sat-neg); }
+.felt-boxes-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+.felt-boxes-err { min-height: 1.25em; font-size: var(--sat-fs-small); color: var(--sat-neg); opacity: 0; transition: opacity 500ms var(--sat-ease) 500ms; }
+.felt-boxes-err.is-on { opacity: 1; transition: none; }
+.felt-skel { border-radius: var(--sat-radius-md); background: linear-gradient(100deg, var(--sat-well) 40%, var(--sat-line) 50%, var(--sat-well) 60%); background-size: 200% 100%; animation: felt-skel 1.3s linear infinite; }
+@keyframes felt-skel { from { background-position: 120% 0; } to { background-position: -80% 0; } }
+@media (prefers-reduced-motion: reduce) { .felt-skel { animation: none; } }
+
 /* Live game */
 .felt-lamp { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; transition: background 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease); }
 .felt-lamp.is-on { background: #35c46b; box-shadow: 0 0 8px rgba(53,196,107,.7); }
@@ -421,7 +464,7 @@ button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: le
 .felt-b2b-side.is-win .felt-b2b-bar { background: var(--sat-pos); border-radius: 0 4px 4px 0; }
 .felt-b2b-val { flex: none; font-weight: 600; }
 /* open info tip: rendered on <body> (see Info in ui.tsx) so no glass card above it in the page can cover it */
-.sat-tip-body.felt-tip-float { display: block; position: fixed; transform: none; z-index: 300; }
+.sat-tip-body.felt-tip-float { display: block; position: fixed; right: auto; bottom: auto; margin: 0; transform: none; z-index: 300; }
 .felt-warn-text { color: var(--sat-warn); }
 /* review of a closed game: the showdown is a disabled fieldset, laid out like the page stack */
 fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
@@ -466,12 +509,12 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-look-switch[aria-checked="true"] .felt-look-thumb .is-default { opacity: 1; }
 
 /* Player code and pop-up */
-.felt-code { display: inline-flex; align-items: center; gap: 2px; flex: none; }
-.felt-code-btn { color: var(--sat-text); }
-.felt-code.is-none .felt-code-btn { color: var(--sat-muted); opacity: .7; }
-.felt-code-shown { letter-spacing: .1em; font-size: 1.0625rem; white-space: nowrap; }
-.sat-sheet .felt-code { display: flex; min-height: 48px; }
-.felt-code-label { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; }
+.felt-codectl { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.felt-codectl-btn { color: var(--sat-text); }
+.felt-codectl.is-none .felt-codectl-btn { color: var(--sat-muted); opacity: .7; }
+.felt-codectl-shown { font-family: var(--sat-font-mono, monospace); letter-spacing: .1em; font-size: 1.0625rem; white-space: nowrap; }
+.sat-sheet .felt-codectl { display: flex; min-height: 48px; }
+.felt-codectl-label { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; }
 .felt-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sat-space-2); }
 .felt-tiles > div { display: flex; flex-direction: column; gap: 4px; padding: var(--sat-space-3); min-width: 0; }
 .felt-tiles b { font-size: 1.25rem; }

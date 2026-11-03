@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHECK_TEXT, fromB64Url, keyFromPassphrase, newRoomId, newRoomKey, open, seal } from './crypto';
 import { mockDriver } from './mock';
-import { buildPub } from './snapshot';
+import { buildPub, standings, viewText } from './snapshot';
 import { lock, unlock } from '../report/lock';
 import type { Game, Player } from '../types';
 
@@ -77,5 +77,28 @@ describe('card entry path', () => {
     const box = await lock({ cards: ['7h', 'Ks'] }, 'k7m 2qx');
     expect(await unlock(box, 'K7M2QX')).toEqual({ cards: ['7h', 'Ks'] });
     await expect(unlock(box, 'AAAAAA')).rejects.toBeDefined();
+  });
+});
+
+describe('hand view', () => {
+  const st = (acts: unknown) => ({ bets: {}, prev: {}, typed: {}, folded: [], raisers: [], acts });
+  it('names positions and shows the chips already in', () => {
+    const g = game();
+    const pub = buildPub(g, players);
+    expect(pub.hands[0].view.dealt).toEqual(['Everett', 'Bel']);
+    expect(pub.hands[0].view.streets.find((s) => s.key === 'showdown')?.lines[0]).toBe('Everett wins 8');
+    expect(pub.standings.map((s) => s.id)).toEqual(['a', 'b']);
+    void st;
+  });
+  it('writes a hand as plain text with cards as As and Td', () => {
+    const text = viewText(3, 1, 2, { dealt: [], button: null, streets: [
+      { key: 'flop', label: 'Flop', old: [], fresh: ['As', 'Td', '4c'], lines: ['SB (Chuggy, 0) bets 6'], cols: 1, rows: [], pot: 12 },
+      { key: 'showdown', label: 'Showdown', old: [], fresh: [], lines: ['Chuggy wins 14'], cols: 0, rows: [], pot: 0, shown: [{ name: 'Chuggy', cards: ['Ah', 'Kd'], rank: '' }] },
+    ] });
+    expect(text).toBe('Hand 3, blinds 1/2\n- Flop: As Td 4c\n- SB (Chuggy, 0) bets 6\n- Chuggy shows Ah Kd\n- Chuggy wins 14');
+  });
+  it('keeps each player low and high at 0 before any hand', () => {
+    const g = { ...game(), hands: [] };
+    expect(standings(g)).toEqual([{ id: 'a', now: 0, low: 0, high: 0 }, { id: 'b', now: 0, low: 0, high: 0 }]);
   });
 });

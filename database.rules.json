@@ -8,7 +8,7 @@
         ".write": "auth != null && (!data.exists() || data.child('owner').val() === auth.uid)",
         ".validate": "newData.hasChildren(['owner', 'createdAt'])",
         "meta": { ".read": true },
-        "pub": { ".read": true, ".validate": "newData.isString() && newData.val().length < 700000" },
+        "pub": { ".read": true, ".validate": "newData.isString() && newData.val().length < 2000000" },
         "now": { ".read": true, ".validate": "newData.isString() && newData.val().length < 100000" },
         "ident": { ".read": true },
         "inbox": {

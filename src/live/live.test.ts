@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CHECK_TEXT, fromB64Url, keyFromPassphrase, newRoomId, newRoomKey, open, seal } from './crypto';
 import { mockDriver } from './mock';
-import { buildPub, standings, viewText } from './snapshot';
+import { buildNow, buildPub, standings, viewText } from './snapshot';
+import { newBoxLog, replayStreet, setAct } from '../lib/hand';
 import { lock, unlock } from '../report/lock';
 import type { Game, Player } from '../types';
 
@@ -77,6 +78,17 @@ describe('card entry path', () => {
     const box = await lock({ cards: ['7h', 'Ks'] }, 'k7m 2qx');
     expect(await unlock(box, 'K7M2QX')).toEqual({ cards: ['7h', 'Ks'] });
     await expect(unlock(box, 'AAAAAA')).rejects.toBeDefined();
+  });
+});
+
+describe('hand in progress', () => {
+  it('counts as acted only after a real action, not after the blinds', () => {
+    const g = game();
+    const log = newBoxLog(g, ['a', 'b'], 'a');
+    const hand = (l: typeof log) => buildNow(g, players, { n: 2, tab: 'preflop', log: l, board: [], ended: false });
+    expect(hand(log).acted).toBe(false);
+    const next = replayStreet(g, log, 'preflop').next!;
+    expect(hand(setAct(g, log, 'preflop', next.p, next.r, { k: 'call' })).acted).toBe(true);
   });
 });
 

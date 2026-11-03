@@ -1,6 +1,11 @@
 # Felt: progress
 
-## Latest (3 Nov 2026): 1.1.1 to 1.2.0
+## Latest (3 Nov 2026): 1.2.2 and 1.2.3
+- Tuesday cash ended 82 short. Cause: Jacod had 0 chips and stayed dealt in on hand 7, so Runty's bet came back and the folded 82 had no pot. Fixed in `finalists`. Repair for that game: Reopen, End game shows the hand, open it and save, then correct Runty's count to 777.
+- Report links still need the rules published: a read probe of /reports returned Permission denied on 3 Nov.
+- Motion: TabPill, slideSwap, useDockPush, useDragList, Sheet exit, Log hand morph. Feel not checked on a phone.
+
+## Earlier (3 Nov 2026): 1.1.1 to 1.2.0
 - Built from docs/PLAN-v1.2.md and the mockup review (section 0a): player code icon states, player pop-up, Cards default switch and colour picker, floating card icon, pot by street, ghost minimum raise, sharing switch and lamp with Undo, report view and report link, player view log with hand frames, play-by-play, table with candles, 6-box code, full-screen camera join, blue and coral skin, Undo toasts, swipe sheets, view transitions.
 - The user must publish database.rules.json again in the Firebase console, or report links fail (docs/FIREBASE-SETUP.md).
 - Not tested: real Firebase, second phone, camera scan on a device, predictive back on Android.

@@ -1,5 +1,12 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.0', date: '3 Nov 2026', notes: [
+    'New colours: ink, blue and coral, in dark and light. Coral marks the main action.',
+    'Undo instead of a second tap: delete hand, delete game, delete group, clear action, remove expense, mark all paid.',
+    'Pages fade between routes on phones that support it.',
+    'Swipe a sheet down to close it.',
+    'Loading screens show skeletons.',
+  ] },
   { version: '1.1.6', date: '3 Nov 2026', notes: [
     'Join a game: the camera fills the screen, with the paste box and Host a game instead over it. A phone with no data opens here.',
     'Report link: send the report in any chat. It works on iPhone for 30 days. The HTML download stays.',

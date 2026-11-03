@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
-import { Caption, Delta, Empty, Header, Help, Icon, Sheet, SourceTip, toast } from '../components/ui';
+import { Caption, Delta, Empty, Header, Help, Icon, Sheet, SourceTip, toast, withUndo } from '../components/ui';
 import { openTransfers, round2, suggestTransfers } from '../lib/calc';
 import { dateLabel, money, shortDate } from '../lib/format';
 import { leaderboard } from '../lib/stats';
@@ -27,7 +27,6 @@ export default function Group({ groupId }: { groupId: string }) {
   const settleGroup = useStore((s) => s.settleGroup);
   const name = usePlayerName();
   const [edit, setEdit] = useState(false);
-  const [confirm, setConfirm] = useState(false);
   if (!grp) return <div className="felt-page"><Header back={() => back('players')} title="Group" /><Empty title="Group not found">It may have been deleted.</Empty></div>;
 
   const games = allGames.filter((g) => g.groupId === grp.id).sort((a, b) => b.startedAt - a.startedAt);
@@ -55,12 +54,7 @@ export default function Group({ groupId }: { groupId: string }) {
                   </div>
                 ))}
               </div>
-              <button className={`sat-btn ${confirm ? 'sat-btn--primary' : ''}`} onClick={() => {
-                if (!confirm) { setConfirm(true); return; }
-                settleGroup(grp.id);
-                setConfirm(false);
-                toast('Every payment in the group marked paid');
-              }}><Icon name="check" /> {confirm ? 'Tap again: everyone has paid' : 'Mark all paid'}</button>
+              <button className="sat-btn" onClick={() => withUndo('Every payment in the group marked paid.', () => settleGroup(grp.id))}><Icon name="check" /> Mark all paid</button>
             </>
           )}
         </section>
@@ -106,7 +100,6 @@ export function GroupSheet({ grp, onClose }: { grp?: G; onClose: () => void }) {
   const deleteGroup = useStore((s) => s.deleteGroup);
   const [nm, setNm] = useState(grp?.name ?? '');
   const [sel, setSel] = useState<ID[]>(grp?.playerIds ?? []);
-  const [confirm, setConfirm] = useState(false);
   const save = () => {
     if (!nm.trim()) { toast('Name the group (e.g. Friday table).'); return; }
     if (sel.length < 2) { toast('Pick at least 2 players.'); return; }
@@ -128,11 +121,10 @@ export function GroupSheet({ grp, onClose }: { grp?: G; onClose: () => void }) {
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={save}>{grp ? 'Save group' : 'Create group'}</button>
       {grp && (
         <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }} onClick={() => {
-          if (!confirm) { setConfirm(true); return; }
-          deleteGroup(grp.id);
+          withUndo('Group deleted. Games are kept.', () => deleteGroup(grp.id));
           onClose();
           backTo('players');
-        }}><Icon name="trash" /> {confirm ? 'Tap again to delete (games are kept)' : 'Delete group'}</button>
+        }}><Icon name="trash" /> Delete group</button>
       )}
     </Sheet>
   );

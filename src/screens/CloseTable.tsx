@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
 import { back, go } from '../router';
-import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, SourceTip } from '../components/ui';
+import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, SourceTip, withUndo } from '../components/ui';
 import { gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
 import { dateLabel, gameLength, money, units } from '../lib/format';
 import { uid } from '../lib/ids';
@@ -174,7 +174,6 @@ function ExpenseSheet({ g, expense, onClose, onSave, onDelete }: {
   const [amount, setAmount] = useState(expense ? String(expense.amount) : '');
   const [paidBy, setPaidBy] = useState<ID | undefined>(expense?.paidBy);
   const [split, setSplit] = useState<ID[]>(expense?.splitAmong ?? [...g.playerIds]);
-  const [confirm, setConfirm] = useState(false);
   const a = num(amount);
   const bad = a === null || a <= 0 || !split.length;
   return (
@@ -202,8 +201,8 @@ function ExpenseSheet({ g, expense, onClose, onSave, onDelete }: {
       <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={bad}
         onClick={() => { if (bad) { toast('Enter an amount and pick who shares it.'); return; } onSave({ id: expense?.id ?? uid(), label: label.trim() || 'Expense', amount: a!, paidBy, splitAmong: split }); onClose(); }}>Save expense</button>
       {expense && (
-        <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }} onClick={() => { if (!confirm) { setConfirm(true); return; } onDelete(expense.id); onClose(); }}>
-          <Icon name="trash" /> {confirm ? 'Tap again to remove' : 'Remove expense'}
+        <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }} onClick={() => { withUndo('Expense removed.', () => onDelete(expense.id)); onClose(); }}>
+          <Icon name="trash" /> Remove expense
         </button>
       )}
     </Sheet>

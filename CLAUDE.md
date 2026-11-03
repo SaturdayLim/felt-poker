@@ -17,6 +17,10 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - **Tips, not captions.** On setup and settings screens, an explanation lives in its field's info tip, one tip per field. The page shows only labels and live figures (for example "4 players: 30 chips to the 2-7").
 - **Tips sit on top.** An open info tip renders on <body> (fixed position), so no card or frame can cover it.
 
+## Design
+
+- `docs/DESIGN-PRINCIPLES.md`: colour 60/30/10 (ink, blue, coral), phone details, desktop details for later.
+
 ## Behaviour
 
 - The end-of-game button says End game. It opens the final chip count (cash) or the finish screen (tournament).

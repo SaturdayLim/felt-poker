@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
-import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light } from '../components/ui';
+import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo } from '../components/ui';
 import { NameEntry, titleCase, CodeControl } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
@@ -558,7 +558,6 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   const [grp, setGrp] = useState<string | undefined>(g.groupId);
   const [notes, setNotes] = useState(g.notes ?? '');
   const [rules, setRules] = useState(() => gameRules(g, st.settings));
-  const [confirm, setConfirm] = useState(false);
   return (
     <Sheet open onClose={onClose} title="Game settings">
       <div className="sat-field"><label htmlFor="eg-n">Game name</label><input id="eg-n" className="sat-input" value={nm} onChange={(e) => setNm(e.target.value)} /></div>
@@ -596,11 +595,10 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
         onClose();
       }}>Save settings</button>
       <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }} onClick={() => {
-        if (!confirm) { setConfirm(true); return; }
-        st.deleteGame(g.id);
+        withUndo(`${g.name} deleted.`, () => st.deleteGame(g.id));
         onClose();
         go('games', true);
-      }}><Icon name="trash" /> {confirm ? 'Tap again to delete for good' : 'Delete game'}</button>
+      }}><Icon name="trash" /> Delete game</button>
     </Sheet>
   );
 }

@@ -102,3 +102,21 @@ describe('hand view', () => {
     expect(standings(g)).toEqual([{ id: 'a', now: 0, low: 0, high: 0 }, { id: 'b', now: 0, low: 0, high: 0 }]);
   });
 });
+
+describe('QR scan', () => {
+  it('reads a join link from a QR image', async () => {
+    const { default: jsQR } = await import('jsqr');
+    const { default: qrcode } = await import('qrcode-generator');
+    const link = 'https://saturdaylim.github.io/felt-poker/app/#/join/0BD-ulQ_JqcBK2FMkiZ4pg/rMLKL0rWI5AyCIS5kMSMZg';
+    const q = qrcode(0, 'M');
+    q.addData(link);
+    q.make();
+    const cell = 6, quiet = 4, n = q.getModuleCount(), size = (n + quiet * 2) * cell;
+    const data = new Uint8ClampedArray(size * size * 4).fill(255);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const my = Math.floor(y / cell) - quiet, mx = Math.floor(x / cell) - quiet;
+      if (my >= 0 && mx >= 0 && my < n && mx < n && q.isDark(my, mx)) { const i = (y * size + x) * 4; data[i] = data[i + 1] = data[i + 2] = 0; }
+    }
+    expect(jsQR(data, size, size)?.data).toBe(link);
+  });
+});

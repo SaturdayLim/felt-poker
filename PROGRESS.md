@@ -1,5 +1,12 @@
 # Felt: progress
 
+## Latest (3 Nov 2026): 1.1.1 to 1.2.0
+- Built from docs/PLAN-v1.2.md and the mockup review (section 0a): player code icon states, player pop-up, Cards default switch and colour picker, floating card icon, pot by street, ghost minimum raise, sharing switch and lamp with Undo, report view and report link, player view log with hand frames, play-by-play, table with candles, 6-box code, full-screen camera join, blue and coral skin, Undo toasts, swipe sheets, view transitions.
+- The user must publish database.rules.json again in the Firebase console, or report links fail (docs/FIREBASE-SETUP.md).
+- Not tested: real Firebase, second phone, camera scan on a device, predictive back on Android.
+- Skipped: sheets closing on Back, interruptible sheet animation, leaving the report template out for players (the host needs it offline).
+
+
 ## Done (29 Oct 2026, commit b292e3e on main, pushed)
 - 2-7 bounty: per-game rule (New Game and game settings), on for cash and off for tournaments by default, copied from the last game of the same type. Win conditions: Revealed, Winning, Best hand. Busted payers are exempt, short stacks pay what they have (`Bounty.short`).
 - Pay bounty tag on a shown 2-7 at the result, with a tip. Pressed when the rule is met; can be pressed by hand.

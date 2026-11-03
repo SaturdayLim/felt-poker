@@ -129,6 +129,7 @@ export function Sheet({ open, onClose, title, sub, children }: {
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const closing = useRef(onClose);
+  const swipe = useRef<{ y: number; t: number } | null>(null);
   closing.current = onClose;
   useEffect(() => {
     const d = ref.current;
@@ -146,6 +147,22 @@ export function Sheet({ open, onClose, title, sub, children }: {
   if (!open) return null;
   return (
     <dialog ref={ref} className="sat-sheet sat-glass-2" aria-label={title}>
+      <div className="felt-sheet-grab" aria-hidden="true"
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); swipe.current = { y: e.clientY, t: Date.now() }; ref.current?.classList.add('is-swiping'); }}
+        onPointerMove={(e) => { if (swipe.current && ref.current) ref.current.style.transform = `translateY(${Math.max(0, e.clientY - swipe.current.y)}px)`; }}
+        onPointerUp={(e) => {
+          const s = swipe.current, d = ref.current;
+          swipe.current = null;
+          if (!s || !d) return;
+          const dy = e.clientY - s.y;
+          d.classList.remove('is-swiping');
+          // far enough, or a quick flick, closes the sheet; otherwise it springs back
+          if (dy > 90 || (dy > 24 && dy / Math.max(1, Date.now() - s.t) > 0.6)) { closing.current(); return; }
+          d.style.transition = 'transform 240ms cubic-bezier(.32,.72,0,1)';
+          d.style.transform = '';
+          window.setTimeout(() => { d.style.transition = ''; }, 260);
+        }}
+        onPointerCancel={() => { swipe.current = null; if (ref.current) { ref.current.classList.remove('is-swiping'); ref.current.style.transform = ''; } }} />
       <div className="sat-stack">
         <div className="sat-split">
           <h2 className="sat-h3">{title}</h2>
@@ -331,6 +348,13 @@ type ToastAction = { label: string; run: () => void };
 let toastListener: ((msg: string, action?: ToastAction) => void) | null = null;
 /** Short message at the bottom. With an action (for example Undo) it stays 5 seconds instead of 2.6. */
 export function toast(msg: string, action?: ToastAction) { toastListener?.(msg, action); }
+
+/** Runs a change at once and offers Undo for 5 seconds. Undo puts the games and groups back as they were. */
+export function withUndo(msg: string, run: () => void) {
+  const { games, groups } = useStore.getState();
+  run();
+  toast(msg, { label: 'Undo', run: () => useStore.setState({ games, groups }) });
+}
 
 export function ToastHost() {
   const [t, setT] = useState<{ msg: string; action?: ToastAction } | null>(null);

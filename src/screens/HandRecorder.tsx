@@ -4,7 +4,7 @@ import { back, backTo, go } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
 import { liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
-import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast } from '../components/ui';
+import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo } from '../components/ui';
 import { bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
@@ -152,7 +152,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const [target, setTarget] = useState<Target>(null);
   const [sel, setSel] = useState<Sel>(() => (st && !existing ? replayStreet(g!, st.log, 'preflop', stacks).next : null));
   const [typed, setTyped] = useState('');
-  const [confirm, setConfirm] = useState<'delete' | 'reset' | null>(null);
   // keypad: dark (blind) mark for the next action, and a raise under the house minimum
   const settings = useStore((s) => s.settings);
   // a closed game opens its hands for review only: browse every stage, change nothing
@@ -436,7 +435,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     const fresh = freshState(fg, n, d, b, stacksRef.current);
     setSt(fresh);
     setSel(replayStreet(fg, fresh.log, 'preflop', stacksRef.current).next);
-    setTarget(null); setTyped(''); setConfirm(null);
+    setTarget(null); setTyped('');
     window.scrollTo(0, 0);
     toast(msg);
   };
@@ -570,8 +569,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     <div className={`felt-page felt-recorder ${!target && selCell ? 'has-keypad' : ''}`}>
       <Header back={() => back(readOnly ? `game/${g.id}/hands` : `game/${g.id}`)} title={`Hand ${st.n}`} sub={readOnly ? `${g.name}, review` : g.name}
         right={existing && !readOnly ? (
-          <button className="sat-btn sat-btn--ghost sat-iconbtn" style={confirm === 'delete' ? { color: 'var(--sat-neg)' } : undefined} aria-label={confirm === 'delete' ? 'Tap again to delete this hand' : 'Delete hand'}
-            onClick={() => { if (confirm !== 'delete') { setConfirm('delete'); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, st.id); backTo(`game/${g.id}`); }}>
+          <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Delete hand"
+            onClick={() => { withUndo(`Hand ${st.n} deleted.`, () => deleteHand(g.id, st.id)); backTo(`game/${g.id}`); }}>
             <Icon name="trash" />
           </button>
         ) : undefined}>
@@ -594,9 +593,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             {started && (
               <div className="sat-flat sat-card sat-stack" style={gap(2)}>
                 <p className="sat-small">Action is already recorded. Changing who is dealt in, the button or the blinds starts the hand again.</p>
-                <button className="sat-btn sat-btn--sm" style={{ alignSelf: 'flex-start', color: confirm === 'reset' ? 'var(--sat-neg)' : undefined }}
-                  onClick={() => { if (confirm !== 'reset') { setConfirm('reset'); return; } setConfirm(null); rebuild(dealt, button, sbN, bbN); }}>
-                  <Icon name="undo" /> {confirm === 'reset' ? 'Tap again to clear the action' : 'Clear the action'}
+                <button className="sat-btn sat-btn--sm" style={{ alignSelf: 'flex-start' }}
+                  onClick={() => { const before = st; rebuild(dealt, button, sbN, bbN); toast('Action cleared.', { label: 'Undo', run: () => set(before) }); }}>
+                  <Icon name="undo" /> Clear the action
                 </button>
               </div>
             )}

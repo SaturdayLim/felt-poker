@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
-import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, num, toast } from '../components/ui';
+import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Sheet, num, toast, withUndo } from '../components/ui';
 import { bestHand, type HandValue } from '../lib/cards';
 import { buildPots, fromSmallBlind, playerStatus, positionSplit, round2 } from '../lib/calc';
 import { inBB, units } from '../lib/format';
@@ -88,7 +88,6 @@ export default function HandEditorClassic({ gameId, handId }: { gameId: string; 
   const existing = g?.hands.find((h) => h.id === handId);
   const [d, setD] = useState<Draft | null>(() => (g ? (existing ? fromHand(g, existing) : blank(g)) : null));
   const [target, setTarget] = useState<Target>(existing ? null : { kind: 'board', i: 0 });
-  const [confirmDel, setConfirmDel] = useState(false);
   const [allInSheet, setAllInSheet] = useState(false);
 
   const used = useMemo(() => {
@@ -252,8 +251,8 @@ export default function HandEditorClassic({ gameId, handId }: { gameId: string; 
     <div className="felt-page">
       <Header back={() => back(`game/${g.id}`)} title={`Hand ${d.n}`} sub={g.name}
         right={existing ? (
-          <button className="sat-btn sat-btn--ghost sat-iconbtn" style={confirmDel ? { color: 'var(--sat-neg)' } : undefined} aria-label={confirmDel ? 'Tap again to delete this hand' : 'Delete hand'}
-            onClick={() => { if (!confirmDel) { setConfirmDel(true); toast('Tap the bin again to delete this hand'); return; } deleteHand(g.id, d.id); backTo(`game/${g.id}`); }}>
+          <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Delete hand"
+            onClick={() => { withUndo('Hand deleted.', () => deleteHand(g.id, d.id)); backTo(`game/${g.id}`); }}>
             <Icon name="trash" />
           </button>
         ) : undefined} />

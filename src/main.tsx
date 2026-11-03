@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import './saturday/css/tokens.css';
+import './saturday/css/skin-felt.css';
 import './saturday/css/saturday.css';
 import './styles.css';
 

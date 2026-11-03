@@ -11,6 +11,9 @@ import { StrictMode, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CodeBoxes } from '../src/components/codeBoxes';
 import '../src/saturday/css/tokens.css';
+import '../src/saturday/css/skin-felt.css';
+
+document.documentElement.setAttribute('data-skin', 'felt');
 import '../src/saturday/css/saturday.css';
 import '../src/styles.css';
 import './trial-report.css';

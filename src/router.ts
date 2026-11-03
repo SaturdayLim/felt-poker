@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 const hashPath = (h: string) => h.replace(/^[^#]*#?\/?/, '');
 
@@ -24,7 +25,12 @@ export function useRoute(): string[] {
   const read = () => (window.location.hash.replace(/^#\/?/, '') || '').split('/').filter(Boolean);
   const [parts, setParts] = useState(read);
   useEffect(() => {
-    const on = () => { setParts(read()); window.scrollTo(0, 0); };
+    const on = () => {
+      const apply = () => { flushSync(() => setParts(read())); window.scrollTo(0, 0); };
+      const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if (document.startViewTransition && !calm) document.startViewTransition(apply).ready.catch(() => undefined);
+      else apply();
+    };
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);

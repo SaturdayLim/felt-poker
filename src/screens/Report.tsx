@@ -94,7 +94,7 @@ export default function Report({ gameId }: { gameId: string }) {
       const link = await publishReport(g, allPlayers, st.settings);
       setLinkMade(link);
       if (navigator.share) await navigator.share({ title: `${g.name} report`, url: link }).catch(() => undefined);
-      else await navigator.clipboard?.writeText(link);
+      else await navigator.clipboard?.writeText(link).catch(() => undefined);
       toast('Report link is ready. It works for 30 days.');
     } catch (e) { toast(`Report link did not save: ${(e as Error).message}`); }
     finally { setLinking(false); }
@@ -127,7 +127,7 @@ export default function Report({ gameId }: { gameId: string }) {
           )}
         </div>
 
-        {busy && <div className="sat-flat sat-card sat-small sat-muted">Building the report.</div>}
+        {busy && <div className="felt-skel" style={{ height: 160 }} aria-label="Building the report" />}
 
         {!busy && tier !== 'data' && tier !== 'html' && (
           <div>

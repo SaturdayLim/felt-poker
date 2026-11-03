@@ -13,7 +13,7 @@ export function useLive(gameId: string) {
 
 /** Green: live. Amber: on, with no connection now. Red: off. */
 export function SharingLamp({ state }: { state: 'on' | 'wait' | 'off' }) {
-  return <span className={`felt-lamp is-${state}`} aria-hidden="true" />;
+  return <span className={`felt-share-lamp is-${state}`} aria-hidden="true" />;
 }
 export const lampState = (live: ReturnType<typeof liveStatus>) => (!live.on ? 'off' : live.connected ? 'on' : 'wait');
 const LAMP_TEXT = { on: 'Live', wait: 'Waiting for a connection', off: 'Off' };

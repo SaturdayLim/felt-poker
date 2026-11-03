@@ -87,6 +87,24 @@ button.felt-row { color: inherit; }
 .felt-report-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); padding: calc(env(safe-area-inset-top) + 8px) var(--sat-space-4) 8px; }
 .felt-report-view iframe { flex: 1; width: 100%; border: 0; background: #fff; }
 
+/* The 10%: one main action per screen, the next box, the signed-in player. Text on coral uses ink in dark. */
+:root { --felt-blue: #026fa6; --felt-coral: #b8441f; --felt-on-coral: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --felt-blue: #0297de; --felt-coral: #fc734d; --felt-on-coral: #02070a; } }
+:root[data-theme="dark"] { --felt-blue: #0297de; --felt-coral: #fc734d; --felt-on-coral: #02070a; }
+.felt-fab.felt-fab { --felt-fab-bg: var(--felt-coral); color: var(--felt-on-coral); }
+.felt-keypad .felt-keypad-ok:not(:disabled), .felt-keypad .felt-keypad-err-acts .is-primary, .felt-rec-dock .sat-btn--primary { background: var(--felt-coral); color: var(--felt-on-coral); border-color: transparent; }
+.felt-acts .felt-box.is-next { border-color: var(--felt-coral); }
+.felt-keypad-amount .sat-tip { display: inline-grid; place-items: center; width: 28px; }
+.felt-keypad-amount .sat-tip-btn { width: 18px; height: 18px; min-width: 18px; min-height: 18px; padding: 0; border-radius: 50%; }
+
+@supports (corner-shape: squircle) {
+  .sat-glass, .sat-glass-2, .sat-flat, .sat-btn, .sat-input, .felt-frame, .felt-band { corner-shape: squircle; }
+}
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
+
+.sat-sheet.is-swiping { transition: none; }
+.felt-sheet-grab { position: absolute; top: 0; left: 0; right: 0; height: 36px; touch-action: none; cursor: grab; }
+
 /* Join: the camera fills the screen */
 .felt-scan { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #02070a; color: #eaf4fa; display: flex; flex-direction: column; justify-content: space-between; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); }
 .felt-scan-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -147,10 +165,10 @@ html[data-theme="light"] .felt-seat { background: #fff; }
 @media (prefers-reduced-motion: reduce) { .felt-skel { animation: none; } }
 
 /* Live game */
-.felt-lamp { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; transition: background 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease); }
-.felt-lamp.is-on { background: #35c46b; box-shadow: 0 0 8px rgba(53,196,107,.7); }
-.felt-lamp.is-wait { background: #f0a92e; box-shadow: 0 0 8px rgba(240,169,46,.7); }
-.felt-lamp.is-off { background: #e5484d; box-shadow: 0 0 6px rgba(229,72,77,.5); }
+.felt-share-lamp { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; transition: background 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease); }
+.felt-share-lamp.is-on { background: #35c46b; box-shadow: 0 0 8px rgba(53,196,107,.7); }
+.felt-share-lamp.is-wait { background: #f0a92e; box-shadow: 0 0 8px rgba(240,169,46,.7); }
+.felt-share-lamp.is-off { background: #e5484d; box-shadow: 0 0 6px rgba(229,72,77,.5); }
 .felt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-pos); margin-right: 6px; vertical-align: 1px; }
 .felt-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sat-space-3); }
 .felt-kpis .sat-kpi { font-size: 1.75rem; }

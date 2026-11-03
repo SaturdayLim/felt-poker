@@ -1,6 +1,8 @@
 # Felt: Plan for 1.1.1 to 1.4.0
 
-Status: mockups round 2 published. Section 0a is the latest decision and wins over anything below it.
+Status: built through 1.2.0. Section 0a is the latest decision and wins over anything below it.
+
+Latest changes from the user after round 2: player code icon states, full-page camera, Default switch with rainbow or black and red thumb, eyedropper, hand frames with one Copy button, faded old cards, table candle, tapered wicks on one shared scale, game name on the felt.
 
 ## 0a. Mockup review decisions (3 Nov 2026)
 

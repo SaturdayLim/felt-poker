@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Caption, Empty, Header, Help, Icon, toast } from '../components/ui';
+import { Caption, Empty, Header, Help, Icon, toast, TabPill } from '../components/ui';
 import { renderReport, type Tier } from '../report/reports';
 import { loadReportFonts, type ReportTheme } from '../report/canvas';
 import { handsCsv, ledgerCsv, playersCsv, slug } from '../report/csv';
@@ -121,6 +121,7 @@ export default function Report({ gameId }: { gameId: string }) {
           <span className="sat-small sat-muted">{tier === 'data' ? 'Opens in any spreadsheet app.' : tier === 'html' ? 'Opens in any browser. Works offline.' : 'Image colours:'}</span>
           {tier !== 'data' && tier !== 'html' && (
             <div className="sat-seg" role="radiogroup" aria-label="Image theme">
+              <TabPill />
               <button role="radio" aria-checked={look === 'light'} onClick={() => setLook('light')} aria-label="Light image"><Icon name="sun" /></button>
               <button role="radio" aria-checked={look === 'dark'} onClick={() => setLook('dark')} aria-label="Dark image"><Icon name="moon" /></button>
             </div>

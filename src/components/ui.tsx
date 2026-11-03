@@ -124,6 +124,48 @@ export function ThemeCycle() {
 
 /* ------------------------------- sheet ------------------------------- */
 
+/** The highlight of a tab bar or segmented control. It is one layer behind the buttons, clipped to the selected one,
+    so it slides along the bar and keeps its corners. Put it first inside the bar. */
+export function TabPill() {
+  const ref = useRef<HTMLSpanElement>(null);
+  const place = () => {
+    const el = ref.current, box = el?.parentElement;
+    if (!el || !box) return;
+    const sel = box.querySelector<HTMLElement>(':scope > [aria-selected="true"], :scope > [aria-checked="true"], :scope > [aria-current="page"]');
+    el.style.opacity = sel ? '1' : '0';
+    if (!sel) return;
+    const w = box.scrollWidth, h = box.clientHeight;
+    el.style.width = `${w}px`;
+    el.style.clipPath = `inset(${sel.offsetTop}px ${w - sel.offsetLeft - sel.offsetWidth}px ${h - sel.offsetTop - sel.offsetHeight}px ${sel.offsetLeft}px round 10px)`;
+  };
+  useLayoutEffect(place);
+  useEffect(() => {
+    const box = ref.current?.parentElement;
+    if (!box || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(place);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, []);
+  return <span ref={ref} className="felt-pill" aria-hidden="true" />;
+}
+
+/** A bottom dock whose height changes rises and falls with the new content, so it pushes up instead of appearing.
+    Uses `translate` because wide screens centre the dock with `transform`. */
+export function useDockPush() {
+  const ref = useRef<HTMLDivElement>(null);
+  const last = useRef(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const now = el.offsetHeight, d = now - last.current;
+    if (last.current && d && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      el.animate?.({ translate: [`0 ${d}px`, '0 0'] }, { duration: 240, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
+    }
+    last.current = now;
+  });
+  return ref;
+}
+
 /** Kit sheet: a modal <dialog>, bottom sheet on phones, centred dialog on wider screens. */
 export function Sheet({ open, onClose, title, sub, children }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode;
@@ -132,14 +174,27 @@ export function Sheet({ open, onClose, title, sub, children }: {
   const closing = useRef(onClose);
   const swipe = useRef<{ y: number; t: number } | null>(null);
   closing.current = onClose;
+  /** Leaves the way it came in: down off the screen, then closes. */
+  const leaving = useRef(false);
+  const dismiss = () => {
+    const d = ref.current;
+    if (leaving.current) return;
+    if (!d?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { closing.current(); return; }
+    leaving.current = true;
+    const phone = window.innerWidth < 640;
+    d.animate(phone ? { transform: [getComputedStyle(d).transform === 'none' ? 'translateY(0)' : getComputedStyle(d).transform, 'translateY(100%)'] } : { opacity: [1, 0], transform: ['scale(1)', 'scale(.97)'] },
+      { duration: 200, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }).onfinish = () => { leaving.current = false; closing.current(); };
+  };
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
   useEffect(() => {
     const d = ref.current;
     if (!open || !d) return;
     if (!d.open) d.showModal();
-    const onCancel = (e: Event) => { e.preventDefault(); closing.current(); };
+    const onCancel = (e: Event) => { e.preventDefault(); dismissRef.current(); };
     const onClick = (e: MouseEvent) => {
       const r = d.getBoundingClientRect();
-      if (e.target === d && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) closing.current();
+      if (e.target === d && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) dismissRef.current();
     };
     d.addEventListener('cancel', onCancel);
     d.addEventListener('click', onClick);
@@ -158,7 +213,7 @@ export function Sheet({ open, onClose, title, sub, children }: {
           const dy = e.clientY - s.y;
           d.classList.remove('is-swiping');
           // far enough, or a quick flick, closes the sheet; otherwise it springs back
-          if (dy > 90 || (dy > 24 && dy / Math.max(1, Date.now() - s.t) > 0.6)) { closing.current(); return; }
+          if (dy > 90 || (dy > 24 && dy / Math.max(1, Date.now() - s.t) > 0.6)) { dismiss(); return; }
           d.style.transition = 'transform 240ms cubic-bezier(.32,.72,0,1)';
           d.style.transform = '';
           window.setTimeout(() => { d.style.transition = ''; }, 260);
@@ -167,7 +222,7 @@ export function Sheet({ open, onClose, title, sub, children }: {
       <div className="sat-stack">
         <div className="sat-split">
           <h2 className="sat-h3">{title}</h2>
-          <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={onClose}>Close</button>
+          <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={dismiss}>Close</button>
         </div>
         {sub && <p className="sat-small sat-muted" style={{ marginTop: -8 }}>{sub}</p>}
         {children}

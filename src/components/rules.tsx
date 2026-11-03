@@ -1,4 +1,4 @@
-import { Caption, Help, Toggle, num, toast } from './ui';
+import { Caption, Help, Toggle, num, toast, TabPill } from './ui';
 import type { BountyRule, GameRules } from '../types';
 
 const MIN_RAISE: { k: GameRules['minRaise']; label: string }[] = [
@@ -26,6 +26,7 @@ export function RulesFields({ rules, onChange, players, idPrefix }: {
       <div className="sat-stack" style={gap(2)}>
         <Caption tip="minRaise">Minimum raise</Caption>
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Minimum raise">
+          <TabPill />
           {MIN_RAISE.map((o) => <button key={o.k} type="button" role="radio" aria-checked={rules.minRaise === o.k} onClick={() => onChange({ ...rules, minRaise: o.k })}>{o.label}</button>)}
         </div>
       </div>
@@ -38,12 +39,14 @@ export function RulesFields({ rules, onChange, players, idPrefix }: {
           <div className="sat-stack" style={gap(2)}>
             <Caption tip="bountyWin">Win condition</Caption>
             <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="2-7 win condition">
+              <TabPill />
               {BOUNTY_WIN.map((o) => <button key={o.k} type="button" role="radio" aria-checked={bounty.win === o.k} onClick={() => setBounty({ win: o.k })}>{o.label}</button>)}
             </div>
           </div>
           <div className="sat-stack" style={gap(2)}>
             <Caption tip="bountyHand">Hand</Caption>
             <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="2-7 hand">
+              <TabPill />
               <button type="button" role="radio" aria-checked={!bounty.suited} onClick={() => setBounty({ suited: false })}>Offsuit only</button>
               <button type="button" role="radio" aria-checked={bounty.suited} onClick={() => setBounty({ suited: true })}>Suited allowed</button>
             </div>

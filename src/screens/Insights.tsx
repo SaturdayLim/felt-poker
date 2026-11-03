@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Cards, Delta, Empty, Header, Help, Icon, toast, SourceTip } from '../components/ui';
+import { Avatar, Caption, Cards, Delta, Empty, Header, Help, Icon, toast, SourceTip, TabPill } from '../components/ui';
 import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
@@ -43,16 +43,19 @@ export default function Insights({ initialPlayer }: { initialPlayer?: string }) 
       <Header title="Stats" sub={`${typeLabel} (${period})`} />
       <div className="sat-stack">
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="View">
+          <TabPill />
           <button role="radio" aria-checked={view === 'player'} onClick={() => setView('player')}><Icon name="chart" /> Players</button>
           <button role="radio" aria-checked={view === 'standings'} onClick={() => setView('standings')}><Icon name="trophy" /> Leaderboard</button>
         </div>
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
+          <TabPill />
           {(['all', 'cash', 'tournament'] as const).map((t) => (
             <button key={t} role="radio" aria-checked={type === t} onClick={() => setType(t)}>{t === 'all' ? 'All' : t === 'cash' ? 'Cash' : 'Tournaments'}</button>
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sat-space-2)' }}>
           <div className="sat-seg felt-period" role="radiogroup" aria-label="Period" style={{ flex: 1, minWidth: 0 }}>
+            <TabPill />
             {RANGES.map((r) => <button key={r.k} role="radio" aria-checked={range === r.k} onClick={() => setRange(r.k)}>{r.label}</button>)}
           </div>
           <Help k="periods" />

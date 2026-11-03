@@ -4,7 +4,7 @@ import { back, backTo, go } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
 import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
-import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo } from '../components/ui';
+import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush } from '../components/ui';
 import { bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
@@ -182,6 +182,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const [raiseErr, setRaiseErr] = useState<number | null>(null);
   // All-in with the stack only a range: the keypad asks for the amount (it was the whole stack)
   const [allInAsk, setAllInAsk] = useState(false);
+  const dock = useDockPush();
 
   useEffect(() => {
     if (existing || !st) return;
@@ -587,6 +588,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         ) : undefined}>
         <div className="felt-rec-bar sat-glass">
           <div className="felt-tabs" role="tablist" aria-label="Hand stage">
+            <TabPill />
             {TABS.map((t) => (
               <button key={t} role="tab" aria-selected={st.tab === t} className={tabDone(log, t, st.ended) ? 'is-done' : ''} onClick={() => goTab(t)}>{LABEL[t]}</button>
             ))}
@@ -685,7 +687,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n)])]}
           blocked={[...st.board, ...Object.values(st.shown).flat()].filter(Boolean) as Card[]} />
       )}
-      <div className="sat-bottombar sat-glass-2 felt-rec-dock">
+      <div ref={dock} className="sat-bottombar sat-glass-2 felt-rec-dock">
         {!target && !(replay && selCell && sel) && (
           <button type="button" className="felt-fab" aria-label="Add player cards" onClick={() => setAskCards(true)}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
         )}
@@ -960,6 +962,7 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
         <section className="sat-glass sat-card sat-stack" style={gap(3)}>
           <div className="sat-split"><h2 className="sat-h3">All-in: run it</h2><Help k="runs" /></div>
           <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Times to run the board">
+            <TabPill />
             {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={(log.runs ?? 1) === n} onClick={() => setRuns(n)}>{n === 1 ? 'Once' : `${n}x`}</button>)}
           </div>
           {(log.runs ?? 1) === 1 ? (

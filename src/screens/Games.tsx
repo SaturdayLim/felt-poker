@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
-import { Delta, Empty, Header, Icon } from '../components/ui';
+import { Delta, Empty, Header, Icon, TabPill } from '../components/ui';
 import { gameResults, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
 import { dateLabel, gameLength, money, playMs } from '../lib/format';
 import type { Game, GameType } from '../types';
@@ -23,6 +23,7 @@ export default function Games() {
       <Header title="Games" sub={`${games.length} ${games.length === 1 ? 'Game' : 'Games'} Recorded`} />
       <div className="sat-stack">
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
+          <TabPill />
           {(['all', 'cash', 'tournament'] as const).map((t) => (
             <button key={t} role="radio" aria-checked={type === t} onClick={() => setType(t)}>
               {t === 'all' ? 'All' : t === 'cash' ? 'Cash' : 'Tournaments'}

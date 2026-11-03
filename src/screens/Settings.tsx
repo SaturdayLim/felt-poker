@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
-import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook } from '../components/ui';
+import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
+import { useDragList } from '../components/dragList';
 import { money } from '../lib/format';
 import type { CardLook, Markers, Settings as S, SuitKey, ThemePref } from '../types';
 
@@ -101,6 +102,7 @@ export default function Settings() {
         <section className="sat-stack" style={gap(2)}>
           <Caption>Theme</Caption>
           <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Theme">
+            <TabPill />
             {THEMES.map((t) => (
               <button key={t.k} role="radio" aria-checked={settings.theme === t.k} onClick={() => update({ theme: t.k })}><Icon name={t.icon} /> {t.label}</button>
             ))}
@@ -111,6 +113,7 @@ export default function Settings() {
         <section className="sat-stack" style={gap(2)}>
           <Caption tip="splash">Opening screen</Caption>
           <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Opening screen">
+            <TabPill />
             {SPLASH.map((o) => (
               <button key={o.ms} role="radio" aria-checked={settings.splashMs === o.ms} onClick={() => update({ splashMs: o.ms })}>{o.label}</button>
             ))}
@@ -208,31 +211,11 @@ function CardLookEditor() {
   const look = useCardLook();
   const update = useStore((s) => s.updateSettings);
   const save = (next: CardLook) => update({ cards: next });
-  const [drag, setDrag] = useState<{ s: SuitKey; y: number; dy: number; h: number } | null>(null);
   const isDefault = !look.custom;
+  const list = useDragList<SuitKey>(look.order, (order) => save({ ...look, order }));
 
   const grip = (s: SuitKey) => ({
-    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
-      e.currentTarget.setPointerCapture(e.pointerId);
-      const row = e.currentTarget.closest('.felt-suit-row') as HTMLElement;
-      setDrag({ s, y: e.clientY, dy: 0, h: row.offsetHeight + 6 });
-    },
-    onPointerMove: (e: React.PointerEvent) => {
-      if (drag?.s !== s) return;
-      let dy = e.clientY - drag.y, y = drag.y;
-      const i = look.order.indexOf(s), to = dy > drag.h / 2 ? i + 1 : dy < -drag.h / 2 ? i - 1 : i;
-      if (to !== i && to >= 0 && to < look.order.length) {
-        const order = [...look.order];
-        order.splice(i, 1);
-        order.splice(to, 0, s);
-        save({ ...look, order });
-        y += (to - i) * drag.h;
-        dy = e.clientY - y;
-      }
-      setDrag({ ...drag, y, dy });
-    },
-    onPointerUp: () => setDrag(null),
-    onPointerCancel: () => setDrag(null),
+    ...list.grip(s),
     onKeyDown: (e: React.KeyboardEvent) => {
       const d = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0, i = look.order.indexOf(s);
       if (!d || !look.order[i + d]) return;
@@ -254,10 +237,11 @@ function CardLookEditor() {
           </button>
         </label>
       </div>
-      <div className="felt-suit-list">
+      <div ref={list.wrap} className={`felt-suit-list ${list.listClass}`}>
+        {list.slot}
         {look.order.map((s: SuitKey) => (
-          <div key={s} className={`felt-suit-row ${drag?.s === s ? 'is-dragging' : ''}`} style={drag?.s === s ? { transform: `translateY(${drag.dy}px)` } : undefined}>
-            <button type="button" className="felt-suit-grip" aria-label={`Drag ${SUIT_NAME[s]} to change its row`} {...grip(s)}>
+          <div key={s} {...list.row(s)} className={`felt-suit-row ${list.row(s).className}`}>
+            <button type="button" className="felt-suit-grip" aria-label={`Press and hold, then drag ${SUIT_NAME[s]} to change its row`} {...grip(s)}>
               <svg viewBox="0 0 16 12" width="16" height="12" aria-hidden="true"><path d="M1 1h14M1 6h14M1 11h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
             </button>
             <span className="felt-suit-mark" style={{ color: lookColor(look, s) }} aria-hidden="true">{SUIT_SYMBOL[s]}</span>

@@ -2,7 +2,8 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings, no way to read any private cards, including their own. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardBack, Cards, Empty, Header, Help, Icon, Sheet, toast } from '../components/ui';
+import { CardBack, Cards, Empty, Header, Help, Icon, Sheet, TabPill, toast } from '../components/ui';
+import { slideSwap } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
 import { StandingChart } from '../components/candle';
@@ -152,7 +153,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
       <Header title={pub.game.name} sub={me ? me.name : `Live, ${pub.hands.length} ${pub.hands.length === 1 ? 'hand' : 'hands'}`}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={me ? `Signed in as ${me.name}` : 'Enter player code'} onClick={() => setSheet('code')}><Icon name="users" /></button>}>
         <div className="felt-tabs sat-glass felt-join-tabs" role="tablist" aria-label="Live game">
-          {TABS.map((t) => <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => setTab(t.k)}>{t.label}</button>)}
+          <TabPill />
+          {TABS.map((t, i) => <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => { if (tab !== t.k) slideSwap(i > TABS.findIndex((x) => x.k === tab) ? 'next' : 'prev', () => setTab(t.k), true); }}>{t.label}</button>)}
         </div>
       </Header>
 
@@ -282,6 +284,7 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
   return (
     <div className="sat-stack" style={gap(3)}>
       <div className="felt-tabs sat-glass felt-join-tabs" role="tablist" aria-label="Hand stage">
+        <TabPill />
         {view.streets.map((x) => <button key={x.key} role="tab" aria-selected={x.key === at} onClick={() => setAt(x.key)}>{x.key === 'preflop' ? 'Pre' : x.key === 'showdown' ? 'End' : x.label}</button>)}
       </div>
       {s && s.key !== 'showdown' && <div className="felt-rec-status"><span /><span>Pot <b className="sat-num">{money(s.pot)}</b></span></div>}
@@ -331,7 +334,7 @@ function PlayersTab({ pub, stacks, me, button }: { pub: PubSnapshot; stacks: Sta
         {ring.map((p, i) => {
           const a = Math.PI / 2 + (i * 2 * Math.PI) / ring.length;
           return (
-            <div key={p.id} className={`felt-seat ${p.id === me?.id ? 'is-me' : ''}`} style={{ left: `${50 + 40 * Math.cos(a)}%`, top: `${50 + 40 * Math.sin(a)}%` }}>
+            <div key={p.id} className={`felt-seat ${p.id === me?.id ? 'is-me' : ''}`} style={{ left: `${50 + 38 * Math.cos(a)}%`, top: `${50 + 37 * Math.sin(a)}%` }}>
               <b className="felt-ellipsis">{p.name}</b>
               <span className="felt-seat-stack sat-num">{stackText(stacks.find((s) => s.name === p.name))}</span>
               {button === p.name && <span className="felt-seat-btn" aria-label="Button">D</span>}

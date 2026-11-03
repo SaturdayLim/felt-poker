@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.3', date: '3 Nov 2026', notes: [
+    'The tab highlight slides along each bar, and screens slide with it.',
+    'Log hand grows from the button into the hand page.',
+    'The keypad and card picker push up from the bottom. Sheets leave the way they came in.',
+    'Drag to reorder: press and hold first, so a swipe scrolls. The other rows slide aside and a slot marks where the row lands.',
+  ] },
   { version: '1.2.2', date: '3 Nov 2026', notes: [
     'A player with 0 chips is no longer dealt in. This caused a hand with no winner, and the table ended short by the folded chips.',
     'End game names any older hand with chips that went to nobody. Open it and save it to repair it.',

@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { back, backTo, go } from '../router';
-import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo } from '../components/ui';
+import { back, backTo, go, slideSwap } from '../router';
+import { useDragList } from '../components/dragList';
+import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill } from '../components/ui';
 import { NameEntry, titleCase, CodeControl } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
@@ -71,8 +72,9 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
       <Header back={() => back(closed ? `game/${g.id}/close` : '')} title={g.name} sub={gameSubtitle(g)}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>}>
         <div className="felt-subnav sat-glass" role="tablist" aria-label="Game sections">
-          <button role="tab" aria-selected={tab === 'players'} onClick={() => setTab('players')}><Icon name="users" size={18} /> Players <span className="sat-num">{inPlayers.length}</span></button>
-          <button role="tab" aria-selected={tab === 'hands'} onClick={() => setTab('hands')}><Icon name="cards" size={18} /> Hands <span className="sat-num">{g.hands.length}</span></button>
+          <TabPill />
+          <button role="tab" aria-selected={tab === 'players'} onClick={() => tab !== 'players' && slideSwap('prev', () => setTab('players'), true)}><Icon name="users" size={18} /> Players <span className="sat-num">{inPlayers.length}</span></button>
+          <button role="tab" aria-selected={tab === 'hands'} onClick={() => tab !== 'hands' && slideSwap('next', () => setTab('hands'), true)}><Icon name="cards" size={18} /> Hands <span className="sat-num">{g.hands.length}</span></button>
         </div>
       </Header>
 
@@ -142,7 +144,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
       {!closed && (
         <div className="sat-bottombar sat-glass-2">
           <button className="sat-btn sat-btn--ghost sat-btn--lg" style={{ flex: '0 0 auto' }} onClick={() => go(isCash ? `game/${g.id}/count` : `game/${g.id}/close`)}>End game</button>
-          <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => go(`game/${g.id}/hand/new`)}>Log hand {nextN}</button>
+          <button className="sat-btn sat-btn--primary sat-btn--lg felt-logbtn" onClick={() => go(`game/${g.id}/hand/new`)}>Log hand {nextN}</button>
         </div>
       )}
 
@@ -174,51 +176,26 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
 /* ------------------------------- seats: drag to reorder ------------------------------- */
 
-type Handle = { onPointerDown: (e: React.PointerEvent) => void; seat: number; dragging: boolean };
+type Handle = { grip: ReturnType<ReturnType<typeof useDragList<ID>>['grip']>; row: ReturnType<ReturnType<typeof useDragList<ID>>['row']>; seat: number };
 
 /** List whose rows can be dragged by their handle. Dropping saves the new order as seats 1, 2, 3...
     (players who are out keep seats after everyone still in). */
 function SeatList({ g, ids, disabled, render }: { g: Game; ids: ID[]; disabled?: boolean; render: (pid: ID, handle?: Handle) => JSX.Element }) {
   const updateGame = useStore((s) => s.updateGame);
-  const [order, setOrder] = useState<ID[] | null>(null);
-  const [drag, setDrag] = useState<ID | null>(null);
-  const wrap = useRef<HTMLDivElement>(null);
-  const shown = order ?? ids;
-  const start = (pid: ID) => (e: React.PointerEvent) => {
-    if (disabled) return;
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setDrag(pid);
-    setOrder(ids);
-    navigator.vibrate?.(8);
-  };
-  const move = (e: React.PointerEvent) => {
-    if (!drag || !order || !wrap.current) return;
-    // new index = how many other cards have their middle above the finger
-    const kids = [...wrap.current.children] as HTMLElement[];
-    const to = kids.filter((k, i) => order[i] !== drag && e.clientY > k.getBoundingClientRect().top + k.getBoundingClientRect().height / 2).length;
-    if (to === order.indexOf(drag)) return;
-    const nx = order.filter((p) => p !== drag);
-    nx.splice(to, 0, drag);
-    setOrder(nx);
-  };
-  const end = () => {
-    if (drag && order && order.join() !== ids.join()) {
-      updateGame(g.id, (x) => {
-        const seats: Record<ID, number> = {};
-        order.forEach((p, i) => { seats[p] = i + 1; });
-        let s = order.length + 1;
-        for (const p of [...x.playerIds].sort((a, b) => (x.seats[a] ?? 99) - (x.seats[b] ?? 99))) if (!(p in seats)) seats[p] = s++;
-        x.seats = seats;
-      });
-      toast('Seat order saved');
-    }
-    setDrag(null);
-    setOrder(null);
-  };
+  const list = useDragList<ID>(ids, (order) => {
+    updateGame(g.id, (x) => {
+      const seats: Record<ID, number> = {};
+      order.forEach((p, i) => { seats[p] = i + 1; });
+      let s = order.length + 1;
+      for (const p of [...x.playerIds].sort((a, b) => (x.seats[a] ?? 99) - (x.seats[b] ?? 99))) if (!(p in seats)) seats[p] = s++;
+      x.seats = seats;
+    });
+    toast('Seat order saved');
+  });
   return (
-    <div ref={wrap} className="felt-seatlist" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
-      {shown.map((pid, i) => render(pid, disabled ? undefined : { onPointerDown: start(pid), seat: i + 1, dragging: drag === pid }))}
+    <div ref={list.wrap} className={`felt-seatlist ${list.listClass}`}>
+      {list.slot}
+      {ids.map((pid) => render(pid, disabled ? undefined : { grip: list.grip(pid), row: list.row(pid), seat: list.projected.indexOf(pid) + 1 }))}
     </div>
   );
 }
@@ -246,9 +223,9 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
     toast('Name saved');
   };
   return (
-    <div className={`sat-glass felt-pcard ${status === 'out' ? 'is-out' : ''} ${status === 'away' ? 'is-away' : ''} ${handle?.dragging ? 'is-dragging' : ''}`}>
+    <div data-drag-row={handle ? true : undefined} style={handle?.row.style} className={`sat-glass felt-pcard ${status === 'out' ? 'is-out' : ''} ${status === 'away' ? 'is-away' : ''} ${handle?.row.className ?? ''}`}>
       {handle ? (
-        <button type="button" className="felt-grip" onPointerDown={handle.onPointerDown} aria-label={`Seat ${handle.seat}. Drag to change ${name}'s seat`}>
+        <button type="button" className="felt-grip" {...handle.grip} aria-label={`Seat ${handle.seat}. Press and hold, then drag to change ${name}'s seat`}>
           <svg viewBox="0 0 16 12" width="16" height="12" aria-hidden="true"><path d="M1 1h14M1 6h14M1 11h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
           <span className="sat-num">{handle.seat}</span>
         </button>
@@ -423,6 +400,7 @@ function MoveSheet({ g, name, onClose }: { g: Game; name: (id: ID) => string; on
     <Sheet open onClose={onClose} title="Chip move">
       <Caption tip="moves">Kind</Caption>
       <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Kind of move">
+        <TabPill />
         {MOVE_KIND.map((o) => <button key={o.k} type="button" role="radio" aria-checked={kind === o.k} onClick={() => setKind(o.k)}>{o.label}</button>)}
       </div>
       <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>

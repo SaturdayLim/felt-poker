@@ -3,7 +3,7 @@ import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
 import { useRoute } from './router';
-import { Icon, ToastHost } from './components/ui';
+import { Icon, TabPill, ToastHost } from './components/ui';
 import Home from './screens/Home';
 import Games from './screens/Games';
 import NewGame from './screens/NewGame';
@@ -82,6 +82,7 @@ export default function App() {
       {nav && (
         <nav className="felt-nav" aria-label="Main">
           <div className="sat-glass-2">
+            <TabPill />
             {NAV.map((n) => (
               <a key={n.path} href={`#/${n.path}`} aria-current={active === n.path ? 'page' : undefined}>
                 <Icon name={n.icon} />

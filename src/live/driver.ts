@@ -13,6 +13,8 @@ export interface LiveDriver {
   remove(room: string): Promise<void>;
   /** Calls back with the current value at a path, then on every change. Returns a stop function. */
   watch(room: string, path: string, cb: (value: unknown) => void): () => void;
+  /** Calls back with the connection state, then on every change. Returns a stop function. */
+  connected(cb: (on: boolean) => void): () => void;
 }
 
 let current: LiveDriver | null = null;

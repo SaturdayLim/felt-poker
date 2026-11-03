@@ -13,6 +13,7 @@ export interface Flag { id: string; n: number; text: string; at: number }
 interface Session {
   gameId: ID; room: string; key: string; locked: boolean; driver: LiveDriver;
   stops: (() => void)[]; flags: Flag[]; failed: Set<string>; identCodes: Record<ID, string>; inbox: Record<string, unknown>; nowN?: number; timer?: ReturnType<typeof setTimeout>;
+  connected: boolean; stopTimer?: ReturnType<typeof setTimeout>;
 }
 
 const sessions = new Map<ID, Session>();
@@ -22,11 +23,16 @@ const changed = () => listeners.forEach((l) => l());
 export const onLiveChange = (cb: () => void) => { listeners.add(cb); return () => { listeners.delete(cb); }; };
 
 const LS = (g: ID) => `felt-live:${g}`;
-const load = (g: ID): { room: string; key: string; locked: boolean; flags: Flag[] } | null => {
+const load = (g: ID): { room: string; key: string; locked: boolean; flags: Flag[]; stopping?: boolean } | null => {
   try { const t = localStorage.getItem(LS(g)); return t ? JSON.parse(t) : null; } catch { return null; }
 };
-const save = (s: Session) => {
-  try { localStorage.setItem(LS(s.gameId), JSON.stringify({ room: s.room, key: s.key, locked: s.locked, flags: s.flags })); } catch { /* private mode */ }
+const save = (s: Session, stopping = false) => {
+  try { localStorage.setItem(LS(s.gameId), JSON.stringify({ room: s.room, key: s.key, locked: s.locked, flags: s.flags, stopping })); } catch { /* private mode */ }
+};
+/** The last room of a game: sharing on again uses the same id and key, so nobody has to scan again. */
+const KEEP = (g: ID) => `felt-live-keep:${g}`;
+const kept = (g: ID): { room: string; key: string; locked: boolean } | null => {
+  try { const t = localStorage.getItem(KEEP(g)); return t ? JSON.parse(t) : null; } catch { return null; }
 };
 
 /** The driver in use: the test driver when asked ("?live=mock" or the felt-live-mock flag), else Firebase when set up. */
@@ -50,7 +56,7 @@ export function linkFor(room: string, key: string, locked: boolean): string {
 
 export function liveStatus(gameId: ID) {
   const s = sessions.get(gameId);
-  return s ? { on: true as const, locked: s.locked, room: s.room, link: linkFor(s.room, s.key, s.locked), flags: s.flags } : { on: false as const };
+  return s && !s.stopTimer ? { on: true as const, connected: s.connected, locked: s.locked, room: s.room, link: linkFor(s.room, s.key, s.locked), flags: s.flags } : { on: false as const };
 }
 
 const handCount = (g: Game) => g.hands.filter((h) => !h.missed && h.log).length;
@@ -130,6 +136,7 @@ async function takeFlags(s: Session, tree: Record<string, string> | null) {
 function attach(s: Session) {
   s.stops.push(s.driver.watch(s.room, 'inbox', (v) => { s.inbox = (v ?? {}) as Record<string, unknown>; applyInbox(s); }));
   s.stops.push(s.driver.watch(s.room, 'flags', (v) => { takeFlags(s, v as Record<string, string> | null); }));
+  s.stops.push(s.driver.connected((on) => { s.connected = on; changed(); }));
 }
 
 /** Opens a room for a game and returns its link. A passphrase locks the game. */
@@ -140,17 +147,19 @@ export async function startSharing(gameId: ID, passphrase?: string): Promise<str
   if (!g) throw new Error('Game not found.');
   if (sessions.has(gameId)) await stopSharing(gameId);
   const uid = await driver.signIn();
-  const room = newRoomId();
+  const before = kept(gameId);
+  const room = before?.room ?? newRoomId();
   const locked = !!passphrase?.trim();
-  const key = locked ? await keyFromPassphrase(passphrase!, room) : newRoomKey();
+  const key = locked ? await keyFromPassphrase(passphrase!, room) : before && !before.locked ? before.key : newRoomKey();
   const st = useStore.getState();
-  const s: Session = { gameId, room, key, locked, driver, stops: [], flags: [], failed: new Set(), identCodes: {}, inbox: {} };
+  const s: Session = { gameId, room, key, locked, driver, stops: [], flags: [], failed: new Set(), identCodes: {}, inbox: {}, connected: true };
   await driver.create(room, {
     owner: uid, createdAt: Date.now(),
     meta: { v: 1, locked, check: locked ? await seal(CHECK_TEXT, key) : null, updatedAt: Date.now(), handCount: handCount(g) },
     pub: await seal(buildPub(g, st.players, st.settings), key),
   });
   sessions.set(gameId, s);
+  try { localStorage.setItem(KEEP(gameId), JSON.stringify({ room, key, locked })); } catch { /* private mode */ }
   await syncIdent(s, g);
   save(s);
   attach(s);
@@ -158,11 +167,30 @@ export async function startSharing(gameId: ID, passphrase?: string): Promise<str
   return linkFor(room, key, locked);
 }
 
+/** Starts the Undo window: the status shows off at once, and the room goes after 5 seconds. */
+export function requestStop(gameId: ID) {
+  const s = sessions.get(gameId);
+  if (!s || s.stopTimer) return;
+  save(s, true);
+  s.stopTimer = setTimeout(() => { stopSharing(gameId); }, 5000);
+  changed();
+}
+
+export function cancelStop(gameId: ID) {
+  const s = sessions.get(gameId);
+  if (!s?.stopTimer) return;
+  clearTimeout(s.stopTimer);
+  s.stopTimer = undefined;
+  save(s);
+  changed();
+}
+
 /** Closes the room. Viewers see that the host stopped sharing. */
 export async function stopSharing(gameId: ID) {
   const s = sessions.get(gameId);
   try { localStorage.removeItem(LS(gameId)); } catch { /* ignore */ }
   if (!s) return;
+  clearTimeout(s.stopTimer);
   s.stops.forEach((f) => f());
   sessions.delete(gameId);
   try { await s.driver.remove(s.room); } catch { /* offline: the room expires */ }
@@ -186,7 +214,9 @@ export async function resumeSharing() {
     if (!saved || sessions.has(g.id)) continue;
     try {
       await driver.signIn();
-      const s: Session = { gameId: g.id, room: saved.room, key: saved.key, locked: saved.locked, driver, stops: [], flags: saved.flags ?? [], failed: new Set(), identCodes: {}, inbox: {} };
+      // the app closed inside the Undo window: finish the stop
+      if (saved.stopping) { await driver.remove(saved.room); localStorage.removeItem(LS(g.id)); continue; }
+      const s: Session = { gameId: g.id, room: saved.room, key: saved.key, locked: saved.locked, driver, stops: [], flags: saved.flags ?? [], failed: new Set(), identCodes: {}, inbox: {}, connected: true };
       sessions.set(g.id, s);
       attach(s);
       publishPub(g.id);

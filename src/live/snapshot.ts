@@ -19,7 +19,7 @@ export interface StackLine { name: string; stack: number | null; spread: number 
 export interface PubSnapshot {
   v: 1;
   game: { name: string; type: string; sb: number; bb: number; status: string; startedAt: number };
-  rules: { label: string; value: string }[];
+  rules: { label: string; value: string; tip?: string }[];
   players: { id: ID; name: string }[];
   hands: PubHand[];
   stacks: StackLine[];

@@ -82,7 +82,16 @@ button.felt-row { color: inherit; }
 .felt-toast { position: fixed; left: 50%; right: auto; top: auto; margin: 0; color: inherit; transform: translateX(-50%); bottom: calc(var(--felt-safe-bottom) + 96px); z-index: 80;
   padding: var(--sat-space-3) var(--sat-space-4); border-radius: var(--sat-radius-md); max-width: calc(100vw - 32px); font-weight: 600; animation: sat-fade var(--sat-dur-fast) var(--sat-ease); }
 
+/* Report inside the app */
+.felt-report-view { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--sat-bg); }
+.felt-report-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); padding: calc(env(safe-area-inset-top) + 8px) var(--sat-space-4) 8px; }
+.felt-report-view iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+
 /* Live game */
+.felt-lamp { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; transition: background 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease); }
+.felt-lamp.is-on { background: #35c46b; box-shadow: 0 0 8px rgba(53,196,107,.7); }
+.felt-lamp.is-wait { background: #f0a92e; box-shadow: 0 0 8px rgba(240,169,46,.7); }
+.felt-lamp.is-off { background: #e5484d; box-shadow: 0 0 6px rgba(229,72,77,.5); }
 .felt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-pos); margin-right: 6px; vertical-align: 1px; }
 .felt-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sat-space-3); }
 .felt-kpis .sat-kpi { font-size: 1.75rem; }

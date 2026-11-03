@@ -2,7 +2,8 @@
    read plain history and showdown hands, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings, no way to read any private cards, including their own. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Caption, Cards, Empty, Header, Icon, Sheet, toast } from '../components/ui';
+import { Caption, Cards, Empty, Header, Help, Icon, Sheet, toast } from '../components/ui';
+import type { HelpKey } from '../lib/help';
 import { CardEntrySheet } from '../components/cardEntry';
 import { lock, unlock, type LockBox } from '../report/lock';
 import { CHECK_TEXT, keyFromPassphrase, open, seal } from '../live/crypto';
@@ -234,7 +235,7 @@ function Table({ pub }: { pub: PubSnapshot }) {
 function Settings({ pub }: { pub: PubSnapshot }) {
   return (
     <div className="sat-glass-2 felt-list">
-      {pub.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main">{r.label}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>)}
+      {pub.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main">{r.label}{r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>)}
     </div>
   );
 }

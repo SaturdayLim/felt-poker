@@ -10,7 +10,7 @@ import { buyInsEquivalent, dateLabel, duration, gameLength, inBB, money, timeLab
 import { estimateStacks, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
-import { LiveSheet, useLive } from '../components/live';
+import { LiveSheet, SharingLamp, lampState, useLive } from '../components/live';
 import { uid } from '../lib/ids';
 import type { ChipMove, Game, Hand, ID } from '../types';
 
@@ -84,8 +84,9 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
         <button className="sat-flat sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => setLiveOpen(true)}>
           <span><Icon name="share" size={18} /> Live link</span>
-          <span className="sat-small" style={{ color: live.on ? 'var(--sat-accent-text)' : undefined, fontWeight: 600 }}>
-            {live.on ? `On${live.flags.length ? `, ${live.flags.length} ${live.flags.length === 1 ? 'flag' : 'flags'}` : ''}` : 'Off'}
+          <span className="sat-small sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', fontWeight: 600 }}>
+            {live.on && live.flags.length > 0 && `${live.flags.length} ${live.flags.length === 1 ? 'flag' : 'flags'}`}
+            <SharingLamp state={lampState(live)} />
           </span>
         </button>
 

@@ -50,6 +50,15 @@ export function firebaseDriver(): LiveDriver {
       const { f, r } = await ref(room);
       await f.sdk.db.remove(r);
     },
+    connected(cb) {
+      let off: (() => void) | null = null;
+      let stopped = false;
+      load().then((f) => {
+        if (stopped) return;
+        off = f.sdk.db.onValue(f.sdk.db.ref(f.db, '.info/connected'), (snap: any) => cb(snap.val() === true));
+      }, () => cb(false));
+      return () => { stopped = true; off?.(); };
+    },
     watch(room, path, cb) {
       let off: (() => void) | null = null;
       let stopped = false;

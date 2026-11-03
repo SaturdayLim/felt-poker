@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.1.4', date: '3 Nov 2026', notes: [
+    'Live link: a switch with a status lamp. Green is live, amber is waiting for a connection, red is off.',
+    'Sharing off has an Undo for 5 seconds. Sharing on again uses the same link.',
+    'View the game report inside the app.',
+    '2-7 settings now take 3 rows, each with a tip.',
+  ] },
   { version: '1.1.3', date: '3 Nov 2026', notes: [
     'Hand logging: a floating card icon adds player cards on any stage. My cards and Show my cards are gone.',
     'Who acts and the pot now sit under the stage tabs. Each street tab shows that closing pot.',

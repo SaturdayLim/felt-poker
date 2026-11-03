@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import type { Game } from '../types';
-import { Caption, Icon, Sheet, toast } from './ui';
-import { dismissFlag, liveAvailable, liveStatus, onLiveChange, startSharing, stopSharing } from '../live/host';
+import { Caption, Help, Icon, Sheet, toast } from './ui';
+import { cancelStop, dismissFlag, liveAvailable, liveStatus, onLiveChange, requestStop, startSharing } from '../live/host';
 
 /** Re-reads the live state of a game whenever it changes. */
 export function useLive(gameId: string) {
@@ -11,19 +11,30 @@ export function useLive(gameId: string) {
   return liveStatus(gameId);
 }
 
-/** Host controls for the live link of one game: start, lock, copy the link, show a QR, read flags, stop. */
+/** Green: live. Amber: on, with no connection now. Red: off. */
+export function SharingLamp({ state }: { state: 'on' | 'wait' | 'off' }) {
+  return <span className={`felt-lamp is-${state}`} aria-hidden="true" />;
+}
+export const lampState = (live: ReturnType<typeof liveStatus>) => (!live.on ? 'off' : live.connected ? 'on' : 'wait');
+const LAMP_TEXT = { on: 'Live', wait: 'Waiting for a connection', off: 'Off' };
+
+/** Host controls for the live link of one game: the switch and status, lock, copy the link, show a QR, read flags. */
 export function LiveSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   const live = useLive(g.id);
   const [pass, setPass] = useState('');
   const [busy, setBusy] = useState(false);
-  const [confirmStop, setConfirmStop] = useState(false);
   const available = liveAvailable();
+  const lamp = lampState(live);
 
   const start = async () => {
     setBusy(true);
-    try { await startSharing(g.id, pass); setPass(''); toast('Live link is on.'); }
+    try { cancelStop(g.id); if (!liveStatus(g.id).on) await startSharing(g.id, pass); setPass(''); }
     catch (e) { toast(`Live link did not start: ${(e as Error).message}`); }
     finally { setBusy(false); }
+  };
+  const stop = () => {
+    requestStop(g.id);
+    toast('Sharing off. The room goes in 5 seconds.', { label: 'Undo', run: () => cancelStop(g.id) });
   };
   const copy = () => {
     if (!live.on) return;
@@ -38,19 +49,24 @@ export function LiveSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   }, [live.on && live.link]);
 
   return (
-    <Sheet open onClose={onClose} title="Live link" sub={live.on ? (live.locked ? 'On, locked with a passphrase.' : 'On.') : 'Off.'}>
+    <Sheet open onClose={onClose} title="Live link">
       {!available && <div className="sat-flat sat-card sat-small">The live link is not set up in this app yet. See docs/FIREBASE-SETUP.md.</div>}
 
+      {available && (
+        <div className="sat-switch-row">
+          <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+            <span>Sharing status</span><Help k="sharing" />
+            <SharingLamp state={lamp} /><b className="sat-small">{busy ? 'Starting' : LAMP_TEXT[lamp]}</b>
+          </span>
+          <button type="button" className="sat-switch" role="switch" aria-checked={live.on} aria-label="Sharing" aria-disabled={busy} onClick={() => { if (busy) return; if (live.on) stop(); else start(); }} />
+        </div>
+      )}
+
       {!live.on && available && (
-        <>
-          <p className="sat-small">Players open one link to follow this game and add their own cards. An encrypted copy of the game goes online until you stop sharing.</p>
-          <div className="sat-field">
-            <label htmlFor="lp">Join passphrase (optional)</label>
-            <input id="lp" className="sat-input" autoComplete="off" autoCapitalize="off" placeholder="Leave empty for an open link" value={pass} onChange={(e) => setPass(e.target.value)} />
-            <span className="sat-hint">With a passphrase, players must type it after they open the link.</span>
-          </div>
-          <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={busy} onClick={() => !busy && start()}><Icon name="share" /> {busy ? 'Starting' : 'Start sharing'}</button>
-        </>
+        <div className="sat-field">
+          <label htmlFor="lp">Join passphrase (optional)</label>
+          <input id="lp" className="sat-input" autoComplete="off" autoCapitalize="off" placeholder="Leave empty for an open link" value={pass} onChange={(e) => setPass(e.target.value)} />
+        </div>
       )}
 
       {live.on && (
@@ -73,11 +89,6 @@ export function LiveSheet({ g, onClose }: { g: Game; onClose: () => void }) {
               </div>
             </>
           )}
-
-          <button className="sat-btn sat-btn--ghost sat-btn--block" style={confirmStop ? { color: 'var(--sat-neg)' } : undefined}
-            onClick={async () => { if (!confirmStop) { setConfirmStop(true); return; } await stopSharing(g.id); setConfirmStop(false); toast('Sharing stopped. The room is deleted.'); }}>
-            {confirmStop ? 'Tap again: delete the room for everyone' : 'Stop sharing'}
-          </button>
         </>
       )}
     </Sheet>

@@ -36,6 +36,7 @@ export function mockDriver(opts: { shared?: boolean; uid?: string } = {}): LiveD
       write(room, tree);
     },
     async remove(room) { write(room, undefined); },
+    connected(cb) { queueMicrotask(() => cb(true)); return () => undefined; },
     watch(room, path, cb) {
       let last = '';
       const fire = () => {

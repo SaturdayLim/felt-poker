@@ -182,9 +182,9 @@ const WIN_RULE = { shown: 'Revealed at showdown', won: 'Winning the pot', sole: 
 const MIN_RAISE = { last: 'Last raise', sb: 'SB steps', double: 'Double' } as const;
 
 /** The house rules a game was played under, as label and value pairs for the report. */
-export function rulesList(g: Game, s?: Settings): { label: string; value: string }[] {
+export function rulesList(g: Game, s?: Settings): { label: string; value: string; tip?: string }[] {
   const r = s || g.rules ? gameRules(g, s as Settings) : undefined;
-  const out = [
+  const out: { label: string; value: string; tip?: string }[] = [
     { label: 'Game', value: g.type === 'cash' ? 'Cash' : 'Tournament' },
     { label: 'Blinds', value: `${g.sb}/${g.bb} chips` },
     { label: 'Buy-in', value: `${g.buyIns[0]?.amount ?? 0} chips` },
@@ -192,7 +192,12 @@ export function rulesList(g: Game, s?: Settings): { label: string; value: string
   if (!r) return out;
   out.push({ label: 'Minimum raise', value: MIN_RAISE[r.minRaise] });
   const b = r.bounty27;
-  out.push({ label: '2-7 bounty', value: b.on ? `${WIN_RULE[b.win]}, ${b.suited ? 'suited allowed' : 'offsuit only'}, ${b.amount} chips from each player` : 'Off' });
+  if (!b.on) out.push({ label: '2-7 bounty', value: 'Off' });
+  else out.push(
+    { label: '2-7 win', value: WIN_RULE[b.win], tip: 'bountyWin' },
+    { label: '2-7 hand', value: b.suited ? 'Suited allowed' : 'Offsuit only', tip: 'bountyHand' },
+    { label: '2-7 amount', value: `${b.amount} chips per player`, tip: 'bountyAmount' },
+  );
   return out;
 }
 

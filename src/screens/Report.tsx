@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
@@ -73,6 +74,7 @@ export default function Report({ gameId }: { gameId: string }) {
 
   useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
 
+  const [viewing, setViewing] = useState<string | null>(null);
   const noCode = g ? allPlayers.filter((p) => g.playerIds.includes(p.id) && !p.codeIssued) : [];
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Report" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
 
@@ -123,7 +125,7 @@ export default function Report({ gameId }: { gameId: string }) {
         )}
 
         {tier === 'html' && noCode.length > 0 && (
-          <div className="sat-flat sat-card sat-small">{noCode.map((p) => p.name).join(', ')} {noCode.length === 1 ? 'has' : 'have'} no code yet. Open Stats, pick the player and tap the eye to give a code. The report still builds.</div>
+          <div className="sat-flat sat-card sat-small">{noCode.map((p) => p.name).join(', ')} {noCode.length === 1 ? 'has' : 'have'} an unseen code. Open Players, tap the player and tap the eye. The report still builds.</div>
         )}
 
         {!busy && (tier === 'data' || tier === 'html') && (
@@ -138,9 +140,16 @@ export default function Report({ gameId }: { gameId: string }) {
         )}
       </div>
 
+      {viewing !== null && createPortal(
+        <div className="felt-report-view" role="dialog" aria-label="Game report">
+          <div className="felt-report-bar sat-glass-2"><b className="felt-ellipsis">{g.name}</b><button className="sat-btn sat-btn--sm" onClick={() => setViewing(null)}>Close</button></div>
+          <iframe title="Game report" srcDoc={viewing} />
+        </div>, document.body)}
+
       <div className="sat-bottombar sat-glass-2">
+        {tier === 'html' && <button className="sat-btn sat-btn--lg" aria-disabled={busy || !files.length} onClick={async () => { if (!busy && files[0]) setViewing(await files[0].text()); }}><Icon name="eye" /> View report</button>}
         <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={busy || !files.length} onClick={() => !busy && files.length && share()}>
-          <Icon name="share" /> Download or share {tier === 'data' ? '3 CSV files' : tier === 'html' ? 'report' : files.length > 1 ? `${files.length} images` : 'image'}
+          <Icon name="share" /> {tier === 'html' ? 'Download' : `Download or share ${tier === 'data' ? '3 CSV files' : files.length > 1 ? `${files.length} images` : 'image'}`}
         </button>
       </div>
     </div>

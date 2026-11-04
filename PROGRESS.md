@@ -1,6 +1,7 @@
 # Felt: progress
 
 ## Latest (4 Nov 2026): 1.2.9
+- Round 4 (5 Nov): PR https://github.com/SaturdayLim/felt-poker/pull/1 opened; owner asked to push to main after each set of work (CLAUDE.md). Swipe-back B built (src/lib/swipeBack.ts, router backPlain and hasUAVisualTransition skip). iOS Safari's own edge swipe still wins near the very edge: then no morph plays. Player card reordered with Net and Win rate lists; Games accepts a player filter (#/games/<id>).
 - IMPORTANT: GitHub Pages deploys from main only (.github/workflows/deploy.yml). main is still 1.2.8; the owner tested 1.2.8 on 4 Nov evening. 1.2.9 needs a merge to main to go live.
 - Round 3: stepFor() in Join.tsx; CardEntrySheet `own` prop (host's own row, felt-own-open:<pid> in localStorage holds the code); clashLevel/countedPairs in clash.ts, Settings.checkCards; host sends clash only when a later hand exists or the next live hand has acted (nowActed); Check Your Cards pop-up removed. NameField in players.tsx; press class 'name' in motion.ts; --felt-vvh caps sheet height.
 - Waiting: owner picks a swipe-back variant (https://claude.ai/artifact/Mh4TFnyP3BdWemtuNfv9F7). Not built in the app.

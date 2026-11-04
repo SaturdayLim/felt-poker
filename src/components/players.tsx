@@ -5,9 +5,10 @@ import { showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary } from '../lib/stats';
 import { gameResults } from '../lib/calc';
+import { contributions } from '../lib/hand';
 import { money, shortDate } from '../lib/format';
 import { go } from '../router';
-import type { ID, Player } from '../types';
+import type { Game, ID, Player } from '../types';
 
 /* ---------------------------- name autocorrect ---------------------------- */
 
@@ -262,63 +263,87 @@ function NameField({ p }: { p: Player }) {
   );
 }
 
-/** The player pop-up: the name (edit in place), headline figures, the code, then Full stats. Each figure opens what is behind it. */
+/** Hands a player won (took chips from a pot) and lost (put chips in, took none) in one game. */
+function handTally(g: Game, p: ID) {
+  let won = 0, lost = 0;
+  for (const h of g.hands) {
+    if (h.missed) continue;
+    if (h.winners.some((w) => w.playerId === p && w.amount > 0)) won++;
+    else if (h.log && (contributions(g, h.log, h.log.button)[p] ?? 0) > 0) lost++;
+  }
+  return { won, lost };
+}
+
+/** The player pop-up, top to bottom: the name (edit in place), the code, Net, Win rate and Games, then Full stats.
+    Net lists each game's buy-in, end and result. Win rate lists hands won and lost in each game. Games opens the
+    Games page for this player. A swipe down or a tap outside closes it. */
 export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) {
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
-  const [view, setView] = useState<'card' | 'games'>('card');
-  const st = useStore();
-  const [confirm, setConfirm] = useState(false);
+  const [view, setView] = useState<'card' | 'net' | 'rate'>('card');
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
   const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
+  const closed = played.filter((g) => g.status === 'closed');
   const stats = () => { onClose(); go(`insights/${p.id}`); };
-  if (view === 'games') {
+  const open = (g: Game) => { onClose(); go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/close`); };
+  const back = <button className="sat-btn sat-btn--block" onClick={() => setView('card')}>Back to {p.name}</button>;
+  if (view === 'net') {
     return (
-      <Sheet open onClose={onClose} title={`${p.name}: Games`}>
-        {played.length === 0 && <p className="sat-small sat-muted">Not in any games yet.</p>}
-        {played.length > 0 && (
+      <Sheet open noClose onClose={onClose} title={`${p.name}: Net`}>
+        {closed.length === 0 && <p className="sat-small sat-muted">No closed games yet.</p>}
+        {closed.length > 0 && (
           <div className="sat-flat felt-list">
-            {played.map((g) => {
-              const live = g.status === 'live';
-              const net = live ? undefined : gameResults(g).find((r) => r.playerId === p.id)?.net;
+            {closed.map((g) => {
+              const r = gameResults(g).find((x) => x.playerId === p.id)!;
               return (
-                <button key={g.id} className="felt-row" onClick={() => { onClose(); go(live ? `game/${g.id}` : `game/${g.id}/close`); }}>
+                <button key={g.id} className="felt-row" onClick={() => open(g)}>
                   <span className="felt-row-main">
-                    <span className="felt-row-title felt-ellipsis" style={{ display: 'block' }}>{g.name}</span>
-                    <span className="felt-row-sub" style={{ display: 'block' }}>{live ? 'Live' : shortDate(g.startedAt)}</span>
+                    <span className="felt-row-title felt-ellipsis">{g.name}</span>
+                    <span className="felt-row-sub sat-num">{shortDate(g.startedAt)}: in {money(r.in, g.currency)}, out {money(r.out, g.currency)}</span>
                   </span>
-                  {net !== undefined && <Delta value={net} format={(a) => money(a, g.currency)} />}
+                  <Delta value={r.net} format={(a) => money(a, g.currency)} />
                 </button>
               );
             })}
           </div>
         )}
-        <button className="sat-btn sat-btn--block" onClick={() => setView('card')}>Back to {p.name}</button>
+        {back}
+      </Sheet>
+    );
+  }
+  if (view === 'rate') {
+    return (
+      <Sheet open noClose onClose={onClose} title={`${p.name}: Hands won and lost`}>
+        {played.length === 0 && <p className="sat-small sat-muted">Not in any games yet.</p>}
+        {played.length > 0 && (
+          <div className="sat-flat felt-list">
+            {played.map((g) => {
+              const t = handTally(g, p.id);
+              return (
+                <button key={g.id} className="felt-row" onClick={() => open(g)}>
+                  <span className="felt-row-main">
+                    <span className="felt-row-title felt-ellipsis">{g.name}</span>
+                    <span className="felt-row-sub">{g.status === 'live' ? 'Live' : shortDate(g.startedAt)}</span>
+                  </span>
+                  <span className="felt-row-end sat-num"><b className="felt-up">{t.won} won</b><br /><span className="felt-down">{t.lost} lost</span></span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {back}
       </Sheet>
     );
   }
   return (
-    <Sheet open onClose={onClose} title={p.name} head={<NameField p={p} />}>
-      <div className="felt-tiles">
-        <button type="button" className="sat-flat sat-card felt-fig" onClick={stats}><span className="sat-caption">Net</span><b className="sat-num">{s.games ? money(s.net, currency, { sign: true }) : '-'}</b></button>
-        <button type="button" className="sat-flat sat-card felt-fig" onClick={stats}><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></button>
-        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('games')}><span className="sat-caption">Games</span><b className="sat-num">{played.length}</b></button>
-      </div>
+    <Sheet open noClose onClose={onClose} title={p.name} head={<NameField p={p} />}>
       <CodeControl pid={p.id} label />
+      <div className="felt-tiles">
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('net')}><span className="sat-caption">Net</span><b className="sat-num">{s.games ? money(s.net, currency, { sign: true }) : '-'}</b></button>
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('rate')}><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></button>
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => { onClose(); go(`games/${p.id}`); }}><span className="sat-caption">Games</span><b className="sat-num">{played.length}</b></button>
+      </div>
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={stats}>Full stats</button>
-      {played.length ? (
-        <div className="felt-tipped">
-          <button className="sat-btn sat-btn--ghost sat-btn--block" onClick={() => { st.setPlayerArchived(p.id, !p.archived); toast(p.archived ? `${p.name} restored to the list` : `${p.name} removed from the list`); onClose(); }}>
-            {p.archived ? 'Restore to the list' : 'Remove from the list'}
-          </button>
-          <Help k="archivePlayer" />
-        </div>
-      ) : (
-        <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }}
-          onClick={() => { if (!confirm) { setConfirm(true); return; } st.deletePlayer(p.id); toast(`${p.name} deleted`); onClose(); }}>
-          <Icon name="trash" /> {confirm ? 'Tap again to delete' : 'Delete player'}
-        </button>
-      )}
     </Sheet>
   );
 }

@@ -1,7 +1,8 @@
 import { PlayerName, openPlayer } from '../components/players';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { back, backTo, go } from '../router';
+import { back, backPlain, backTo, go } from '../router';
+import { installSwipeBack } from '../lib/swipeBack';
 import { CardEntrySheet } from '../components/cardEntry';
 import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
@@ -190,6 +191,16 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const me = settings.me;
   const cardsFor: ID | null = readOnly ? null : me ?? null;
   const [askCards, setAskCards] = useState(false);
+  // swipe back from the left edge closes the page into the Log hand button (recording only; review goes to the hand list)
+  const pageRef = useRef<HTMLDivElement>(null);
+  const leaveTo = useRef('');
+  leaveTo.current = `game/${g?.id ?? ''}`;
+  const ready = !!g && !readOnly;
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el || !ready) return;
+    return installSwipeBack(el, () => backPlain(leaveTo.current));
+  });
   /** Cards entered through Player cards before the hand is saved. They join the hand when it saves. */
   const [extraPriv, setExtraPriv] = useState<Record<ID, Card[]>>({});
   // load the private cards already saved for that player in this hand
@@ -640,7 +651,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const toAct = replay?.next ? name(replay.next.p) : null;
 
   return (
-    <div className={`felt-page felt-recorder ${!target && selCell ? 'has-keypad' : ''}`}>
+    <div ref={pageRef} className={`felt-page felt-recorder ${!target && selCell ? 'has-keypad' : ''}`}>
       <Header back={() => back(readOnly ? `game/${g.id}/hands` : `game/${g.id}`)} title={`Hand ${st.n}`} sub={readOnly ? `${g.name}, review` : g.name}
         right={existing && !readOnly ? (
           <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Delete hand"

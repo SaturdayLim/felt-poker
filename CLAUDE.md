@@ -5,6 +5,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 ## Workflow
 
 - **Commit and push after each set of work** (user's standing order). Exception: when a question to the user is still open, do not push; list the open questions at the very end of the reply, each with the context needed to answer it.
+- **Push to main whenever a set of work is completed** (user's standing order, 5 Nov 2026). GitHub Pages deploys from main only. Push the work branch first, then fast-forward main to it.
 - Never commit the user's game data (backups, exports, trial reports built from them). They stay in `trial/`, which git ignores.
 
 ## UI copy
@@ -74,7 +75,9 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A name in the recorder needs a press and hold to enter shown cards. A tap does nothing. Run cards stop blocking the picker when the hand goes back to a street.
 - Pop-ups never cover the field being filled: the keypad and picker scroll it clear, and the keyboard pushes sheets up.
 - A panel opened by a button pulls out of that button, in its colour, and goes back into it on Close. A swipe down slides it away; a tap outside closes it. The orange card button opens a sheet with an orange edge.
-- Log hand: closing, the page shrinks into the button, then the button turns blue, then its text shows. Opening runs the same steps in reverse.
+- Log hand: closing, the page closes into the button shape, and the blue and then the text come in over the end of that move. Opening runs the same steps in reverse.
+- Swipe back on the hand page (owner pick B): a drag from the left edge closes the page towards the Log hand button as the finger moves. Past a third it goes into the button; earlier it springs back. When the phone does its own back swipe, no morph plays on top.
+- Morphs clip, never stretch: anything that grows or shrinks keeps its content at its own size while the frame changes shape, and the colour and text change overlaps the move (no pause, then a flip).
 - Motion is set in `docs/MOTION-LIST.md`, and `src/lib/motion.ts` plays it. Springs use visual duration and bounce. Every button press follows its class.
 - Private cards that match another entry or the table are flagged to that player alone (the ! above, and a line on their report page for blue). Half a pair is left out of all analysis.
 - Player view: the card button signs in. Sign out sits in its sheet.
@@ -84,6 +87,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Tap a stack: the count sheet, with Rebuy (chips, default the game buy-in) and Add chips under it (cash).
 - Drag to reorder seats: a press and hold on the grip or on any blank part of a player card lifts it. A long press never selects text on a card.
 - Player card name: edit it in place (plain text). Enter or leaving the field saves; a saved name of another player is refused. No Edit name button. A name press glows around the letters; no box lights up.
+- Player card order: name, player code, Net + Win rate + Games, Full stats. No Close button (the swipe bar closes it). Net lists each closed game with in, out and result. Win rate lists hands won and lost in each game. Games opens the Games page filtered to the player. Full stats opens the player page.
 - A field in a sheet: the sheet rises by the keyboard height only, and never grows taller than the space above the keyboard.
 - Stacks: a missed hand turns them into ranges; a count (tap the stack) or a typed all-in makes one exact again. With a range, All-in asks for the amount.
 - Chip moves (side game, tip, other) change stacks, not pots or hand stats, and show as dashed rows between hands.

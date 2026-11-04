@@ -4,6 +4,7 @@ import { back, backTo, go } from '../router';
 import { useDragList } from '../components/dragList';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton } from '../components/ui';
 import { shrinkAway } from '../lib/motion';
+import { rememberLogButton } from '../lib/swipeBack';
 import { SeatPicker, CodeControl, PlayerName, openPlayer } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
@@ -134,7 +135,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
       {!closed && (
         <div className="sat-bottombar sat-glass-2">
           <button className="sat-btn sat-btn--ghost sat-btn--lg" style={{ flex: '0 0 auto' }} onClick={() => go(isCash ? `game/${g.id}/count` : `game/${g.id}/close`)}>End game</button>
-          <button className="sat-btn sat-btn--primary sat-btn--lg felt-logbtn" onClick={() => go(`game/${g.id}/hand/new`)}>Log hand {nextN}</button>
+          <button ref={rememberLogButton} className="sat-btn sat-btn--primary sat-btn--lg felt-logbtn" onClick={(e) => { rememberLogButton(e.currentTarget); go(`game/${g.id}/hand/new`); }}>Log hand {nextN}</button>
         </div>
       )}
 

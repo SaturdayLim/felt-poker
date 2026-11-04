@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import type { Game } from '../types';
-import { Caption, Help, Icon, toast, useSwipeDown } from './ui';
+import { Caption, Help, Icon, mixClip, toast, useSwipeDown } from './ui';
 import { DRAWER, SPRING, calm, spring } from '../lib/motion';
 import { cancelStop, dismissFlag, liveAvailable, liveStatus, onLiveChange, requestStop, startSharing } from '../live/host';
 
@@ -10,6 +10,15 @@ export function useLive(gameId: string) {
   const [, tick] = useState(0);
   useEffect(() => onLiveChange(() => tick((x) => x + 1)), []);
   return liveStatus(gameId);
+}
+
+const FULL = 'inset(0px 0px 0px 0px round 16px)';
+/** The clip that shows only the part of the pop-up over the QR icon. */
+function iconClip(d: HTMLElement, from?: DOMRect): string {
+  const r = d.getBoundingClientRect();
+  if (!from) return `inset(${r.height / 2}px ${r.width / 2}px ${r.height / 2}px ${r.width / 2}px round 16px)`;
+  const ins = [from.top - r.top, r.right - from.right, r.bottom - from.bottom, from.left - r.left].map((v) => Math.max(0, Math.min(v, Math.max(r.width, r.height))));
+  return `inset(${ins[0]}px ${ins[1]}px ${ins[2]}px ${ins[3]}px round 16px)`;
 }
 
 /** The QR of the link, large, in a pop-up that springs out of the QR icon. A tap anywhere or a swipe down fades it away. */
@@ -27,9 +36,8 @@ export function QrPopup({ link, from, onClose }: { link: string; from?: DOMRect;
     if (!d || d.open) return;
     d.showModal();
     if (calm() || !d.animate) return;
-    const r = d.getBoundingClientRect();
-    if (from) d.style.transformOrigin = `${from.left + from.width / 2 - r.left}px ${from.top + from.height / 2 - r.top}px`;
-    spring(d, (p) => ({ scale: String(0.4 + 0.6 * p), opacity: String(Math.min(1, p * 1.6)) }), SPRING.qr);
+    // out of the QR icon as a clip: the code keeps its size, the frame opens around it
+    spring(d, (p) => ({ clipPath: mixClip(iconClip(d, from), FULL, Math.min(p, 1)), opacity: String(Math.min(1, p * 2)) }), SPRING.qr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const close = () => {
@@ -39,7 +47,7 @@ export function QrPopup({ link, from, onClose }: { link: string; from?: DOMRect;
     leaving.current = true;
     const t = { duration: 220, easing: DRAWER, fill: 'forwards' as const };
     try { d.animate({ opacity: [1, 0] }, { ...t, pseudoElement: '::backdrop' }); } catch { /* an older phone: the backdrop does not fade */ }
-    d.animate({ opacity: [1, 0], scale: [1, 0.92] }, t).onfinish = onClose;
+    d.animate({ clipPath: [FULL, iconClip(d, from)], opacity: [1, 0] }, t).onfinish = onClose;
   };
   useSwipeDown(ref, close);
   return (

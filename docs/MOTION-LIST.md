@@ -8,10 +8,10 @@ The motion in Felt, as the owner picked it on 4 Nov 2026 from live samples. `src
 |---|---|---|---|
 | A1 | Tab highlight | Springy | spring 320, bounce 0.3 |
 | A2 | Screen change | iOS push | new slides in, old drifts 28% and fades out in 130, 320. The screens are see-through, so the old one must go first |
-| A3 | Log hand into the hand page | Steps | Close: the page shrinks into the button (spring 350, bounce 0.08), the button turns blue at 320 (120), the text shows at 500 (140). Open: the text goes (90), the blue goes at 60 (120), the page grows from 160 |
+| A3 | Log hand into the hand page | Clip morph, overlapped | Close: the page clips into the button (spring 350, bounce 0.08, no stretch), blue at 200 (160), text at 260 (160). Open: text goes (120), blue goes (160), the page opens from 60. Swipe back: the page clips towards the button with the finger (70% of the way at full width); past a third it finishes (spring 350) with a blue stand-in at 140 and its text at 220; earlier it springs back (spring 300, bounce 0.3) |
 | A4 | Sheet | Out of its button | opened by a press: clip from the button, spring 350, bounce 0.08, button colour fades in 200 after 90, content at 110. Close goes back into the button. Swipe down: spring 360, bounce 0. With no press: up spring 500 |
 | A5 | Keypad and card picker | Spring | spring 280, bounce 0.1 |
-| A6 | QR pop-up | From the icon | spring 300, bounce 0.15, fades on close 220 |
+| A6 | QR pop-up | From the icon | clip from the icon, spring 300, bounce 0.15; back into the icon on close 220 |
 | A7 | Info tip | Quick fade | 95% to full, 150, from the i. Close 120 |
 | A8 | Toast with Undo | Rises, falls | spring 300, bounce 0.15. Falls 220 |
 | A9 | Drag to reorder | Bouncy settle | lift 1.05, spring 300, bounce 0.3 |
@@ -37,5 +37,5 @@ Every action runs at once on release. A long press only does something on contro
 | B6 | Toggle | Switches, Live button, Dark, Muck, eye icons | With weight | down 3 px, spring 240, bounce 0.35 |
 | B7 | Open a pop-up | QR, card button, player row, hand row | Ripple | scale 0.96, ripple |
 | B8 | Hold to confirm | Replace code | Speeds up | pulses at 0, 500, 850, 1050, strong pulse at 1200 |
-| B9 | Remove | Chip move, missed hand, buy-in | Shrinks away | 90% and fade, spring 300, bounce 0.12, rows close up |
+| B9 | Remove | Chip move, missed hand, buy-in | Fades away | fade, spring 300, bounce 0.12, its space closes, rows close up |
 | B10 | Copy or send | Copy link, Send to host | Word changes | Copied, Sent. Icon-only copy keeps its toast |

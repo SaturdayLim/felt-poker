@@ -173,11 +173,12 @@ export function installPresses() {
   document.addEventListener('pointercancel', up, true);
 }
 
-/** A row leaves by shrinking, and the rows below close up. Then `run` removes it for real. */
+/** A row leaves by fading as its space closes from the bottom (a clip, never a squash), and the rows below close up.
+    Then `run` removes it for real. */
 export function shrinkAway(el: Element | null | undefined, run: () => void) {
   if (!el || calm() || !el.animate) { run(); return; }
   const h = (el as HTMLElement).offsetHeight;
-  spring(el, (p) => ({ scale: String(1 - 0.1 * Math.min(p, 1)), opacity: String(1 - Math.min(p, 1)) }), SPRING.remove, { fill: 'forwards' });
+  spring(el, (p) => ({ opacity: String(1 - Math.min(p, 1)) }), SPRING.remove, { fill: 'forwards' });
   const gap = el.animate({ height: [`${h}px`, '0px'], marginBottom: ['0px', `-${parseFloat(getComputedStyle(el.parentElement ?? el).rowGap) || 0}px`] }, { duration: 200, delay: 60, easing: DRAWER, fill: 'forwards' });
   (el as HTMLElement).style.overflow = 'hidden';
   let done = false;

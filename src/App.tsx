@@ -82,7 +82,7 @@ export default function App() {
   let screen: JSX.Element;
   let nav = true;
   const [a, b, c, d] = r;
-  if (a === 'games') screen = <Games />;
+  if (a === 'games') screen = <Games player={b} />;
   else if (a === 'new') { screen = <NewGame type={b === 'tournament' ? 'tournament' : 'cash'} />; nav = false; }
   else if (a === 'game' && b) {
     nav = false;

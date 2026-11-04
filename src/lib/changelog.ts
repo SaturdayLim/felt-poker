@@ -25,6 +25,9 @@ export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
     'Hidden cards that cannot be right get a red or blue ! after a later hand starts. Red hands are left out of stats. Settings, Check hidden cards turns this off.',
     'Edit a player name on the player card itself. A name press glows around the letters.',
     'A sheet with a field rises only as far as the keyboard.',
+    'Swipe back from the left edge of a hand: the page closes into the Log hand button as you drag.',
+    'Morphs clip instead of stretching: the Log hand move, the QR pop-up and removed rows.',
+    'Player card: name, code, then Net, Win rate and Games, then Full stats. Each figure opens a list or the Games page.',
   ] },
   { version: '1.2.8', date: '4 Nov 2026', notes: [
     'Tab highlight and screen slides no longer show 2 boxes at once.',

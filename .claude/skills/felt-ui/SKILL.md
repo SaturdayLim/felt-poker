@@ -51,3 +51,10 @@ description: Felt UI principles. Use when adding or changing any screen, button,
 - A sheet opened by a press pulls out of that button, in its colour, and goes back into it on Close.
 - A swipe down slides the sheet away.
 - A long press exists only where it does something different. Everywhere else a press acts at once.
+
+## Morphs clip, never stretch
+
+- When an element grows into another or shrinks into one (a page into a button, a sheet out of a button, the QR out of its icon), change the frame with a clip. The content keeps its own size inside it.
+- Never scale a picture of the old content to fit the new shape.
+- Bring in the new colour and text while the move ends. Do not leave a visible pause and then flip to the new look.
+- Uniform press depth (0.93 to 0.98) and the drag lift are not morphs.

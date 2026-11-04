@@ -143,22 +143,25 @@ dialog.sat-sheet, .sat-tip-body, .felt-toast { box-shadow: var(--felt-elev-3); }
 /* Log hand: the button grows into the hand page, and the page shrinks back into it */
 .felt-logbtn, .felt-recorder { view-transition-name: felt-morph; }
 ::view-transition-group(felt-morph) { animation-duration: var(--felt-grow-ms, 300ms); animation-timing-function: var(--felt-grow, var(--felt-drawer)); overflow: clip; border-radius: var(--sat-radius-md); }
-::view-transition-old(felt-morph), ::view-transition-new(felt-morph) { animation-duration: 200ms; height: 100%; object-fit: cover; object-position: top; }
+/* a morph clips, it never stretches: each picture keeps its own size, and the moving frame shows more or less of it */
+::view-transition-old(felt-morph), ::view-transition-new(felt-morph) { animation-duration: 200ms; width: 100%; height: 100%; object-fit: none; object-position: 50% 0; }
 html[data-calm] .felt-logbtn, html[data-calm] .felt-recorder, html[data-calm] .felt-nav { view-transition-name: none; }
-/* Back out of the hand page: the page shrinks into the button first, then the button turns blue, then its text
-   shows after a short wait, so it reads as a button again. Into the hand page: the same steps in reverse. */
+/* Back out of the hand page: the page closes into the button shape; the blue and then the text come in over the end
+   of that move, with no pause and no flip. Into the hand page: the same steps in reverse. */
 :root { --felt-vt-page: var(--sat-solid-1); }
 @keyframes felt-vt-out { to { opacity: 0; } }
 @keyframes felt-vt-in { from { opacity: 0; } }
 @keyframes felt-vt-to-blue { from { background-color: var(--felt-vt-page); } to { background-color: var(--sat-accent-fill); } }
 @keyframes felt-vt-to-page { from { background-color: var(--sat-accent-fill); } to { background-color: var(--felt-vt-page); } }
-html[data-vt="close"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-blue 120ms ease-out 320ms both; }
-html[data-vt="close"]::view-transition-old(felt-morph) { animation: felt-vt-out 100ms ease-out 300ms both; }
-html[data-vt="close"]::view-transition-new(felt-morph) { animation: felt-vt-in 140ms ease-out 500ms both; }
-html[data-vt="open"]::view-transition-group(felt-morph) { animation-delay: 160ms; }
-html[data-vt="open"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-page 120ms ease-out 60ms both; }
-html[data-vt="open"]::view-transition-old(felt-morph) { animation: felt-vt-out 90ms ease-out both; }
-html[data-vt="open"]::view-transition-new(felt-morph) { animation: felt-vt-in 200ms ease-out 280ms both; }
+html[data-vt="close"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-blue 160ms ease-out 200ms both; }
+html[data-vt="close"]::view-transition-old(felt-morph) { animation: felt-vt-out 140ms ease-out 180ms both; }
+html[data-vt="close"]::view-transition-new(felt-morph) { animation: felt-vt-in 160ms ease-out 260ms both; }
+html[data-vt="open"]::view-transition-group(felt-morph) { animation-delay: 60ms; }
+html[data-vt="open"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-page 160ms ease-out both; }
+html[data-vt="open"]::view-transition-old(felt-morph) { animation: felt-vt-out 120ms ease-out both; }
+html[data-vt="open"]::view-transition-new(felt-morph) { animation: felt-vt-in 200ms ease-out 120ms both; }
+/* the phone did its own back swipe: no second move on top of it */
+html[data-vt="none"]::view-transition-group(*), html[data-vt="none"]::view-transition-old(*), html[data-vt="none"]::view-transition-new(*) { animation: none; }
 
 /* Tab highlight: a rounded box behind the buttons (TabPill in ui.tsx). Same time and curve as the screens. */
 .felt-pill { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; background: var(--sat-accent-soft); opacity: 0; transition: transform var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), width var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), height var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), opacity var(--sat-dur-fast) var(--sat-ease); }
@@ -781,3 +784,8 @@ html[data-calm] .felt-qr-pop, html[data-calm] .felt-qr-pop::backdrop { animation
 .felt-name-edit:focus { outline: none; border-color: var(--sat-focus); background: var(--sat-well); }
 /* names: no box lights up and no text is selected on a long press; the press glows around the letters (motion.ts) */
 .felt-pcard-name, .felt-name { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; background: none; }
+
+/* Swipe back on the hand page (src/lib/swipeBack.ts): the page turns solid while it closes into the button shape,
+   and a blue stand-in of the button takes its place before the game page returns */
+.felt-recorder.is-swiping { background: var(--sat-solid-1); box-shadow: var(--felt-elev-3); }
+.felt-swipe-face { position: fixed; z-index: 95; display: grid; place-items: center; border-radius: var(--sat-radius-md); background: var(--sat-accent-fill); color: var(--sat-on-accent); font-weight: 600; font-size: 1.0625rem; pointer-events: none; }

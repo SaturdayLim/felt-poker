@@ -9,11 +9,13 @@ import type { Game, GameType } from '../types';
 
 /* Live games sit in their own section as solid glass cards with a pulsing dot.
    Closed games are flat, quieter rows underneath, so the two never read alike. */
-export default function Games() {
+/** `player`: show only the games of this player (from the player card), with a chip to clear it. */
+export default function Games({ player }: { player?: string }) {
   const games = useStore((s) => s.games);
+  const who = useStore((s) => s.players.find((p) => p.id === player));
   const groups = useStore((s) => s.groups);
   const [type, setType] = useState<'all' | GameType>('all');
-  const list = games.filter((g) => type === 'all' || g.type === type).sort((a, b) => b.startedAt - a.startedAt);
+  const list = games.filter((g) => (type === 'all' || g.type === type) && (!who || g.playerIds.includes(who.id))).sort((a, b) => b.startedAt - a.startedAt);
   const live = list.filter((g) => g.status === 'live');
   const closed = list.filter((g) => g.status === 'closed');
   const groupName = (g: Game) => groups.find((x) => x.id === g.groupId)?.name;
@@ -30,6 +32,11 @@ export default function Games() {
             </button>
           ))}
         </div>
+        {who && (
+          <div className="sat-cluster">
+            <button className="sat-chip" aria-pressed="true" aria-label={`Showing games of ${who.name}. Tap to show all games`} onClick={() => go('games', true)}>{who.name} <Icon name="close" size={14} stroke={2.4} /></button>
+          </div>
+        )}
         <div className="felt-start">
           <button className="sat-btn sat-btn--primary" onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
           <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>

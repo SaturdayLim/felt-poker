@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon, toast } from '../components/ui';
 import { go } from '../router';
+import { haptic } from '../lib/haptics';
 
 const HOST_FLAG = 'felt-host';
 export const wantsHost = () => { try { return localStorage.getItem(HOST_FLAG) === '1'; } catch { return true; } };
@@ -23,7 +24,7 @@ export default function JoinScan() {
   const open = (t: string) => {
     const r = joinRoute(t);
     if (!r) { toast('This is not a Felt game link.'); return; }
-    navigator.vibrate?.(20);
+    haptic(20);
     go(r);
   };
 

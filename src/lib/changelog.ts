@@ -1,5 +1,16 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.5', date: '4 Nov 2026', notes: [
+    'A hand no longer takes cards out of play. Only the board and the runs do. Felt flags a card entered twice.',
+    'The opening screen plays on every launch, also from an icon saved on the app page.',
+    'Live link row: button first, then password and tip, with link and QR flush right. The link icon copies the link.',
+    'Tap and hold to replace code: the phone pulses instead of a ring under the thumb.',
+    'Add player mid-game: saved players come first. A name that is already saved is flagged.',
+    'Past 4 actions, the column numbers stay above their boxes and the Action title stays still.',
+    'Showdown: one bar opens or closes the shown cards. It says Cards shown or No cards.',
+    'Keypad: Straddle sits beside Raise. Info tips are circles at the top-right of their box.',
+    'Join a game: the title is readable in the light theme.',
+  ] },
   { version: '1.2.4', date: '3 Nov 2026', notes: [
     'Player view now matches the host for all-ins. An all-in with no amount made every call show as a fold.',
     'A later all-in no longer ends the hand at an earlier street. The run-out is offered only when no action is left.',

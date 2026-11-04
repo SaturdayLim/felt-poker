@@ -19,7 +19,7 @@ Every row states what Felt does now. Numbers are in milliseconds.
 | A9 | Drag to reorder | Lift, rows slide aside, slot, settle 200 | A list you like to reorder |
 | A10 | Action box filling in | Colour change, fast | A form or grid that fills in well |
 | A11 | Cards dealt onto the board | Size change only | A card game with good dealing |
-| A12 | Live switch | Colour and glow, 240 | A glowing or physical switch |
+| A12 | Live button | Keycap presses in, colour and glow, 240 | A glowing or physical button |
 
 ## B. Button presses, by what the press does
 
@@ -32,7 +32,7 @@ Every row states what Felt does now. Numbers are in milliseconds.
 | B5 | Select | Picks one option and stays on the page | Tabs, segments, Dealt in chips, Button chips | Highlight slides, or colour | A chip or segment press |
 | B6 | Toggle | Turns a state on or off | Switches, Live switch, Dark, Muck, Pay bounty, eye icons | Colour change | A toggle with weight |
 | B7 | Open a pop-up | Shows a layer, nothing changes | Info tip, QR, card button, player row | Scale 0.94 on the card button | A press that opens a layer |
-| B8 | Hold to confirm | Cannot be undone | Replace code, hold a name | Ring fills 1200, vibration | A hold-to-confirm you trust |
+| B8 | Hold to confirm | Cannot be undone | Replace code, hold a name | Phone pulses for 1200, double pulse at the end. No ring. | A hold-to-confirm you trust |
 | B9 | Remove | Deletes, with Undo | Delete hand, Clear the action | Scale 0.97, toast with Undo | A delete with Undo |
 | B10 | Copy or send | Puts data outside Felt | Copy link, Copy hand, Send to host, Download | Toast only | A copy press with a good tick |
 

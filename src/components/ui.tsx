@@ -2,6 +2,7 @@ import { Component, createRef, useEffect, useLayoutEffect, useRef, useState, typ
 import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
+import { haptic } from '../lib/haptics';
 import { HELP, type HelpKey } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
@@ -16,6 +17,8 @@ const paths: Record<string, ReactNode> = {
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14.6c2.6.1 4.5 1.8 5 4.9" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
   back: <path d="M15 18l-6-6 6-6" />,
+  link: <><path d="M10 14a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.7-5.7l-1.6 1.6" /><path d="M14 10a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.7 5.7l1.6-1.6" /></>,
+  power: <><path d="M12 3v9" /><path d="M6.3 6.8a8 8 0 1 0 11.4 0" /></>,
   copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></>,
   flag: <><path d="M5 21V4" /><path d="M5 4c4-2 7 2 14 0v9c-7 2-10-2-14 0" /></>,
   cardsadd: <><rect x="4" y="6.5" width="9" height="13" rx="1.6" transform="rotate(-14 8.5 13)" /><rect x="10" y="5.5" width="9" height="13" rx="1.6" transform="rotate(10 14.5 12)" fill="var(--felt-fab-bg, none)" /><path d="M14.5 9.5v5M12 12h5" transform="rotate(10 14.5 12)" /></>,
@@ -272,31 +275,34 @@ export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, o
   }, [ref, on]);
 }
 
-/** A button for an action that cannot be undone: hold it while the ring fills. A short tap only says so. */
+/** A button for an action that cannot be undone. The thumb covers the button, so the feedback is felt, not seen:
+    the phone pulses while the press lasts, then gives a double pulse when the action runs. A short tap only says so. */
 export function HoldButton({ ms = 1200, label, hint, onDone, children }: { ms?: number; label: string; hint: string; onDone: () => void; children: ReactNode }) {
   const [holding, setHolding] = useState(false);
   const timer = useRef<number | undefined>(undefined);
+  const pulses = useRef<number | undefined>(undefined);
   const at = useRef(0);
   const release = (tap: boolean) => {
     window.clearTimeout(timer.current);
+    window.clearInterval(pulses.current);
     if (!at.current) return;
     if (tap && Date.now() - at.current < 350) toast(hint);
     at.current = 0;
     setHolding(false);
   };
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(() => () => { window.clearTimeout(timer.current); window.clearInterval(pulses.current); }, []);
   return (
-    <button type="button" className={`sat-btn sat-btn--ghost sat-iconbtn felt-hold ${holding ? 'is-holding' : ''}`} aria-label={label} style={{ ['--hold' as string]: `${ms}ms` }}
+    <button type="button" className={`sat-btn sat-btn--ghost sat-iconbtn felt-hold ${holding ? 'is-holding' : ''}`} aria-label={label}
       onPointerDown={() => {
         at.current = Date.now();
         setHolding(true);
-        navigator.vibrate?.(8);
-        timer.current = window.setTimeout(() => { at.current = 0; setHolding(false); navigator.vibrate?.([12, 40, 24]); onDone(); }, ms);
+        haptic(8);
+        pulses.current = window.setInterval(() => haptic(8), 300);
+        timer.current = window.setTimeout(() => { window.clearInterval(pulses.current); at.current = 0; setHolding(false); haptic([20, 60, 40]); onDone(); }, ms);
       }}
       onPointerUp={() => release(true)} onPointerLeave={() => release(false)} onPointerCancel={() => release(false)}
       onContextMenu={(e) => e.preventDefault()}
       onClick={(e) => { if (e.detail === 0) onDone(); }}>
-      <svg className="felt-hold-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" pathLength={1} /></svg>
       {children}
     </button>
   );

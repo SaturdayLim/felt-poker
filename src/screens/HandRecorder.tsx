@@ -9,6 +9,7 @@ import { bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
 import { uid } from '../lib/ids';
+import { haptic } from '../lib/haptics';
 import {
   STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
   newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, unknownBoxes, type Replay,
@@ -238,8 +239,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     st.board.forEach((c) => c && s.add(c));
     // run cards count only while the hand is on a run: going back to a street frees them
     if (st.log.runFrom !== undefined) st.runSlots.forEach((r) => r.forEach((c) => c && s.add(c)));
-    Object.values(st.shown).forEach((x) => x.forEach((c) => c && s.add(c)));
-    (st.mine ?? []).forEach((c) => c && s.add(c));
+    // a hand never blocks anything: only the board and the runs take a card out of the picker
     return s;
   }, [st]);
 
@@ -562,10 +562,13 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     setTarget(t);
   };
   const currentCard = (t: Exclude<Target, null>) => (t.kind === 'board' ? st.board[t.i] : t.kind === 'run' ? st.runSlots[t.r]?.[t.i] : t.kind === 'mine' ? st.mine?.[t.ci] : st.shown[t.p]?.[t.ci]);
-  // my own cards and my shown cards are the same two cards: picking one never blocks the other
-  const pickable = (c: Card) => !used.has(c) || c === currentCard(target!)
-    || (target?.kind === 'shown' && target.p === cardsFor && mineCards.includes(c))
-    || (target?.kind === 'mine' && !!cardsFor && (st.shown[cardsFor] ?? []).includes(c));
+  // a hand cannot hold the same card twice. The board and the runs cannot either, and they stop a hand taking their cards.
+  const pickable = (c: Card) => {
+    if (c === currentCard(target!)) return true;
+    if (target?.kind === 'shown' && (st.shown[target.p] ?? []).includes(c)) return false;
+    if (target?.kind === 'mine' && mineCards.includes(c)) return false;
+    return !used.has(c);
+  };
   const setRuns = (n: number) => {
     const from = log.runFrom ?? 0;
     const rs = Array.from({ length: n }, (_, r) => st.runSlots[r] ?? Array(5 - from).fill(null));
@@ -721,7 +724,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         <CardEntrySheet players={log.dealt} name={name} onClose={() => setAskCards(false)} onSave={savePlayerCards}
           entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n)])]}
           revealed={shownCards()}
-          blocked={[...st.board, ...Object.values(st.shown).flat()].filter(Boolean) as Card[]} />
+          blocked={[...used]} />
       )}
       <div ref={dock} className="sat-bottombar sat-glass-2 felt-rec-dock">
         {!target && !(replay && selCell && sel) && (
@@ -869,11 +872,16 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   return (
     <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
       <div className="felt-acts-wrap">
-        {scrolled && <span className="felt-acts-more" aria-hidden="true">Earlier</span>}
+        {/* the titles stay still; the column numbers scroll with their boxes and cut off at the names */}
+        <div className="felt-acts-titles">
+          <Caption tip="handPlayers">Players</Caption>
+          {scrolled && <span className="felt-acts-more" aria-hidden="true">Earlier</span>}
+          <Caption tip="betEntry">Action</Caption>
+        </div>
         <div ref={scroller} className={`felt-acts ${scrolled ? 'is-scrolled' : ''}`} style={{ ['--cols' as string]: replay.cols }} onScroll={(e) => setScrolled(e.currentTarget.scrollLeft > 4)}>
           <div className="felt-acts-row felt-acts-head">
-            <span className="felt-acts-name"><Caption tip="handPlayers">Players</Caption></span>
-            <span className="felt-acts-headtip"><Caption tip="betEntry">Action</Caption></span>
+            <span className="felt-acts-name" />
+            <span />
             {Array.from({ length: replay.cols }, (_, r) => <span key={r} className="felt-acts-col">{r + 1}</span>)}
           </div>
           {rows.map((p) => {
@@ -887,7 +895,7 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
               <div key={p} className={`felt-acts-row ${folded ? 'is-folded' : ''}`}>
                 {/* press and hold a name to enter the cards that player shows, on any street, before they are mucked */}
                 <button type="button" className={`felt-acts-name ${namingFor === p ? 'is-target' : ''}`} aria-label={`${name(p)}: press and hold to enter the cards they show`}
-                  onPointerDown={() => { release(); hold.current = window.setTimeout(() => { navigator.vibrate?.(10); onName(p); }, 450); }}
+                  onPointerDown={() => { release(); hold.current = window.setTimeout(() => { haptic(); onName(p); }, 450); }}
                   onPointerUp={release} onPointerLeave={release} onPointerCancel={release} onContextMenu={(e) => e.preventDefault()}
                   onClick={(e) => { if (e.detail === 0) onName(p); }}>
                   <span className="felt-ellipsis">{name(p)}</span>
@@ -939,13 +947,7 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
   const callLabel = toCall ? 'Call' : 'Check';
   return (
     <div className="felt-keypad" role="group" aria-label={`Action for ${who}`}>
-      <div className="felt-keypad-head">
-        <span className="felt-keypad-tools">
-          {filled && <button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button>}
-          <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
-          <Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} />
-        </span>
-      </div>
+      {filled && <div className="felt-keypad-head"><button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button></div>}
       <div className="felt-keypad-quick">
         <button type="button" onClick={onCall}>{callLabel}</button>
         <button type="button" onClick={onFold}>Fold</button>
@@ -961,11 +963,15 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
         </div>
       ) : (
         <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
-          <div className={`felt-keypad-field ${typed ? 'has-value' : ''}`} aria-live="polite">
+          <div className={`felt-keypad-field felt-tipped ${typed ? 'has-value' : ''}`} aria-live="polite">
             <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || (allInAsk ? <span className="felt-keypad-min">Type the all-in amount</span> : <span className="felt-keypad-ghost">{units(minTo)}</span>)}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
+            <Help k="raiseBox" />
           </div>
-          <Help k="raiseBox" />
+          <span className="felt-tipped">
+            <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
+            <Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} />
+          </span>
           <button type="button" className="felt-keypad-ok" aria-disabled={!canRaise || (allInAsk && !typed)} disabled={!canRaise} onClick={onOk}>{verb}</button>
         </div>
       )}
@@ -1019,23 +1025,30 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
       {/* with the 2-7 bounty on, a player who wins uncontested can still show their cards */}
       {(live.length > 1 || (bountyOn && live.length === 1)) && (
         <section className="felt-section">
-          <div className="sat-split">
-            <h2 className="sat-caption felt-section-cap">Cards shown <Help k="shown" /></h2>
-            <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { set({ skipReveal: !st.skipReveal }); setTarget(null); }}>{st.skipReveal ? 'Show cards' : 'No cards'}</button>
+          {/* one bar: open it says Cards shown, closed it says No cards */}
+          <div className="felt-showbar">
+            <button type="button" className="felt-showbar-btn sat-glass" aria-expanded={!st.skipReveal} onClick={() => { set({ skipReveal: !st.skipReveal }); setTarget(null); }}>
+              <span className="sat-caption">{st.skipReveal ? 'No cards' : 'Cards shown'}</span>
+              <span className="felt-showbar-chev"><Icon name="chevron" size={18} /></span>
+            </button>
+            <Help k="shown" />
           </div>
           {!st.skipReveal && b.length > 0 && <div className="felt-board-mini"><span className="sat-caption">Board</span>{b.map((c) => <PlayingCard key={c} card={c} size="sm" />)}</div>}
-          {st.skipReveal ? <p className="sat-small sat-muted">No cards entered. Pick the winner below.</p> : (
+          {!st.skipReveal && (
             <div className="felt-showlist">
               {order.map((p, i) => {
                 const cards = st.shown[p] ?? [null, null];
                 const mucked = log.mucked.includes(p);
                 const v = cards.every(Boolean) && b.length === 5 ? bestHand([...(cards as Card[]), ...b]) : null;
+                // felt never blocks a hand, so it flags a card entered twice
+                const twice = !mucked && cards.some((c) => c && (b.includes(c) || order.some((q) => q !== p && (st.shown[q] ?? []).includes(c))));
                 return (
                   <div key={p} className={`felt-show ${winnersOf.has(p) && !res?.missing ? 'is-winner' : ''} ${mucked ? 'is-mucked' : ''}`}>
                     <span className="felt-show-n sat-num">{i + 1}</span>
                     <div className="felt-row-main">
                       <div className="felt-row-title">{name(p)}{log.allInAt?.[p] ? <span className="sat-badge sat-badge--muted" style={{ marginLeft: 6 }}>All-in</span> : null}</div>
                       <div className="felt-row-sub">{mucked ? 'Mucked' : v ? v.name : cards.every(Boolean) ? 'Shown' : 'Not shown'}</div>
+                      {twice && <div className="sat-small" style={{ color: 'var(--sat-neg)' }}>Same card entered twice</div>}
                       {!mucked && payTag(p)}
                     </div>
                     {!mucked && cards.map((c, ci) => <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', p, ci })} onClick={() => tapSlot({ kind: 'shown', p, ci }, !!c)} />)}

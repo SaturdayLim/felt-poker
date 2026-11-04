@@ -3,7 +3,7 @@ import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { useDragList } from '../components/dragList';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane } from '../components/ui';
-import { NameEntry, titleCase, CodeControl } from '../components/players';
+import { SeatPicker, titleCase, CodeControl } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
@@ -251,7 +251,7 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
   );
 }
 
-/** Blank card at the end of the list: type a name to seat a new player with the default buy-in. */
+/** Blank card at the end of the list: pick a saved player, or type a new name, to seat them with the default buy-in. */
 function AddPlayerCard({ g }: { g: Game }) {
   const st = useStore();
   const [open, setOpen] = useState(false);
@@ -264,7 +264,7 @@ function AddPlayerCard({ g }: { g: Game }) {
         <Caption tip="addPlayer">Add player</Caption>
         <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setOpen(false)}>Done</button>
       </div>
-      <NameEntry exclude={g.playerIds} onPick={(p) => {
+      <SeatPicker inGame={g.playerIds} onPick={(p) => {
         st.addPlayerToGame(g.id, p.id);
         toast(`${p.name} seated${isCash ? ` with ${units(g.defaultBuyIn)} chips` : ''}`);
       }} />

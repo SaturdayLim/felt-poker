@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react';
+import { haptic } from '../lib/haptics';
 
 /* Drag to reorder. A touch must hold still on the grip (or press hard) before the row lifts, so a swipe that
    starts on a grip scrolls the page. While dragging, the row follows the finger, the others slide aside, and a
@@ -35,7 +36,7 @@ export function useDragList<T>(ids: T[], onDrop: (order: T[]) => void) {
     try { a.el.setPointerCapture(a.pid); } catch { /* the pointer has gone */ }
     startY.current = a.y;
     live.current = true;
-    navigator.vibrate?.(10);
+    haptic();
     window.clearTimeout(a.timer);
     armed.current = null;
     setD({ id: a.id, from, to: from, dy: 0, settling: false });

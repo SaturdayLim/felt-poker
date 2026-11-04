@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { Help, HoldButton, Icon, Sheet, toast } from './ui';
 import { showCode } from '../lib/codes';
+import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary } from '../lib/stats';
 import { money } from '../lib/format';
 import { go } from '../router';
@@ -88,6 +89,43 @@ export function NameEntry({ onPick, exclude = [], placeholder = 'Player name (e.
   );
 }
 
+/** Seat someone mid-game: saved players come first, one tap each. A new name that is already saved is flagged,
+    and the user is asked for a different name. */
+export function SeatPicker({ inGame, onPick }: { inGame: ID[]; onPick: (p: Player) => void }) {
+  const players = useStore((s) => s.players);
+  const addPlayer = useStore((s) => s.addPlayer);
+  const [v, setV] = useState('');
+  const typed = titleCase(v);
+  const q = typed.toLowerCase();
+  const same = q ? players.find((p) => p.name.toLowerCase() === q) : undefined;
+  const pool = players
+    .filter((p) => !inGame.includes(p.id) && (!p.archived || p === same) && (!q || p.name.toLowerCase().includes(q)))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const flag = !same ? '' : inGame.includes(same.id) ? `${same.name} is already in this game. Enter a different name.` : `${same.name} is already saved. Tap the name above, or enter a different name.`;
+  const addNew = () => {
+    if (!typed || same) return;
+    const p = addPlayer(typed);
+    toast(`${p.name} saved to players`);
+    onPick(p);
+    setV('');
+  };
+  return (
+    <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+      {pool.length > 0 && (
+        <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+          {pool.map((p) => <button key={p.id} type="button" className="sat-chip" onClick={() => { onPick(p); setV(''); }}>{p.name}</button>)}
+        </div>
+      )}
+      <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
+        <input className="sat-input" aria-label="New player name" aria-invalid={!!flag} placeholder="New player name" value={v} autoCapitalize="words" autoComplete="off" autoCorrect="off" spellCheck={false}
+          onChange={(e) => setV(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNew(); } }} enterKeyHint="done" />
+        <button type="button" className="sat-btn sat-iconbtn" onClick={addNew} aria-disabled={!typed || !!same} aria-label={typed ? `Add ${typed}` : 'Add new player'}><Icon name="plus" /></button>
+      </div>
+      {flag && <span className="sat-error" role="alert">{flag}</span>}
+    </div>
+  );
+}
+
 /* ---------------------------- press and hold ---------------------------- */
 
 /** Tap runs onTap; press and hold for 500ms runs onHold (with a short vibration where supported). */
@@ -100,7 +138,7 @@ export function useHold(onTap: () => void, onHold: () => void, ms = 500) {
     onPointerDown: (e: React.PointerEvent) => {
       held.current = false;
       start.current = { x: e.clientX, y: e.clientY };
-      timer.current = window.setTimeout(() => { held.current = true; navigator.vibrate?.(12); onHold(); }, ms);
+      timer.current = window.setTimeout(() => { held.current = true; haptic(12); onHold(); }, ms);
     },
     onPointerMove: (e: React.PointerEvent) => {
       if (start.current && Math.hypot(e.clientX - start.current.x, e.clientY - start.current.y) > 10) clear();
@@ -184,7 +222,7 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
     setShown(p.code!);
   };
   const copy = () => {
-    if (p.codeIssued && !shown) { toast('Hold the refresh icon to replace the code first.'); return; }
+    if (p.codeIssued && !shown) { toast('Tap and hold the refresh icon to replace code first.'); return; }
     const code = shown ?? p.code!;
     revealCode(pid);
     navigator.clipboard?.writeText(`${p.name}, your Felt player code is ${showCode(code)}. Keep it private.`)
@@ -198,7 +236,7 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
       {shown && <b className="felt-codectl-shown sat-num" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
       {label && ready && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
       {ready && !shown && p.codeIssued
-        ? <HoldButton label={`${what}: ${p.name}`} hint="Hold to replace the code." onDone={replace}><Icon name={icon} /></HoldButton>
+        ? <HoldButton label={`${what}: ${p.name}`} hint="Tap and hold to replace code" onDone={replace}><Icon name={icon} /></HoldButton>
         : <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>}
     </span>
   );

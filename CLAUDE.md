@@ -16,6 +16,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - **ASD-STE100 for all copy.** Short sentences (procedures 20 words max, descriptions 25), active voice, one fact or instruction per sentence, one word per meaning. No filler or AI phrasing ("The usual rule", "simply", "just").
 - **Tips, not captions.** On setup and settings screens, an explanation lives in its field's info tip, one tip per field. The page shows only labels and live figures (for example "4 players: 30 chips to the 2-7").
 - **Tips sit on top.** An open info tip renders on <body> (fixed position), so no card or frame can cover it.
+- **Tip button shape.** An info button is always a circle at the top-right of the element it explains (`.felt-tipped`).
 
 ## Design
 
@@ -27,6 +28,13 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Theme and opening-screen length belong to the phone. A backup restore must never change them.
 - Player status: dealt into a hand or acting in it turns the player green (playing). An away player is paused and not dealt in by default.
 - Recorder: who acts sits left and the pot right, under the stage tabs and outside the box. On a street tab the pot is that street's closing pot.
+- A hand never blocks anything. Only board and run cards leave the picker. A card entered twice is flagged, not refused.
+- Hold actions give feedback by haptics, not an animation under the thumb. Copy: "Tap and hold to replace code".
+- Add player mid-game: saved players first. A name already saved is flagged, and the user is asked for a different name.
+- Action table past 4 columns: Players and Action titles stay still; column numbers scroll with their boxes and cut off at the names.
+- Showdown: one bar opens or closes the shown cards, labelled Cards shown or No cards.
+- Keypad: Straddle (or Dark) sits beside Raise.
+- Live link row order: button, password and tip, then link and QR flush right.
 - Hand recorder rows run in time order: small blind first, button last. Columns are passes around the table, newest flush right.
 - A skipped box takes the default: check, or fold when facing a bet. Defaults are there to save taps and stay editable.
 - Shuffling seats does not draw a button: seat 1 has the button, seat 2 the small blind, seat 3 the big blind.

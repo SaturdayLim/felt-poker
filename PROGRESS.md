@@ -1,5 +1,11 @@
 # Felt: progress
 
+## Latest (4 Nov 2026): 1.2.5
+- Hands never block: `used` in HandRecorder holds only board and run cards. Felt flags a card entered twice at the showdown. Read from the note "entering a hand shouldn't exclude it"; confirm with the owner if a different meaning shows up.
+- Splash: app/index.html sends a launch with no route to the root once per session (`felt-splashed` in sessionStorage).
+- Haptics: `src/lib/haptics.ts`. navigator.vibrate on Android; the switch-input tick on iOS 18+. Not tried on a real iPhone. A tick fired from a timer may need a user gesture there.
+- Motion samples from motion.dev: review page before any motion edit to the app.
+
 ## Latest (3 Nov 2026): 1.2.2 and 1.2.3
 - Tuesday cash ended 82 short. Cause: Jacod had 0 chips and stayed dealt in on hand 7, so Runty's bet came back and the folded 82 had no pot. Fixed in `finalists`. Repair for that game: Reopen, End game shows the hand, open it and save, then correct Runty's count to 777.
 - Report links still need the rules published: a read probe of /reports returned Permission denied on 3 Nov.

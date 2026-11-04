@@ -95,8 +95,6 @@ button.felt-row { color: inherit; }
 .felt-fab.felt-fab { --felt-fab-bg: var(--felt-coral); color: var(--felt-on-coral); }
 .felt-keypad .felt-keypad-ok:not(:disabled), .felt-keypad .felt-keypad-err-acts .is-primary, .felt-rec-dock .sat-btn--primary { background: var(--felt-coral); color: var(--felt-on-coral); border-color: transparent; }
 .felt-acts .felt-box.is-next { border-color: var(--felt-coral); }
-.felt-keypad-amount .sat-tip { display: inline-grid; place-items: center; width: 28px; }
-.felt-keypad-amount .sat-tip-btn { width: 18px; height: 18px; min-width: 18px; min-height: 18px; padding: 0; border-radius: 50%; }
 
 @supports (corner-shape: squircle) {
   .sat-glass, .sat-glass-2, .sat-flat, .sat-btn, .sat-input, .felt-frame, .felt-band { corner-shape: squircle; }
@@ -159,9 +157,17 @@ html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
 /* Hold to confirm: a ring fills while held, and runs back fast on release */
 .felt-hold { position: relative; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: transform var(--sat-dur-fast) var(--sat-ease); }
 .felt-hold.is-holding { transform: scale(.92); }
-.felt-hold-ring { position: absolute; inset: 0; width: 100% !important; height: 100% !important; transform: rotate(-90deg); pointer-events: none; }
-.felt-hold-ring circle { fill: none; stroke: var(--felt-coral); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 200ms var(--sat-ease); }
-.felt-hold.is-holding .felt-hold-ring circle { stroke-dashoffset: 0; transition: stroke-dashoffset var(--hold, 1200ms) linear; }
+/* an info tip explains the box it sits on: a circle at the top-right corner */
+.felt-tipped { position: relative; display: block; }
+.felt-tipped > .sat-tip { position: absolute; top: -7px; right: -5px; z-index: 1; }
+.felt-tipped > .sat-tip .sat-tip-btn { background: var(--sat-solid-2); }
+.felt-keypad .sat-tip-btn { width: 18px; height: 18px; min-width: 18px; min-height: 18px; padding: 0; border-radius: 50%; }
+.felt-showbar { display: flex; align-items: flex-start; gap: var(--sat-space-2); }
+.felt-showbar-btn { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-2); padding: 0 var(--sat-space-3); border-radius: var(--sat-radius-sm); border: 1px solid var(--sat-line-strong); color: var(--sat-text); cursor: pointer; }
+.felt-showbar-chev { display: inline-flex; transition: transform var(--sat-dur-fast) var(--sat-ease); }
+.felt-showbar-btn[aria-expanded="false"] .felt-showbar-chev { transform: rotate(-90deg); }
+.felt-acts-titles { display: flex; align-items: center; gap: var(--sat-space-2); padding: 0 8px 2px; }
+.felt-acts-titles > :last-child { margin-left: auto; }
 
 /* Player cards: two outlined slots mean no cards yet */
 .felt-card.felt-cardslot { background: transparent; border: 1.5px solid var(--sat-line-strong); display: inline-block; }
@@ -174,12 +180,12 @@ html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
 /* Recorder: a name being filled, and the Action tip above the boxes */
 button.felt-acts-name { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-offset: -2px; }
-.felt-acts-headtip { display: flex; justify-content: flex-end; align-items: center; padding-right: var(--sat-space-2); }
 
 /* Join: the camera fills the screen */
 .felt-scan { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #02070a; color: #eaf4fa; display: flex; flex-direction: column; justify-content: space-between; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); }
 .felt-scan-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.felt-scan-top, .felt-scan-dock { position: relative; z-index: 1; border-radius: var(--sat-radius-lg); padding: var(--sat-space-3) var(--sat-space-4); }
+/* the panels are kit glass, which is light in the light theme: text follows the theme, not the dark camera behind */
+.felt-scan-top, .felt-scan-dock { position: relative; z-index: 1; border-radius: var(--sat-radius-lg); padding: var(--sat-space-3) var(--sat-space-4); color: var(--sat-text); }
 .felt-scan-top { display: flex; align-items: center; gap: var(--sat-space-2); }
 .felt-scan-title { margin: 0; font-size: 1.125rem; font-weight: 600; }
 .felt-scan-top small { display: block; color: var(--sat-muted); }
@@ -416,10 +422,11 @@ button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-o
 .felt-acts-name { position: sticky; left: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 2px 8px;
   border-radius: var(--sat-radius-sm); background: var(--sat-solid-1); }
 .felt-acts.is-scrolled .felt-acts-name { box-shadow: 6px 0 10px -6px rgba(0,0,0,0.45); }
-.felt-acts-head .felt-acts-name { background: transparent; box-shadow: none !important; }
+.felt-acts-head .felt-acts-name { background: transparent; box-shadow: none !important; padding: 0; }
+.felt-acts.is-scrolled .felt-acts-head .felt-acts-name { background: var(--sat-solid-1); }
 .felt-acts-name > span:first-child { font-weight: 600; }
 .felt-acts-sub { font-size: var(--sat-fs-caption); color: var(--sat-muted); }
-.felt-acts-more { position: absolute; left: 108px; top: -2px; z-index: 2; font-size: var(--sat-fs-caption); color: var(--sat-accent-text); font-weight: 600; }
+.felt-acts-more { font-size: var(--sat-fs-caption); color: var(--sat-accent-text); font-weight: 600; }
 .felt-acts-more::before { content: '\2039  '; }
 .felt-box { min-height: 44px; scroll-margin: 200px 0 300px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; gap: 1px;
   border: 1.5px solid var(--sat-accent); background: var(--sat-glass-2); color: var(--sat-text); -webkit-tap-highlight-color: transparent; user-select: none; padding: 0 2px; }
@@ -483,8 +490,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad-quick button { flex-direction: column; gap: 0; font-size: var(--sat-fs-small); background: var(--sat-glass); border: 1px solid var(--sat-line-strong); }
 .felt-keypad-quick b { font-size: 1.0625rem; }
 .felt-keypad-quick small { font-size: var(--sat-fs-caption); font-weight: 500; color: var(--sat-muted); }
-.felt-keypad-tools { display: flex; align-items: center; gap: 4px; flex: none; }
-.felt-keypad .felt-keypad-dark { min-height: 40px; padding: 0 12px; gap: 4px; flex-direction: row; font-size: var(--sat-fs-caption); color: var(--sat-muted);
+.felt-keypad .felt-keypad-dark { min-height: 44px; padding: 0 10px; gap: 4px; flex-direction: row; font-size: var(--sat-fs-caption); color: var(--sat-muted);
   border: 1px solid var(--sat-line-strong); border-radius: var(--sat-radius-pill); }
 .felt-keypad button:disabled { opacity: 0.35; }
 .felt-keypad-amount.is-off .felt-keypad-field { opacity: 0.5; }
@@ -495,7 +501,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad-err-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .felt-keypad-err-acts button { background: var(--sat-glass); border: 1px solid var(--sat-line-strong); font-size: var(--sat-fs-small); }
 .felt-keypad-err-acts .is-primary { background: var(--sat-accent-fill); color: var(--sat-on-accent); border-color: transparent; }
-.felt-keypad-amount { display: grid; grid-template-columns: 1fr auto 96px; align-items: center; gap: 6px; }
+.felt-keypad-amount { display: grid; grid-template-columns: minmax(0, 1fr) auto 84px; align-items: center; gap: 8px; }
 .felt-keypad-ghost { color: var(--sat-muted); opacity: .6; }
 .felt-fab { --felt-fab-bg: var(--sat-accent-fill); position: absolute; right: var(--sat-space-4); bottom: calc(100% + 12px); flex: none !important; width: 60px; height: 60px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--felt-fab-bg); color: var(--sat-on-accent); box-shadow: 0 10px 24px rgba(0,0,0,.35); cursor: pointer; transition: transform var(--sat-dur-fast) var(--sat-ease); }
 .felt-fab:active { transform: scale(.94); }
@@ -540,7 +546,7 @@ button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: le
 .felt-toast-act { border: 0; background: none; font: inherit; font-weight: 700; color: var(--sat-accent-text); padding: 4px 2px; cursor: pointer; }
 /* keypad open: everything but the keypad and the action boxes is greyed out; a tap there closes the keypad */
 .felt-recorder.has-keypad .felt-rec-status, .felt-recorder.has-keypad .felt-fab, .felt-recorder.has-keypad .felt-rec-bar, .felt-recorder.has-keypad .felt-dock-actions, .felt-recorder.has-keypad .sat-header-bar,
-.felt-recorder.has-keypad .felt-acts-name, .felt-recorder.has-keypad .felt-acts-head { opacity: 0.45; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
+.felt-recorder.has-keypad .felt-acts-titles, .felt-recorder.has-keypad .felt-acts-name, .felt-recorder.has-keypad .felt-acts-head { opacity: 0.45; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
 .felt-stat-btn { border: 0; background: none; font: inherit; color: inherit; min-height: 36px; padding: 0 6px; margin: -8px -6px; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 @media (pointer: coarse) { .felt-stat-btn { min-height: 40px; } }
 .felt-hand--missed { opacity: 0.7; }
@@ -634,16 +640,23 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-leak { width: 100%; text-align: left; margin-bottom: var(--sat-space-2); }
 
 /* Live link */
-.felt-liverow { display: flex; align-items: center; gap: var(--sat-space-1); padding-top: var(--sat-space-1); padding-bottom: var(--sat-space-1); }
-/* Live link row: password, copy, QR, and a switch that glows green (on) or red (off) */
-.felt-livepass { flex: 1; min-width: 0; display: flex; align-items: center; min-height: 44px; }
-.felt-livepass-in { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; padding: 0; outline: 0; }
-.felt-livepass-in::placeholder { color: var(--sat-muted); font-weight: 500; }
-.felt-livepass-in:disabled { opacity: .7; -webkit-text-fill-color: currentColor; }
-.felt-livepass-eye { flex: none; width: 32px; height: 40px; display: grid; place-items: center; border: 0; background: none; color: var(--sat-muted); padding: 0; cursor: pointer; }
+/* Live link row, in the order it is used: button, password with its tip, then link and QR flush right */
+.felt-liverow { display: flex; align-items: center; gap: var(--sat-space-2); padding: var(--sat-space-1) 0 var(--sat-space-1) var(--sat-space-3); }
+.felt-liverow-end { display: flex; align-items: center; gap: 0; margin-left: auto; flex: none; }
+/* off: a boxed field. On with a password: the same text with no box. On with none: small quiet text */
+.felt-livepass { flex: 0 1 140px; min-width: 0; display: flex; align-items: center; height: 34px; padding: 0 0 0 var(--sat-space-2); border: 1px solid var(--sat-line-strong); border-radius: var(--sat-radius-sm); background: var(--sat-well); }
+.felt-livepass:focus-within { border-color: var(--sat-accent); }
+.felt-livepass.is-set { border-color: transparent; background: transparent; padding-left: 0; }
+.felt-livepass-in { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--sat-fs-small); font-weight: 600; padding: 0; outline: 0; }
+.felt-livepass-in::placeholder { color: var(--sat-text); opacity: .75; font-weight: 500; }
+.felt-livepass-in:disabled { -webkit-text-fill-color: currentColor; }
+.felt-livepass-none { flex: none; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+.felt-livepass-eye { flex: none; width: 30px; height: 32px; display: grid; place-items: center; border: 0; background: none; color: var(--sat-muted); padding: 0; cursor: pointer; }
 .felt-liverow .sat-iconbtn:disabled { opacity: .3; cursor: default; }
-.felt-liveswitch { flex: none; width: 34px; height: 34px; margin: 0 4px; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.55); cursor: pointer; background: var(--felt-sw); box-shadow: inset 0 2px 3px rgba(255,255,255,.4), inset 0 -3px 5px rgba(0,0,0,.2), 0 0 14px 2px color-mix(in srgb, var(--felt-sw) 70%, transparent); transition: background-color 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease), transform var(--sat-dur-fast) var(--sat-ease); }
-.felt-liveswitch:active { transform: scale(.92); }
+/* a keycap: raised when off, pressed in and lit when on. The hit area reaches 44px past the edge */
+.felt-liveswitch { position: relative; flex: none; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--felt-sw) 70%, #000); color: #fff; cursor: pointer; background: var(--felt-sw); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 0 color-mix(in srgb, var(--felt-sw) 55%, #000), 0 0 10px 1px color-mix(in srgb, var(--felt-sw) 60%, transparent); transition: background-color 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease), transform var(--sat-dur-fast) var(--sat-ease); }
+.felt-liveswitch::after { content: ''; position: absolute; inset: -7px; }
+.felt-liveswitch.is-on, .felt-liveswitch:active { transform: translateY(2px); box-shadow: inset 0 1px 3px rgba(0,0,0,.3), 0 0 12px 2px color-mix(in srgb, var(--felt-sw) 70%, transparent); }
 .felt-liveswitch.is-on { --felt-sw: #35c46b; }
 .felt-liveswitch.is-off { --felt-sw: #e5484d; }
 .felt-liveswitch.is-wait { --felt-sw: #35c46b; animation: felt-sw-wait 1.2s ease-in-out infinite; }

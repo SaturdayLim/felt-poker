@@ -394,8 +394,8 @@ function HandPick({ hands, now, entered, me, onSave, onClose, onLeave }: {
   hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
 }) {
   const [n, setN] = useState<number | null>(null);
-  const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: [...now.board, ...(now.view.streets.flatMap((s) => (s.shown ?? []).flatMap((x) => x.cards)))] }] : [];
-  const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: [...x.board, ...x.shown.flatMap((s) => s.cards)] }))];
+  const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board }] : [];
+  const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board }))];
   const h = mine.find((x) => x.n === n);
   if (h) {
     return (

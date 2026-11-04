@@ -70,15 +70,20 @@ export function LiveRow({ g }: { g: Game }) {
   return (
     <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
       <div className="sat-flat sat-card felt-liverow">
-        <span className="felt-livepass">
-          <input className="felt-livepass-in" type={see ? 'text' : 'password'} aria-label="Live link password" placeholder={live.on ? 'No password' : 'Add password'} autoComplete="off" autoCapitalize="off" spellCheck={false}
-            value={pass} disabled={live.on || busy} onChange={(e) => setPass(e.target.value)} />
-          {pass && <button type="button" className="felt-livepass-eye" aria-label={see ? 'Hide the password' : 'Show the password'} aria-pressed={see} onClick={() => setSee(!see)}><Icon name={see ? 'eye' : 'dark'} size={18} /></button>}
-        </span>
+        <button type="button" className={`felt-liveswitch is-${state}`} role="switch" aria-checked={live.on} aria-label="Live link" aria-disabled={busy} onClick={() => { if (busy) return; if (live.on) stop(); else start(); }}><Icon name="power" size={16} stroke={2.6} /></button>
+        {/* off: a field to type in. On with no password: plain text, because there is nothing to type */}
+        {live.on && !pass ? <span className="felt-livepass-none">No password</span> : (
+          <span className={`felt-livepass ${live.on ? 'is-set' : ''}`}>
+            <input className="felt-livepass-in" type={see ? 'text' : 'password'} aria-label="Live link password" placeholder="Add password" autoComplete="off" autoCapitalize="off" spellCheck={false}
+              value={pass} disabled={live.on || busy} onChange={(e) => setPass(e.target.value)} />
+            {pass && <button type="button" className="felt-livepass-eye" aria-label={see ? 'Hide the password' : 'Show the password'} aria-pressed={see} onClick={() => setSee(!see)}><Icon name={see ? 'eye' : 'dark'} size={18} /></button>}
+          </span>
+        )}
         <Help k="sharing" />
-        <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Copy the link" aria-disabled={!live.on} disabled={!live.on} onClick={copy}><Icon name="copy" /></button>
-        <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" aria-disabled={!live.on} disabled={!live.on} onClick={() => setQrOpen(true)}><Icon name="qr" /></button>
-        <button type="button" className={`felt-liveswitch is-${state}`} role="switch" aria-checked={live.on} aria-label="Live link" aria-disabled={busy} onClick={() => { if (busy) return; if (live.on) stop(); else start(); }} />
+        <span className="felt-liverow-end">
+          <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Copy the link" aria-disabled={!live.on} disabled={!live.on} onClick={copy}><Icon name="link" /></button>
+          <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" aria-disabled={!live.on} disabled={!live.on} onClick={() => setQrOpen(true)}><Icon name="qr" /></button>
+        </span>
       </div>
       {qrOpen && live.on && <QrPopup link={live.link} onClose={() => setQrOpen(false)} />}
       {live.on && live.viewers.length > 0 && (

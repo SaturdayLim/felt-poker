@@ -1,5 +1,15 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.8', date: '4 Nov 2026', notes: [
+    'Tab highlight and screen slides no longer show 2 boxes at once.',
+    'A press now fills its frame with light, then the action runs. A slow press sinks deeper and clears more slowly.',
+    'A player name opens the player card on every screen outside logging. Games on the card lists the games of that player.',
+    'Copy of a player code shows only with the code on screen.',
+    'Dragging a row shows a light orange line where it will land.',
+    'The live link bar glows green or red. The password text matches No password.',
+    'No cards yet shows as one dotted box split down the middle.',
+    'Labels are in sentence case. Headings use one sans font. Sheets are solid.',
+  ] },
   { version: '1.2.7', date: '4 Nov 2026', notes: [
     'Settings has a Motion field. Reduce Motion on the phone stops the slides and bounces. Choose Full to play them.',
     'Every button and key gives a small tick on the phone. On an iPhone this needs iOS 18.',

@@ -79,18 +79,30 @@ function classOf(b: HTMLElement): PressClass {
   if (b.matches('.felt-keypad-dark, .felt-mini, .felt-livepass-eye, .felt-codectl-btn, .felt-liveswitch, [role="switch"], .sat-switch')) return 'toggle';
   if (b.matches('.felt-keypad button, .felt-picker button, button.felt-box')) return 'log';
   if (b.matches('.sat-chip, [role="tab"], [role="radio"], .felt-pickwin-btn, .felt-nav a')) return 'select';
-  if (b.matches('.felt-fab, .felt-row, [aria-label="Show the QR code"], .felt-hand, .felt-showbar-btn')) return 'open';
+  if (b.matches('.felt-fab, .felt-row, .felt-live-card, .felt-pcard-name, .felt-fig, [aria-label="Show the QR code"], .felt-hand, .felt-showbar-btn')) return 'open';
   if (b.matches('[aria-label="Back"]') || DISMISS.test(b.textContent?.trim() ?? '')) return 'dismiss';
   if (b.matches('.sat-btn, .felt-addbar')) return 'forward';
   return 'none';
 }
 
 const DOWN: Partial<Record<PressClass, number>> = { log: 0.93, commit: 0.96, forward: 0.97, dismiss: 0.98, open: 0.96 };
+/** A press longer than this is a slow press. */
+const SLOW_MS = 180;
+/** The light takes this long to fill the frame while the finger stays down. */
+const INK_MS = 560, INK_WAIT = 40;
+/** These need the press itself (clipboard, file picker, share), so they run at once. */
+const NOW = /copy|share|download|restore|backup|paste|link|send/i;
 
-/** Light that spreads from the finger, clipped to the button. */
-function ripple(b: HTMLElement, e: PointerEvent) {
-  if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
-  const r = b.getBoundingClientRect();
+/** The frame that reacts: the button, or the list around it when the button is the only row in that list. */
+function frameOf(b: HTMLElement): HTMLElement {
+  const p = b.parentElement;
+  return p?.matches('.felt-list') && p.children.length === 1 ? p : b;
+}
+
+/** Light that spreads from the finger and fills the frame, clipped to its corners. */
+function startInk(frame: HTMLElement, e: PointerEvent) {
+  if (getComputedStyle(frame).position === 'static') frame.style.position = 'relative';
+  const r = frame.getBoundingClientRect();
   const wrap = document.createElement('span');
   wrap.className = 'felt-ink';
   wrap.setAttribute('aria-hidden', 'true');
@@ -98,43 +110,83 @@ function ripple(b: HTMLElement, e: PointerEvent) {
   ink.style.left = `${e.clientX - r.left}px`;
   ink.style.top = `${e.clientY - r.top}px`;
   wrap.append(ink);
-  b.append(wrap);
-  ink.animate({ scale: [0, (2 * Math.max(r.width, r.height)) / 16 + 1], opacity: [1, 0] }, { duration: 450, easing: 'ease-out', fill: 'forwards' });
-  window.setTimeout(() => wrap.remove(), 470);
+  frame.append(wrap);
+  const grow = ink.animate({ scale: [0, (2 * Math.hypot(r.width, r.height)) / 16] }, { duration: INK_MS, delay: INK_WAIT, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)', fill: 'forwards' });
+  return { wrap, ink, grow };
+}
+type Ink = ReturnType<typeof startInk>;
+
+/** A quick press rushes the light across the frame and it clears fast. A slow press has filled the frame, and it clears slowly.
+    Returns the ms left until the light fills the frame. */
+function endInk({ wrap, ink, grow }: Ink, slow: boolean): number {
+  const rate = slow ? 1.6 : 3;
+  grow.playbackRate = rate;
+  const left = Math.max(0, (INK_MS + INK_WAIT - Number(grow.currentTime ?? 0)) / rate);
+  const fade = slow ? 340 : 170;
+  ink.animate({ opacity: [0.16, 0] }, { duration: fade, delay: left, easing: 'ease-out', fill: 'both' });
+  window.setTimeout(() => wrap.remove(), left + fade + 20);
+  return left;
 }
 
 /** One listener for the whole app, so every button gets the feedback of its class without its own code. */
 export function installPresses() {
-  let down: { b: HTMLElement; c: PressClass } | null = null;
-  const find = (t: EventTarget | null) => (t as Element | null)?.closest?.<HTMLElement>('button, a[href], .felt-nav a');
-  // every press gives a tick. It runs in the click, because iOS allows a tick only inside a press
+  let down: { b: HTMLElement; frame: HTMLElement; c: PressClass; at: number; sink?: Animation; ink?: Ink } | null = null;
+  // the press just ended: its button and the ms until its light fills the frame
+  let ended: { b: HTMLElement; left: number; at: number } | null = null;
+  let replaying = false;
+  const find = (t: EventTarget | null) => (t as Element | null)?.closest?.<HTMLElement>('[data-player], button, a[href], .felt-nav a');
   document.addEventListener('click', (e) => {
+    if (replaying) return;
     const b = find(e.target);
-    if (b && e.detail !== 0 && !(b as HTMLButtonElement).disabled && b.getAttribute('aria-disabled') !== 'true') haptic(8);
+    if (!b || (b as HTMLButtonElement).disabled || b.getAttribute('aria-disabled') === 'true' || e.detail === 0) return;
+    // every press gives a tick. It runs in the click, because iOS allows a tick only inside a press
+    haptic(8);
+    if (calm()) return;
+    // the light fills the frame, then the action runs
+    const c = classOf(b);
+    if (c !== 'open' && c !== 'dismiss' && c !== 'forward') return;
+    if (c === 'forward' && (b.matches('.sat-iconbtn') || NOW.test(`${b.textContent} ${b.getAttribute('aria-label') ?? ''}`))) return;
+    const left = ended?.b === b ? ended.left - (Date.now() - ended.at) : 0;
+    if (left <= 8) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    window.setTimeout(() => {
+      if (!b.isConnected) return;
+      replaying = true;
+      b.click();
+      replaying = false;
+    }, left);
   }, true);
   document.addEventListener('pointerdown', (e) => {
     if (calm()) return;
     const b = find(e.target);
     if (!b || (b as HTMLButtonElement).disabled || b.getAttribute('aria-disabled') === 'true') return;
     const c = classOf(b);
-    down = { b, c };
+    const frame = frameOf(b);
+    down = { b, frame, c, at: Date.now() };
     const s = DOWN[c];
-    if (s) b.animate({ scale: [1, s] }, { duration: 90, easing: 'ease-out', fill: 'forwards' });
-    if (c === 'forward' || c === 'dismiss' || c === 'open') ripple(b, e);
-    if (c === 'toggle') b.animate({ translate: ['0 0', '0 3px'] }, { duration: 70, easing: 'ease-out', fill: 'forwards' });
+    // quick to the press depth, then deeper for as long as the finger stays down
+    if (s) down.sink = frame.animate([{ scale: 1 }, { scale: s, offset: 0.16 }, { scale: s - 0.03 }], { duration: INK_MS, easing: 'ease-out', fill: 'forwards' });
+    if (c === 'forward' || c === 'dismiss' || c === 'open') down.ink = startInk(frame, e);
+    if (c === 'toggle') down.sink = b.animate({ translate: ['0 0', '0 3px'] }, { duration: 70, easing: 'ease-out', fill: 'forwards' });
   }, true);
-  const up = () => {
+  const up = (cancelled: boolean) => {
     if (!down) return;
-    const { b, c } = down;
+    const { b, frame, c, at, sink, ink } = down;
     down = null;
-    b.getAnimations().forEach((a) => { if ((a as Animation & { effect: KeyframeEffect }).effect?.getKeyframes?.().some((k) => 'scale' in k || 'translate' in k)) a.cancel(); });
-    const s = DOWN[c];
-    if (s) spring(b, (p) => ({ scale: String(s + (1 - s) * p) }), SPRING.log);
+    const slow = Date.now() - at > SLOW_MS;
+    const now = sink && DOWN[c] ? parseFloat(getComputedStyle(frame).scale) || DOWN[c]! : 1;
+    sink?.cancel();
+    if (DOWN[c]) spring(frame, (p) => ({ scale: String(now + (1 - now) * p) }), slow ? SPRING.settle : SPRING.log);
     if (c === 'select') spring(b, (p) => ({ scale: String(0.86 + 0.14 * p) }), SPRING.select);
     if (c === 'toggle') spring(b, (p) => ({ translate: `0 ${3 * (1 - p)}px` }), SPRING.toggle);
+    if (ink) {
+      const left = endInk(ink, slow);
+      ended = cancelled ? null : { b, left, at: Date.now() };
+    }
   };
-  document.addEventListener('pointerup', up, true);
-  document.addEventListener('pointercancel', up, true);
+  document.addEventListener('pointerup', () => up(false), true);
+  document.addEventListener('pointercancel', () => up(true), true);
 }
 
 /** A row leaves by shrinking, and the rows below close up. Then `run` removes it for real. */

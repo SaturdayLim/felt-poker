@@ -7,7 +7,7 @@ The motion in Felt, as the owner picked it on 4 Nov 2026 from live samples. `src
 | # | Element | Pick | Values |
 |---|---|---|---|
 | A1 | Tab highlight | Springy | spring 320, bounce 0.3 |
-| A2 | Screen change | iOS push | new slides over, old drifts 28% and dims, 320 |
+| A2 | Screen change | iOS push | new slides in, old drifts 28% and fades out in 130, 320. The screens are see-through, so the old one must go first |
 | A3 | Log hand into the hand page | Spring grow | spring 350, bounce 0.08 |
 | A4 | Sheet | Heavy, no bounce | up spring 500, down spring 360, bounce 0 |
 | A5 | Keypad and card picker | Spring | spring 280, bounce 0.1 |
@@ -19,13 +19,19 @@ The motion in Felt, as the owner picked it on 4 Nov 2026 from live samples. `src
 | A11 | Cards on the board | Dealt from the left | spring 420, bounce 0.14, 70 apart, small turn |
 | A12 | Live button | Pressed in | down 70, spring 240, bounce 0.35 |
 
+## Presses
+
+The frame reacts: the button, or the list around it when the button is its only row. Rows reach the frame edge.
+A quick press (under 180) rushes the light across the frame, and it clears in 170. A slow press sinks 3% deeper, the light fills the frame while the finger stays down, and it clears in 340.
+Go forward, go back and open wait for the light to fill the frame, then the action runs. Copy, share, download and file buttons run at once, because they need the press itself.
+
 ## B. Button presses, by what the press does
 
 | # | Class | Buttons | Pick | Values |
 |---|---|---|---|---|
 | B1 | Log | C, F, All-in, digits, Bet, card in the picker | Firm | scale 0.93, spring back 160 |
 | B2 | Commit | Save hand, Save and next, Confirm, Save count | Word changes | Saved, scale 0.96 |
-| B3 | Go forward | Flop, Turn, Showdown, Log hand, Full stats | Ripple | scale 0.97, ripple |
+| B3 | Go forward | Flop, Turn, Showdown, Log hand, Full stats | Ripple | scale 0.97, ripple. See Presses |
 | B4 | Go back or dismiss | Back, Close, Done, Cancel | Ripple | scale 0.98, ripple |
 | B5 | Select | Tabs, segments, chips | Clear pop | 86% to full, spring 240, bounce 0.4 |
 | B6 | Toggle | Switches, Live button, Dark, Muck, eye icons | With weight | down 3 px, spring 240, bounce 0.35 |

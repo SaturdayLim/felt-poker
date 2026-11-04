@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useStore, usePlayerName } from '../store';
+import { PlayerName } from '../components/players';
+import { useStore } from '../store';
 import { back, backTo, go } from '../router';
 import { Caption, Delta, Empty, Header, Help, Icon, Sheet, SourceTip, toast, withUndo } from '../components/ui';
 import { openTransfers, round2, suggestTransfers } from '../lib/calc';
@@ -25,7 +26,6 @@ export default function Group({ groupId }: { groupId: string }) {
   const grp = useStore((s) => s.groups.find((x) => x.id === groupId));
   const allGames = useStore((s) => s.games);
   const settleGroup = useStore((s) => s.settleGroup);
-  const name = usePlayerName();
   const [edit, setEdit] = useState(false);
   if (!grp) return <div className="felt-page"><Header back={() => back('players')} title="Group" /><Empty title="Group not found">It may have been deleted.</Empty></div>;
 
@@ -49,7 +49,7 @@ export default function Group({ groupId }: { groupId: string }) {
               <div className="sat-glass-2 felt-list">
                 {settle.transfers.map((t, i) => (
                   <div key={i} className="felt-row felt-row--slim">
-                    <span className="felt-row-main felt-row-title">{name(t.from)} pays {name(t.to)}</span>
+                    <span className="felt-row-main felt-row-title"><PlayerName id={t.from} /> pays <PlayerName id={t.to} /></span>
                     <span className="sat-num" style={{ fontWeight: 600 }}>{money(t.amount, currency)}</span>
                   </div>
                 ))}
@@ -66,7 +66,7 @@ export default function Group({ groupId }: { groupId: string }) {
               {board.map((s, i) => (
                 <button key={s.playerId} className="felt-row felt-row--slim" onClick={() => go(`insights/${s.playerId}`)}>
                   <span className="sat-mono sat-muted" style={{ width: 16 }}>{i + 1}</span>
-                  <div className="felt-row-main"><div className="felt-row-title">{name(s.playerId)}</div><div className="felt-row-sub">{s.games} games</div></div>
+                  <div className="felt-row-main"><div className="felt-row-title"><PlayerName id={s.playerId} /></div><div className="felt-row-sub">{s.games} games</div></div>
                   <Delta value={s.net} format={(a) => money(a, currency)} />
                 </button>
               ))}

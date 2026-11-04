@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useStore, usePlayerName } from '../store';
+import { useStore } from '../store';
 import { go } from '../router';
+import { PlayerName } from '../components/players';
 import { Delta, Empty, Header, Icon, TabPill } from '../components/ui';
 import { gameResults, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
 import { dateLabel, gameLength, money, playMs } from '../lib/format';
@@ -11,7 +12,6 @@ import type { Game, GameType } from '../types';
 export default function Games() {
   const games = useStore((s) => s.games);
   const groups = useStore((s) => s.groups);
-  const name = usePlayerName();
   const [type, setType] = useState<'all' | GameType>('all');
   const list = games.filter((g) => type === 'all' || g.type === type).sort((a, b) => b.startedAt - a.startedAt);
   const live = list.filter((g) => g.status === 'live');
@@ -43,9 +43,8 @@ export default function Games() {
               const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
               return (
                 <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
-                  <span className="felt-live-tag">{g.type === 'cash' ? `${g.sb}/${g.bb} cash` : 'Tournament'}{playMs(g) === null ? '' : `, ${gameLength(g)}`}</span>
                   <span className="felt-live-name">{g.name}</span>
-                  <span className="sat-small sat-muted">{seated} playing, {g.hands.length} hands{groupName(g) ? `, ${groupName(g)}` : ''}</span>
+                  <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} cash` : 'Tournament'}{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hands{groupName(g) ? `, ${groupName(g)}` : ''}</span>
                   <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
                 </button>
               );
@@ -71,7 +70,7 @@ export default function Games() {
                     </div>
                     {res[0] && (
                       <div className="felt-right">
-                        <div className="sat-small felt-ellipsis" style={{ maxWidth: 96 }}>{name(res[0].playerId)}</div>
+                        <div className="sat-small felt-ellipsis" style={{ maxWidth: 96 }}><PlayerName id={res[0].playerId} /></div>
                         <Delta value={res[0].net} format={(a) => money(a, g.currency)} />
                       </div>
                     )}

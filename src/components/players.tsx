@@ -1,10 +1,11 @@
-import { useRef, useState, type ReactNode } from 'react';
-import { useStore } from '../store';
-import { Help, HoldButton, Icon, Sheet, toast, WordButton } from './ui';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePlayerName, useStore } from '../store';
+import { Delta, Help, HoldButton, Icon, Sheet, toast, WordButton } from './ui';
 import { showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary } from '../lib/stats';
-import { money } from '../lib/format';
+import { gameResults } from '../lib/calc';
+import { money, shortDate } from '../lib/format';
 import { go } from '../router';
 import type { ID, Player } from '../types';
 
@@ -221,11 +222,9 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
     setShown(p.code!);
   };
   const copy = () => {
-    if (p.codeIssued && !shown) { toast('Tap and hold the refresh icon to replace code first.'); return; }
-    const code = shown ?? p.code!;
-    revealCode(pid);
-    navigator.clipboard?.writeText(`${p.name}, your Felt player code is ${showCode(code)}. Keep it private.`)
-      .then(() => toast(`Message for ${p.name} copied.`), () => toast('Copy was blocked. Tap the eye to show the code.'));
+    if (!shown) return;
+    navigator.clipboard?.writeText(`${p.name}, your Felt player code is ${showCode(shown)}. Keep it private.`)
+      .then(() => toast(`Message for ${p.name} copied.`), () => toast('Copy was blocked.'));
   };
   const icon = !ready ? 'dark' : shown ? 'eye' : p.codeIssued ? 'refresh' : 'dark';
   const what = !ready ? 'No code yet' : shown ? 'Hide the code' : p.codeIssued ? 'Replace the code' : 'Show the code';
@@ -233,7 +232,7 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
     <span className={`felt-codectl ${ready ? '' : 'is-none'}`}>
       {label && <span className="felt-codectl-label">Player code<Help k="playerCode" /></span>}
       {shown && <b className="felt-codectl-shown sat-num" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
-      {label && ready && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
+      {label && shown && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
       {ready && !shown && p.codeIssued
         ? <HoldButton label={`${what}: ${p.name}`} hint="Tap and hold to replace code" onDone={replace}><Icon name={icon} /></HoldButton>
         : <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>}
@@ -241,23 +240,70 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   );
 }
 
-/** The player pop-up: headline figures, the code, then Full stats and Edit name. */
+/** The player pop-up: headline figures, the code, then Full stats and Edit name. Each figure opens what is behind it. */
 export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) {
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
-  const [editing, setEditing] = useState(false);
+  const [view, setView] = useState<'card' | 'games' | 'edit'>('card');
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
-  if (editing) return <PlayerEditSheet p={p} onClose={onClose} />;
+  const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
+  const stats = () => { onClose(); go(`insights/${p.id}`); };
+  if (view === 'edit') return <PlayerEditSheet p={p} onClose={onClose} />;
+  if (view === 'games') {
+    return (
+      <Sheet open onClose={onClose} title={`${p.name}: Games`}>
+        {played.length === 0 && <p className="sat-small sat-muted">Not in any games yet.</p>}
+        {played.length > 0 && (
+          <div className="sat-flat felt-list">
+            {played.map((g) => {
+              const live = g.status === 'live';
+              const net = live ? undefined : gameResults(g).find((r) => r.playerId === p.id)?.net;
+              return (
+                <button key={g.id} className="felt-row" onClick={() => { onClose(); go(live ? `game/${g.id}` : `game/${g.id}/close`); }}>
+                  <span className="felt-row-main">
+                    <span className="felt-row-title felt-ellipsis" style={{ display: 'block' }}>{g.name}</span>
+                    <span className="felt-row-sub" style={{ display: 'block' }}>{live ? 'Live' : shortDate(g.startedAt)}</span>
+                  </span>
+                  {net !== undefined && <Delta value={net} format={(a) => money(a, g.currency)} />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <button className="sat-btn sat-btn--block" onClick={() => setView('card')}>Back to {p.name}</button>
+      </Sheet>
+    );
+  }
   return (
     <Sheet open onClose={onClose} title={p.name}>
       <div className="felt-tiles">
-        <div className="sat-flat sat-card"><span className="sat-caption">Net</span><b className="sat-num">{s.games ? money(s.net, currency, { sign: true }) : '-'}</b></div>
-        <div className="sat-flat sat-card"><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></div>
-        <div className="sat-flat sat-card"><span className="sat-caption">Games</span><b className="sat-num">{s.games}</b></div>
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={stats}><span className="sat-caption">Net</span><b className="sat-num">{s.games ? money(s.net, currency, { sign: true }) : '-'}</b></button>
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={stats}><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></button>
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('games')}><span className="sat-caption">Games</span><b className="sat-num">{played.length}</b></button>
       </div>
       <CodeControl pid={p.id} label />
-      <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => { onClose(); go(`insights/${p.id}`); }}>Full stats</button>
-      <button className="sat-btn sat-btn--block" onClick={() => setEditing(true)}>Edit name</button>
+      <button className="sat-btn sat-btn--primary sat-btn--block" onClick={stats}>Full stats</button>
+      <button className="sat-btn sat-btn--block" onClick={() => setView('edit')}>Edit name</button>
     </Sheet>
   );
+}
+
+/* ---------------------------- a name opens the player card ---------------------------- */
+
+let showPlayer: ((id: ID) => void) | null = null;
+export const openPlayer = (id: ID) => showPlayer?.(id);
+
+/** Sits once at the top of the app and shows the player card that a name asks for. */
+export function PlayerHost() {
+  const [id, setId] = useState<ID | null>(null);
+  const p = useStore((s) => s.players.find((x) => x.id === id));
+  useEffect(() => { showPlayer = setId; return () => { showPlayer = null; }; }, []);
+  return p ? <PlayerSheet key={p.id} p={p} onClose={() => setId(null)} /> : null;
+}
+
+/** A player's name anywhere outside logging. A tap opens the player card, even inside a row that opens something else. */
+export function PlayerName({ id }: { id: ID }) {
+  const name = usePlayerName();
+  const open = (e: { stopPropagation: () => void; preventDefault: () => void }) => { e.stopPropagation(); e.preventDefault(); openPlayer(id); };
+  return <span role="button" tabIndex={0} className="felt-name" data-player={id} data-press="open" aria-label={`Open the player card of ${name(id)}`} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter') open(e); }}>{name(id)}</span>;
 }

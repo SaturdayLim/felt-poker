@@ -3,7 +3,7 @@ import { haptic } from '../lib/haptics';
 
 /* Drag to reorder. A touch must hold still on the grip (or press hard) before the row lifts, so a swipe that
    starts on a grip scrolls the page. While dragging, the row follows the finger, the others slide aside, and a
-   slot marks where the row will land. The new order saves after the row settles into the slot. */
+   line marks where the row will land. The new order saves after the row settles into the slot. */
 
 const HOLD_MS = 280, SETTLE_MS = 450, SLOP = 8;
 
@@ -94,7 +94,7 @@ export function useDragList<T>(ids: T[], onDrop: (order: T[]) => void) {
   /** The order as it will be if the row drops now. */
   const projected = d ? (() => { const o = ids.filter((x) => x !== d.id); o.splice(d.to, 0, d.id); return o; })() : ids;
   const slot = d && !d.settling
-    ? <span className="felt-drop-slot" aria-hidden="true" style={{ height: rows.current[d.from].h, transform: `translateY(${slotTop(d.from, d.to)}px)` }} />
+    ? <span className="felt-drop-slot" aria-hidden="true" style={{ transform: `translateY(${slotTop(d.from, d.to) - 3}px)` }} />
     : null;
 
   return { wrap, grip, row, slot, projected, listClass: d ? 'felt-drag-active' : '', dragging: d?.id ?? null };

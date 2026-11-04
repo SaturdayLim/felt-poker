@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { useDragList } from '../components/dragList';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton } from '../components/ui';
 import { shrinkAway } from '../lib/motion';
-import { SeatPicker, titleCase, CodeControl } from '../components/players';
+import { SeatPicker, CodeControl, PlayerName, openPlayer } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
@@ -125,7 +125,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
             {!closed && (
               <button className="felt-addbar" onClick={() => setSheet({ k: 'move' })}><Icon name="plus" /> Chip move</button>
             )}
-            <HandList g={g} name={name} closed={closed} />
+            <HandList g={g} closed={closed} />
           </>
         )}
       </div>
@@ -194,22 +194,11 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
   g: Game; pid: ID; name: string; handle?: Handle; stack: string | null;
   onLight: (v: Light) => void; onRebuy: () => void; onBuyIns: () => void; onCount?: () => void;
 }) {
-  const st = useStore();
   const isCash = g.type === 'cash';
   const status = playerStatus(g, pid);
   const n = buyInCount(g, pid);
   const place = tournamentPlace(g, pid);
   const closed = g.status === 'closed';
-  const [editing, setEditing] = useState(false);
-  const [nm, setNm] = useState(name);
-  const saveName = () => {
-    setEditing(false);
-    const v = titleCase(nm);
-    if (!v || v === name) { setNm(name); return; }
-    if (st.players.some((x) => x.id !== pid && x.name.toLowerCase() === v.toLowerCase())) { toast(`${v} is already saved. Use a different name.`); setNm(name); return; }
-    st.renamePlayer(pid, v);
-    toast('Name saved');
-  };
   return (
     <div data-drag-row={handle ? true : undefined} style={handle?.row.style} className={`sat-glass felt-pcard ${status === 'out' ? 'is-out' : ''} ${status === 'away' ? 'is-away' : ''} ${handle?.row.className ?? ''}`}>
       {handle ? (
@@ -220,12 +209,7 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
       ) : <span className="felt-grip is-static"><span className="sat-num">{g.seats[pid] ?? '-'}</span></span>}
       <div className="felt-pcard-main">
         <div className="felt-pcard-top">
-          {editing ? (
-            <input className="sat-input felt-pcard-input" autoFocus value={nm} aria-label="Player name" autoCapitalize="words"
-              onChange={(e) => setNm(e.target.value)} onBlur={saveName} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setNm(name); setEditing(false); } }} />
-          ) : (
-            <button type="button" className="felt-pcard-name felt-ellipsis" onClick={() => { setNm(name); setEditing(true); }} aria-label={`${name}. Tap to rename`}>{name}</button>
-          )}
+          <button type="button" className="felt-pcard-name felt-ellipsis" onClick={() => openPlayer(pid)} aria-label={`Open the player card of ${name}`}>{name}</button>
           {!isCash && place && <span className="sat-badge">{place === 1 ? 'Winner' : `Place ${place}`}</span>}
           <CodeControl pid={pid} />
           {!closed && <StatusLight value={status} onChange={onLight} name={name} outLabel={isCash ? 'Clock out' : 'Bust'} />}
@@ -292,7 +276,7 @@ function BackInSheet({ g, pid, name, onClose }: { g: Game; pid: ID; name: string
   );
 }
 
-function HandList({ g, name, closed }: { g: Game; name: (id: ID) => string; closed: boolean }) {
+function HandList({ g, closed }: { g: Game; closed: boolean }) {
   const st = useStore();
   const hands = [...g.hands].reverse();
   const moves = [...(g.moves ?? [])].sort((a, b) => b.afterN - a.afterN || b.at - a.at);
@@ -308,7 +292,7 @@ function HandList({ g, name, closed }: { g: Game; name: (id: ID) => string; clos
   return (
     <div className="sat-glass-2 felt-list">
       {rows.map((row) => row.k === 'move' ? (
-        <MoveRow key={row.m.id} m={row.m} name={name} onRemove={closed ? undefined : (e) => shrinkAway(e.currentTarget.closest('.felt-move'), () => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); })} />
+        <MoveRow key={row.m.id} m={row.m} onRemove={closed ? undefined : (e) => shrinkAway(e.currentTarget.closest('.felt-move'), () => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); })} />
       ) : (() => { const h = row.h; return h.missed ? (
         <div key={h.id} className="felt-hand felt-hand--missed">
           <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
@@ -321,7 +305,7 @@ function HandList({ g, name, closed }: { g: Game; name: (id: ID) => string; clos
           <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
             <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap', minWidth: 0 }}>
               <span className="sat-mono sat-small sat-muted">{h.n}</span>
-              <span className="felt-ellipsis" style={{ fontWeight: 600 }}>{h.winners.map((w) => name(w.playerId)).join(' and ') || 'No winner'}</span>
+              <span className="felt-ellipsis" style={{ fontWeight: 600 }}>{h.winners.length ? h.winners.map((w, i) => <Fragment key={w.playerId}>{i ? ' and ' : ''}<PlayerName id={w.playerId} /></Fragment>) : 'No winner'}</span>
               {h.winners.length > 1 && <span className="sat-badge sat-badge--muted">Split</span>}
             </div>
             <span className="sat-num" style={{ fontWeight: 600 }}>{units(h.pot)}</span>
@@ -329,10 +313,10 @@ function HandList({ g, name, closed }: { g: Game; name: (id: ID) => string; clos
           <div className="sat-split" style={{ marginTop: 'var(--sat-space-2)' }}>
             {h.boardNA ? <span className="sat-badge sat-badge--muted">No board</span> : h.board.length ? <Cards cards={h.board} size="sm" /> : <span className="sat-small sat-muted">Won before the flop</span>}
             <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
-              {h.dealerId && <span className="sat-small sat-muted"><span className="felt-dealer" style={{ width: 15, height: 15, fontSize: 8 }} aria-label="Button">D</span> {name(h.dealerId)}</span>}
+              {h.dealerId && <span className="sat-small sat-muted"><span className="felt-dealer" style={{ width: 15, height: 15, fontSize: 8 }} aria-label="Button">D</span> <PlayerName id={h.dealerId} /></span>}
               {(h.pots?.length ?? 1) > 1 && <span className="sat-badge sat-badge--muted">{h.pots!.length} pots</span>}
               {h.shown.length > 0 && <span className="sat-badge">{h.shown.length} shown</span>}
-              {h.bounty && <span className="sat-badge">2-7 {name(h.bounty.playerId)}</span>}
+              {h.bounty && <span className="sat-badge">2-7 <PlayerName id={h.bounty.playerId} /></span>}
             </div>
           </div>
         </button>
@@ -348,12 +332,12 @@ const MOVE_KIND: { k: ChipMove['kind']; label: string }[] = [
 ];
 
 /** A chip move in the hand list: a dashed row between hands, so it never reads as a hand. */
-function MoveRow({ m, name, onRemove }: { m: ChipMove; name: (id: ID) => string; onRemove?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
+function MoveRow({ m, onRemove }: { m: ChipMove; onRemove?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   const kind = MOVE_KIND.find((k) => k.k === m.kind)?.label ?? 'Other';
   return (
     <div className="felt-move">
       <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
-        <span className="felt-ellipsis"><span className="sat-badge sat-badge--muted">{kind}</span> <b>{name(m.from)}</b> paid <b>{m.to ? name(m.to) : 'off the table'}</b></span>
+        <span className="felt-ellipsis"><span className="sat-badge sat-badge--muted">{kind}</span> <b><PlayerName id={m.from} /></b> paid <b>{m.to ? <PlayerName id={m.to} /> : 'off the table'}</b></span>
         <span className="sat-num" style={{ fontWeight: 600 }}>{units(m.amount)}</span>
       </div>
       <div className="sat-split">

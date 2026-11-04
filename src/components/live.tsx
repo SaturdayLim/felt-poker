@@ -79,13 +79,15 @@ export function LiveRow({ g }: { g: Game }) {
 
   return (
     <section className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-      <div className="sat-flat sat-card felt-liverow">
+      <div className={`sat-flat sat-card felt-liverow is-${state}`}>
         <button type="button" className={`felt-liveswitch is-${state}`} role="switch" aria-checked={live.on} aria-label="Live link" aria-disabled={busy} onClick={() => { if (busy) return; if (live.on) stop(); else start(); }}><Icon name="power" size={16} stroke={2.6} /></button>
         {/* off: a field to type in. On with no password: plain text, because there is nothing to type */}
         {live.on && !pass ? <span className="felt-livepass-none">No password</span> : (
           <span className={`felt-livepass ${live.on ? 'is-set' : ''}`}>
-            <input className="felt-livepass-in" type={see ? 'text' : 'password'} aria-label="Live link password" placeholder="Add password" autoComplete="off" autoCapitalize="off" spellCheck={false}
-              value={pass} disabled={live.on || busy} onChange={(e) => setPass(e.target.value)} />
+            <span className="felt-livepass-fit">
+              <input className="felt-livepass-in" type={see ? 'text' : 'password'} aria-label="Live link password" placeholder="Add password" autoComplete="off" autoCapitalize="off" spellCheck={false}
+                value={pass} disabled={live.on || busy} onChange={(e) => setPass(e.target.value)} />
+            </span>
             {pass && <button type="button" className="felt-livepass-eye" aria-label={see ? 'Hide the password' : 'Show the password'} aria-pressed={see} onClick={() => setSee(!see)}><Icon name={see ? 'eye' : 'dark'} size={18} /></button>}
           </span>
         )}

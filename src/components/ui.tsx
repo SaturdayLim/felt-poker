@@ -157,7 +157,7 @@ export function TabPill() {
 
 const SLIDE_MS = 320;
 
-/** An iOS push when `k` changes: the new screen slides in over a copy of the old one, which drifts 28% the other way and dims. `i` gives the direction; a negative `i` means no slide.
+/** An iOS push when `k` changes: the new screen slides in while a copy of the old one drifts 28% the other way and fades out. `i` gives the direction; a negative `i` means no slide.
     This needs no browser feature, so it runs the same on every phone Felt supports. */
 export class SlidePane extends Component<{ k: string; i: number; children: ReactNode }> {
   el = createRef<HTMLDivElement>();
@@ -179,7 +179,9 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     copy.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => { if (r.top < 0) h.style.transform = `translateY(${-r.top}px)`; });
     (el.closest('dialog') ?? document.body).append(copy);
     const t = { duration: SLIDE_MS, easing: DRAWER };
-    const out = copy.animate({ translate: ['0 0', `${-by * 0.28}px 0`], opacity: [1, 0.3] }, t);
+    // the screens are see-through, so the old one fades out before the new one reaches it
+    copy.animate({ opacity: [1, 0] }, { duration: SLIDE_MS * 0.4, easing: 'ease-out', fill: 'forwards' });
+    const out = copy.animate({ translate: ['0 0', `${-by * 0.28}px 0`] }, t);
     out.onfinish = out.oncancel = () => copy.remove();
     // a hidden tab holds back the finish event
     window.setTimeout(() => copy.remove(), SLIDE_MS + 100);
@@ -589,13 +591,10 @@ export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
   return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 40 : size === 'sm' ? 19 : 25} /></span>;
 }
 
-/** Two outlined empty cards (Nil) or two face-down cards (Filled). */
+/** One dotted box split down the middle (Nil), or two face-down cards (Filled). */
 export function CardPair({ filled, size = 'sm' }: { filled: boolean; size?: 'sm' | 'lg' }) {
-  return (
-    <span className="felt-cards" role="img" aria-label={filled ? 'Filled' : 'Nil'}>
-      {filled ? <><CardBack size={size} /><CardBack size={size} /></> : <><span className={`felt-card felt-cardslot ${size}`} /><span className={`felt-card felt-cardslot ${size}`} /></>}
-    </span>
-  );
+  if (!filled) return <span className={`felt-cardsnil ${size}`} role="img" aria-label="Nil" />;
+  return <span className="felt-cards" role="img" aria-label="Filled"><CardBack size={size} /><CardBack size={size} /></span>;
 }
 
 export function Cards({ cards, size }: { cards: Card[]; size?: 'sm' | 'lg' }) {

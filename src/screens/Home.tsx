@@ -1,5 +1,6 @@
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
+import { PlayerName, openPlayer } from '../components/players';
 import { Delta, Empty, Header, Icon, SourceTip, ThemeCycle, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
 import { gameLength, money, playMs, shortDate } from '../lib/format';
@@ -26,9 +27,8 @@ export default function Home() {
           const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
           return (
             <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
-              <span className="felt-live-tag"><span className="felt-dot felt-dot--pulse" />Live{playMs(g) === null ? '' : `, ${gameLength(g)}`}</span>
-              <span className="felt-live-name">{g.name}</span>
-              <span className="sat-small sat-muted">{seated} playing, {g.hands.length} hands</span>
+              <span className="felt-live-name"><span className="felt-dot felt-dot--pulse" />{g.name}</span>
+              <span className="sat-small sat-muted">Live{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hands</span>
               <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
             </button>
           );
@@ -49,7 +49,7 @@ export default function Home() {
             </div>
             <div className="sat-glass-2 felt-list">
               {board.map((s, i) => (
-                <button key={s.playerId} className="felt-row felt-row--slim" onClick={() => go(`insights/${s.playerId}`)}>
+                <button key={s.playerId} className="felt-row felt-row--slim" onClick={() => openPlayer(s.playerId)}>
                   <span className="sat-mono sat-muted" style={{ width: 16 }}>{i + 1}</span>
                   <span className="felt-row-main felt-row-title">{name(s.playerId)}</span>
                   <Delta value={s.net} format={(a) => money(a, currency)} />
@@ -74,7 +74,7 @@ export default function Home() {
                   <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(`game/${g.id}/close`)}>
                     <div className="felt-row-main">
                       <div className="felt-row-title felt-ellipsis">{g.name}</div>
-                      <div className="felt-row-sub">{shortDate(g.startedAt)}{top ? `, top: ${name(top.playerId)}` : ''}</div>
+                      <div className="felt-row-sub">{shortDate(g.startedAt)}{top ? <>, top: <PlayerName id={top.playerId} /></> : ''}</div>
                     </div>
                     {top && <Delta value={top.net} format={(a) => money(a, g.currency)} />}
                   </button>

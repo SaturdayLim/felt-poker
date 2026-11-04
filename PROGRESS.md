@@ -1,5 +1,13 @@
 # Felt: progress
 
+## Latest (4 Nov 2026): 1.2.8
+- Owner confirmed motion plays after Settings, Motion: Reduce Motion was the cause.
+- Double box bug: `.felt-tabs button[aria-selected]` and `.sat-seg > button[aria-checked]` beat the rule that clears the selected button, so a box painted under the moving pill. Fixed with !important.
+- Presses rewritten in motion.ts. Quick vs slow is read as a visual difference, not a different action. Confirm with the owner.
+- Viewer screens (Join) have names with no player id, so they do not open a card.
+- UI review results: docs/UI-REVIEW.md.
+- Waiting: owner picks a matte card back (https://claude.ai/artifact/J1hTUTZXtptDnkm9V3B3Xe).
+
 ## Latest (4 Nov 2026): 1.2.7
 - Motion was off on the owner's iPhone, most likely Reduce Motion: it also explains the 450 ms splash. Not confirmed yet. Settings, Motion shows the phone state and can overrule it (`felt-motion` in localStorage, `data-calm` on html, set before paint).
 - Tested in WebKit 26.6 on Windows: 125 animate() calls with no preference, 0 with reduce. That build crashes on document.startViewTransition, so tests delete it. No crash reported on the iPhone.

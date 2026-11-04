@@ -55,7 +55,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A bought-in player with an exact stack of 0 is not dealt in by default and cannot be added until a rebuy. A player with no chips in the pot is never a finalist.
 - Viewers see a new hand only after real action (check, call, bet, raise, fold). Blinds and card entry alone do not show it.
 - Viewers can send their own cards for a hand. The host's entry for that player replaces them.
-- Card entry shows no words: filled = two face-down cards (white Felt mark, cobalt, gold trim), nil = two outlined empty cards. Cards already shown at the table show face up.
+- Card entry shows no words: filled = two face-down cards (white Felt mark, cobalt, gold trim), nil = one dotted box split down the middle. Cards already shown at the table show face up.
 - A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
 - Live link sits on the game page, no pop-up: password space with eye and censoring, copy, QR, and a switch that glows green (on) or red (off). Copy and QR exist only when on: closed, they are not on the page.
 - All-in run-out is offered only when no further action is possible (the street's all-ins count, not later ones). With one all-in and 2 still able to bet, the street goes on.
@@ -85,5 +85,6 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A hand opened again goes to where it stopped: the street cards if missing, else the player to act.
 - Save hand and Save, next hand show only when no card entry is open.
 - Every button press gives a haptic tick, fired inside the click (iOS allows it only there).
+- UI principles (names open cards, controls show only when they work, frames react): `.claude/skills/felt-ui/SKILL.md`.
 - Card design rules: `.claude/skills/card-design/SKILL.md`. Logo on a card back is 15% to 25% of the card height.
 - Download options name the content and the file type: Results (1 image), Results and stats, Full game record, Spreadsheet data (3 CSV files).

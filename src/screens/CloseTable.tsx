@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PlayerName } from '../components/players';
 import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
 import { back, go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, SourceTip, withUndo } from '../components/ui';
@@ -74,7 +75,7 @@ export default function CloseTable({ gameId }: { gameId: string }) {
                     <span className="sat-mono sat-muted" style={{ width: 16 }}>{i + 1}</span>
                     <Avatar name={name(r.playerId)} size="sm" />
                     <div className="felt-row-main">
-                      <div className="felt-row-title">{name(r.playerId)} {r.place ? <span className="sat-badge">{r.place === 1 ? 'Winner' : `Place ${r.place}`}</span> : null}</div>
+                      <div className="felt-row-title"><PlayerName id={r.playerId} /> {r.place ? <span className="sat-badge">{r.place === 1 ? 'Winner' : `Place ${r.place}`}</span> : null}</div>
                       <div className="felt-row-sub">
                         {g.type === 'cash' ? `${units(r.inUnits)} in, ${units(r.outUnits)} out, ${r.buyIns} buy-in${r.buyIns === 1 ? '' : 's'}` : `${r.buyIns} entr${r.buyIns === 1 ? 'y' : 'ies'}, won ${fmt(r.out)}`}
                         {r.expenses !== 0 && `, expenses ${money(r.expenses, g.currency, { sign: true })}`}
@@ -103,7 +104,7 @@ export default function CloseTable({ gameId }: { gameId: string }) {
                 <button key={e.id} className="felt-row" onClick={() => setEditExp(e)}>
                   <div className="felt-row-main">
                     <div className="felt-row-title">{e.label}</div>
-                    <div className="felt-row-sub">{e.paidBy ? `${name(e.paidBy)} paid` : 'Not paid yet'}, split {e.splitAmong.length} ways</div>
+                    <div className="felt-row-sub">{e.paidBy ? <><PlayerName id={e.paidBy} /> paid</> : 'Not paid yet'}, split {e.splitAmong.length} ways</div>
                   </div>
                   <span className="sat-num">{fmt(e.amount)}</span>
                 </button>
@@ -126,12 +127,12 @@ export default function CloseTable({ gameId }: { gameId: string }) {
                 <div key={p} className="sat-glass-2 felt-list">
                   <div className="felt-row">
                     <Avatar name={name(p)} size="sm" />
-                    <span className="felt-row-main felt-row-title">{name(p)}</span>
+                    <span className="felt-row-main felt-row-title"><PlayerName id={p} /></span>
                     {ts.every((t) => t.resolved) && <span className="sat-badge">Paid</span>}
                   </div>
                   {ts.map((t) => (
                     <div key={t.id} className="felt-row" style={{ paddingLeft: 40 }}>
-                      <span className="felt-row-main">Pays <b>{name(t.to)}</b></span>
+                      <span className="felt-row-main">Pays <b><PlayerName id={t.to} /></b></span>
                       <span className="sat-num" style={{ fontWeight: 600 }}>{fmt(t.amount)}</span>
                       {t.resolved ? (
                         <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => st.setTransferResolved(g.id, t.id, false)} aria-label={`Undo: ${name(p)} paid ${name(t.to)}`}><Icon name="undo" /> Undo</button>
@@ -211,7 +212,6 @@ function ExpenseSheet({ g, expense, onClose, onSave, onDelete }: {
 
 function TournamentFinish({ g }: { g: Game }) {
   const st = useStore();
-  const name = usePlayerName();
   const t = g.tournament!;
   const closed = g.status === 'closed';
   const places = g.playerIds.map((p) => ({ p, place: tournamentPlace(g, p) })).sort((a, b) => (a.place ?? 0) - (b.place ?? 0));
@@ -248,7 +248,7 @@ function TournamentFinish({ g }: { g: Game }) {
           return (
             <div key={i} className="felt-row">
               <span className="sat-mono sat-muted" style={{ width: 20 }}>{i + 1}</span>
-              <span className="felt-row-main felt-row-title">{who ? name(who) : <span className="sat-muted">-</span>}</span>
+              <span className="felt-row-main felt-row-title">{who ? <PlayerName id={who} /> : <span className="sat-muted">-</span>}</span>
               <input key={`${i}-${t.payouts[i]}`} className="sat-input sat-num" style={{ width: 120 }} inputMode="decimal" aria-label={`Payout for place ${i + 1} (${g.currency})`}
                 defaultValue={t.payouts[i] ?? 0} onBlur={(e) => setPayout(i, e.target.value)} />
             </div>

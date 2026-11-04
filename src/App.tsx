@@ -4,6 +4,7 @@ import { applyTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
 import { NAV_TABS, useRoute } from './router';
 import { Icon, SlidePane, TabPill, ToastHost } from './components/ui';
+import { PlayerHost } from './components/players';
 import Home from './screens/Home';
 import Games from './screens/Games';
 import NewGame from './screens/NewGame';
@@ -108,6 +109,7 @@ export default function App() {
           </div>
         </nav>
       )}
+      <PlayerHost />
       <ToastHost />
     </div>
   );

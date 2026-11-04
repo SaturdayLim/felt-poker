@@ -125,7 +125,6 @@ export default function Settings() {
               <button key={t.k} role="radio" aria-checked={settings.theme === t.k} onClick={() => update({ theme: t.k })}><Icon name={t.icon} /> {t.label}</button>
             ))}
           </div>
-          <p className="sat-small sat-muted">Auto follows the phone setting. Saved on this phone.</p>
         </section>
 
         <section className="sat-stack" style={gap(2)}>
@@ -136,7 +135,7 @@ export default function Settings() {
               <button key={o.ms} role="radio" aria-checked={settings.splashMs === o.ms} onClick={() => update({ splashMs: o.ms })}>{o.label}</button>
             ))}
           </div>
-          <p className="sat-small sat-muted">{settings.splashMs ? `Shows for ${(settings.splashMs / 1000).toFixed(1)} seconds when Felt opens. Tap it to skip.` : 'Felt opens straight into the app.'}</p>
+          <p className="sat-small sat-muted">{settings.splashMs ? `${(settings.splashMs / 1000).toFixed(1)} seconds` : 'Off'}</p>
         </section>
 
         <MotionField />
@@ -149,9 +148,8 @@ export default function Settings() {
             <div className="sat-field">
               <label htmlFor="s-cur">Currency</label>
               <input id="s-cur" className="sat-input" defaultValue={settings.currency} onBlur={(e) => update({ currency: e.target.value.trim() || 'S$' })} />
-              <span className="sat-hint">Symbol (e.g. S$)</span>
             </div>
-            {numField('s-uv', `Multiplier (${settings.currency})`, 'unitValue', 'Per unit (e.g. 0.1)', 'unitValue')}
+            {numField('s-uv', `Multiplier (${settings.currency})`, 'unitValue', undefined, 'unitValue')}
             {numField('s-bi', 'Buy-in (chips)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} BB`)}
             {numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
             {numField('s-ss', 'Starting stack (chips)', 'startingStack')}
@@ -168,7 +166,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="sat-switch-row">
-            <span><span style={{ display: 'block' }}>Track the button</span><span className="sat-small sat-muted">Moves one seat clockwise after each hand. Sets who gets odd chips in a split pot.</span></span>
+            <span>Track the button <Help k="dealer" /></span>
             <Toggle on={settings.markers.dealer} onChange={(v) => setMarker('dealer', v)} label="Track the button" />
           </div>
         </section>

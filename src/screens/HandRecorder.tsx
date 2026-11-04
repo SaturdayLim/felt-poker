@@ -1,3 +1,4 @@
+import { PlayerName, openPlayer } from '../components/players';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
@@ -900,6 +901,8 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>;
   name: (id: ID) => string; onPick: (p: ID, r: number) => void; shown: Record<ID, (Card | null)[]>; namingFor: ID | null; onName: (p: ID) => void;
 }) {
+  // a closed game is not being logged: a name opens the player card
+  const review = g.status === 'closed';
   // a name opens the card picker only on a press and hold: a stray tap must not take cards out of play
   const hold = useRef<number | undefined>(undefined);
   const release = () => window.clearTimeout(hold.current);
@@ -988,7 +991,7 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
                 <button key={p} type="button" className={`felt-acts-name ${folded ? 'is-folded' : ''} ${namingFor === p ? 'is-target' : ''}`} aria-label={`${name(p)}: press and hold to enter the cards they show`}
                   onPointerDown={() => { release(); hold.current = window.setTimeout(() => { haptic(); onName(p); }, 450); }}
                   onPointerUp={release} onPointerLeave={release} onPointerCancel={release} onContextMenu={(e) => e.preventDefault()}
-                  onClick={(e) => { if (e.detail === 0) onName(p); }}>
+                  onClick={(e) => { if (review) openPlayer(p); else if (e.detail === 0) onName(p); }}>
                   <span className="felt-ellipsis">{name(p)}</span>
                   {sub && <span className="felt-acts-sub felt-ellipsis">{sub}</span>}
                 </button>
@@ -1150,7 +1153,7 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
                   <div key={p} className={`felt-show ${winnersOf.has(p) && !res?.missing ? 'is-winner' : ''} ${mucked ? 'is-mucked' : ''}`}>
                     <span className="felt-show-n sat-num">{i + 1}</span>
                     <div className="felt-row-main">
-                      <div className="felt-row-title">{name(p)}{log.allInAt?.[p] ? <span className="sat-badge sat-badge--muted" style={{ marginLeft: 6 }}>All-in</span> : null}</div>
+                      <div className="felt-row-title">{g.status === 'closed' ? <PlayerName id={p} /> : name(p)}{log.allInAt?.[p] ? <span className="sat-badge sat-badge--muted" style={{ marginLeft: 6 }}>All-in</span> : null}</div>
                       <div className="felt-row-sub">{mucked ? 'Mucked' : v ? v.name : cards.every(Boolean) ? 'Shown' : 'Not shown'}</div>
                       {twice && <div className="sat-small" style={{ color: 'var(--sat-neg)' }}>Same card entered twice</div>}
                       {!mucked && payTag(p)}
@@ -1270,7 +1273,6 @@ function BountyBlock({ live, dealt, to, auto, amount, off, name, busted, payOf, 
         </>
       ) : (
         <>
-          <span className="sat-small sat-muted">Not paid. If the table paid it anyway, tap who collected.</span>
           <div className="sat-cluster" style={gap(2)}>
             {live.map((p) => <button key={p} className="sat-chip felt-mini" onClick={() => onPick(p)}>{name(p)}</button>)}
           </div>

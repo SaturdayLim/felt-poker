@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { PlayerName } from '../components/players';
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { Avatar, Caption, Cards, Delta, Empty, Header, Help, Icon, toast, SourceTip, TabPill } from '../components/ui';
@@ -262,7 +263,7 @@ function Standings({ games, board, currency, name, scope }: {
             <tbody>
               {shown.map((b, i) => (
                 <tr key={b.playerId} onClick={() => go(`insights/${b.playerId}`)} style={{ cursor: 'pointer' }}>
-                  <td><span className="sat-cluster" style={gap(2)}><span className="sat-mono sat-muted" style={{ width: 14 }}>{i + 1}</span><Avatar name={name(b.playerId)} size="sm" /><span style={{ fontWeight: 600 }}>{name(b.playerId)}</span></span></td>
+                  <td><span className="sat-cluster" style={gap(2)}><span className="sat-mono sat-muted" style={{ width: 14 }}>{i + 1}</span><Avatar name={name(b.playerId)} size="sm" /><span style={{ fontWeight: 600 }}><PlayerName id={b.playerId} /></span></span></td>
                   <td className="n">{b.games}</td>
                   <td className="n"><Delta value={b.net} format={(a) => money(a, '')} /></td>
                 </tr>
@@ -294,7 +295,7 @@ function Standings({ games, board, currency, name, scope }: {
               </span>
             ))}
           </div>
-          {leader && <figcaption className="sat-figcaption"><b>Leader = {name(leader)} ({money(lastVals[leader] ?? 0, currency, { sign: true })})</b> over {series.length} games{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
+          {leader && <figcaption className="sat-figcaption"><b>Leader = <PlayerName id={leader} /> ({money(lastVals[leader] ?? 0, currency, { sign: true })})</b> over {series.length} games{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
           <div className="felt-source"><SourceTip>{sourceLine(games)} Running total after each game, in {currency}.</SourceTip></div>
         </figure>
       </section>

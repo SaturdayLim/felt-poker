@@ -49,9 +49,7 @@ export default function Players() {
             <Caption tip="groups">Groups</Caption>
             <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setNewGroup(true)}><Icon name="plus" /> New group</button>
           </div>
-          {groups.length === 0 ? (
-            <p className="sat-small sat-muted">Group the people you play with often. Their games settle together in the fewest payments.</p>
-          ) : (
+          {groups.length === 0 ? null : (
             <div className="sat-glass-2 felt-list">
               {groups.map((grp) => {
                 const gs = games.filter((g) => g.groupId === grp.id && g.status === 'closed');
@@ -77,14 +75,14 @@ export default function Players() {
             {list.map((p) => {
               const s = playerSummary(closed, p.id);
               return (
-                <div key={p.id} className="felt-row">
+                <button key={p.id} className="felt-row" onClick={() => setEdit(p)}>
                   <Avatar name={p.name} />
-                  <button className="felt-row-main" style={{ textAlign: 'left', minHeight: 44 }} onClick={() => setEdit(p)}>
-                    <div className="felt-row-title">{p.name} {p.archived && <span className="sat-badge sat-badge--muted">Archived</span>}</div>
-                    <div className="felt-row-sub">{s.games} games, {s.handsWon} hands won</div>
-                  </button>
+                  <span className="felt-row-main">
+                    <span className="felt-row-title" style={{ display: 'block' }}>{p.name} {p.archived && <span className="sat-badge sat-badge--muted">Archived</span>}</span>
+                    <span className="felt-row-sub" style={{ display: 'block' }}>{s.games} games, {s.handsWon} hands won</span>
+                  </span>
                   {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
-                </div>
+                </button>
               );
             })}
           </div>

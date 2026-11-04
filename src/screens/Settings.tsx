@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
+import { motionPref, phoneAsksCalm, setMotionPref, type MotionPref } from '../lib/motion';
 import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
@@ -20,6 +21,23 @@ const SPLASH: { ms: number; label: string }[] = [
   { ms: SPLASH_DEFAULT, label: 'Standard' },
   { ms: 4500, label: 'Long' },
 ];
+/** Reduce Motion on the phone turns off the motion in Felt. This field shows that and can overrule it, on this phone only. */
+function MotionField() {
+  const [pref, setPref] = useState(motionPref);
+  const pick = (p: MotionPref) => { setMotionPref(p); setPref(p); };
+  return (
+    <section className="sat-stack" style={gap(2)}>
+      <Caption tip="motion">Motion</Caption>
+      <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Motion">
+        <TabPill />
+        <button role="radio" aria-checked={pref === 'phone'} onClick={() => pick('phone')}>Follow phone</button>
+        <button role="radio" aria-checked={pref === 'full'} onClick={() => pick('full')}>Full</button>
+      </div>
+      <p className="sat-small sat-muted">{phoneAsksCalm() ? 'Reduce Motion is on for this phone.' : 'Reduce Motion is off for this phone.'}</p>
+    </section>
+  );
+}
+
 const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
@@ -120,6 +138,8 @@ export default function Settings() {
           </div>
           <p className="sat-small sat-muted">{settings.splashMs ? `Shows for ${(settings.splashMs / 1000).toFixed(1)} seconds when Felt opens. Tap it to skip.` : 'Felt opens straight into the app.'}</p>
         </section>
+
+        <MotionField />
 
         <section className="sat-glass sat-card sat-stack">
           <div className="sat-split"><h2 className="sat-h2">New games</h2><Help k="units" /></div>

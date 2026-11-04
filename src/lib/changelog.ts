@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.7', date: '4 Nov 2026', notes: [
+    'Settings has a Motion field. Reduce Motion on the phone stops the slides and bounces. Choose Full to play them.',
+    'Every button and key gives a small tick on the phone. On an iPhone this needs iOS 18.',
+    'Action table: the names stay in their own panel with no box. The boxes stop at the panel, and a slide bar shows the rest.',
+    'A hand opened again goes to where it stopped: the street cards if they are missing, else the player to act.',
+    'Felt opens on the host screen. Join a game opens the camera.',
+    'Save hand shows only when no card entry is open. Link and QR show only when the room is open.',
+    'The password field no longer zooms the page. The small logo now reads as an S. The opening screen draws more slowly.',
+  ] },
   { version: '1.2.6', date: '4 Nov 2026', notes: [
     'Cards that match another entry or the table are flagged to that player alone: a pop-up when connected, and a line in their cards list and report page.',
     'Until they change, those cards count as entered. Half a pair is left out of all analysis.',

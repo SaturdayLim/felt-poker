@@ -213,7 +213,7 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   const [shown, setShown] = useState<string | null>(null);
   if (!p) return null;
   const ready = !!p.code && inGame;
-  const replace = () => { const c = issueCode(pid); setShown(c); toast('Code replaced. The old code stops working.'); };
+  const replace = () => { const c = issueCode(pid); setShown(c); toast('Code replaced'); };
   const tap = () => {
     if (!ready) { toast('A code starts when this player joins a game.'); return; }
     if (shown) { setShown(null); return; }

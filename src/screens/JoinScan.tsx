@@ -5,9 +5,6 @@ import { Icon, toast } from '../components/ui';
 import { go } from '../router';
 import { haptic } from '../lib/haptics';
 
-const HOST_FLAG = 'felt-host';
-export const wantsHost = () => { try { return localStorage.getItem(HOST_FLAG) === '1'; } catch { return true; } };
-
 /** The join route inside a pasted or scanned link, or null. */
 export function joinRoute(text: string): string | null {
   const m = /#\/(join\/[\w-]+(?:\/[\w-]+)?)/.exec(text.trim());
@@ -92,7 +89,7 @@ export default function JoinScan() {
             onChange={(e) => { setText(e.target.value); if (joinRoute(e.target.value)) open(e.target.value); }} onKeyDown={(e) => e.key === 'Enter' && text && open(text)} />
           <button type="button" className="sat-btn sat-btn--primary" onClick={paste}>Paste</button>
         </div>
-        <button type="button" className="sat-btn sat-btn--ghost sat-btn--block" onClick={() => { try { localStorage.setItem(HOST_FLAG, '1'); } catch { /* private mode */ } go(''); window.dispatchEvent(new HashChangeEvent('hashchange')); }}>Host a game instead</button>
+        <button type="button" className="sat-btn sat-btn--ghost sat-btn--block" onClick={() => go('')}>Host a game instead</button>
       </div>
     </div>
   );

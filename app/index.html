@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <!-- Saturday Signature: theme before paint (stops a light flash on dark devices). Keep before the stylesheets. -->
     <script>try{var t=localStorage.getItem('sat-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+    <!-- Motion: full unless the phone asks for less. Settings, Motion can overrule the phone. -->
+    <script>try{if(localStorage.getItem('felt-motion')!=='full'&&matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.setAttribute('data-calm','')}catch(e){}</script>
     <!-- A launch that lands here directly (an icon saved from this page) still plays the opening screen once. A link with a route goes straight in. -->
     <script>try{if(!sessionStorage.getItem('felt-splashed')&&(!location.hash||location.hash==='#/')&&localStorage.getItem('felt-splash-ms')!=='0'){document.documentElement.style.visibility='hidden';location.replace('../')}}catch(e){}</script>
     <meta name="theme-color" content="#02070A" />

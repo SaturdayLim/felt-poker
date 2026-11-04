@@ -110,7 +110,7 @@ button.felt-row { color: inherit; }
 .felt-slide-in { position: relative; z-index: 6; background: var(--sat-solid-1); box-shadow: 0 0 24px rgba(0,0,0,.35); }
 dialog .felt-slide-in { background: var(--sat-solid-2); }
 /* press feedback lives in src/lib/motion.ts; the kit's own press only remains for reduced motion */
-@media (prefers-reduced-motion: no-preference) { .felt-app .sat-btn:active { transform: none; } }
+.felt-app .sat-btn:active { transform: none; }
 .felt-ink { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
 .felt-ink i { position: absolute; width: 16px; height: 16px; margin: -8px; border-radius: 50%; background: currentColor; opacity: .22; }
 .felt-slide-out, .felt-slide-out *, .felt-dock-ghost, .felt-dock-ghost * { animation: none !important; transition: none !important; view-transition-name: none !important; }
@@ -123,7 +123,7 @@ dialog .felt-slide-in { background: var(--sat-solid-2); }
 .felt-logbtn, .felt-recorder { view-transition-name: felt-morph; }
 ::view-transition-group(felt-morph) { animation-duration: var(--felt-grow-ms, 300ms); animation-timing-function: var(--felt-grow, var(--felt-drawer)); overflow: clip; border-radius: var(--sat-radius-md); }
 ::view-transition-old(felt-morph), ::view-transition-new(felt-morph) { animation-duration: 200ms; height: 100%; object-fit: cover; object-position: top; }
-@media (prefers-reduced-motion: reduce) { .felt-logbtn, .felt-recorder, .felt-nav { view-transition-name: none; } }
+html[data-calm] .felt-logbtn, html[data-calm] .felt-recorder, html[data-calm] .felt-nav { view-transition-name: none; }
 
 /* Tab highlight: a rounded box behind the buttons (TabPill in ui.tsx). Same time and curve as the screens. */
 .felt-pill { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; background: var(--sat-accent-soft); opacity: 0; transition: transform var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), width var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), height var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), opacity var(--sat-dur-fast) var(--sat-ease); }
@@ -131,7 +131,7 @@ dialog .felt-slide-in { background: var(--sat-solid-2); }
 :has(> .felt-pill) { position: relative; }
 .felt-nav :has(> .felt-pill) > a, :has(> .felt-pill) > button { position: relative; z-index: 1; transition: color var(--sat-dur-base) var(--sat-ease), transform var(--sat-dur-fast) var(--sat-ease); }
 :has(> .felt-pill) > [aria-selected="true"], :has(> .felt-pill) > [aria-checked="true"], :has(> .felt-pill) > [aria-current="page"] { background: transparent; border-color: transparent; box-shadow: none; }
-@media (prefers-reduced-motion: reduce) { .felt-pill { transition: none; } }
+html[data-calm] .felt-pill { transition: none; }
 
 /* Drag to reorder: the others slide aside, the slot marks where the row lands */
 .felt-seatlist, .felt-suit-list { position: relative; }
@@ -146,7 +146,7 @@ dialog .felt-slide-in { background: var(--sat-solid-2); }
 .felt-box { transition: background-color var(--sat-dur-fast) var(--sat-ease), border-color var(--sat-dur-fast) var(--sat-ease), box-shadow var(--sat-dur-fast) var(--sat-ease), opacity var(--sat-dur-fast) var(--sat-ease); }
 .felt-card { transition: width var(--sat-dur-base) var(--sat-ease), height var(--sat-dur-base) var(--sat-ease); }
 .felt-row, .felt-pickwin-btn, .felt-choice-dot { transition: background-color var(--sat-dur-fast) var(--sat-ease), border-color var(--sat-dur-fast) var(--sat-ease); }
-@media (prefers-reduced-motion: reduce) { .felt-band { animation: sat-fade var(--sat-dur-base) var(--sat-ease); } }
+html[data-calm] .felt-band { animation: sat-fade var(--sat-dur-base) var(--sat-ease); }
 
 /* Sheets: opening and closing run in Sheet (ui.tsx). A swipe down closes; the page behind stays still; the keyboard pushes the sheet up. */
 dialog.sat-sheet[open] { animation: none; overscroll-behavior: contain; margin-bottom: var(--felt-kb, 0px); }
@@ -247,7 +247,7 @@ button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-o
 .felt-boxes-err.is-on { opacity: 1; transition: none; }
 .felt-skel { border-radius: var(--sat-radius-md); background: linear-gradient(100deg, var(--sat-well) 40%, var(--sat-line) 50%, var(--sat-well) 60%); background-size: 200% 100%; animation: felt-skel 1.3s linear infinite; }
 @keyframes felt-skel { from { background-position: 120% 0; } to { background-position: -80% 0; } }
-@media (prefers-reduced-motion: reduce) { .felt-skel { animation: none; } }
+html[data-calm] .felt-skel { animation: none; }
 
 /* Live game */
 .felt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-pos); margin-right: 6px; vertical-align: 1px; }
@@ -351,7 +351,7 @@ button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-o
 .felt-live-go svg { width: 20px; height: 20px; }
 .felt-dot--pulse { animation: felt-pulse 1.8s ease-in-out infinite; }
 @keyframes felt-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sat-pos) 45%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--sat-pos) 0%, transparent); } }
-@media (prefers-reduced-motion: reduce) { .felt-dot--pulse { animation: none; } }
+html[data-calm] .felt-dot--pulse { animation: none; }
 .felt-closed-list .felt-row-title { font-weight: 500; }
 
 /* Game sub-pages, inside the sticky header */
@@ -412,27 +412,26 @@ button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-o
 .felt-rec-status b { color: var(--sat-text); }
 .felt-rec-status > span:last-child b { font-size: 1.0625rem; }
 
-/* Action table: name column, spacer, then one 54px column per pass, flush right (newest on the
-   right). Past the screen width the table scrolls sideways; it starts scrolled to the newest column
-   and an "Earlier" tag shows there is more to the left. */
-.felt-acts-wrap { position: relative; }
-.felt-acts { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+/* Action table: the names sit in their own panel on the page background. The boxes scroll beside them and cut off
+   at the panel edge, flush right with the newest column in view. The slide bar under them shows there is more. */
+.felt-acts-wrap { position: relative; --felt-acts-row: 46px; --felt-acts-head: 18px; }
+.felt-acts-grid { display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 8px; }
+.felt-acts-names { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.felt-acts-names-head { height: var(--felt-acts-head); }
+.felt-acts { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .felt-acts::-webkit-scrollbar { display: none; }
-.felt-acts-row { display: grid; grid-template-columns: 104px minmax(0, 1fr) repeat(var(--cols), 54px); gap: 4px; align-items: stretch;
+.felt-acts-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--cols), 54px); gap: 4px; align-items: stretch; height: var(--felt-acts-row);
   min-width: 100%; width: max-content; transition: opacity var(--sat-dur-fast) var(--sat-ease); }
-.felt-acts-row.is-folded { opacity: 0.4; }
-.felt-acts-head { min-height: 0; }
+.felt-acts-row.is-folded, .felt-acts-name.is-folded { opacity: 0.4; }
+.felt-acts-row.felt-acts-head { height: var(--felt-acts-head); }
 .felt-acts-col { text-align: center; font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-muted); letter-spacing: var(--sat-track-caption); }
-.felt-acts-name { position: sticky; left: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 2px 8px;
-  border-radius: var(--sat-radius-sm); background: var(--sat-solid-1); }
-.felt-acts.is-scrolled .felt-acts-name { box-shadow: 6px 0 10px -6px rgba(0,0,0,0.45); }
-.felt-acts-head .felt-acts-name { background: transparent; box-shadow: none !important; padding: 0; }
-.felt-acts.is-scrolled .felt-acts-head .felt-acts-name { background: var(--sat-solid-1); }
+.felt-acts-name { height: var(--felt-acts-row); display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 0 8px; background: none; border-radius: var(--sat-radius-sm); }
 .felt-acts-name > span:first-child { font-weight: 600; }
 .felt-acts-sub { font-size: var(--sat-fs-caption); color: var(--sat-muted); }
-.felt-acts-more { font-size: var(--sat-fs-caption); color: var(--sat-accent-text); font-weight: 600; }
-.felt-acts-more::before { content: '\2039  '; }
-.felt-box { min-height: 44px; scroll-margin: 200px 0 300px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; gap: 1px;
+.felt-acts-bar { position: relative; margin: 2px 0 0 112px; height: 20px; touch-action: none; cursor: pointer; }
+.felt-acts-bar::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 4px; border-radius: 2px; background: var(--sat-line); }
+.felt-acts-bar i { position: absolute; left: 0; top: 7px; height: 6px; width: 100%; border-radius: 3px; background: var(--sat-accent); }
+.felt-box { min-height: 0; scroll-margin: 200px 0 300px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; gap: 1px;
   border: 1.5px solid var(--sat-accent); background: var(--sat-glass-2); color: var(--sat-text); -webkit-tap-highlight-color: transparent; user-select: none; padding: 0 2px; }
 .felt-box .v { font-size: var(--sat-fs-caption); font-weight: 600; }
 .felt-box .n { font-size: 0.9375rem; font-weight: 600; }
@@ -648,7 +647,9 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-livepass { flex: 0 1 140px; min-width: 0; display: flex; align-items: center; height: 34px; padding: 0 0 0 var(--sat-space-2); border: 1px solid var(--sat-line-strong); border-radius: var(--sat-radius-sm); background: var(--sat-well); }
 .felt-livepass:focus-within { border-color: var(--sat-accent); }
 .felt-livepass.is-set { border-color: transparent; background: transparent; padding-left: 0; }
-.felt-livepass-in { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--sat-fs-small); font-weight: 600; padding: 0; outline: 0; }
+/* 16px: iOS zooms the page into a smaller field. The frame around the field shows the focus, so the field draws none */
+.felt-livepass-in { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-size: 16px; font-weight: 600; padding: 0; outline: 0; -webkit-appearance: none; appearance: none; border-radius: 0; }
+.sat .felt-livepass-in:focus-visible { outline: 0; }
 .felt-livepass-in::placeholder { color: var(--sat-text); opacity: .75; font-weight: 500; }
 .felt-livepass-in:disabled { -webkit-text-fill-color: currentColor; }
 .felt-livepass-none { flex: none; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
@@ -662,11 +663,14 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-liveswitch.is-off { --felt-sw: #e5484d; }
 .felt-liveswitch.is-wait { --felt-sw: #35c46b; animation: felt-sw-wait 1.2s ease-in-out infinite; }
 @keyframes felt-sw-wait { 50% { opacity: .5; } }
-@media (prefers-reduced-motion: reduce) { .felt-liveswitch.is-wait { animation: none; opacity: .7; } }
+html[data-calm] .felt-liveswitch.is-wait { animation: none; opacity: .7; }
 .felt-viewer { cursor: default; }
 .felt-qr-pop { border: 0; padding: 0; margin: auto; background: transparent; overflow: visible; }
 .felt-qr-pop::backdrop { background: rgba(2,7,10,.62); animation: sat-fade 200ms var(--sat-ease); }
 .felt-qr-pop .felt-qr { width: min(78vw, 320px); height: min(78vw, 320px); padding: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
-@media (prefers-reduced-motion: reduce) { .felt-qr-pop, .felt-qr-pop::backdrop { animation: none; } }
+html[data-calm] .felt-qr-pop, html[data-calm] .felt-qr-pop::backdrop { animation: none; }
 .felt-qr { width: 200px; height: 200px; margin: 0 auto; background: #fff; border-radius: var(--sat-radius-md); padding: 6px; }
 .felt-qr svg { width: 100%; height: 100%; display: block; }
+
+/* The phone asks for less motion, but Settings, Motion says Full: the kit's durations come back. */
+@media (prefers-reduced-motion: reduce) { html:not([data-calm]) { --sat-dur-fast: 120ms; --sat-dur-base: 200ms; --sat-dur-slow: 320ms; } }

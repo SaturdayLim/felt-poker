@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { calm } from './lib/motion';
 
 const hashPath = (h: string) => h.replace(/^[^#]*#?\/?/, '');
 /** The main tabs in bar order: a change between two of them slides in that direction. */
 export const NAV_TABS = ['', 'games', 'insights', 'players', 'settings'];
-const calm = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /* The routes behind the current one, oldest first, so a screen can tell whether Back leads to a given
    screen. A replace keeps the stack; a hash change to the route on top of the stack counts as Back. */

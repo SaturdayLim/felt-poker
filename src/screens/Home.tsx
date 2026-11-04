@@ -34,12 +34,12 @@ export default function Home() {
           );
         })}
 
-        <button className="sat-btn sat-btn--block" onClick={() => go('join')}><Icon name="eye" /> Join a game</button>
-
         <div className="felt-start">
           <button className={`sat-btn ${live.length ? '' : 'sat-btn--primary'}`} onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
           <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>
         </div>
+
+        <button className="sat-btn sat-btn--block" onClick={() => go('join')}><Icon name="qr" /> Join a game</button>
 
         {board.length > 0 && (
           <section className="felt-section">

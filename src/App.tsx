@@ -19,7 +19,7 @@ import Players from './screens/Players';
 import Settings from './screens/Settings';
 import Group from './screens/Group';
 import Join from './screens/Join';
-import JoinScan, { wantsHost } from './screens/JoinScan';
+import JoinScan from './screens/JoinScan';
 import ReportLink from './screens/ReportLink';
 import { resumeSharing, watchGames } from './live/host';
 import { cleanReports } from './live/reportLink';
@@ -34,7 +34,6 @@ const NAV = [
 
 export default function App() {
   const hydrated = useStore((s) => s.hydrated);
-  const empty = useStore((s) => !s.games.length && !s.players.length);
   const theme = useStore((s) => s.settings.theme);
   const splashMs = useStore((s) => s.settings.splashMs);
   const face = useStore((s) => lookBg(cleanLook(s.settings.cards)));
@@ -90,7 +89,6 @@ export default function App() {
   else if (a === 'players') screen = <Players />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;
   else if (a === 'settings') screen = <Settings />;
-  else if (empty && !wantsHost()) { screen = <JoinScan />; nav = false; }
   else screen = <Home />;
 
   const active = a === 'game' || a === 'new' ? 'games' : a === 'group' ? 'players' : a ?? '';

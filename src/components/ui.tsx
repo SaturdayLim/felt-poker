@@ -73,18 +73,15 @@ export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; 
 
 /* ------------------------------- brand ------------------------------- */
 
-/** Felt mark: two stacked poker chips, each a double ring, forming a vertical figure-eight
-    (a companion to the Saturday double-layered vertical infinity). The outer rings are one S stroke:
-    a 26° notch beside the waist, lower right on the top chip and upper left on the bottom.
-    Source: src/brand/felt-mark.svg. */
+/** Felt mark, small version: two stacked poker chips drawn as one S. Both rings of each chip open 65° beside the waist,
+    lower right on the top chip and upper left on the bottom, and the ticks go, so the S stays clear at 16 px.
+    The opening screen draws the full mark: src/brand/felt-mark.svg. */
 export function FeltMark({ height = 32 }: { height?: number }) {
   return (
     <svg className="sat-mark" style={{ ['--sat-mark-h' as string]: `${height}px` }} viewBox="-2 -2 68 104" aria-hidden="true">
-      <path d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-      <path d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-      <path d="M45.15 39.15 L47.84 41.84 M18.85 39.15 L16.16 41.84 M18.85 12.85 L16.16 10.16 M45.15 12.85 L47.84 10.16" />
-      <path d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-      <path d="M45.15 87.15 L47.84 89.84 M18.85 87.15 L16.16 89.84 M18.85 60.85 L16.16 58.16 M45.15 60.85 L47.84 58.16" />
+      <path d="M53.75 36.14 A24 24 0 1 0 32 50 A24 24 0 1 1 10.25 63.86" />
+      <path d="M45.59 32.34 A15 15 0 1 0 32 41" />
+      <path d="M32 59 A15 15 0 1 1 18.41 67.66" />
     </svg>
   );
 }
@@ -307,9 +304,12 @@ export function HoldButton({ ms = 1200, label, hint, onDone, children }: { ms?: 
   const timer = useRef<number | undefined>(undefined);
   const pulses = useRef<number[]>([]);
   const at = useRef(0);
+  // iOS may refuse a pulse from a timer during the press, so the finger coming up after the action gives the sure one
+  const finished = useRef(false);
   const release = (tap: boolean) => {
     window.clearTimeout(timer.current);
     pulses.current.forEach(window.clearTimeout);
+    if (finished.current) { finished.current = false; if (tap) haptic(40); return; }
     if (!at.current) return;
     if (tap && Date.now() - at.current < 350) toast(hint);
     at.current = 0;
@@ -322,7 +322,7 @@ export function HoldButton({ ms = 1200, label, hint, onDone, children }: { ms?: 
         at.current = Date.now();
         setHolding(true);
         pulses.current = HOLD_PULSES.map((t) => window.setTimeout(() => haptic(8), t));
-        timer.current = window.setTimeout(() => { at.current = 0; setHolding(false); haptic(40); onDone(); }, ms);
+        timer.current = window.setTimeout(() => { at.current = 0; finished.current = true; setHolding(false); haptic(40); onDone(); }, ms);
       }}
       onPointerUp={() => release(true)} onPointerLeave={() => release(false)} onPointerCancel={() => release(false)}
       onContextMenu={(e) => e.preventDefault()}
@@ -341,7 +341,7 @@ export function useDockPush() {
     const el = ref.current;
     if (!el) return;
     const now = el.offsetHeight, d = now - last.current;
-    if (last.current && d && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    if (last.current && d && !calm()) {
       spring(el, (p) => ({ translate: `0 ${d * (1 - p)}px` }), SPRING.dock);
     }
     last.current = now;

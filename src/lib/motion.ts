@@ -2,8 +2,21 @@
    (visual duration and bounce), played as Web Animations keyframes, so they need no library and run on every phone
    Felt supports. CSS transitions that must retarget use the same curves through --felt-* custom properties. */
 
+import { haptic } from './haptics';
+
 export const DRAWER = 'cubic-bezier(0.32, 0.72, 0, 1)';
-export const calm = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+/** Reduced motion, decided before the first paint by the script at the top of index.html and app/index.html. */
+export const calm = () => document.documentElement.hasAttribute('data-calm');
+
+export type MotionPref = 'phone' | 'full';
+const MOTION_KEY = 'felt-motion';
+export const phoneAsksCalm = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+export const motionPref = (): MotionPref => { try { return localStorage.getItem(MOTION_KEY) === 'full' ? 'full' : 'phone'; } catch { return 'phone'; } };
+/** Belongs to the phone, like the theme: a backup restore does not touch it. */
+export function setMotionPref(p: MotionPref) {
+  try { if (p === 'full') localStorage.setItem(MOTION_KEY, 'full'); else localStorage.removeItem(MOTION_KEY); } catch { /* private mode */ }
+  document.documentElement.toggleAttribute('data-calm', p !== 'full' && phoneAsksCalm());
+}
 
 /** The picked springs: visual duration in seconds, then bounce. */
 export const SPRING = {
@@ -94,6 +107,11 @@ function ripple(b: HTMLElement, e: PointerEvent) {
 export function installPresses() {
   let down: { b: HTMLElement; c: PressClass } | null = null;
   const find = (t: EventTarget | null) => (t as Element | null)?.closest?.<HTMLElement>('button, a[href], .felt-nav a');
+  // every press gives a tick. It runs in the click, because iOS allows a tick only inside a press
+  document.addEventListener('click', (e) => {
+    const b = find(e.target);
+    if (b && e.detail !== 0 && !(b as HTMLButtonElement).disabled && b.getAttribute('aria-disabled') !== 'true') haptic(8);
+  }, true);
   document.addEventListener('pointerdown', (e) => {
     if (calm()) return;
     const b = find(e.target);

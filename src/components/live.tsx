@@ -50,7 +50,7 @@ export function QrPopup({ link, from, onClose }: { link: string; from?: DOMRect;
 }
 
 /** The live link of one game, on the page: password, copy, QR and the switch. The switch glows green when the link
-    is on and red when it is off. Copy and QR work only when it is on. The password is hidden until the eye is tapped. */
+    is on and red when it is off. Copy and QR exist only when it is on. The password is hidden until the eye is tapped. */
 export function LiveRow({ g }: { g: Game }) {
   const live = useLive(g.id);
   const passKey = `felt-live-pass:${g.id}`;
@@ -90,10 +90,12 @@ export function LiveRow({ g }: { g: Game }) {
           </span>
         )}
         <Help k="sharing" />
-        <span className="felt-liverow-end">
-          <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Copy the link" aria-disabled={!live.on} disabled={!live.on} onClick={copy}><Icon name="link" /></button>
-          <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" aria-disabled={!live.on} disabled={!live.on} onClick={(e) => setQrFrom(e.currentTarget.getBoundingClientRect())}><Icon name="qr" /></button>
-        </span>
+        {live.on && (
+          <span className="felt-liverow-end">
+            <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Copy the link" onClick={copy}><Icon name="link" /></button>
+            <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" onClick={(e) => setQrFrom(e.currentTarget.getBoundingClientRect())}><Icon name="qr" /></button>
+          </span>
+        )}
       </div>
       {qrFrom && live.on && <QrPopup link={live.link} from={qrFrom} onClose={() => setQrFrom(null)} />}
       {live.on && live.viewers.length > 0 && (

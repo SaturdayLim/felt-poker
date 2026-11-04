@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
@@ -92,6 +92,25 @@ function buttonFor(g: Game, dealt: ID[], n: number): ID | undefined {
 /** A hand in progress is saved on the phone as it is logged, so a reload, a locked screen or a trip
     back to the game page picks it up again. Saving the hand clears it. */
 interface Draft { v: 1; st: RState; dealt: ID[]; button?: ID; sb: string; bb: string }
+/** Where a hand picked up again opens: the newest street, or the showdown once the hand has ended. */
+function resumeTab(st: RState): Tab {
+  if (st.ended) return 'showdown';
+  return STREETS.filter((s) => st.log.streets[s]).pop() ?? 'preflop';
+}
+/** The cards still to enter at that point: the street's board cards, the run cards, or the next player to show. */
+function resumeTarget(g: Game, st: RState): Target {
+  if (isStreet(st.tab)) {
+    const i = st.board.findIndex((c, k) => !c && k < STREET_CARDS[st.tab as StreetName]);
+    return i >= 0 && st.tab !== 'preflop' ? { kind: 'board', i } : null;
+  }
+  const lv = finalists(st.log);
+  if (st.log.runFrom !== undefined && lv.length > 1) {
+    const run = firstEmptyRun(st.log, st.board, st.runSlots);
+    if (run) return run;
+  }
+  const first = showdownOrder(g, st.log, lv).find((p) => !(st.shown[p]?.filter(Boolean).length === 2) && !st.log.mucked.includes(p));
+  return lv.length > 1 && st.board.filter(Boolean).length === 5 && !st.skipReveal && first ? { kind: 'shown', p: first, ci: st.shown[first]?.[0] ? 1 : 0 } : null;
+}
 const draftKey = (gameId: string) => `felt-draft-${gameId}`;
 function readDraft(gameId: string, n: number): Draft | null {
   try {
@@ -129,7 +148,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const [bb, setBb] = useState(draft?.bb ?? String(g?.bb ?? 2));
   const [st, setSt] = useState<RState | null>(() => {
     if (!g) return null;
-    if (draft) return draft.st;
+    if (draft) return { ...draft.st, tab: resumeTab(draft.st) };
     if (existing?.log) {
       const L = existing.log;
       const pots = existing.pots ?? [];
@@ -152,8 +171,12 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     }
     return freshState(g, nNew, dealtDefault(g), buttonFor(g, dealtDefault(g), nNew), stacksRef.current ?? {});
   });
-  const [target, setTarget] = useState<Target>(null);
-  const [sel, setSel] = useState<Sel>(() => (st && !existing ? replayStreet(g!, st.log, 'preflop', stacks).next : null));
+  // a hand picked up again opens where it stopped: the street's cards if they are missing, else the player to act
+  const [target, setTarget] = useState<Target>(() => (st && draft ? resumeTarget(g!, st) : null));
+  const [sel, setSel] = useState<Sel>(() => {
+    if (!st || existing || !isStreet(st.tab) || !st.log.streets[st.tab]?.acts) return null;
+    return replayStreet(g!, st.log, st.tab, stacks).next;
+  });
   const [typed, setTyped] = useState('');
   // keypad: dark (blind) mark for the next action, and a raise under the house minimum
   const settings = useStore((s) => s.settings);
@@ -225,7 +248,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
-      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .sat-tip, .sat-tip-body, .felt-mine, .felt-rec-board')) return;
+      if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .felt-acts-bar, .sat-tip, .sat-tip-body, .felt-mine, .felt-rec-board')) return;
       e.preventDefault();
       e.stopPropagation();
       setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false);
@@ -771,7 +794,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           ) : (
             <button className={`sat-btn sat-btn--lg ${replay?.next ? '' : 'sat-btn--primary'}`} onClick={() => nextFrom(street)}>{nextLabel(g, log, street, name, stacks)}</button>
           ))}
-          {st.tab === 'showdown' && (
+          {st.tab === 'showdown' && !target && (
             <>
               <WordButton word="Saved" ready={!res?.missing} className={`sat-btn sat-btn--lg ${existing ? 'sat-btn--primary' : ''}`} aria-disabled={!!res?.missing} run={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</WordButton>
               {!existing && <WordButton word="Saved" ready={!res?.missing} className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!!res?.missing} run={() => save(true)}>Save, next hand</WordButton>}
@@ -881,7 +904,23 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   const hold = useRef<number | undefined>(undefined);
   const release = () => window.clearTimeout(hold.current);
   const scroller = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(false);
+  const bar = useRef<HTMLDivElement>(null);
+  const thumb = useRef<HTMLElement>(null);
+  /** The slide bar: it shows only when some columns are out of view, and its thumb marks the part in view. */
+  const placeBar = () => {
+    const el = scroller.current;
+    if (!el || !bar.current || !thumb.current) return;
+    bar.current.style.visibility = el.scrollWidth > el.clientWidth + 1 ? '' : 'hidden';
+    thumb.current.style.width = `${(el.clientWidth / el.scrollWidth) * 100}%`;
+    thumb.current.style.left = `${(el.scrollLeft / el.scrollWidth) * 100}%`;
+  };
+  const dragBar = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const el = scroller.current;
+    if (!el || (e.type === 'pointermove' && !e.currentTarget.hasPointerCapture(e.pointerId))) return;
+    if (e.type === 'pointerdown') e.currentTarget.setPointerCapture(e.pointerId);
+    const r = e.currentTarget.getBoundingClientRect();
+    el.scrollLeft = ((e.clientX - r.left) / r.width) * el.scrollWidth - el.clientWidth / 2;
+  };
   const bl = blinds(g, log.dealt, log.button);
   const [sbSeat] = Object.keys(bl);
   const rows = rowOrder(g, log);
@@ -908,40 +947,64 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   // keep the newest column in view
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (el) { el.scrollLeft = el.scrollWidth; setScrolled(el.scrollLeft > 4); }
+    if (el) el.scrollLeft = el.scrollWidth;
+    placeBar();
   }, [replay.cols, street]);
+  // a selected box further left comes into view
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    const b = el?.querySelector<HTMLElement>('.felt-box.is-sel');
+    if (!el || !b) return;
+    const box = b.getBoundingClientRect(), view = el.getBoundingClientRect();
+    if (box.left < view.left) el.scrollLeft -= view.left - box.left;
+    else if (box.right > view.right) el.scrollLeft += box.right - view.right;
+  }, [sel?.p, sel?.r]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined' || !scroller.current) return;
+    const ro = new ResizeObserver(placeBar);
+    ro.observe(scroller.current);
+    return () => ro.disconnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div ref={table} className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
       <div className="felt-acts-wrap">
         {/* the titles stay still; the column numbers scroll with their boxes and cut off at the names */}
         <div className="felt-acts-titles">
           <Caption tip="handPlayers">Players</Caption>
-          {scrolled && <span className="felt-acts-more" aria-hidden="true">Earlier</span>}
           <Caption tip="betEntry">Action</Caption>
         </div>
-        <div ref={scroller} className={`felt-acts ${scrolled ? 'is-scrolled' : ''}`} style={{ ['--cols' as string]: replay.cols }} onScroll={(e) => setScrolled(e.currentTarget.scrollLeft > 4)}>
-          <div className="felt-acts-row felt-acts-head">
-            <span className="felt-acts-name" />
-            <span />
-            {Array.from({ length: replay.cols }, (_, r) => <span key={r} className="felt-acts-col">{r + 1}</span>)}
-          </div>
-          {rows.map((p) => {
-            const gone = !startIn.includes(p);
-            const canAct = replay.order.includes(p);
-            const folded = gone || s.folded.includes(p);
-            const left = stacks?.[p] !== undefined ? round2(stacks[p] - spentBefore(p) - (s.bets[p] ?? 0)) : undefined;
-            const cards = (shown[p] ?? []).filter(Boolean) as Card[];
-            const sub = [tag(p), gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
-            return (
-              <div key={p} className={`felt-acts-row ${folded ? 'is-folded' : ''}`}>
-                {/* press and hold a name to enter the cards that player shows, on any street, before they are mucked */}
-                <button type="button" className={`felt-acts-name ${namingFor === p ? 'is-target' : ''}`} aria-label={`${name(p)}: press and hold to enter the cards they show`}
+        <div className="felt-acts-grid">
+          <div className="felt-acts-names">
+            <span className="felt-acts-names-head" />
+            {rows.map((p) => {
+              const gone = !startIn.includes(p);
+              const canAct = replay.order.includes(p);
+              const folded = gone || s.folded.includes(p);
+              const left = stacks?.[p] !== undefined ? round2(stacks[p] - spentBefore(p) - (s.bets[p] ?? 0)) : undefined;
+              const cards = (shown[p] ?? []).filter(Boolean) as Card[];
+              const sub = [tag(p), gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
+              return (
+                /* press and hold a name to enter the cards that player shows, on any street, before they are mucked */
+                <button key={p} type="button" className={`felt-acts-name ${folded ? 'is-folded' : ''} ${namingFor === p ? 'is-target' : ''}`} aria-label={`${name(p)}: press and hold to enter the cards they show`}
                   onPointerDown={() => { release(); hold.current = window.setTimeout(() => { haptic(); onName(p); }, 450); }}
                   onPointerUp={release} onPointerLeave={release} onPointerCancel={release} onContextMenu={(e) => e.preventDefault()}
                   onClick={(e) => { if (e.detail === 0) onName(p); }}>
                   <span className="felt-ellipsis">{name(p)}</span>
                   {sub && <span className="felt-acts-sub felt-ellipsis">{sub}</span>}
                 </button>
+              );
+            })}
+          </div>
+        <div ref={scroller} className="felt-acts" style={{ ['--cols' as string]: replay.cols }} onScroll={placeBar}>
+          <div className="felt-acts-row felt-acts-head">
+            <span />
+            {Array.from({ length: replay.cols }, (_, r) => <span key={r} className="felt-acts-col">{r + 1}</span>)}
+          </div>
+          {rows.map((p) => {
+            const canAct = replay.order.includes(p);
+            const folded = !startIn.includes(p) || s.folded.includes(p);
+            return (
+              <div key={p} className={`felt-acts-row ${folded ? 'is-folded' : ''}`}>
                 <span />
                 {Array.from({ length: replay.cols }, (_, r) => {
                   const c = canAct ? replay.cells[p]?.[r] : undefined;
@@ -966,6 +1029,8 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
             );
           })}
         </div>
+        </div>
+        <div ref={bar} className="felt-acts-bar" aria-hidden="true" style={{ visibility: 'hidden' }} onPointerDown={dragBar} onPointerMove={dragBar}><i ref={thumb} /></div>
       </div>
     </div>
   );
@@ -1138,7 +1203,7 @@ function Result({ res, live, runs, name, manual, onManual }: {
   const headline = live.length === 1 ? `${name(live[0])} wins` : res.missing ? 'Who won?' : winners.length === 1 ? `${name(winners[0])} wins` : `${names(winners)} split`;
   return (
     <section className={`felt-result ${res.missing ? 'is-open' : ''}`} aria-live="polite">
-      <span className="sat-caption">{live.length === 1 ? 'Everyone else folded' : res.missing ? 'Result' : 'Winner'}</span>
+      {live.length === 1 && <span className="sat-caption">Everyone else folded</span>}
       <div className="felt-result-head">
         <span className="felt-result-name">{headline}</span>
         <span className="felt-result-pot sat-num">{units(total)}<small> chips</small></span>

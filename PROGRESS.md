@@ -1,5 +1,11 @@
 # Felt: progress
 
+## Latest (4 Nov 2026): 1.2.7
+- Motion was off on the owner's iPhone, most likely Reduce Motion: it also explains the 450 ms splash. Not confirmed yet. Settings, Motion shows the phone state and can overrule it (`felt-motion` in localStorage, `data-calm` on html, set before paint).
+- Tested in WebKit 26.6 on Windows: 125 animate() calls with no preference, 0 with reduce. That build crashes on document.startViewTransition, so tests delete it. No crash reported on the iPhone.
+- Haptics: tick runs in the click, not a timer. Hold pulses still use timers, which iOS may refuse, so the finger coming up gives the sure pulse. Not tried on a real iPhone.
+- Waiting: the owner picks a card back from the samples (https://claude.ai/artifact/J1hTUTZXtptDnkm9V3B3Xe). Then build it per `.claude/skills/card-design/SKILL.md`.
+
 ## Latest (4 Nov 2026): 1.2.6
 - Motion picks applied: docs/MOTION-LIST.md, played by src/lib/motion.ts (no library). installPresses classes every button in one listener. A press can set data-press.
 - Clash: clashHands travels inside each player's ident box (locked with their code), so no database rule change. Join shows the pop-up. Report page shows a line. Stats follow what each player entered.

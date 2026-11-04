@@ -57,7 +57,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Viewers can send their own cards for a hand. The host's entry for that player replaces them.
 - Card entry shows no words: filled = two face-down cards (white Felt mark, cobalt, gold trim), nil = two outlined empty cards. Cards already shown at the table show face up.
 - A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
-- Live link sits on the game page, no pop-up: password space with eye and censoring, copy, QR, and a switch that glows green (on) or red (off). Copy and QR work only when on.
+- Live link sits on the game page, no pop-up: password space with eye and censoring, copy, QR, and a switch that glows green (on) or red (off). Copy and QR exist only when on: closed, they are not on the page.
 - All-in run-out is offered only when no further action is possible (the street's all-ins count, not later ones). With one all-in and 2 still able to bet, the street goes on.
 - Viewers read the same boxes as the host: snapshots replay with the same stacks. More than one run shows one board per run.
 - A name in the recorder needs a press and hold to enter shown cards. A tap does nothing. Run cards stop blocking the picker when the hand goes back to a street.
@@ -79,5 +79,11 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Awards come from a fixed list, each with a minimum to count (src/report/model.ts, AWARD_LIST). A tie shares an award.
 - Oldest phones: Felt needs iOS 16.2 or Chrome 111. `app/index.html` shows a warning below that. Do not add workarounds for older phones.
 - Report: View (in the app), Link (encrypted online for 30 days, key in the link), Download (HTML file).
-- Join: a phone with no data opens the camera scanner. Host a game instead leads to Home. Home also has Join a game.
+- Startup opens Home (host a game), also on a phone with no data. Join a game on Home opens the camera scanner. A scanned or pasted game link opens that game. Host a game instead leads to Home.
+- Motion follows the phone (Reduce Motion) unless Settings, Motion says Full. It belongs to the phone: a backup restore must not change it.
+- Action table: names sit in a panel on the page background, with no box. Boxes cut off at the panel edge. A slide bar shows when columns are out of view.
+- A hand opened again goes to where it stopped: the street cards if missing, else the player to act.
+- Save hand and Save, next hand show only when no card entry is open.
+- Every button press gives a haptic tick, fired inside the click (iOS allows it only there).
+- Card design rules: `.claude/skills/card-design/SKILL.md`. Logo on a card back is 15% to 25% of the card height.
 - Download options name the content and the file type: Results (1 image), Results and stats, Full game record, Spreadsheet data (3 CSV files).

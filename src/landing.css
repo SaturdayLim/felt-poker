@@ -1,7 +1,7 @@
 /* Splash at the site root: Felt mark, name and version on the kit's mesh, then a fade into the app.
-   Timeline: the outer S draws in one stroke 0 to 1100ms (top chip anticlockwise, through the waist,
-   bottom chip clockwise), the inner rings grow in 800 to 1350ms and the ticks fade in, the name settles
-   1100 to 1850ms, hold, fade out from 2200ms.
+   Timeline at the standard length (--k = 1, set from the length in index.html): the outer S draws in one stroke
+   0 to 1500ms (top chip anticlockwise, through the waist, bottom chip clockwise), the inner rings grow in
+   1100 to 1700ms and the ticks fade in, the name settles 1500 to 2300ms, hold, fade out at 3000ms.
    The app page fades in on arrival (.felt-enter in styles.css); browsers with cross-document
    view transitions also cross-fade the two pages. */
 
@@ -16,18 +16,18 @@ body.sat { overflow: hidden; }
 /* The mark, drawn large: plain strokes so the dash animation can use pathLength */
 .felt-splash-mark { --sat-mark-h: 88px; }
 .felt-splash-mark path { vector-effect: none; stroke-width: 2.6px; }
-.felt-splash-mark .s { stroke-dasharray: 1; stroke-dashoffset: 1; animation: felt-draw 1100ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+.felt-splash-mark .s { stroke-dasharray: 1; stroke-dashoffset: 1; animation: felt-draw calc(1500ms * var(--k, 1)) cubic-bezier(0.65, 0, 0.35, 1) forwards; }
 .felt-splash-mark .inner { opacity: 0; transform-box: fill-box; transform-origin: center;
-  animation: felt-grow 450ms cubic-bezier(0.2, 0.8, 0.2, 1) 800ms forwards; }
-.felt-splash-mark .inner-b { animation-delay: 900ms; }
-.felt-splash-mark .notch { opacity: 0; animation: felt-fade 300ms var(--sat-ease) 1150ms forwards; }
+  animation: felt-grow calc(500ms * var(--k, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(1100ms * var(--k, 1)) forwards; }
+.felt-splash-mark .inner-b { animation-delay: calc(1200ms * var(--k, 1)); }
+.felt-splash-mark .notch { opacity: 0; animation: felt-fade calc(300ms * var(--k, 1)) var(--sat-ease) calc(1500ms * var(--k, 1)) forwards; }
 
 .felt-splash-name { font-size: clamp(2.5rem, 9vw, 3.25rem); letter-spacing: 0.02em;
-  opacity: 0; animation: felt-settle 750ms var(--sat-ease) 1100ms forwards; }
+  opacity: 0; animation: felt-settle calc(800ms * var(--k, 1)) var(--sat-ease) calc(1500ms * var(--k, 1)) forwards; }
 
 .felt-splash-version { position: fixed; right: calc(var(--sat-space-5) + env(safe-area-inset-right, 0px)); bottom: calc(var(--sat-space-5) + env(safe-area-inset-bottom, 0px));
   font-size: var(--sat-fs-caption); color: var(--sat-muted); letter-spacing: 0.04em;
-  opacity: 0; animation: felt-fade 500ms var(--sat-ease) 1300ms forwards; transition: opacity 300ms var(--sat-ease); }
+  opacity: 0; animation: felt-fade calc(500ms * var(--k, 1)) var(--sat-ease) calc(1700ms * var(--k, 1)) forwards; transition: opacity 300ms var(--sat-ease); }
 
 .felt-splash-skip { position: fixed; left: 50%; bottom: 20%; transform: translateX(-50%); }
 
@@ -43,7 +43,5 @@ body.is-leaving .felt-splash-version { opacity: 0; }
   to { opacity: 1; letter-spacing: 0.02em; filter: blur(0); transform: none; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .felt-splash-mark .s { stroke-dashoffset: 0; }
-  .felt-splash-mark .inner, .felt-splash-mark .notch, .felt-splash-name, .felt-splash-version { opacity: 1; }
-}
+html[data-calm] .felt-splash-mark .s { stroke-dashoffset: 0; animation: none; }
+html[data-calm] .felt-splash-mark .inner, html[data-calm] .felt-splash-mark .notch, html[data-calm] .felt-splash-name, html[data-calm] .felt-splash-version { opacity: 1; animation: none; }

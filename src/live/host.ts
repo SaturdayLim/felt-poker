@@ -1,6 +1,7 @@
 /* The host side of the live link: opens a room for a game, keeps it up to date, takes in the cards that players
    enter and the flags they send, and deletes the room when sharing stops. Runs on the host phone only. */
 import { clashHands, clashWhy, fullPairs } from '../lib/clash';
+import type { NowSnapshot as Now } from './snapshot';
 import type { Card, Game, ID } from '../types';
 import { useStore } from '../store';
 import { toast } from '../components/ui';
@@ -18,7 +19,7 @@ export interface Viewer { id: string; name: string | null; at: number }
 const VIEWER_MS = 150000;
 interface Session {
   gameId: ID; room: string; key: string; locked: boolean; driver: LiveDriver;
-  stops: (() => void)[]; flags: Flag[]; failed: Set<string>; identCodes: Record<ID, string>; inbox: Record<string, unknown>; nowN?: number; timer?: ReturnType<typeof setTimeout>;
+  stops: (() => void)[]; flags: Flag[]; failed: Set<string>; identCodes: Record<ID, string>; inbox: Record<string, unknown>; nowN?: number; nowActed?: boolean; timer?: ReturnType<typeof setTimeout>;
   connected: boolean; stopTimer?: ReturnType<typeof setTimeout>; viewers: Record<string, Viewer>;
 }
 
@@ -73,7 +74,11 @@ const handCount = (g: Game) => g.hands.filter((h) => !h.missed && h.log).length;
 async function syncIdent(s: Session, g: Game) {
   const players = useStore.getState().players.filter((p) => g.playerIds.includes(p.id));
   for (const p of players) {
-    const clash = clashHands(g, p.id);
+    // a flag shows late on purpose: only once a later hand is under way, so nobody learns about a hand in play.
+    // Settings, Check hidden cards off: no flags at all
+    const check = useStore.getState().settings.checkCards !== false;
+    const later = (n: number) => g.hands.some((h) => h.n > n) || (s.nowN !== undefined && s.nowN > n && !!s.nowActed);
+    const clash = check ? clashHands(g, p.id).filter(later) : [];
     // the player's own hidden cards, by hand: only their code opens this box
     const logged: Record<number, Card[]> = Object.fromEntries(g.hands.filter((h) => !h.missed && fullPairs(h)[p.id]).map((h) => [h.n, fullPairs(h)[p.id]]));
     const why: Record<number, string[]> = Object.fromEntries(clash.map((n) => [n, clashWhy(g.hands.find((h) => h.n === n)!, p.id)]));
@@ -101,8 +106,13 @@ export async function publishPub(gameId: ID) {
 export async function publishNow(gameId: ID, now: NowSnapshot | null) {
   const s = sessions.get(gameId);
   if (!s) return;
+  const wasActed = s.nowActed, wasN = s.nowN;
   s.nowN = now?.n;
+  s.nowActed = !!(now as Now | null)?.acted;
   await s.driver.set(s.room, 'now', now ? await seal(now, s.key) : null);
+  // the next hand got under way: flags for the hand before can show now
+  const g = game(gameId);
+  if (g && s.nowActed && (!wasActed || wasN !== s.nowN)) await syncIdent(s, g);
 }
 
 /** Players who sent cards for this hand that the host has not applied yet. */

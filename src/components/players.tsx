@@ -240,15 +240,38 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   );
 }
 
-/** The player pop-up: headline figures, the code, then Full stats and Edit name. Each figure opens what is behind it. */
+/** The name at the top of the player card, edited in place: plain text only. Enter or leaving the field saves it;
+    Escape puts it back. A name already saved for another player is refused. */
+function NameField({ p }: { p: Player }) {
+  const st = useStore();
+  const [nm, setNm] = useState(p.name);
+  useEffect(() => setNm(p.name), [p.name]);
+  const save = () => {
+    const n = titleCase(nm);
+    if (n === p.name) { setNm(p.name); return; }
+    if (!n) { toast('Enter a name (e.g. Keven).'); setNm(p.name); return; }
+    if (st.players.some((x) => x.id !== p.id && x.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already saved. Use a different name.`); setNm(p.name); return; }
+    st.renamePlayer(p.id, n);
+    setNm(n);
+    toast(`Name saved: ${n}`);
+  };
+  return (
+    <input className="felt-name-edit sat-h3" aria-label={`Name of ${p.name}. Edit to change it`} value={nm} maxLength={40} autoCapitalize="words" autoComplete="off" spellCheck={false}
+      onChange={(e) => setNm(e.target.value.replace(/[\r\n\t]/g, ' '))} onBlur={save}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setNm(p.name); e.currentTarget.blur(); } }} />
+  );
+}
+
+/** The player pop-up: the name (edit in place), headline figures, the code, then Full stats. Each figure opens what is behind it. */
 export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) {
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
-  const [view, setView] = useState<'card' | 'games' | 'edit'>('card');
+  const [view, setView] = useState<'card' | 'games'>('card');
+  const st = useStore();
+  const [confirm, setConfirm] = useState(false);
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
   const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
   const stats = () => { onClose(); go(`insights/${p.id}`); };
-  if (view === 'edit') return <PlayerEditSheet p={p} onClose={onClose} />;
   if (view === 'games') {
     return (
       <Sheet open onClose={onClose} title={`${p.name}: Games`}>
@@ -275,7 +298,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
     );
   }
   return (
-    <Sheet open onClose={onClose} title={p.name}>
+    <Sheet open onClose={onClose} title={p.name} head={<NameField p={p} />}>
       <div className="felt-tiles">
         <button type="button" className="sat-flat sat-card felt-fig" onClick={stats}><span className="sat-caption">Net</span><b className="sat-num">{s.games ? money(s.net, currency, { sign: true }) : '-'}</b></button>
         <button type="button" className="sat-flat sat-card felt-fig" onClick={stats}><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></button>
@@ -283,7 +306,19 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
       </div>
       <CodeControl pid={p.id} label />
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={stats}>Full stats</button>
-      <button className="sat-btn sat-btn--block" onClick={() => setView('edit')}>Edit name</button>
+      {played.length ? (
+        <div className="felt-tipped">
+          <button className="sat-btn sat-btn--ghost sat-btn--block" onClick={() => { st.setPlayerArchived(p.id, !p.archived); toast(p.archived ? `${p.name} restored to the list` : `${p.name} removed from the list`); onClose(); }}>
+            {p.archived ? 'Restore to the list' : 'Remove from the list'}
+          </button>
+          <Help k="archivePlayer" />
+        </div>
+      ) : (
+        <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }}
+          onClick={() => { if (!confirm) { setConfirm(true); return; } st.deletePlayer(p.id); toast(`${p.name} deleted`); onClose(); }}>
+          <Icon name="trash" /> {confirm ? 'Tap again to delete' : 'Delete player'}
+        </button>
+      )}
     </Sheet>
   );
 }
@@ -305,5 +340,5 @@ export function PlayerHost() {
 export function PlayerName({ id }: { id: ID }) {
   const name = usePlayerName();
   const open = (e: { stopPropagation: () => void; preventDefault: () => void }) => { e.stopPropagation(); e.preventDefault(); openPlayer(id); };
-  return <span role="button" tabIndex={0} className="felt-name" data-player={id} data-press="open" aria-label={`Open the player card of ${name(id)}`} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter') open(e); }}>{name(id)}</span>;
+  return <span role="button" tabIndex={0} className="felt-name" data-player={id} data-press="name" aria-label={`Open the player card of ${name(id)}`} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter') open(e); }}>{name(id)}</span>;
 }

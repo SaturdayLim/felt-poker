@@ -305,7 +305,8 @@ function Standings({ games, board, currency, name, scope }: {
 
 /** The phone owner's own hands (My cards), shown or not: bluff rate and a list to review each decision. */
 function YourHands({ games, me }: { games: Game[]; me: ID }) {
-  const list = myHands(games, me);
+  const check = useStore((s) => s.settings.checkCards !== false);
+  const list = myHands(games, me, check);
   if (!list.length) {
     return (
       <section className="sat-flat sat-card sat-stack" style={gap(2)}>

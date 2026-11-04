@@ -169,6 +169,10 @@ export default function Settings() {
             <span>Track the button <Help k="dealer" /></span>
             <Toggle on={settings.markers.dealer} onChange={(v) => setMarker('dealer', v)} label="Track the button" />
           </div>
+          <div className="sat-switch-row">
+            <span>Check hidden cards <Help k="checkCards" /></span>
+            <Toggle on={settings.checkCards !== false} onChange={(v) => update({ checkCards: v })} label="Check hidden cards" />
+          </div>
         </section>
 
         <section className="sat-glass sat-card sat-stack">

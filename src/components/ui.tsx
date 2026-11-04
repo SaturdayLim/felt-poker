@@ -384,8 +384,10 @@ const FULL_CLIP = 'inset(0px 0px 0px 0px round 24px)';
 
 /** A sheet from the bottom. Opened by a press, it pulls out of the button that opened it, in that button's colour,
     and goes back into it on Close. A swipe down slides it away. `edge` keeps the coral edge of the card button. */
-export function Sheet({ open, onClose, title, sub, children, edge }: {
+export function Sheet({ open, onClose, title, sub, children, edge, head }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
+  /** Takes the place of the title, for example a name that can be edited in place. */
+  head?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   /** The button that opened the sheet, while it is on the page. */
@@ -429,6 +431,9 @@ export function Sheet({ open, onClose, title, sub, children, edge }: {
     if (!open || !d) return;
     if (!d.open) {
       d.showModal();
+      // a name edited in place must not take the focus on open: the keyboard would rise every time
+      const act = document.activeElement as HTMLElement | null;
+      if (act?.matches('.felt-name-edit')) act.blur();
       // the page behind stays still while the sheet is open
       document.documentElement.classList.add('felt-sheet-open');
       const from = recentPress();
@@ -464,7 +469,7 @@ export function Sheet({ open, onClose, title, sub, children, edge }: {
     <dialog ref={ref} className={`sat-sheet sat-glass-2${edge ? ' felt-sheet--edge' : ''}`} aria-label={title}>
       <div className="sat-stack">
         <div className="sat-split">
-          <h2 className="sat-h3">{title}</h2>
+          {head ?? <h2 className="sat-h3">{title}</h2>}
           <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={dismiss}>Close</button>
         </div>
         {sub && <p className="sat-small sat-muted" style={{ marginTop: -8 }}>{sub}</p>}

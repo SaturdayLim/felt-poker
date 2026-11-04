@@ -1,3 +1,4 @@
+import { countedPairs } from './clash';
 /* Playing-style counts and chip flows per player, from hands logged with action boxes.
    Each rate is "times it happened / times the player had the chance", counted once per hand.
    - 3-bet: facing one raise before the flop (not their own), they raise again.
@@ -160,11 +161,12 @@ export interface MyHand {
 }
 
 /** The phone owner's hands with My cards entered, newest last. */
-export function myHands(games: Game[], me: ID): MyHand[] {
+export function myHands(games: Game[], me: ID, check = true): MyHand[] {
   const out: MyHand[] = [];
   for (const g of games) {
     for (const h of g.hands) {
-      const cards = h.private?.[me] ?? (h.mine?.playerId === me ? h.mine.cards : undefined);
+      // a hidden pair that contradicts the table is left out (unless the check is off)
+      const cards = countedPairs(h, check)[me];
       if (h.missed || !h.log || !cards || cards.length < 2) continue;
       const L = h.log;
       let aggressive = false, bluff = false;

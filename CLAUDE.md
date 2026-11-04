@@ -59,9 +59,10 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Viewers can send their own cards for a hand. The host's entry for that player replaces them.
 - Card entry shows no words: filled = two face-down cards (blue S on ink, one ice border), nil = one etched box split down the middle. Cards already shown at the table show face up.
 - Cards shown at the table cannot be replaced by hidden cards (host or player): "Cards in showdown. Remove from showdown to overwrite."
-- Player cards list: open eye = shown at the table, face up (host changes it at the showdown). Shut eye = hidden cards logged, by the host or the player: face down on the host phone, face up on that player's own phone (the host sends them inside the player's code box).
-- Check these cards names the reason: a card on the board, a card another player showed, or another hidden entry. The other entry's cards stay hidden.
-- Viewer play-by-play: names stay still; each action box sits one step right of the action before it (time order), not in pass columns.
+- Player cards, player's phone: their own cards face up, with an open eye (shown at the table) or a shut eye (hidden). Every hand the host or the player logged shows, whenever they signed in.
+- Player cards, host phone: other players carry no eye. Their hidden cards show face down; cards just saved stay face up until the sheet closes. The host's own row (Settings, You) opens with their player code (Show my cards, kept on this phone) and then shows face up with an eye.
+- Hidden cards that cannot be right get a small ! on the player's own list, only after a later hand is under way. Red = contradicts a card shown at the table; the hand is left out of stats and reports. Blue = matches another hidden entry; it still counts. A tap shows the reason. Settings, Check hidden cards (default on) turns this off. No pop-up.
+- Viewer play-by-play: names stay still; each action box sits one step right of the action before it (time order), not in pass columns. The step fits two passes round the table in view (small for 9 players); a box never covers the one before it in its row.
 - Copy hand: plain text, no dashes or bullets, a blank line between streets.
 - A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
 - Live link off: toast "Room closed." with Undo and a 5-second countdown. Viewers of a closed room see "Room has been closed" and a Home button.
@@ -75,13 +76,15 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A panel opened by a button pulls out of that button, in its colour, and goes back into it on Close. A swipe down slides it away; a tap outside closes it. The orange card button opens a sheet with an orange edge.
 - Log hand: closing, the page shrinks into the button, then the button turns blue, then its text shows. Opening runs the same steps in reverse.
 - Motion is set in `docs/MOTION-LIST.md`, and `src/lib/motion.ts` plays it. Springs use visual duration and bounce. Every button press follows its class.
-- Private cards that match another entry or the table are flagged to that player alone: a pop-up when connected, a line in the cards list, and a line on their report page. Until changed, each entry counts as entered, even if impossible. Half a pair is left out of all analysis.
+- Private cards that match another entry or the table are flagged to that player alone (the ! above, and a line on their report page for blue). Half a pair is left out of all analysis.
 - Player view: the card button signs in. Sign out sits in its sheet.
 - Partly recorded follows the log: filling in every skipped box makes the hand whole again.
 - Keypad open: everything else is greyed out; a tap outside only closes the keypad. Scrolling leaves it open.
 - The close-street button names the outcome ("Eve wins 9") and offers Undo when empty boxes took the default.
 - Tap a stack: the count sheet, with Rebuy (chips, default the game buy-in) and Add chips under it (cash).
-- Drag to reorder seats: a press and hold on the grip or on any blank part of a player card lifts it.
+- Drag to reorder seats: a press and hold on the grip or on any blank part of a player card lifts it. A long press never selects text on a card.
+- Player card name: edit it in place (plain text). Enter or leaving the field saves; a saved name of another player is refused. No Edit name button. A name press glows around the letters; no box lights up.
+- A field in a sheet: the sheet rises by the keyboard height only, and never grows taller than the space above the keyboard.
 - Stacks: a missed hand turns them into ranges; a count (tap the stack) or a typed all-in makes one exact again. With a range, All-in asks for the amount.
 - Chip moves (side game, tip, other) change stacks, not pots or hand stats, and show as dashed rows between hands.
 - Chip move sits on both the Players tab and the Hands tab. The End game count shows each player's estimate and flags a count that differs (a missing chip move).

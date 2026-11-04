@@ -9,7 +9,7 @@ import { bestHand } from '../lib/cards';
 import { playMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
-import { clashingPlayers, fullPairs } from '../lib/clash';
+import { clashLevel, countedPairs } from '../lib/clash';
 import { playerResult, suggestTransfers } from '../lib/calc';
 
 export type Pos = 'BTN' | 'SB' | 'BB' | 'UTG';
@@ -97,8 +97,9 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
       const net = (h.winners.find((w) => w.playerId === p)?.amount ?? 0) + (h.returned?.[p] ?? 0) - (contributions(g, L, L.button)[p] ?? 0);
       const ps = pos(h, p);
       byPos[ps] += net; byPosN[ps]++;
-      const own = fullPairs(h)[p];
-      if (own) mine.push({ n: h.n, cards: own, clash: clashingPlayers(h).includes(p), rank: h.board.length === 5 ? bestHand([...own, ...h.board])?.name ?? '' : '',
+      // red entries contradict the table: left out of the report
+      const own = countedPairs(h, backup.settings?.checkCards !== false)[p];
+      if (own) mine.push({ n: h.n, cards: own, clash: clashLevel(h, p) === 'blue', rank: h.board.length === 5 ? bestHand([...own, ...h.board])?.name ?? '' : '',
         shownAtTable: h.shown.some((x) => x.playerId === p), won: h.winners.some((w) => w.playerId === p), got: h.winners.find((w) => w.playerId === p)?.amount ?? 0 });
       const sh = h.shown.find((x) => x.playerId === p);
       if (sh) shown.push({ n: h.n, cards: sh.cards, rank: h.board.length === 5 ? bestHand([...sh.cards, ...h.board])?.name ?? '' : '', won: h.winners.some((w) => w.playerId === p), pot: h.pot, got: h.winners.find((w) => w.playerId === p)?.amount ?? 0, split: h.winners.length > 1 });

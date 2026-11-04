@@ -47,6 +47,8 @@ export const HELP = {
   addPlayer: { title: 'Add player', text: ['Tap a saved player to seat that player with the default buy-in.', 'Type a new name to save a new player. The list narrows as you type.', 'Felt flags a name that is already saved. Enter a different name.'] },
   pickPlayers: { title: 'Players', text: ['Tap a name to pick it. Tap again to remove it.', 'Press and hold a name to edit or delete it.', 'Felt saves new players for later games.'] },
   addChips: { title: 'Rebuy', text: ['Chips the player buys now.', 'Add chips records a buy-in of this size and adds the chips to the stack.'] },
+  checkCards: { title: 'Check hidden cards', text: ['On: after the next hand starts, Felt marks hidden cards that cannot be right. Only that player sees the mark.', 'Red: a card was shown at the table. The hand is left out of stats and reports.', 'Blue: another player logged the same card. The hand still counts.', 'Off: no marks, and every entry counts.'] },
+  archivePlayer: { title: 'Remove from the list', text: ['Past games and stats stay.', 'The player no longer shows when you start a game.'] },
   stackCount: { title: 'Count', text: ['Chips in front of the player now.', 'The stack estimate starts again from this count.'] },
   missed: { title: 'Missed hand', text: ['Use it for a hand the table played and you did not log.', 'The button moves on. Each stack becomes a range of about 1 average pot. A count or an all-in makes it exact again.', 'Stats do not include missed hands.'] },
   blinds: { title: 'Blinds', text: ['SB and BB for this hand, in chips.', 'A change stays for the next hands of this game.'] },

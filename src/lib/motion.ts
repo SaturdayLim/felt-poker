@@ -67,7 +67,7 @@ export function installMotion() {
 
 /* ------------------------------- button presses ------------------------------- */
 
-type PressClass = 'log' | 'commit' | 'forward' | 'dismiss' | 'select' | 'toggle' | 'open' | 'none';
+type PressClass = 'log' | 'commit' | 'forward' | 'dismiss' | 'select' | 'toggle' | 'open' | 'name' | 'none';
 
 const DISMISS = /^(close|done|cancel|back)$/i;
 
@@ -76,6 +76,8 @@ function classOf(b: HTMLElement): PressClass {
   const named = b.dataset.press as PressClass | undefined;
   if (named) return named;
   if (b.matches('.felt-hold, .felt-toast-act, .felt-grip, button.felt-acts-name')) return 'none';
+  // a name glows around its letters: no box lights up around it
+  if (b.matches('.felt-pcard-name, .felt-name, [data-player]')) return 'name';
   if (b.matches('.felt-keypad-dark, .felt-mini, .felt-livepass-eye, .felt-codectl-btn, .felt-liveswitch, [role="switch"], .sat-switch')) return 'toggle';
   if (b.matches('.felt-keypad button, .felt-picker button, button.felt-box')) return 'log';
   if (b.matches('.sat-chip, [role="tab"], [role="radio"], .felt-pickwin-btn, .felt-nav a')) return 'select';
@@ -88,6 +90,9 @@ function classOf(b: HTMLElement): PressClass {
 const DOWN: Partial<Record<PressClass, number>> = { log: 0.93, commit: 0.96, forward: 0.97, dismiss: 0.98, open: 0.96 };
 /** The light spreads this fast from the finger. A press never waits for it: the action runs at once. */
 const INK_MS = 260;
+
+/** The pulse colour around the letters of a name: the blue of the theme. */
+const glow = () => getComputedStyle(document.documentElement).getPropertyValue('--sat-accent').trim() || '#0052cc';
 
 /** The frame that reacts: the button, or the list around it when the button is the only row in that list. */
 function frameOf(b: HTMLElement): HTMLElement {
@@ -150,6 +155,7 @@ export function installPresses() {
     if (s) down.sink = frame.animate([{ scale: 1 }, { scale: s }], { duration: 70, easing: 'ease-out', fill: 'forwards' });
     if (c === 'forward' || c === 'dismiss' || c === 'open') down.ink = startInk(frame, e);
     if (c === 'toggle') down.sink = b.animate({ translate: ['0 0', '0 3px'] }, { duration: 70, easing: 'ease-out', fill: 'forwards' });
+    if (c === 'name') down.sink = b.animate({ textShadow: ['0 0 0 transparent', `0 0 10px ${glow()}`] }, { duration: 90, easing: 'ease-out', fill: 'forwards' });
   }, true);
   const up = () => {
     if (!down) return;
@@ -160,6 +166,7 @@ export function installPresses() {
     if (DOWN[c]) spring(frame, (p) => ({ scale: String(now + (1 - now) * p) }), SPRING.log);
     if (c === 'select') spring(b, (p) => ({ scale: String(0.86 + 0.14 * p) }), SPRING.select);
     if (c === 'toggle') spring(b, (p) => ({ translate: `0 ${3 * (1 - p)}px` }), SPRING.toggle);
+    if (c === 'name') b.animate({ textShadow: [`0 0 10px ${glow()}`, `0 0 14px transparent`] }, { duration: 320, easing: 'ease-out' });
     if (ink) endInk(ink);
   };
   document.addEventListener('pointerup', up, true);

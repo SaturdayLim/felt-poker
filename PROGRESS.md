@@ -1,6 +1,10 @@
 # Felt: progress
 
 ## Latest (4 Nov 2026): 1.2.9
+- IMPORTANT: GitHub Pages deploys from main only (.github/workflows/deploy.yml). main is still 1.2.8; the owner tested 1.2.8 on 4 Nov evening. 1.2.9 needs a merge to main to go live.
+- Round 3: stepFor() in Join.tsx; CardEntrySheet `own` prop (host's own row, felt-own-open:<pid> in localStorage holds the code); clashLevel/countedPairs in clash.ts, Settings.checkCards; host sends clash only when a later hand exists or the next live hand has acted (nowActed); Check Your Cards pop-up removed. NameField in players.tsx; press class 'name' in motion.ts; --felt-vvh caps sheet height.
+- Waiting: owner picks a swipe-back variant (https://claude.ai/artifact/Mh4TFnyP3BdWemtuNfv9F7). Not built in the app.
+- Not reproduced: player card edges offscreen on name tap (390 px Chromium looks right).
 - Round 2 (same version): light orange #EE4E1C with ink text (4.6:1, 3.2:1 on ice). Ident box carries `logged` as hand to cards and `why` per clash hand; Join reads the older number list too.
 - Viewer play-by-play is StepTable (Join.tsx): one box per action, 30 px step, names column fixed. The host table is unchanged; offer it to the owner if the stepped look is liked.
 - Seat drag: grip(id, true) on the whole player card; controls keep their job. Stack sheet has AddChips (cash).

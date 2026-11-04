@@ -314,6 +314,8 @@ export interface Settings {
   splashMs: number;
   /** The player who uses this phone: the recorder offers My cards for that player. Kept on restore. */
   me?: ID;
+  /** Check hidden cards against the table and each other (default on). Off: no flags, and every entry counts. */
+  checkCards?: boolean;
   /** Fallback rules for games created before rules were set per game (see Game.rules). */
   minRaise: GameRules['minRaise'];
   bounty27: BountyRule;

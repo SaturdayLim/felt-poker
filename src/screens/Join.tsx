@@ -24,7 +24,9 @@ interface Me { id: string; name: string; clash?: number[];
   why?: Record<string, string[]> }
 /** The hidden cards of each hand that this player can see: theirs only. A number with no cards means cards are logged but unknown here. */
 const loggedOf = (me: Me): Record<number, Card[]> => Array.isArray(me.logged) ? Object.fromEntries(me.logged.map((n) => [n, []])) : Object.fromEntries(Object.entries(me.logged ?? {}).map(([n, c]) => [Number(n), c]));
-const WHY: Record<string, string> = { board: 'a card is on the board', shown: 'another player showed a card', entry: 'another hidden entry has a card' };
+/** Red: a card contradicts the table, and the hand is left out of stats. Blue: it only matches another hidden entry. */
+const WHY: Record<string, string> = { board: 'A card is also on the board.', shown: 'Another player showed a card you logged.', entry: 'Another player logged a card you logged.' };
+const levelOf = (why: string[] = []) => (why.includes('board') || why.includes('shown') ? 'red' : why.length ? 'blue' : null);
 type Tab = 'action' | 'settings' | 'hands' | 'players';
 const TABS: { k: Tab; label: string }[] = [{ k: 'action', label: 'Action' }, { k: 'hands', label: 'Hands' }, { k: 'players', label: 'Players' }, { k: 'settings', label: 'Settings' }];
 
@@ -71,7 +73,6 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   const [tab, setTab] = useState<Tab>('action');
   const [sheet, setSheet] = useState<null | 'code' | 'cards' | 'flag'>(null);
   const [openHand, setOpenHand] = useState<number | null>(null);
-  const [okHands, setOkHands] = useState<number[]>(() => JSON.parse(ls.get(`felt-clash-ok:${room}`) ?? '[]'));
   const [cardsHand, setCardsHand] = useState<number | null>(null);
   const [err, setErr] = useState('');
   // cards sent from this phone, by hand, until the host's copy arrives (older pages kept hand numbers only)
@@ -161,13 +162,9 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
     entered.current.set(n, cards);
     ss.set(`felt-join-entered:${room}`, JSON.stringify([...entered.current.entries()]));
   };
-  // the host tells this player alone, inside the box only their code opens, which hands to check
-  const toCheck = (me?.clash ?? []).filter((n) => !okHands.includes(n));
-  const keepCards = () => {
-    const next = [...new Set([...okHands.filter((n) => me?.clash?.includes(n)), ...toCheck])];
-    setOkHands(next);
-    ls.set(`felt-clash-ok:${room}`, JSON.stringify(next));
-  };
+  // the host tells this player alone, inside the box only their code opens, which hands cannot be right. The host
+  // sends a hand only once a later hand is under way
+  const toCheck = me?.clash ?? [];
   const shownHand = openHand !== null ? hands.find((h) => h.n === openHand) : undefined;
 
   if (shownHand) {
@@ -199,14 +196,6 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
       <button type="button" className="felt-fab felt-fab--page" aria-label={me ? 'Add my cards' : 'Sign in with your player code'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
 
-      {!sheet && me && toCheck.length > 0 && (
-        <Sheet open onClose={keepCards} title="Check Your Cards" sub={`Your cards for hand ${toCheck.join(', ')} match another entry or the table.`}>
-          <div className="sat-glass-2 felt-list">
-            {toCheck.map((n) => <button key={n} className="felt-row" onClick={() => { setCardsHand(n); setSheet('cards'); }}><span className="felt-row-main"><span className="felt-row-title">Change hand {n}</span></span><span style={{ display: 'inline-flex', transform: 'rotate(-90deg)' }}><Icon name="chevron" size={18} /></span></button>)}
-          </div>
-          <button className="sat-btn sat-btn--block felt-btn-raised" onClick={keepCards}>Keep my cards</button>
-        </Sheet>
-      )}
       {sheet === 'code' && <CodeSheet onClose={() => setSheet(null)} onSubmit={async (c) => { const ok = await tryCode(c); if (ok) setSheet('cards'); return ok; }} />}
       {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} toCheck={toCheck} start={cardsHand} onClose={() => { setSheet(null); setCardsHand(null); }} onSave={sendCards}
         onLeave={() => { setMe(null); setCode(null); ss.del(`felt-join-code:${room}`); setSheet(null); }} />}
@@ -348,13 +337,35 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
 
 /** One action per step: each box sits a step to the right of the action before it, so the boxes read in time
     order across the rows, with no columns to line up. Names stay still while the boxes scroll. */
-const STEP = 30, BOX = 50, ROW = 46;
+const BOX = 50, ROW = 46, GAP = 4;
+/** The step between two actions: two passes round the table fit in the visible width. Nine players give a small step. */
+export const stepFor = (view: number, players: number) => Math.max(8, Math.min(BOX + GAP, (view - BOX) / Math.max(1, 2 * players - 1)));
 function StepTable({ s }: { s: ViewStreet }) {
   const track = useRef<HTMLDivElement>(null);
-  // time order: pass by pass round the table, rows in the order they act
+  const [view, setView] = useState(260);
+  useEffect(() => {
+    const t = track.current;
+    if (!t) return;
+    const fit = () => setView(t.clientWidth - 10);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(t);
+    return () => ro.disconnect();
+  }, []);
+  const step = stepFor(view, s.rows.length);
+  // time order: pass by pass round the table, rows in the order they act. Each box sits at least one step right of
+  // the one before it, and never on top of the box before it in its own row (after folds the table gets short)
   const placed: { ri: number; c: ViewStreet['rows'][number]['cells'][number]; x: number }[] = [];
-  for (let col = 0; col < s.cols; col++) s.rows.forEach((r, ri) => { const c = r.cells[col]; if (c && c.kind !== 'off') placed.push({ ri, c, x: placed.length * STEP }); });
-  const width = placed.length ? (placed.length - 1) * STEP + BOX : 0;
+  const rowEnd: number[] = [];
+  for (let col = 0; col < s.cols; col++) s.rows.forEach((r, ri) => {
+    const c = r.cells[col];
+    if (!c || c.kind === 'off') return;
+    const prev = placed.length ? placed[placed.length - 1].x + step : 0;
+    const x = Math.max(prev, rowEnd[ri] ?? 0);
+    placed.push({ ri, c, x });
+    rowEnd[ri] = x + BOX + GAP;
+  });
+  const width = placed.length ? placed[placed.length - 1].x + BOX : 0;
   // the newest action sits flush right
   useEffect(() => { const t = track.current; if (t) t.scrollLeft = t.scrollWidth; }, [s]);
   return (
@@ -455,7 +466,9 @@ function HandPick({ hands, now, entered, me, toCheck, start, onSave, onClose, on
   // the host copy wins once it arrives: the host may have replaced what this phone sent
   const known = (k: number): Card[] => (host[k]?.length ? host[k] : entered.get(k) ?? []);
   const hidden = (k: number) => entered.has(k) || k in host;
-  const why = (k: number) => (me.why?.[k] ?? []).map((w) => WHY[w]).filter(Boolean).join(', ');
+  const flagOf = (k: number) => (toCheck.includes(k) ? levelOf(me.why?.[k] ?? ['entry']) : null);
+  const reason = (k: number) => [...(me.why?.[k] ?? ['entry']).map((w) => WHY[w]).filter(Boolean),
+    flagOf(k) === 'red' ? 'This hand is left out of your stats until you change the cards.' : 'This hand still counts.'].join(' ');
   const h = mine.find((x) => x.n === n);
   if (h) {
     return (
@@ -469,13 +482,17 @@ function HandPick({ hands, now, entered, me, toCheck, start, onSave, onClose, on
       <div className="sat-glass-2 felt-list">
         {!mine.length && <div className="felt-row sat-small sat-muted">No hands for you yet.</div>}
         {mine.map((x) => (
-          <button key={x.n} className="felt-row" onClick={() => pick(x)} aria-label={`Hand ${x.n}${x.shown.length ? ', shown at the table' : hidden(x.n) ? ', hidden cards logged' : ''}`}>
-            <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span>{toCheck.includes(x.n) && <span className="felt-row-sub felt-row-sub--bad">Check these cards{why(x.n) ? `: ${why(x.n)}` : ''}</span>}</span>
-            {/* the player's own cards show face up: shown at the table, or hidden and known on this phone */}
-            {x.shown.length ? <Cards cards={x.shown} size="sm" /> : known(x.n).length === 2 ? <Cards cards={known(x.n)} size="sm" /> : <CardPair filled={hidden(x.n)} />}
-            {/* open eye: shown at the table. Shut eye: hidden cards logged */}
-            {(x.shown.length > 0 || hidden(x.n)) && <span className="felt-eye" aria-hidden="true"><Icon name={x.shown.length ? 'eye' : 'dark'} size={18} /></span>}
-          </button>
+          <div key={x.n} className="felt-row felt-row--flag">
+            <button type="button" className="felt-row-hit" onClick={() => pick(x)} aria-label={`Hand ${x.n}${x.shown.length ? ', shown at the table' : hidden(x.n) ? ', hidden cards logged' : ''}`}>
+              <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span></span>
+              {/* the player's own cards show face up: shown at the table, or hidden and known on this phone */}
+              {x.shown.length ? <Cards cards={x.shown} size="sm" /> : known(x.n).length === 2 ? <Cards cards={known(x.n)} size="sm" /> : <CardPair filled={hidden(x.n)} />}
+              {/* open eye: shown at the table. Shut eye: hidden cards logged */}
+              {(x.shown.length > 0 || hidden(x.n)) && <span className="felt-eye" aria-hidden="true"><Icon name={x.shown.length ? 'eye' : 'dark'} size={18} /></span>}
+            </button>
+            {/* red: contradicts the table. Blue: matches another hidden entry. Tap for the reason */}
+            {flagOf(x.n) && <button type="button" className={`felt-flag is-${flagOf(x.n)}`} aria-label={`Hand ${x.n}: cards cannot all be right. Show why`} onClick={() => toast(reason(x.n))}>!</button>}
+          </div>
         ))}
       </div>
       <button className="sat-btn sat-btn--block" onClick={onLeave}>Sign out</button>

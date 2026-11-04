@@ -52,11 +52,19 @@ export default function App() {
   // an open keyboard must not cover the field being typed in
   useEffect(() => {
     const vv = window.visualViewport;
-    const fit = () => { if (vv) document.documentElement.style.setProperty('--felt-kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`); };
+    const fit = () => {
+      if (!vv) return;
+      const root = document.documentElement.style;
+      root.setProperty('--felt-kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+      // the height left above the keyboard: an open sheet never grows past it, so its top stays on screen
+      root.setProperty('--felt-vvh', `${vv.height}px`);
+    };
     let t: number | undefined;
     const onFocus = (e: FocusEvent) => {
       const el = e.target as HTMLElement;
       if (!el.matches?.('input:not([type="color"]):not([type="range"]), textarea, select')) return;
+      // a sheet moves up by the keyboard height by itself: scrolling the field as well throws it off the top
+      if (el.closest('dialog[open]')) return;
       window.clearTimeout(t);
       t = window.setTimeout(() => {
         const r = el.getBoundingClientRect(), bottom = vv ? vv.height + vv.offsetTop : window.innerHeight;
@@ -64,8 +72,10 @@ export default function App() {
       }, 320);
     };
     vv?.addEventListener('resize', fit);
+    // iOS pans the page under the keyboard without a resize: follow the pan too
+    vv?.addEventListener('scroll', fit);
     document.addEventListener('focusin', onFocus);
-    return () => { vv?.removeEventListener('resize', fit); document.removeEventListener('focusin', onFocus); window.clearTimeout(t); };
+    return () => { vv?.removeEventListener('resize', fit); vv?.removeEventListener('scroll', fit); document.removeEventListener('focusin', onFocus); window.clearTimeout(t); };
   }, []);
   if (!hydrated) return <div className="felt-app" />;
 

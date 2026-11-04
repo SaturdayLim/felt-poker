@@ -20,6 +20,11 @@ export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
     'Copy hand pastes as plain text, with a blank line between streets.',
     'Tap a stack to count it or to add chips for a rebuy.',
     'Press and hold any blank part of a player card to drag it to a new seat.',
+    'Viewer replay: two passes round the table fit in view, and boxes in a row never overlap.',
+    'Host player cards: no eyes for other players. Cards you just saved stay face up until the sheet closes. Show my cards opens your own row with your player code.',
+    'Hidden cards that cannot be right get a red or blue ! after a later hand starts. Red hands are left out of stats. Settings, Check hidden cards turns this off.',
+    'Edit a player name on the player card itself. A name press glows around the letters.',
+    'A sheet with a field rises only as far as the keyboard.',
   ] },
   { version: '1.2.8', date: '4 Nov 2026', notes: [
     'Tab highlight and screen slides no longer show 2 boxes at once.',

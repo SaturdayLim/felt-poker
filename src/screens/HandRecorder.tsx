@@ -181,6 +181,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const [typed, setTyped] = useState('');
   // keypad: dark (blind) mark for the next action, and a raise under the house minimum
   const settings = useStore((s) => s.settings);
+  const allPlayers = useStore((s) => s.players);
   // a closed game opens its hands for review only: browse every stage, change nothing
   const readOnly = g?.status === 'closed' && !!existing;
   const reviewable = (g?.hands ?? []).filter((h) => !h.missed && h.log);
@@ -747,8 +748,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
       {askCards && (
         <CardEntrySheet players={log.dealt} name={name} edge onClose={() => setAskCards(false)} onSave={savePlayerCards}
-          entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n)])]}
+          entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n), ...(me && mineCards.length === 2 ? [me] : [])])]}
           revealed={shownCards()}
+          own={me ? { id: me, code: allPlayers.find((x) => x.id === me)?.code, cards: extraPriv[me] ?? (mineCards.length === 2 ? mineCards : existing?.private?.[me]) } : undefined}
           blocked={[...used]} />
       )}
       <div ref={dock} className="sat-bottombar sat-glass-2 felt-rec-dock">

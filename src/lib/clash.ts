@@ -48,3 +48,17 @@ export function clashWhy(h: Hand, p: ID): ClashWhy[] {
   }
   return [...out];
 }
+
+/** Red: a hidden card contradicts a card shown at the table (board or another player's shown hand). The entry cannot
+    be right, so it is left out of stats and reports. Blue: it only contradicts another hidden entry; it still counts. */
+export function clashLevel(h: Hand, p: ID): 'red' | 'blue' | null {
+  const why = clashWhy(h, p);
+  return why.includes('board') || why.includes('shown') ? 'red' : why.includes('entry') ? 'blue' : null;
+}
+
+/** Hidden pairs that count in stats and reports. With the check on (the default), a red entry is left out. */
+export function countedPairs(h: Hand, check = true): Record<ID, Card[]> {
+  const all = fullPairs(h);
+  if (!check) return all;
+  return Object.fromEntries(Object.entries(all).filter(([p]) => clashLevel(h, p) !== 'red'));
+}

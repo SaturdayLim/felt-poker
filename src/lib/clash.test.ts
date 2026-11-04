@@ -48,3 +48,15 @@ describe('clashWhy', () => {
     expect(clashWhy(h, 'd')).toEqual([]);
   });
 });
+
+describe('clash levels', () => {
+  it('red for the table, blue for another entry; red pairs drop out of counted pairs unless the check is off', async () => {
+    const { clashLevel, countedPairs } = await import('./clash');
+    const h = hand({ private: { a: ['As', 'Kd'], b: ['Kd', '3h'], c: ['2c', '4d'] }, board: ['As', '7c', '6h'] });
+    expect(clashLevel(h, 'a')).toBe('red');
+    expect(clashLevel(h, 'b')).toBe('blue');
+    expect(clashLevel(h, 'c')).toBeNull();
+    expect(Object.keys(countedPairs(h)).sort()).toEqual(['b', 'c']);
+    expect(Object.keys(countedPairs(h, false)).sort()).toEqual(['a', 'b', 'c']);
+  });
+});

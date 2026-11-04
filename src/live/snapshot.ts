@@ -166,19 +166,20 @@ export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) =
 
 /** A hand as plain text: earliest action first, cards as "As" and "Td". */
 export function viewText(n: number, sb: number, bb: number, v: HandView): string {
-  const out = [`Hand ${n}, blinds ${sb}/${bb}`];
+  // plain lines only: no dashes or bullets, which notes and chat apps turn into lists. A blank line between streets.
+  const blocks: string[][] = [[`Hand ${n}, blinds ${sb}/${bb}`]];
   for (const s of v.streets) {
+    const out: string[] = [];
     if (s.key === 'showdown') {
-      for (const x of s.shown ?? []) out.push(`- ${x.name} shows ${x.cards.join(' ')}`);
-      for (const m of s.mucked ?? []) out.push(`- ${m} mucks`);
-      (v.runs ?? []).forEach((r, i) => out.push(`- Run ${i + 1}: ${[...r.common, ...r.cards].join(' ')}`));
-      for (const l of s.lines) out.push(`- ${l}`);
-    } else {
-      out.push(s.fresh.length ? `- ${s.label}: ${s.fresh.join(' ')}` : `- ${s.label}`);
-      for (const l of s.lines) out.push(`- ${l}`);
-    }
+      out.push(s.label);
+      for (const x of s.shown ?? []) out.push(`${x.name} shows ${x.cards.join(' ')}`);
+      for (const m of s.mucked ?? []) out.push(`${m} mucks`);
+      (v.runs ?? []).forEach((r, i) => out.push(`Run ${i + 1}: ${[...r.common, ...r.cards].join(' ')}`));
+    } else out.push(s.fresh.length ? `${s.label}: ${s.fresh.join(' ')}` : s.label);
+    out.push(...s.lines);
+    blocks.push(out);
   }
-  return out.join('\n');
+  return blocks.map((b) => b.join('\n')).join('\n\n');
 }
 
 /** Each player's result so far (stack minus chips bought) and the lowest and highest it has reached. */

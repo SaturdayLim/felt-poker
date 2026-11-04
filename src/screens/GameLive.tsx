@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { useDragList } from '../components/dragList';
@@ -151,7 +151,9 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         return <AmountSheet g={g} title={`Count ${name(sheet.pid)}`} label="Chips counted" tip="stackCount" initial={exact && v !== undefined ? Math.max(0, Math.round(v)) : null}
           hint={exact ? 'The estimate is exact. A count still overrides it.' : `Estimate ${stackLabel(g, est, sheet.pid)}. The count makes it exact again.`}
           cta="Save count" onClose={() => setSheet(null)}
-          onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips`); }} />;
+          onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips`); }}>
+          {isCash && <AddChips g={g} onAdd={(amt) => { st.addBuyIn(g.id, sheet.pid, amt); setSheet(null); toast(`${name(sheet.pid)}: rebuy of ${units(amt)} chips added`); }} />}
+        </AmountSheet>;
       })()}
       {sheet?.k === 'move' && <MoveSheet g={g} name={name} onClose={() => setSheet(null)} />}
       {sheet?.k === 'buyins' && <BuyInsSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
@@ -164,7 +166,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
 /* ------------------------------- seats: drag to reorder ------------------------------- */
 
-type Handle = { grip: ReturnType<ReturnType<typeof useDragList<ID>>['grip']>; row: ReturnType<ReturnType<typeof useDragList<ID>>['row']>; seat: number };
+type Handle = { hold: ReturnType<ReturnType<typeof useDragList<ID>>['grip']>; row: ReturnType<ReturnType<typeof useDragList<ID>>['row']>; seat: number };
 
 /** List whose rows can be dragged by their handle. Dropping saves the new order as seats 1, 2, 3...
     (players who are out keep seats after everyone still in). */
@@ -183,7 +185,7 @@ function SeatList({ g, ids, disabled, render }: { g: Game; ids: ID[]; disabled?:
   return (
     <div ref={list.wrap} className={`felt-seatlist ${list.listClass}`}>
       {list.slot}
-      {ids.map((pid) => render(pid, disabled ? undefined : { grip: list.grip(pid), row: list.row(pid), seat: list.projected.indexOf(pid) + 1 }))}
+      {ids.map((pid) => render(pid, disabled ? undefined : { hold: list.grip(pid, true), row: list.row(pid), seat: list.projected.indexOf(pid) + 1 }))}
     </div>
   );
 }
@@ -200,9 +202,10 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
   const place = tournamentPlace(g, pid);
   const closed = g.status === 'closed';
   return (
-    <div data-drag-row={handle ? true : undefined} style={handle?.row.style} className={`sat-glass felt-pcard ${status === 'out' ? 'is-out' : ''} ${status === 'away' ? 'is-away' : ''} ${handle?.row.className ?? ''}`}>
+    // a press and hold on the grip or on any blank part of the card lifts it for a drag
+    <div data-drag-row={handle ? true : undefined} {...handle?.hold} style={handle?.row.style} className={`sat-glass felt-pcard ${status === 'out' ? 'is-out' : ''} ${status === 'away' ? 'is-away' : ''} ${handle?.row.className ?? ''}`}>
       {handle ? (
-        <button type="button" className="felt-grip" {...handle.grip} aria-label={`Seat ${handle.seat}. Press and hold, then drag to change ${name}'s seat`}>
+        <button type="button" className="felt-grip" aria-label={`Seat ${handle.seat}. Press and hold, then drag to change ${name}'s seat`}>
           <svg viewBox="0 0 16 12" width="16" height="12" aria-hidden="true"><path d="M1 1h14M1 6h14M1 11h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
           <span className="sat-num">{handle.seat}</span>
         </button>
@@ -401,9 +404,9 @@ function MoveSheet({ g, name, onClose }: { g: Game; name: (id: ID) => string; on
   );
 }
 
-function AmountSheet({ g, title, label, tip, hint, initial, isMoney, cta = 'Add', onClose, onSave }: {
+function AmountSheet({ g, title, label, tip, hint, initial, isMoney, cta = 'Add', onClose, onSave, children }: {
   g: Game; title: string; label?: string; tip?: 'clockOut' | 'stackCount'; hint?: string; initial: number | null; isMoney?: boolean; cta?: string;
-  onClose: () => void; onSave: (v: number) => void;
+  onClose: () => void; onSave: (v: number) => void; children?: ReactNode;
 }) {
   const [v, setV] = useState(initial === null ? '' : String(initial));
   const n = num(v);
@@ -425,7 +428,24 @@ function AmountSheet({ g, title, label, tip, hint, initial, isMoney, cta = 'Add'
         </div>
       )}
       <WordButton word="Saved" ready={!bad} className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={bad} run={() => { if (!bad) onSave(n!); }}>{cta}</WordButton>
+      {children}
     </Sheet>
+  );
+}
+
+/** Rebuy from the stack: how many chips, then Add chips. Starts at the game's buy-in. */
+function AddChips({ g, onAdd }: { g: Game; onAdd: (chips: number) => void }) {
+  const [v, setV] = useState(String(g.defaultBuyIn));
+  const n = num(v);
+  const ok = n !== null && n > 0;
+  return (
+    <div className="felt-addchips">
+      <div className="sat-field">
+        <label htmlFor="rebuy">Rebuy (chips) <Help k="addChips" /></label>
+        <input id="rebuy" className="sat-input sat-num" inputMode="numeric" value={v} onChange={(e) => setV(e.target.value)} aria-invalid={v !== '' && !ok} />
+      </div>
+      <button type="button" className="sat-btn sat-btn--lg" aria-disabled={!ok} onClick={() => { if (ok) onAdd(n!); }}><Icon name="plus" size={16} stroke={2.4} /> Add chips</button>
+    </div>
   );
 }
 

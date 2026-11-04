@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react';
 import { haptic } from '../lib/haptics';
 
-/* Drag to reorder. A touch must hold still on the grip (or press hard) before the row lifts, so a swipe that
-   starts on a grip scrolls the page. While dragging, the row follows the finger, the others slide aside, and a
+/* Drag to reorder. A touch must hold still on the grip, or on any blank part of a row that takes `blank` (or press
+   hard), before the row lifts, so a swipe that starts there scrolls the page. While dragging, the row follows the finger, the others slide aside, and a
    line marks where the row will land. The new order saves after the row settles into the slot. */
 
 const HOLD_MS = 280, SETTLE_MS = 450, SLOP = 8;
@@ -54,11 +54,17 @@ export function useDragList<T>(ids: T[], onDrop: (order: T[]) => void) {
     }, SETTLE_MS);
   };
 
-  const grip = (id: T) => ({
+  /** Handlers for the grip. With `blank`, for a whole row: a press and hold on any part that is not a control
+      lifts the row too. A hold always waits there, so a click on the row stays a click. */
+  const grip = (id: T, blank = false) => ({
     onPointerDown: (e: RPointerEvent<HTMLElement>) => {
-      if (d) return;
+      if (d || armed.current) return;
+      const t = e.target as Element;
+      // on a whole row the grip still counts; other controls keep their own job
+      const onGrip = !blank || !!t.closest?.('.felt-grip');
+      if (!onGrip && t.closest?.('button, a, input, select, textarea, label, [role="switch"], [data-player]')) return;
       armed.current = { x: e.clientX, y: e.clientY, id, pid: e.pointerId, el: e.currentTarget };
-      if (e.pointerType === 'mouse') lift();
+      if (e.pointerType === 'mouse' && onGrip) lift();
       else armed.current.timer = window.setTimeout(lift, HOLD_MS);
     },
     onPointerMove: (e: RPointerEvent<HTMLElement>) => {

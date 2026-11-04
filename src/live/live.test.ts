@@ -133,7 +133,8 @@ describe('hand view', () => {
       { key: 'flop', label: 'Flop', old: [], fresh: ['As', 'Td', '4c'], lines: ['SB (Chuggy, 0) bets 6'], cols: 1, rows: [], pot: 12 },
       { key: 'showdown', label: 'Showdown', old: [], fresh: [], lines: ['Chuggy wins 14'], cols: 0, rows: [], pot: 0, shown: [{ name: 'Chuggy', cards: ['Ah', 'Kd'], rank: '' }] },
     ] });
-    expect(text).toBe('Hand 3, blinds 1/2\n- Flop: As Td 4c\n- SB (Chuggy, 0) bets 6\n- Chuggy shows Ah Kd\n- Chuggy wins 14');
+    // plain lines, a blank line between streets, no dashes that paste as a list
+    expect(text).toBe('Hand 3, blinds 1/2\n\nFlop: As Td 4c\nSB (Chuggy, 0) bets 6\n\nShowdown\nChuggy shows Ah Kd\nChuggy wins 14');
   });
   it('keeps each player low and high at 0 before any hand', () => {
     const g = { ...game(), hands: [] };

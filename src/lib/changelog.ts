@@ -13,6 +13,13 @@ export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
     'Cards shown at the table cannot be replaced by hidden cards, on the host phone or a player phone.',
     'Player view: an open eye marks cards shown at the table, a shut eye marks hidden cards logged. Check these cards shows only for hands still to check.',
     'Repeated header lines are gone from Home, Games and Players.',
+    'Light-mode orange is #EE4E1C everywhere, with dark text (4.6:1).',
+    'A player sees their own hidden cards face up on their phone, with a shut eye. The host phone shows them face down.',
+    'Check these cards gives the reason, sits on its own line, and shows only for hands still to check.',
+    'Viewer hand replay: names stay still, and each action steps right of the one before it.',
+    'Copy hand pastes as plain text, with a blank line between streets.',
+    'Tap a stack to count it or to add chips for a rebuy.',
+    'Press and hold any blank part of a player card to drag it to a new seat.',
   ] },
   { version: '1.2.8', date: '4 Nov 2026', notes: [
     'Tab highlight and screen slides no longer show 2 boxes at once.',

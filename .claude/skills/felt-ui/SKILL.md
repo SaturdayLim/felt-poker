@@ -32,6 +32,7 @@ description: Felt UI principles. Use when adding or changing any screen, button,
 - An explanation goes in the info tip of its field. The page shows labels and live figures.
 - Check every element against the Unslop list in the global CLAUDE.md. Mark each hit as value-adding, with its job, or remove it.
 - Sentence case labels, with no eyebrow above a heading.
+- A status line under a row title (for example Check these cards) sits on its own line, 2 px below the title. Never run it on beside the title.
 - Instrument Serif is for the Felt wordmark only.
 
 ## Elevation

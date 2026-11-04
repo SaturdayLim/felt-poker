@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clashHands, clashingPlayers, fullPairs } from './clash';
+import { clashHands, clashingPlayers, clashWhy, fullPairs } from './clash';
 import type { Game, Hand } from '../types';
 
 const hand = (over: Partial<Hand>): Hand => ({ id: 'h', n: 1, at: 0, pot: 0, winners: [], board: [], shown: [], ...over } as Hand);
@@ -36,5 +36,15 @@ describe('clashingPlayers', () => {
   });
   it('reads the older single-owner form', () => {
     expect(clashingPlayers(hand({ mine: { playerId: 'a', cards: ['As', 'Kd'] }, board: ['Kd'] }))).toEqual(['a']);
+  });
+});
+
+describe('clashWhy', () => {
+  it('names the board, a shown hand or another hidden entry, and nothing for a clean entry', () => {
+    const h = hand({ private: { a: ['As', 'Kd'], b: ['Kd', '3h'], c: ['2c', '4d'], d: ['9s', '8s'] }, board: ['As', '7c', '6h'], shown: [{ playerId: 'e', cards: ['2c', 'Jh'] }] });
+    expect(clashWhy(h, 'a').sort()).toEqual(['board', 'entry']);
+    expect(clashWhy(h, 'b')).toEqual(['entry']);
+    expect(clashWhy(h, 'c')).toEqual(['shown']);
+    expect(clashWhy(h, 'd')).toEqual([]);
   });
 });

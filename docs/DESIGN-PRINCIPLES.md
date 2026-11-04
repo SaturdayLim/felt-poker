@@ -8,10 +8,11 @@ Picked 4 Nov 2026.
 
 - 60%: ink `#1C1E21` (dark background, light text) and ice `#EBF1F5` (light background, dark text). Backgrounds and surfaces.
 - 30%: blue `#0052CC`. Tinted surfaces, active tabs, the background mesh, standard primary buttons.
-- 10%: orange `#FF5722` in dark, `#E64A19` in light. One main action per screen, the next box to fill, the signed-in player, marks.
+- 10%: orange `#FF5722` in dark, `#EE4E1C` in light (every light-mode orange). One main action per screen, the next box to fill, the signed-in player, marks.
 - Subtle: `#E2E8F0` for divider lines, borders and disabled states (at low opacity in dark).
 - Blue text: `#0045B5` in light, to pass contrast. In dark, `#0052CC` text fails on ink (2.5:1), so blue text is `#6BA6FF`.
-- Text on blue: white (6.8:1). Text on orange: ink (5.3:1 in dark, 4.3:1 in light).
+- Text on blue: white (6.8:1). Text on orange: ink, in both modes (5.3:1 in dark, 4.6:1 in light).
+- Light orange is `#EE4E1C`, not `#E64A19`: ink text needs a lighter orange to reach 4.5:1, and `#EE4E1C` still holds 3.2:1 against the ice background.
 - Losses are not coral. Dark uses `#F7A8B8`, and light uses `#A3342A`.
 - Black suit marks always sit on a white card or chip, never on a dark surface.
 

@@ -1,6 +1,6 @@
 /* The player view of a live game. Opened from the host's link or the scanner. A viewer can read the action and the
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
-   Nothing else: no reports, no awards, no settings, no way to read any private cards, including their own. */
+   Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardBack, CardPair, Cards, Empty, Header, Help, Icon, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { CardEntrySheet } from '../components/cardEntry';
@@ -17,8 +17,14 @@ import { SHOWDOWN_LOCK } from '../components/cardEntry';
 
 interface Meta { locked?: boolean; check?: string | null; updatedAt?: number; handCount?: number }
 interface Me { id: string; name: string; clash?: number[];
-  /** Hands where the host holds this player's hidden cards (entered on the host phone or sent from here). */
-  logged?: number[] }
+  /** This player's hidden cards that the host holds, by hand (entered on the host phone or sent from here).
+      Older hosts sent hand numbers only. */
+  logged?: number[] | Record<string, Card[]>;
+  /** Why each hand to check cannot be right: board, shown or entry. */
+  why?: Record<string, string[]> }
+/** The hidden cards of each hand that this player can see: theirs only. A number with no cards means cards are logged but unknown here. */
+const loggedOf = (me: Me): Record<number, Card[]> => Array.isArray(me.logged) ? Object.fromEntries(me.logged.map((n) => [n, []])) : Object.fromEntries(Object.entries(me.logged ?? {}).map(([n, c]) => [Number(n), c]));
+const WHY: Record<string, string> = { board: 'a card is on the board', shown: 'another player showed a card', entry: 'another hidden entry has a card' };
 type Tab = 'action' | 'settings' | 'hands' | 'players';
 const TABS: { k: Tab; label: string }[] = [{ k: 'action', label: 'Action' }, { k: 'hands', label: 'Hands' }, { k: 'players', label: 'Players' }, { k: 'settings', label: 'Settings' }];
 
@@ -68,7 +74,11 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   const [okHands, setOkHands] = useState<number[]>(() => JSON.parse(ls.get(`felt-clash-ok:${room}`) ?? '[]'));
   const [cardsHand, setCardsHand] = useState<number | null>(null);
   const [err, setErr] = useState('');
-  const entered = useRef<Set<number>>(new Set(JSON.parse(ss.get(`felt-join-entered:${room}`) ?? '[]')));
+  // cards sent from this phone, by hand, until the host's copy arrives (older pages kept hand numbers only)
+  const entered = useRef<Map<number, Card[]>>((() => {
+    const v = JSON.parse(ss.get(`felt-join-entered:${room}`) ?? '[]');
+    return new Map<number, Card[]>(Array.isArray(v) ? v.map((x: number | [number, Card[]]) => (Array.isArray(x) ? x : [x, []])) : []);
+  })());
 
   // the last copy on this phone shows at once, and the room refreshes it
   useEffect(() => {
@@ -148,8 +158,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   const sendCards = async (n: number, cards: Card[]) => {
     if (!me || !code) return;
     await driver.set(room, `inbox/${me.id}/${n}`, await lock({ cards }, code));
-    entered.current.add(n);
-    ss.set(`felt-join-entered:${room}`, JSON.stringify([...entered.current]));
+    entered.current.set(n, cards);
+    ss.set(`felt-join-entered:${room}`, JSON.stringify([...entered.current.entries()]));
   };
   // the host tells this player alone, inside the box only their code opens, which hands to check
   const toCheck = (me?.clash ?? []).filter((n) => !okHands.includes(n));
@@ -328,26 +338,44 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
       ) : (
         <>
           {reach.length > 0 && <Cards cards={reach} />}
-          {s && (
-            <div className="felt-acts" style={{ ['--cols' as string]: Math.max(1, s.cols) }}>
-              {s.rows.map((r) => (
-                <div key={r.name} className={`felt-acts-row ${r.folded ? 'is-folded' : ''}`}>
-                  <span className="felt-acts-name"><span className="felt-ellipsis">{r.name}</span>{r.pos && <span className="felt-acts-sub">{r.pos}</span>}</span>
-                  <span />
-                  {r.cells.map((c, i) => (
-                    <span key={i} className={`felt-box is-${c.kind} ${c.past ? 'is-past' : ''}`}>
-                      {c.kind === 'allin' && <span className="v">All-in</span>}
-                      {c.kind === 'fold' || c.kind === 'call' ? <span className="l">{c.t}</span> : c.t ? <span className="n sat-num">{c.t}</span> : null}
-                      {c.dark && <span className="felt-box-dark" aria-hidden="true"><Icon name="dark" size={12} stroke={2} /></span>}
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
+          {s && <StepTable s={s} />}
         </>
       )}
       </SlidePane>
+    </div>
+  );
+}
+
+/** One action per step: each box sits a step to the right of the action before it, so the boxes read in time
+    order across the rows, with no columns to line up. Names stay still while the boxes scroll. */
+const STEP = 30, BOX = 50, ROW = 46;
+function StepTable({ s }: { s: ViewStreet }) {
+  const track = useRef<HTMLDivElement>(null);
+  // time order: pass by pass round the table, rows in the order they act
+  const placed: { ri: number; c: ViewStreet['rows'][number]['cells'][number]; x: number }[] = [];
+  for (let col = 0; col < s.cols; col++) s.rows.forEach((r, ri) => { const c = r.cells[col]; if (c && c.kind !== 'off') placed.push({ ri, c, x: placed.length * STEP }); });
+  const width = placed.length ? (placed.length - 1) * STEP + BOX : 0;
+  // the newest action sits flush right
+  useEffect(() => { const t = track.current; if (t) t.scrollLeft = t.scrollWidth; }, [s]);
+  return (
+    <div className="felt-steps" style={{ ['--row' as string]: `${ROW}px` }}>
+      <div className="felt-steps-names">
+        {s.rows.map((r) => (
+          <span key={r.name} className={`felt-acts-name ${r.folded ? 'is-folded' : ''}`}><span className="felt-ellipsis">{r.name}</span>{r.pos && <span className="felt-acts-sub">{r.pos}</span>}</span>
+        ))}
+      </div>
+      <div ref={track} className="felt-steps-track">
+        <div className="felt-steps-field" style={{ width, height: s.rows.length * ROW }}>
+          {s.rows.map((r, ri) => <i key={r.name} className="felt-steps-line" style={{ top: ri * ROW + ROW / 2 }} />)}
+          {placed.map(({ ri, c, x }, i) => (
+            <span key={i} className={`felt-box is-${c.kind} ${c.past ? 'is-past' : ''}`} style={{ left: x, top: ri * ROW + 3, width: BOX, height: ROW - 6 }}>
+              {c.kind === 'allin' && <span className="v">All-in</span>}
+              {c.kind === 'fold' || c.kind === 'call' ? <span className="l">{c.t}</span> : c.t ? <span className="n sat-num">{c.t}</span> : null}
+              {c.dark && <span className="felt-box-dark" aria-hidden="true"><Icon name="dark" size={12} stroke={2} /></span>}
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -416,30 +444,35 @@ function CodeSheet({ onSubmit, onClose }: { onSubmit: (c: string) => Promise<boo
 const shownBy = (view: HandView, name: string): Card[] => view.streets.flatMap((s) => s.shown ?? []).find((x) => x.name === name)?.cards ?? [];
 
 function HandPick({ hands, now, entered, me, toCheck, start, onSave, onClose, onLeave }: {
-  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; toCheck: number[]; start: number | null; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
+  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Map<number, Card[]>; me: Me; toCheck: number[]; start: number | null; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
 }) {
   const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board, shown: shownBy(now.view, me.name) }] : [];
   const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board, shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))];
   // cards shown at the table belong to the host's showdown: they cannot be replaced from here
   const [n, setN] = useState<number | null>(() => (start !== null && mine.find((x) => x.n === start)?.shown.length ? null : start));
   const pick = (x: (typeof mine)[number]) => { if (x.shown.length) toast(SHOWDOWN_LOCK); else setN(x.n); };
-  const hidden = (k: number) => entered.has(k) || !!me.logged?.includes(k);
+  const host = loggedOf(me);
+  // the host copy wins once it arrives: the host may have replaced what this phone sent
+  const known = (k: number): Card[] => (host[k]?.length ? host[k] : entered.get(k) ?? []);
+  const hidden = (k: number) => entered.has(k) || k in host;
+  const why = (k: number) => (me.why?.[k] ?? []).map((w) => WHY[w]).filter(Boolean).join(', ');
   const h = mine.find((x) => x.n === n);
   if (h) {
     return (
-      <CardEntrySheet players={[me.id]} initial={me.id} closeOnSave edge name={() => me.name} entered={hidden(h.n) ? [me.id] : []}
+      <CardEntrySheet players={[me.id]} initial={me.id} closeOnSave edge name={() => me.name} entered={hidden(h.n) ? [me.id] : []} known={known(h.n)}
         blocked={h.blocked} onClose={onClose}
         onSave={(_p, cards) => { onSave(h.n, cards).catch(() => toast('Cards not sent. Check the connection and try again.')); }} />
     );
   }
   return (
-    <Sheet open onClose={onClose} edge title={me.name} sub="Your cards are write only. Nobody can see them, not even you.">
+    <Sheet open onClose={onClose} edge title={me.name} sub="Nobody else can see your hidden cards.">
       <div className="sat-glass-2 felt-list">
         {!mine.length && <div className="felt-row sat-small sat-muted">No hands for you yet.</div>}
         {mine.map((x) => (
           <button key={x.n} className="felt-row" onClick={() => pick(x)} aria-label={`Hand ${x.n}${x.shown.length ? ', shown at the table' : hidden(x.n) ? ', hidden cards logged' : ''}`}>
-            <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span>{toCheck.includes(x.n) && <span className="felt-row-sub" style={{ color: 'var(--sat-neg)' }}>Check these cards</span>}</span>
-            {x.shown.length ? <Cards cards={x.shown} size="sm" /> : <CardPair filled={hidden(x.n)} />}
+            <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span>{toCheck.includes(x.n) && <span className="felt-row-sub felt-row-sub--bad">Check these cards{why(x.n) ? `: ${why(x.n)}` : ''}</span>}</span>
+            {/* the player's own cards show face up: shown at the table, or hidden and known on this phone */}
+            {x.shown.length ? <Cards cards={x.shown} size="sm" /> : known(x.n).length === 2 ? <Cards cards={known(x.n)} size="sm" /> : <CardPair filled={hidden(x.n)} />}
             {/* open eye: shown at the table. Shut eye: hidden cards logged */}
             {(x.shown.length > 0 || hidden(x.n)) && <span className="felt-eye" aria-hidden="true"><Icon name={x.shown.length ? 'eye' : 'dark'} size={18} /></span>}
           </button>

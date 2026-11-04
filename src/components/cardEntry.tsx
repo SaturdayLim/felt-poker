@@ -9,7 +9,7 @@ export const SHOWDOWN_LOCK = 'Cards in showdown. Remove from showdown to overwri
 /** Write-only entry of a player's hole cards for one hand. The sheet never shows cards that were saved before:
     two face-down cards show that cards are filled, two outlined slots show none. Cards already shown at the table
     are public, so they show face up. Entering again replaces saved cards. No code is asked on this phone. */
-export function CardEntrySheet({ players, name, entered, revealed, blocked, onSave, onClose, initial, closeOnSave, edge }: {
+export function CardEntrySheet({ players, name, entered, revealed, blocked, onSave, onClose, initial, closeOnSave, edge, known }: {
   players: ID[]; name: (id: ID) => string; entered: ID[]; blocked: Card[];
   /** Cards already shown at the table, by player. */
   revealed?: Record<ID, Card[]>;
@@ -20,6 +20,8 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
   closeOnSave?: boolean;
   /** Opened from the coral card button: the sheet keeps its coral edge. */
   edge?: boolean;
+  /** The player's own hidden cards, shown face up on the player's phone. The host phone never passes them. */
+  known?: Card[];
 }) {
   const locked = (p: ID) => !!revealed?.[p]?.length;
   const [pid, setPid] = useState<ID | null>(initial && !locked(initial) ? initial : null);
@@ -36,7 +38,7 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
   const confirm = () => {
     if (!pid || cards.length !== 2) return;
     onSave(pid, cards);
-    toast(`Saved for ${name(pid)}. Nobody can see these cards.`);
+    toast(`Saved for ${name(pid)}. Nobody else can see these cards.`);
     if (closeOnSave) onClose(); else reset();
   };
   const shownNow = pid ? revealed?.[pid] ?? [] : [];
@@ -69,7 +71,8 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
           <div className="sat-stack">
             <Caption>Card {cards.length + 1} of 2</Caption>
             <div className="felt-cards" style={{ justifyContent: 'center' }}>
-              {[0, 1].map((i) => (!cards[i] && entered.includes(pid) ? <CardBack key={i} size="lg" /> : <PlayingCard key={i} card={cards[i] ?? null} size="lg" placeholder={`Card ${i + 1}`} />))}
+              {[0, 1].map((i) => (!cards[i] && known?.[i] ? <span key={i} className="felt-card-known"><PlayingCard card={known[i]} size="lg" /></span>
+                : !cards[i] && entered.includes(pid) ? <CardBack key={i} size="lg" /> : <PlayingCard key={i} card={cards[i] ?? null} size="lg" placeholder={`Card ${i + 1}`} />))}
             </div>
             {/* a player's own shown cards stay open: they are the same two cards */}
             <CardPickerGrid disabled={(c) => (blocked.includes(c) && !shownNow.includes(c)) || cards.includes(c)} onPick={pick} />

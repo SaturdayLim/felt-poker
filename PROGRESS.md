@@ -1,6 +1,9 @@
 # Felt: progress
 
 ## Latest (4 Nov 2026): 1.2.9
+- Round 2 (same version): light orange #EE4E1C with ink text (4.6:1, 3.2:1 on ice). Ident box carries `logged` as hand to cards and `why` per clash hand; Join reads the older number list too.
+- Viewer play-by-play is StepTable (Join.tsx): one box per action, 30 px step, names column fixed. The host table is unchanged; offer it to the owner if the stepped look is liked.
+- Seat drag: grip(id, true) on the whole player card; controls keep their job. Stack sheet has AddChips (cash).
 - New palette in tokens.json (skins.felt), rebuilt with `node src/saturday/tools/build-tokens.js`; all 180 contrast checks pass. Dark blue text is #6BA6FF because #0052CC on ink is 2.5:1. Text on orange is ink: 4.3:1 on #E64A19 in light, under AA for small text. Ask the owner.
 - Elevation: --felt-elev-1/2/3 only (styles.css). --sat-shadow and --sat-shadow-lg are levels 1 and 2.
 - Card back: ink, ice border, blue S at 20%. Live cards elevation 1; empty slots etched (--felt-etch, --felt-etch-hi).

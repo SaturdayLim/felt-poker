@@ -32,3 +32,19 @@ export function clashingPlayers(h: Hand): ID[] {
 
 /** The hand numbers a player must check. Only saved hands count, so nothing leaks while a hand is in play. */
 export const clashHands = (g: Game, p: ID): number[] => g.hands.filter((h) => !h.missed && clashingPlayers(h).includes(p)).map((h) => h.n);
+
+export type ClashWhy = 'board' | 'shown' | 'entry';
+/** Why a player's cards for a hand cannot all be right: on the board, shown by another player, or also in another
+    player's hidden entry. Only that player sees it. The other entry's cards stay hidden. */
+export function clashWhy(h: Hand, p: ID): ClashWhy[] {
+  const priv = fullPairs(h);
+  const mine = priv[p];
+  if (!mine) return [];
+  const out = new Set<ClashWhy>();
+  for (const c of mine) {
+    if (h.board.includes(c)) out.add('board');
+    if (h.shown.some((s) => s.playerId !== p && s.cards.includes(c))) out.add('shown');
+    if (Object.entries(priv).some(([q, cards]) => q !== p && cards.includes(c))) out.add('entry');
+  }
+  return [...out];
+}

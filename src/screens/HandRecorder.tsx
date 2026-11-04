@@ -4,7 +4,8 @@ import { back, backTo, go } from '../router';
 import { CardEntrySheet } from '../components/cardEntry';
 import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
-import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush, useSwipeDown, SlidePane, DockPanel } from '../components/ui';
+import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush, useSwipeDown, SlidePane, DockPanel, WordButton } from '../components/ui';
+import { SPRING, calm, spring } from '../lib/motion';
 import { bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
 import { units } from '../lib/format';
@@ -772,8 +773,8 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           ))}
           {st.tab === 'showdown' && (
             <>
-              <button className={`sat-btn sat-btn--lg ${existing ? 'sat-btn--primary' : ''}`} aria-disabled={!!res?.missing} onClick={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</button>
-              {!existing && <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!!res?.missing} onClick={() => save(true)}>Save, next hand</button>}
+              <WordButton word="Saved" ready={!res?.missing} className={`sat-btn sat-btn--lg ${existing ? 'sat-btn--primary' : ''}`} aria-disabled={!!res?.missing} run={() => save(false)}>{existing ? 'Save changes' : 'Save hand'}</WordButton>
+              {!existing && <WordButton word="Saved" ready={!res?.missing} className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!!res?.missing} run={() => save(true)}>Save, next hand</WordButton>}
             </>
           )}
         </div>
@@ -831,11 +832,35 @@ function firstEmptyRun(log: HandLog, board: (Card | null)[], runSlots: (Card | n
 
 /* ------------------------------- pieces ------------------------------- */
 
+/** A card that lands on the board is dealt in from the left with a small turn. Cards that land together come 70 ms apart. */
+function useDeal(cards: (Card | null)[]) {
+  const ref = useRef<HTMLDivElement>(null);
+  const was = useRef(cards);
+  useLayoutEffect(() => {
+    const kids = ref.current?.children;
+    let nth = 0;
+    if (kids && !calm()) cards.forEach((c, i) => {
+      const el = kids[i];
+      if (!c || was.current[i] === c || !el) return;
+      const x = -110 - 50 * Math.min(i, 2);
+      spring(el, (p) => ({ translate: `${x * (1 - p)}px ${-40 * (1 - p)}px`, rotate: `${-10 * (1 - p)}deg`, opacity: String(Math.min(1, p * 3)) }), SPRING.deal, { delay: 70 * nth++ });
+    });
+    was.current = cards;
+  });
+  return ref;
+}
+
+function RunCards({ cards, isTarget, onTap }: { cards: (Card | null)[]; isTarget: (i: number) => boolean; onTap: (i: number, filled: boolean) => void }) {
+  const ref = useDeal(cards);
+  return <div ref={ref} className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>{cards.map((c, i) => <PlayingCard key={i} card={c} target={isTarget(i)} onClick={() => onTap(i, !!c)} />)}</div>;
+}
+
 function BoardRow({ board, to, lockedBefore, compact, isTarget, onTap }: {
   board: (Card | null)[]; to: number; lockedBefore: number; compact?: boolean; isTarget: (i: number) => boolean; onTap: (i: number, filled: boolean) => void;
 }) {
+  const ref = useDeal(board.slice(0, to));
   return (
-    <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
+    <div ref={ref} className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
       {Array.from({ length: to }, (_, i) => {
         const c = board[i];
         if (i < lockedBefore) return <PlayingCard key={i} card={c} size="sm" />;
@@ -864,13 +889,29 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   const spentBefore = (p: ID) => STREETS.slice(0, STREETS.indexOf(street)).reduce((a, x) => a + (log.streets[x]?.bets[p] ?? 0), 0);
   const tag = (p: ID) => (p === log.button && bl[p] !== undefined ? 'BTN, SB' : p === log.button ? 'BTN' : bl[p] !== undefined ? (p === sbSeat ? 'SB' : 'BB') : '');
   const s = replay.street;
+  // a box that takes a real action pops. Opening a street pops nothing.
+  const table = useRef<HTMLDivElement>(null);
+  const marks = useRef<{ street: string; box: Record<string, string> }>({ street: '', box: {} });
+  useLayoutEffect(() => {
+    const boxes = table.current?.querySelectorAll<HTMLElement>('button.felt-box');
+    if (!boxes) return;
+    const next: Record<string, string> = {};
+    const same = marks.current.street === street;
+    boxes.forEach((b) => {
+      const id = b.getAttribute('aria-label')?.split(':')[0] ?? '';
+      const v = b.classList.contains('is-empty') || b.classList.contains('is-default') ? '' : b.getAttribute('aria-label') ?? '';
+      next[id] = v;
+      if (same && v && marks.current.box[id] !== v && !calm()) spring(b, (p) => ({ scale: String(0.88 + 0.12 * p) }), SPRING.fill);
+    });
+    marks.current = { street, box: next };
+  });
   // keep the newest column in view
   useLayoutEffect(() => {
     const el = scroller.current;
     if (el) { el.scrollLeft = el.scrollWidth; setScrolled(el.scrollLeft > 4); }
   }, [replay.cols, street]);
   return (
-    <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+    <div ref={table} className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
       <div className="felt-acts-wrap">
         {/* the titles stay still; the column numbers scroll with their boxes and cut off at the names */}
         <div className="felt-acts-titles">
@@ -1012,9 +1053,7 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
                 <div key={r} className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
                   <span className="sat-caption" style={{ width: 44 }}>Run {r + 1}</span>
                   {commonCards(log.runFrom ?? 0).map((c) => <PlayingCard key={c} card={c} size="sm" />)}
-                  {Array.from({ length: 5 - (log.runFrom ?? 0) }, (_, i) => (
-                    <PlayingCard key={i} card={st.runSlots[r]?.[i] ?? null} target={isTarget({ kind: 'run', r, i })} onClick={() => tapSlot({ kind: 'run', r, i }, !!st.runSlots[r]?.[i])} />
-                  ))}
+                  <RunCards cards={Array.from({ length: 5 - (log.runFrom ?? 0) }, (_, i) => st.runSlots[r]?.[i] ?? null)} isTarget={(i) => isTarget({ kind: 'run', r, i })} onTap={(i, f) => tapSlot({ kind: 'run', r, i }, f)} />
                 </div>
               ))}
             </div>

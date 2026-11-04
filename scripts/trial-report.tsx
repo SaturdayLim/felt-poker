@@ -347,7 +347,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         <FeltTable m={m} seats={(['BTN', 'SB', 'BB', 'UTG'] as Pos[]).map((k) => ({ id: k, label: k, value: p.byPos[k], sub: `${p.byPosN[k]}` }))} />
       </Section>
 
-      {p.leftOut > 0 && <p className="sat-small sat-muted">{p.leftOut} {p.leftOut === 1 ? 'hand' : 'hands'} left out (cards clash).</p>}
+      {p.mine.some((h) => h.clash) && <p className="sat-small" style={{ color: 'var(--sat-neg)' }}>Check your cards for hand {p.mine.filter((h) => h.clash).map((h) => h.n).join(', ')}. They match another entry or the table. Felt counts them as you entered them.</p>}
       {p.mine.length > 0 && (
         <Section title={`Your Cards (${p.mine.length})`} tip={['Your own record of your cards, apart from the cards shown at the table.', 'Only you see these, with your player code.', 'Shown = also shown at the table.']}>
           <div className="sat-glass-2 felt-list">

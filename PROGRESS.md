@@ -1,6 +1,10 @@
 # Felt: progress
 
-## Latest (4 Nov 2026): 1.2.5
+## Latest (4 Nov 2026): 1.2.6
+- Motion picks applied: docs/MOTION-LIST.md, played by src/lib/motion.ts (no library). installPresses classes every button in one listener. A press can set data-press.
+- Clash: clashHands travels inside each player's ident box (locked with their code), so no database rule change. Join shows the pop-up. Report page shows a line. Stats follow what each player entered.
+
+## Earlier (4 Nov 2026): 1.2.5
 - Hands never block: `used` in HandRecorder holds only board and run cards. Felt flags a card entered twice at the showdown. Read from the note "entering a hand shouldn't exclude it"; confirm with the owner if a different meaning shows up.
 - Splash: app/index.html sends a launch with no route to the root once per session (`felt-splashed` in sessionStorage).
 - Haptics: `src/lib/haptics.ts`. navigator.vibrate on Android; the switch-input tick on iOS 18+. Not tried on a real iPhone. A tick fired from a timer may need a user gesture there.

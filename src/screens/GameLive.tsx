@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go } from '../router';
 import { useDragList } from '../components/dragList';
-import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane } from '../components/ui';
+import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton } from '../components/ui';
+import { shrinkAway } from '../lib/motion';
 import { SeatPicker, titleCase, CodeControl } from '../components/players';
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
@@ -307,12 +308,12 @@ function HandList({ g, name, closed }: { g: Game; name: (id: ID) => string; clos
   return (
     <div className="sat-glass-2 felt-list">
       {rows.map((row) => row.k === 'move' ? (
-        <MoveRow key={row.m.id} m={row.m} name={name} onRemove={closed ? undefined : () => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); }} />
+        <MoveRow key={row.m.id} m={row.m} name={name} onRemove={closed ? undefined : (e) => shrinkAway(e.currentTarget.closest('.felt-move'), () => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); })} />
       ) : (() => { const h = row.h; return h.missed ? (
         <div key={h.id} className="felt-hand felt-hand--missed">
           <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
             <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}><span className="sat-mono sat-small sat-muted">{h.n}</span><span className="sat-muted">Missed hand</span></span>
-            {!closed && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { st.deleteHand(g.id, h.id); toast(`Hand ${h.n} removed`); }}>Remove</button>}
+            {!closed && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={(e) => shrinkAway(e.currentTarget.closest('.felt-hand'), () => { st.deleteHand(g.id, h.id); toast(`Hand ${h.n} removed`); })}>Remove</button>}
           </div>
         </div>
       ) : (
@@ -347,7 +348,7 @@ const MOVE_KIND: { k: ChipMove['kind']; label: string }[] = [
 ];
 
 /** A chip move in the hand list: a dashed row between hands, so it never reads as a hand. */
-function MoveRow({ m, name, onRemove }: { m: ChipMove; name: (id: ID) => string; onRemove?: () => void }) {
+function MoveRow({ m, name, onRemove }: { m: ChipMove; name: (id: ID) => string; onRemove?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   const kind = MOVE_KIND.find((k) => k.k === m.kind)?.label ?? 'Other';
   return (
     <div className="felt-move">
@@ -411,7 +412,7 @@ function MoveSheet({ g, name, onClose }: { g: Game; name: (id: ID) => string; on
         <label htmlFor="mv-note">Note</label>
         <input id="mv-note" className="sat-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional, for example High card side bet" />
       </div>
-      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!ok} onClick={save}>Save move</button>
+      <WordButton word="Saved" ready={ok} className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!ok} run={save}>Save move</WordButton>
     </Sheet>
   );
 }
@@ -439,7 +440,7 @@ function AmountSheet({ g, title, label, tip, hint, initial, isMoney, cta = 'Add'
           })}
         </div>
       )}
-      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={bad} onClick={() => !bad && onSave(n!)}>{cta}</button>
+      <WordButton word="Saved" ready={!bad} className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={bad} run={() => { if (!bad) onSave(n!); }}>{cta}</WordButton>
     </Sheet>
   );
 }
@@ -461,7 +462,7 @@ function BuyInsSheet({ g, pid, name, onClose }: { g: Game; pid: ID; name: string
           <div key={b.id} className="felt-row" style={{ minHeight: 48, padding: '4px 0' }}>
             <span className="felt-grow sat-num">{isCash ? `${units(b.amount)} chips` : money(b.amount, g.currency)}</span>
             <span className="sat-small sat-muted sat-mono">{timeLabel(b.at)}</span>
-            {g.status === 'live' && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => st.removeBuyIn(g.id, b.id)} aria-label={`Remove buy-in at ${timeLabel(b.at)}`}><Icon name="trash" /></button>}
+            {g.status === 'live' && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={(e) => shrinkAway(e.currentTarget.closest('.felt-row'), () => st.removeBuyIn(g.id, b.id))} aria-label={`Remove buy-in at ${timeLabel(b.at)}`}><Icon name="trash" /></button>}
           </div>
         ))}
       </div>
@@ -552,7 +553,7 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
         <RulesFields rules={rules} onChange={setRules} players={g.playerIds.length} idPrefix="eg" />
       </section>
       <div className="sat-field"><label htmlFor="eg-x">Notes</label><textarea id="eg-x" className="sat-input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-      <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => {
+      <WordButton word="Saved" className="sat-btn sat-btn--primary sat-btn--block" run={() => {
         st.updateGame(g.id, (x) => {
           x.name = nm.trim() || x.name;
           x.notes = notes;
@@ -562,9 +563,8 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
           if (s && b && b >= s) { x.sb = s; x.bb = b; }
           if (x.type === 'cash') { x.unitValue = num(uv) ?? x.unitValue; x.defaultBuyIn = num(bi) ?? x.defaultBuyIn; }
         });
-        toast('Game settings saved');
         onClose();
-      }}>Save settings</button>
+      }}>Save settings</WordButton>
       <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }} onClick={() => {
         withUndo(`${g.name} deleted.`, () => st.deleteGame(g.id));
         onClose();

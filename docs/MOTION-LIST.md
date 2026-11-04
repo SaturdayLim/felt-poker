@@ -1,43 +1,35 @@
 # Motion List
 
-What Claude needs from the owner to tune motion in Felt. For each row, send one example: a screen recording, a link, or an app name and where to look. Say what you like about it, for example the speed or the bounce.
-
-Every row states what Felt does now. Numbers are in milliseconds.
+The motion in Felt, as the owner picked it on 4 Nov 2026 from live samples. `src/lib/motion.ts` plays it. Numbers are in milliseconds.
 
 ## A. Elements
 
-| # | Element | Felt now | Example needed |
+| # | Element | Pick | Values |
 |---|---|---|---|
-| A1 | Tab highlight (bottom bar, stage tabs) | Slides, 280, iOS drawer curve | A tab highlight that feels smooth |
-| A2 | Screen change between tabs | Old and new slide together, 280 | A tab change with screens sliding |
-| A3 | Log hand into the hand page | Button grows into the page, 300 | A button that grows into a page |
-| A4 | Sheet opening and closing | Up 320, down 240, backdrop fades | A bottom sheet, including the drag |
-| A5 | Keypad and card picker | Pushes up 240, slides down 240 | A custom keypad or picker |
-| A6 | Pop-up over the page (QR code) | Grows 280, slides down 240 | A pop-up with a tap outside |
-| A7 | Info tip | Appears at once | A small tip or tooltip |
-| A8 | Toast with Undo | Kit default | A toast that leaves well |
-| A9 | Drag to reorder | Lift, rows slide aside, slot, settle 200 | A list you like to reorder |
-| A10 | Action box filling in | Colour change, fast | A form or grid that fills in well |
-| A11 | Cards dealt onto the board | Size change only | A card game with good dealing |
-| A12 | Live button | Keycap presses in, colour and glow, 240 | A glowing or physical button |
+| A1 | Tab highlight | Springy | spring 320, bounce 0.3 |
+| A2 | Screen change | iOS push | new slides over, old drifts 28% and dims, 320 |
+| A3 | Log hand into the hand page | Spring grow | spring 350, bounce 0.08 |
+| A4 | Sheet | Heavy, no bounce | up spring 500, down spring 360, bounce 0 |
+| A5 | Keypad and card picker | Spring | spring 280, bounce 0.1 |
+| A6 | QR pop-up | From the icon | spring 300, bounce 0.15, fades on close 220 |
+| A7 | Info tip | Quick fade | 95% to full, 150, from the i. Close 120 |
+| A8 | Toast with Undo | Rises, falls | spring 300, bounce 0.15. Falls 220 |
+| A9 | Drag to reorder | Bouncy settle | lift 1.05, spring 300, bounce 0.3 |
+| A10 | Action box filling in | Small pop | 88% to full, spring 220, bounce 0.45 |
+| A11 | Cards on the board | Dealt from the left | spring 420, bounce 0.14, 70 apart, small turn |
+| A12 | Live button | Pressed in | down 70, spring 240, bounce 0.35 |
 
 ## B. Button presses, by what the press does
 
-| # | Class | Output | Buttons in Felt | Feedback now | Example needed |
-|---|---|---|---|---|---|
-| B1 | Log | Records one action and moves on | C, F, All-in, digits, Bet, card in the picker | Scale 0.97, next box selected | A very fast repeat press |
-| B2 | Commit | Saves something and ends a step | Save hand, Save and next, Confirm, Save count | Scale 0.97, toast | A satisfying save or confirm |
-| B3 | Go forward | Opens the next stage or page | Flop, Turn, Showdown, Log hand, Full stats | Scale 0.97, page change | A press that leads into a new page |
-| B4 | Go back or dismiss | Closes or returns | Back, Close, Done, Cancel | Scale 0.97, panel leaves | A close press |
-| B5 | Select | Picks one option and stays on the page | Tabs, segments, Dealt in chips, Button chips | Highlight slides, or colour | A chip or segment press |
-| B6 | Toggle | Turns a state on or off | Switches, Live switch, Dark, Muck, Pay bounty, eye icons | Colour change | A toggle with weight |
-| B7 | Open a pop-up | Shows a layer, nothing changes | Info tip, QR, card button, player row | Scale 0.94 on the card button | A press that opens a layer |
-| B8 | Hold to confirm | Cannot be undone | Replace code, hold a name | Phone pulses for 1200, double pulse at the end. No ring. | A hold-to-confirm you trust |
-| B9 | Remove | Deletes, with Undo | Delete hand, Clear the action | Scale 0.97, toast with Undo | A delete with Undo |
-| B10 | Copy or send | Puts data outside Felt | Copy link, Copy hand, Send to host, Download | Toast only | A copy press with a good tick |
-
-## How to send
-
-1. Pick the rows you care about most. Start with 3.
-2. Send the example and the row number, for example "A4: Apple Maps sheet".
-3. Rows with no example keep the current motion.
+| # | Class | Buttons | Pick | Values |
+|---|---|---|---|---|
+| B1 | Log | C, F, All-in, digits, Bet, card in the picker | Firm | scale 0.93, spring back 160 |
+| B2 | Commit | Save hand, Save and next, Confirm, Save count | Word changes | Saved, scale 0.96 |
+| B3 | Go forward | Flop, Turn, Showdown, Log hand, Full stats | Ripple | scale 0.97, ripple |
+| B4 | Go back or dismiss | Back, Close, Done, Cancel | Ripple | scale 0.98, ripple |
+| B5 | Select | Tabs, segments, chips | Clear pop | 86% to full, spring 240, bounce 0.4 |
+| B6 | Toggle | Switches, Live button, Dark, Muck, eye icons | With weight | down 3 px, spring 240, bounce 0.35 |
+| B7 | Open a pop-up | QR, card button, player row, hand row | Ripple | scale 0.96, ripple |
+| B8 | Hold to confirm | Replace code | Speeds up | pulses at 0, 500, 850, 1050, strong pulse at 1200 |
+| B9 | Remove | Chip move, missed hand, buy-in | Shrinks away | 90% and fade, spring 300, bounce 0.12, rows close up |
+| B10 | Copy or send | Copy link, Send to host | Word changes | Copied, Sent. Icon-only copy keeps its toast |

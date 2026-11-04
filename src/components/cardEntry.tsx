@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { cardText } from '../lib/cards';
 import type { Card, ID } from '../types';
-import { CardBack, CardPair, CardPickerGrid, Caption, Cards, PlayingCard, Sheet, SlidePane, toast } from './ui';
+import { CardBack, CardPair, CardPickerGrid, Caption, Cards, PlayingCard, Sheet, SlidePane, toast, WordButton } from './ui';
 
 /** Write-only entry of a player's hole cards for one hand. The sheet never shows cards that were saved before:
     two face-down cards show that cards are filled, two outlined slots show none. Cards already shown at the table
@@ -54,7 +54,7 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
           <div className="sat-stack">
             <div className="felt-cards" style={{ justifyContent: 'center' }}>{cards.map((c) => <PlayingCard key={c} card={c} size="lg" />)}</div>
             <p style={{ textAlign: 'center' }}>You selected {cardText(cards[0])} and {cardText(cards[1])}. Confirm submission?</p>
-            <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" onClick={confirm}>Confirm</button>
+            <WordButton word="Saved" className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" run={confirm}>Confirm</WordButton>
             <button className="sat-btn sat-btn--block" onClick={() => { setCards([]); setAsk(false); }}>Change</button>
           </div>
         ) : (

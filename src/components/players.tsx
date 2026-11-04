@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
-import { Help, HoldButton, Icon, Sheet, toast } from './ui';
+import { Help, HoldButton, Icon, Sheet, toast, WordButton } from './ui';
 import { showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary } from '../lib/stats';
@@ -175,7 +175,6 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
     if (!n) { toast('Enter a name (e.g. Keven).'); return; }
     if (st.players.some((x) => x.id !== p.id && x.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already saved. Use a different name.`); return; }
     st.renamePlayer(p.id, n);
-    toast('Name saved');
     onClose();
   };
   return (
@@ -184,7 +183,7 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
         <label htmlFor="pe-name">Name</label>
         <input id="pe-name" className="sat-input" value={nm} autoCapitalize="words" onChange={(e) => setNm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
       </div>
-      <button className="sat-btn sat-btn--primary sat-btn--block" onClick={save}>Save name</button>
+      <WordButton word="Saved" ready={!!titleCase(nm)} className="sat-btn sat-btn--primary sat-btn--block" run={save}>Save name</WordButton>
       {inGames ? (
         <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
           <button className="sat-btn sat-btn--block" onClick={() => { st.setPlayerArchived(p.id, !p.archived); toast(p.archived ? `${p.name} restored to the list` : `${p.name} removed from the list`); onClose(); }}>

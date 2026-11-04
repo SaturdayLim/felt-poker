@@ -1,5 +1,6 @@
 /* The host side of the live link: opens a room for a game, keeps it up to date, takes in the cards that players
    enter and the flags they send, and deletes the room when sharing stops. Runs on the host phone only. */
+import { clashHands } from '../lib/clash';
 import type { Card, Game, ID } from '../types';
 import { useStore } from '../store';
 import { toast } from '../components/ui';
@@ -67,13 +68,15 @@ export function liveStatus(gameId: ID) {
 
 const handCount = (g: Game) => g.hands.filter((h) => !h.missed && h.log).length;
 
-/** One identity box per player: it holds the name and proves a code. Rebuilt only when the code or name changed. */
+/** One identity box per player: it holds the name, proves a code, and tells that player alone which hands to check.
+    Rebuilt only when one of these changed. */
 async function syncIdent(s: Session, g: Game) {
   const players = useStore.getState().players.filter((p) => g.playerIds.includes(p.id));
   for (const p of players) {
-    const stamp = `${p.code}:${p.name}`;
+    const clash = clashHands(g, p.id);
+    const stamp = `${p.code}:${p.name}:${clash.join()}`;
     if (!p.code || s.identCodes[p.id] === stamp) continue;
-    const box = await lock({ id: p.id, name: p.name }, p.code);
+    const box = await lock({ id: p.id, name: p.name, clash }, p.code);
     await s.driver.set(s.room, `ident/${p.id}`, box);
     s.identCodes[p.id] = stamp;
   }

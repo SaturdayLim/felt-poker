@@ -5,7 +5,7 @@ import { haptic } from '../lib/haptics';
    starts on a grip scrolls the page. While dragging, the row follows the finger, the others slide aside, and a
    slot marks where the row will land. The new order saves after the row settles into the slot. */
 
-const HOLD_MS = 280, SETTLE_MS = 200, SLOP = 8;
+const HOLD_MS = 280, SETTLE_MS = 450, SLOP = 8;
 
 interface Drag<T> { id: T; from: number; to: number; dy: number; settling: boolean }
 
@@ -83,7 +83,7 @@ export function useDragList<T>(ids: T[], onDrop: (order: T[]) => void) {
   /** Style and class for one row. */
   const row = (id: T): { style?: CSSProperties; className: string; 'data-drag-row': true } => {
     if (!d) return { className: '', 'data-drag-row': true };
-    if (id === d.id) return { className: `is-dragging ${d.settling ? 'is-settling' : ''}`, style: { transform: `translateY(${d.dy}px)${d.settling ? '' : ' scale(1.02)'}` }, 'data-drag-row': true };
+    if (id === d.id) return { className: `is-dragging ${d.settling ? 'is-settling' : ''}`, style: { transform: `translateY(${d.dy}px)${d.settling ? '' : ' scale(1.05)'}` }, 'data-drag-row': true };
     const i = ids.indexOf(id);
     const gap = rows.current.length > 1 ? rows.current[1].top - rows.current[0].top - rows.current[0].h : 0;
     const step = rows.current[d.from].h + gap;

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Caption, Empty, Header, Help, Icon, toast, TabPill } from '../components/ui';
+import { Caption, Empty, Header, Help, Icon, toast, TabPill, WordButton } from '../components/ui';
 import { renderReport, type Tier } from '../report/reports';
 import { loadReportFonts, type ReportTheme } from '../report/canvas';
 import { handsCsv, ledgerCsv, playersCsv, slug } from '../report/csv';
@@ -145,7 +145,7 @@ export default function Report({ gameId }: { gameId: string }) {
           <div className="sat-flat sat-card sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
             <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><b>Report link</b><Help k="reportLink" /></span>
             <p className="sat-small sat-mono" style={{ wordBreak: 'break-all' }}>{linkMade}</p>
-            <button className="sat-btn sat-btn--sm" onClick={() => navigator.clipboard?.writeText(linkMade).then(() => toast('Link copied.'), () => toast('Copy was blocked. Select the link and copy it.'))}><Icon name="copy" size={16} /> Copy link</button>
+            <WordButton word="Copied" instant className="sat-btn sat-btn--sm" run={() => { navigator.clipboard?.writeText(linkMade).catch(() => toast('Copy was blocked. Select the link and copy it.')); }}><Icon name="copy" size={16} /> Copy link</WordButton>
           </div>
         )}
 

@@ -63,7 +63,8 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A name in the recorder needs a press and hold to enter shown cards. A tap does nothing. Run cards stop blocking the picker when the hand goes back to a street.
 - Pop-ups never cover the field being filled: the keypad and picker scroll it clear, and the keyboard pushes sheets up.
 - Every panel from the bottom opens and closes with a slide; a swipe down or a tap outside closes it.
-- Replacing a player code: press and hold until the ring fills. A tap only says so.
+- Motion is set in `docs/MOTION-LIST.md`, and `src/lib/motion.ts` plays it. Springs use visual duration and bounce. Every button press follows its class.
+- Private cards that match another entry or the table are flagged to that player alone: a pop-up when connected, a line in the cards list, and a line on their report page. Until changed, each entry counts as entered, even if impossible. Half a pair is left out of all analysis.
 - Player view: the card button signs in. Sign out sits in its sheet.
 - Partly recorded follows the log: filling in every skipped box makes the hand whole again.
 - Keypad open: everything else is greyed out; a tap outside only closes the keypad. Scrolling leaves it open.

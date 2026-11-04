@@ -1,8 +1,9 @@
-import { Component, createRef, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { Component, createRef, useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
+import { DRAWER, SPRING, calm, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
@@ -157,12 +158,9 @@ export function TabPill() {
   return <span ref={ref} className="felt-pill" aria-hidden="true" />;
 }
 
-const calm = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-const DRAWER = 'cubic-bezier(0.32, 0.72, 0, 1)';
-const SLIDE_MS = 280;
+const SLIDE_MS = 320;
 
-/** Slides its content sideways when `k` changes: a copy of the old screen leaves on one side, the new screen comes
-    in from the other, in time with the tab highlight. `i` gives the direction; a negative `i` means no slide.
+/** An iOS push when `k` changes: the new screen slides in over a copy of the old one, which drifts 28% the other way and dims. `i` gives the direction; a negative `i` means no slide.
     This needs no browser feature, so it runs the same on every phone Felt supports. */
 export class SlidePane extends Component<{ k: string; i: number; children: ReactNode }> {
   el = createRef<HTMLDivElement>();
@@ -175,7 +173,7 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     const el = this.el.current;
     if (!snap || !el) return;
     const { copy, r } = snap;
-    const by = (this.props.i > prev.i ? 1 : -1) * (r.width + 24);
+    const by = (this.props.i > prev.i ? 1 : -1) * r.width;
     copy.classList.add('felt-slide-out');
     copy.setAttribute('aria-hidden', 'true');
     copy.inert = true;
@@ -184,10 +182,13 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     copy.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => { if (r.top < 0) h.style.transform = `translateY(${-r.top}px)`; });
     (el.closest('dialog') ?? document.body).append(copy);
     const t = { duration: SLIDE_MS, easing: DRAWER };
-    const out = copy.animate({ transform: ['translateX(0)', `translateX(${-by}px)`] }, t);
+    const out = copy.animate({ translate: ['0 0', `${-by * 0.28}px 0`], opacity: [1, 0.3] }, t);
     out.onfinish = out.oncancel = () => copy.remove();
     // a hidden tab holds back the finish event
     window.setTimeout(() => copy.remove(), SLIDE_MS + 100);
+    el.classList.add('felt-slide-in');
+    const over = () => el.classList.remove('felt-slide-in');
+    window.setTimeout(over, SLIDE_MS);
     el.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t);
   }
   render() { return <div ref={this.el} className="felt-slide">{this.props.children}</div>; }
@@ -209,9 +210,10 @@ export class DockPanel extends Component<{ k: string; children: ReactNode }> {
     copy.inert = true;
     copy.style.cssText = `position:fixed;top:${r.top}px;left:${r.left}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:44;pointer-events:none`;
     host.append(copy);
-    const a = copy.animate({ transform: ['translateY(0)', `translateY(${window.innerHeight - r.top}px)`] }, { duration: 240, easing: DRAWER });
-    a.onfinish = a.oncancel = () => copy.remove();
-    window.setTimeout(() => copy.remove(), 340);
+    const by = window.innerHeight - r.top;
+    const a = spring(copy, (p) => ({ translate: `0 ${by * p}px` }), SPRING.dock, { fill: 'forwards', near: 0.02 });
+    if (a) a.onfinish = a.oncancel = () => copy.remove();
+    window.setTimeout(() => copy.remove(), springCurve(SPRING.dock, 16, 0.02).ms + 100);
   }
   render() { return this.props.k ? <div ref={this.el} className="felt-dock-panel">{this.props.children}</div> : null; }
 }
@@ -257,7 +259,7 @@ export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, o
       window.addEventListener('click', stop, { capture: true, once: true });
       window.setTimeout(() => window.removeEventListener('click', stop, true), 350);
       if (dy > 90 || (dy > 24 && speed > 0.6)) { close.current(); if (el.tagName !== 'DIALOG') el.style.translate = ''; return; }
-      el.animate?.({ translate: [`0 ${dy}px`, '0 0'] }, { duration: 240, easing: DRAWER });
+      spring(el, (p) => ({ translate: `0 ${dy * (1 - p)}px` }), SPRING.sheetDown);
       el.style.translate = '';
     };
     const cancel = () => { s = null; el.style.translate = ''; };
@@ -275,30 +277,52 @@ export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, o
   }, [ref, on]);
 }
 
+/** A button whose word changes for a moment to confirm the press: Saved, Copied, Sent. A commit runs just after the
+    word shows, so it can be read before the page moves on. With `instant` it runs first. If not `ready`, it runs at
+    once with no word: `run` then says what is missing. */
+export function WordButton({ word, run, ready = true, instant, children, ...rest }: { word: string; run: () => void; ready?: boolean; instant?: boolean } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'>) {
+  const [said, setSaid] = useState(false);
+  const busy = useRef(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  const click = () => {
+    if (!ready || calm()) { run(); return; }
+    if (busy.current) return;
+    busy.current = true;
+    if (instant) run();
+    setSaid(true);
+    if (ref.current) spring(ref.current, (p) => ({ opacity: String(0.2 + 0.8 * Math.min(p, 1)), scale: String(0.94 + 0.06 * p) }), SPRING.log);
+    if (!instant) window.setTimeout(run, 360);
+    window.setTimeout(() => { busy.current = false; setSaid(false); }, 900);
+  };
+  return <button type="button" data-press="commit" {...rest} ref={ref} onClick={click}>{said ? word : children}</button>;
+}
+
+/** When the pulses come during a hold: closer and closer, so the finish can be felt coming. */
+const HOLD_PULSES = [0, 500, 850, 1050];
+
 /** A button for an action that cannot be undone. The thumb covers the button, so the feedback is felt, not seen:
-    the phone pulses while the press lasts, then gives a double pulse when the action runs. A short tap only says so. */
+    the phone pulses faster while the press lasts, then gives a strong pulse when the action runs. A short tap only says so. */
 export function HoldButton({ ms = 1200, label, hint, onDone, children }: { ms?: number; label: string; hint: string; onDone: () => void; children: ReactNode }) {
   const [holding, setHolding] = useState(false);
   const timer = useRef<number | undefined>(undefined);
-  const pulses = useRef<number | undefined>(undefined);
+  const pulses = useRef<number[]>([]);
   const at = useRef(0);
   const release = (tap: boolean) => {
     window.clearTimeout(timer.current);
-    window.clearInterval(pulses.current);
+    pulses.current.forEach(window.clearTimeout);
     if (!at.current) return;
     if (tap && Date.now() - at.current < 350) toast(hint);
     at.current = 0;
     setHolding(false);
   };
-  useEffect(() => () => { window.clearTimeout(timer.current); window.clearInterval(pulses.current); }, []);
+  useEffect(() => () => { window.clearTimeout(timer.current); pulses.current.forEach(window.clearTimeout); }, []);
   return (
     <button type="button" className={`sat-btn sat-btn--ghost sat-iconbtn felt-hold ${holding ? 'is-holding' : ''}`} aria-label={label}
       onPointerDown={() => {
         at.current = Date.now();
         setHolding(true);
-        haptic(8);
-        pulses.current = window.setInterval(() => haptic(8), 300);
-        timer.current = window.setTimeout(() => { window.clearInterval(pulses.current); at.current = 0; setHolding(false); haptic([20, 60, 40]); onDone(); }, ms);
+        pulses.current = HOLD_PULSES.map((t) => window.setTimeout(() => haptic(8), t));
+        timer.current = window.setTimeout(() => { at.current = 0; setHolding(false); haptic(40); onDone(); }, ms);
       }}
       onPointerUp={() => release(true)} onPointerLeave={() => release(false)} onPointerCancel={() => release(false)}
       onContextMenu={(e) => e.preventDefault()}
@@ -318,7 +342,7 @@ export function useDockPush() {
     if (!el) return;
     const now = el.offsetHeight, d = now - last.current;
     if (last.current && d && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      el.animate?.({ translate: [`0 ${d}px`, '0 0'] }, { duration: 240, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
+      spring(el, (p) => ({ translate: `0 ${d * (1 - p)}px` }), SPRING.dock);
     }
     last.current = now;
     // the page keeps room for the dock, so the last row can scroll clear of it
@@ -345,9 +369,13 @@ export function Sheet({ open, onClose, title, sub, children }: {
     if (leaving.current) return;
     if (!d?.animate || calm()) { closing.current(); return; }
     leaving.current = true;
-    fadeBackdrop(d, 1, 0, 240);
-    d.animate(phone() ? { translate: [d.style.translate || '0 0', '0 100%'] } : { opacity: [1, 0], transform: ['scale(1)', 'scale(.97)'] },
-      { duration: 240, easing: DRAWER, fill: 'forwards' }).onfinish = () => { leaving.current = false; closing.current(); };
+    fadeBackdrop(d, 1, 0, 300);
+    const done = () => { leaving.current = false; closing.current(); };
+    if (phone()) {
+      const from = parseFloat(d.style.translate.split(' ')[1] ?? '') || 0, by = d.offsetHeight + 24 - from;
+      d.style.translate = '';
+      spring(d, (p) => ({ translate: `0 ${from + by * Math.min(p, 1)}px` }), SPRING.sheetDown, { fill: 'forwards', near: 0.02 })!.onfinish = done;
+    } else d.animate({ opacity: [1, 0], transform: ['scale(1)', 'scale(.97)'] }, { duration: 240, easing: DRAWER, fill: 'forwards' }).onfinish = done;
   };
   const dismissRef = useRef(dismiss);
   dismissRef.current = dismiss;
@@ -360,8 +388,9 @@ export function Sheet({ open, onClose, title, sub, children }: {
       // the page behind stays still while the sheet is open
       document.documentElement.classList.add('felt-sheet-open');
       if (d.animate && !calm()) {
-        fadeBackdrop(d, 0, 1, 240);
-        d.animate(phone() ? { translate: ['0 100%', '0 0'] } : { opacity: [0, 1], transform: ['scale(.97)', 'scale(1)'] }, { duration: 320, easing: DRAWER });
+        fadeBackdrop(d, 0, 1, springCurve(SPRING.sheetUp).ms);
+        if (phone()) { const h = d.offsetHeight + 24; spring(d, (p) => ({ translate: `0 ${h * (1 - p)}px` }), SPRING.sheetUp); }
+        else d.animate({ opacity: [0, 1], transform: ['scale(.97)', 'scale(1)'] }, { duration: 320, easing: DRAWER });
       }
     }
     const onCancel = (e: Event) => { e.preventDefault(); dismissRef.current(); };
@@ -411,6 +440,8 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
   const [hover, setHover] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const show = open || hover;
+  // the tip stays mounted a moment after closing, so it can fade
+  const [mounted, setMounted] = useState(false);
   const fine = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
   const place = () => {
     const btn = wrap.current?.getBoundingClientRect();
@@ -426,14 +457,31 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
     setPos(host ? { top: top - host.top, left: left - host.left } : { top, left });
   };
   useLayoutEffect(() => {
-    if (!show) { setPos(null); return; }
+    if (!show) {
+      if (!mounted) return;
+      const el = body.current;
+      if (!el?.animate || calm()) { setMounted(false); setPos(null); return; }
+      el.animate({ opacity: [1, 0], scale: [1, 0.97] }, { duration: 120, easing: 'ease-out', fill: 'forwards' });
+      const t = window.setTimeout(() => { setMounted(false); setPos(null); }, 120);
+      return () => window.clearTimeout(t);
+    }
+    setMounted(true);
     // one tip open at a time
     const close = () => { setOpen(false); setHover(false); };
     if (closeOpenTip && closeOpenTip !== close) closeOpenTip();
     closeOpenTip = close;
-    place();
     return () => { if (closeOpenTip === close) closeOpenTip = null; };
   }, [show]);
+  // once mounted: place it, then fade it in from the i
+  useLayoutEffect(() => {
+    if (!show || !mounted) return;
+    place();
+    const el = body.current, btn = wrap.current?.getBoundingClientRect();
+    if (!el?.animate || !btn || calm()) return;
+    const b = el.getBoundingClientRect();
+    el.style.transformOrigin = `${btn.left + btn.width / 2 - b.left}px ${btn.top < b.top ? 0 : b.height}px`;
+    el.animate({ opacity: [0, 1], scale: [0.95, 1] }, { duration: 150, easing: 'ease-out' });
+  }, [show, mounted]);
   useEffect(() => {
     if (!show) return;
     const onDoc = (e: MouseEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
@@ -448,7 +496,7 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
     <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onMouseEnter={() => fine && setHover(true)} onMouseLeave={() => setHover(false)}>
       <button type="button" className="sat-tip-btn" aria-expanded={open} aria-label={title ? `About ${title.toLowerCase()}` : 'More information'}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>i</button>
-      {show && createPortal(
+      {mounted && createPortal(
         <span ref={(e) => { body.current = e; if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }} {...(hasPopover ? { popover: 'manual' } : {})} className="sat-tip-body felt-tip-float" role="tooltip" style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}>{children}</span>,
         (hasPopover ? null : wrap.current?.closest('dialog')) ?? document.body,
       )}
@@ -590,23 +638,33 @@ export function withUndo(msg: string, run: () => void) {
 
 export function ToastHost() {
   const [t, setT] = useState<{ msg: string; action?: ToastAction } | null>(null);
+  const el2 = useRef<HTMLDivElement | null>(null);
+  // rises with a spring, falls the same way out
+  const leave = () => {
+    const e = el2.current;
+    if (!e?.animate || calm()) { setT(null); return; }
+    e.animate({ translate: ['0 0', '0 60px'], opacity: [1, 0] }, { duration: 220, easing: DRAWER, fill: 'forwards' }).onfinish = () => setT(null);
+  };
   useEffect(() => {
     let timer: number | undefined;
     toastListener = (msg, action) => {
       setT({ msg, action });
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setT(null), action ? 5000 : 2600);
+      timer = window.setTimeout(leave, action ? 5000 : 2600);
     };
     return () => { toastListener = null; };
   }, []);
+  useLayoutEffect(() => {
+    if (t && el2.current && !calm()) spring(el2.current, (p) => ({ translate: `0 ${40 * (1 - p)}px`, opacity: String(Math.min(1, p * 2)) }), SPRING.toast);
+  }, [t]);
   if (!t) return null;
   // An open sheet sits in the top layer and covers everything else. A popover goes in the top layer after it.
   const sheet = hasPopover ? null : [...document.querySelectorAll('dialog[open]')].pop();
   const el = (
     <div className={`felt-toast sat-glass-2 sat-small${sheet ? ' felt-toast--sheet' : ''}`} role="status" {...(hasPopover ? { popover: 'manual' } : {})}
-      ref={(e) => { if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }}>
+      ref={(e) => { el2.current = e; if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }}>
       {t.msg}
-      {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); setT(null); }}>{t.action.label}</button>}
+      {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); leave(); }}>{t.action.label}</button>}
     </div>
   );
   return sheet ? createPortal(el, sheet) : el;

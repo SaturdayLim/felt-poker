@@ -9,7 +9,7 @@ import { bestHand } from '../lib/cards';
 import { playMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
-import { clashingPlayers, privateOf } from '../lib/clash';
+import { clashingPlayers, fullPairs } from '../lib/clash';
 import { playerResult, suggestTransfers } from '../lib/calc';
 
 export type Pos = 'BTN' | 'SB' | 'BB' | 'UTG';
@@ -30,9 +30,8 @@ export interface TrialPlayer {
   sdNet: number; foldNet: number;
   byPos: Record<Pos, number>; byPosN: Record<Pos, number>;
   /** The player's own private cards (recorded apart from the table), with how each hand went. Locked. */
-  /** Hands whose private cards clash with another entry or the table. They are left out of `mine`. */
-  leftOut: number;
-  mine: { n: number; cards: Card[]; rank: string; shownAtTable: boolean; won: boolean; got: number }[];
+  /** A hand with `clash` matches another entry or the table. It still counts as the player entered it. */
+  mine: { n: number; cards: Card[]; rank: string; shownAtTable: boolean; won: boolean; got: number; clash: boolean }[];
   /** Cards shown: chips won (part of the pot when split), or the pot lost. */
   shown: { n: number; cards: Card[]; rank: string; won: boolean; pot: number; got: number; split: boolean }[];
   /** Result against par (chips bought so far) at the start and after each hand; the last point uses the
@@ -93,17 +92,13 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
     const byPosN: Record<Pos, number> = { BTN: 0, SB: 0, BB: 0, UTG: 0 };
     const shown: TrialPlayer['shown'] = [];
     const mine: TrialPlayer['mine'] = [];
-    let leftOut = 0;
     for (const h of hands) {
       const L = h.log!;
       const net = (h.winners.find((w) => w.playerId === p)?.amount ?? 0) + (h.returned?.[p] ?? 0) - (contributions(g, L, L.button)[p] ?? 0);
       const ps = pos(h, p);
       byPos[ps] += net; byPosN[ps]++;
-      const entered = privateOf(h)[p];
-      const clash = entered?.length === 2 && clashingPlayers(h).includes(p);
-      if (clash) leftOut++;
-      const own = clash ? undefined : entered;
-      if (own?.length === 2) mine.push({ n: h.n, cards: own, rank: h.board.length === 5 ? bestHand([...own, ...h.board])?.name ?? '' : '',
+      const own = fullPairs(h)[p];
+      if (own) mine.push({ n: h.n, cards: own, clash: clashingPlayers(h).includes(p), rank: h.board.length === 5 ? bestHand([...own, ...h.board])?.name ?? '' : '',
         shownAtTable: h.shown.some((x) => x.playerId === p), won: h.winners.some((w) => w.playerId === p), got: h.winners.find((w) => w.playerId === p)?.amount ?? 0 });
       const sh = h.shown.find((x) => x.playerId === p);
       if (sh) shown.push({ n: h.n, cards: sh.cards, rank: h.board.length === 5 ? bestHand([...sh.cards, ...h.board])?.name ?? '' : '', won: h.winners.some((w) => w.playerId === p), pot: h.pot, got: h.winners.find((w) => w.playerId === p)?.amount ?? 0, split: h.winners.length > 1 });
@@ -126,7 +121,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
       estimate, off: r.outUnits - estimate, moves, bounty, s,
       vpip: ratio(s.vpip, s.logged) * 100, pfr: ratio(s.pfr, s.logged) * 100, af: st.calls ? st.betsRaises / st.calls : st.betsRaises,
       sdNet: f.winShowdown - f.lossShowdown, foldNet: f.winFold - f.lossFold,
-      byPos, byPosN, shown, mine, leftOut, dev, rebuys, high, highAt: dev.indexOf(high), low, lowAt: dev.indexOf(low), notes: [],
+      byPos, byPosN, shown, mine, dev, rebuys, high, highAt: dev.indexOf(high), low, lowAt: dev.indexOf(low), notes: [],
     };
   });
   const dealtN = Math.round(hands.reduce((a, h) => a + h.log!.dealt.length, 0) / (hands.length || 1));
@@ -295,7 +290,7 @@ function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undef
 export function publicPlayer(p: TrialPlayer): TrialPlayer {
   const zero = { BTN: 0, SB: 0, BB: 0, UTG: 0 };
   return {
-    ...p, notes: [], shown: [], mine: [], leftOut: 0, byPos: { ...zero }, byPosN: { ...zero }, sdNet: 0, foldNet: 0, locked: true,
+    ...p, notes: [], shown: [], mine: [], byPos: { ...zero }, byPosN: { ...zero }, sdNet: 0, foldNet: 0, locked: true,
     s: {
       ...p.s, history: [],
       flow: { winFold: 0, winShowdown: 0, winOther: 0, lossFold: 0, lossShowdown: 0, lossOther: 0 },

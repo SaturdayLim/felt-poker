@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import type { Game } from '../types';
 import { Caption, Help, Icon, toast, useSwipeDown } from './ui';
+import { DRAWER, SPRING, calm, spring } from '../lib/motion';
 import { cancelStop, dismissFlag, liveAvailable, liveStatus, onLiveChange, requestStop, startSharing } from '../live/host';
 
 /** Re-reads the live state of a game whenever it changes. */
@@ -11,8 +12,8 @@ export function useLive(gameId: string) {
   return liveStatus(gameId);
 }
 
-/** The QR of the link, large, in a pop-up that grows out of the QR button. A tap anywhere or a swipe down slides it away. */
-export function QrPopup({ link, onClose }: { link: string; onClose: () => void }) {
+/** The QR of the link, large, in a pop-up that springs out of the QR icon. A tap anywhere or a swipe down fades it away. */
+export function QrPopup({ link, from, onClose }: { link: string; from?: DOMRect; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const leaving = useRef(false);
   const svg = useMemo(() => {
@@ -21,15 +22,24 @@ export function QrPopup({ link, onClose }: { link: string; onClose: () => void }
     q.make();
     return q.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
   }, [link]);
-  useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal(); }, []);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d || d.open) return;
+    d.showModal();
+    if (calm() || !d.animate) return;
+    const r = d.getBoundingClientRect();
+    if (from) d.style.transformOrigin = `${from.left + from.width / 2 - r.left}px ${from.top + from.height / 2 - r.top}px`;
+    spring(d, (p) => ({ scale: String(0.4 + 0.6 * p), opacity: String(Math.min(1, p * 1.6)) }), SPRING.qr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const close = () => {
     const d = ref.current;
     if (leaving.current) return;
-    if (!d?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { onClose(); return; }
+    if (!d?.animate || calm()) { onClose(); return; }
     leaving.current = true;
-    const t = { duration: 240, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' as const };
+    const t = { duration: 220, easing: DRAWER, fill: 'forwards' as const };
     try { d.animate({ opacity: [1, 0] }, { ...t, pseudoElement: '::backdrop' }); } catch { /* an older phone: the backdrop does not fade */ }
-    d.animate({ translate: [d.style.translate || '0 0', '0 100vh'] }, t).onfinish = onClose;
+    d.animate({ opacity: [1, 0], scale: [1, 0.92] }, t).onfinish = onClose;
   };
   useSwipeDown(ref, close);
   return (
@@ -48,7 +58,7 @@ export function LiveRow({ g }: { g: Game }) {
   const setPass = (v: string) => { setPassRaw(v); try { localStorage.setItem(passKey, v); } catch { /* private mode */ } };
   const [see, setSee] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [qrOpen, setQrOpen] = useState(false);
+  const [qrFrom, setQrFrom] = useState<DOMRect | null>(null);
   if (!liveAvailable()) return <div className="sat-flat sat-card sat-small">The live link is not set up in this app yet. See docs/FIREBASE-SETUP.md.</div>;
 
   const start = async () => {
@@ -82,10 +92,10 @@ export function LiveRow({ g }: { g: Game }) {
         <Help k="sharing" />
         <span className="felt-liverow-end">
           <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Copy the link" aria-disabled={!live.on} disabled={!live.on} onClick={copy}><Icon name="link" /></button>
-          <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" aria-disabled={!live.on} disabled={!live.on} onClick={() => setQrOpen(true)}><Icon name="qr" /></button>
+          <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" aria-disabled={!live.on} disabled={!live.on} onClick={(e) => setQrFrom(e.currentTarget.getBoundingClientRect())}><Icon name="qr" /></button>
         </span>
       </div>
-      {qrOpen && live.on && <QrPopup link={live.link} onClose={() => setQrOpen(false)} />}
+      {qrFrom && live.on && <QrPopup link={live.link} from={qrFrom} onClose={() => setQrFrom(null)} />}
       {live.on && live.viewers.length > 0 && (
         <div className="sat-cluster felt-liveviewers" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
           <Caption>Viewing now</Caption>

@@ -2,7 +2,7 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings, no way to read any private cards, including their own. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardBack, CardPair, Cards, Empty, Header, Help, Icon, Sheet, SlidePane, TabPill, toast } from '../components/ui';
+import { CardBack, CardPair, Cards, Empty, Header, Help, Icon, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
 import { StandingChart } from '../components/candle';
@@ -14,7 +14,7 @@ import type { HelpKey } from '../lib/help';
 import type { Card } from '../types';
 
 interface Meta { locked?: boolean; check?: string | null; updatedAt?: number; handCount?: number }
-interface Me { id: string; name: string }
+interface Me { id: string; name: string; clash?: number[] }
 type Tab = 'action' | 'settings' | 'hands' | 'players';
 const TABS: { k: Tab; label: string }[] = [{ k: 'action', label: 'Action' }, { k: 'hands', label: 'Hands' }, { k: 'players', label: 'Players' }, { k: 'settings', label: 'Settings' }];
 
@@ -61,6 +61,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   const [tab, setTab] = useState<Tab>('action');
   const [sheet, setSheet] = useState<null | 'code' | 'cards' | 'flag'>(null);
   const [openHand, setOpenHand] = useState<number | null>(null);
+  const [okHands, setOkHands] = useState<number[]>(() => JSON.parse(ls.get(`felt-clash-ok:${room}`) ?? '[]'));
+  const [cardsHand, setCardsHand] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const entered = useRef<Set<number>>(new Set(JSON.parse(ss.get(`felt-join-entered:${room}`) ?? '[]')));
 
@@ -97,7 +99,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
     if (!code || !Object.keys(ident).length) return;
     if (!me) { tryCode(code); return; }
     const box = ident[me.id];
-    if (box) unlock(box, code).catch(() => {
+    if (box) unlock<Me>(box, code).then(setMe, () => {
       setMe(null); setCode(null); ss.del(`felt-join-code:${room}`);
       toast('Your code changed. Ask the host for the new code.');
     });
@@ -144,6 +146,13 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
     entered.current.add(n);
     ss.set(`felt-join-entered:${room}`, JSON.stringify([...entered.current]));
   };
+  // the host tells this player alone, inside the box only their code opens, which hands to check
+  const toCheck = (me?.clash ?? []).filter((n) => !okHands.includes(n));
+  const keepCards = () => {
+    const next = [...new Set([...okHands.filter((n) => me?.clash?.includes(n)), ...toCheck])];
+    setOkHands(next);
+    ls.set(`felt-clash-ok:${room}`, JSON.stringify(next));
+  };
   const shownHand = openHand !== null ? hands.find((h) => h.n === openHand) : undefined;
 
   if (shownHand) {
@@ -175,8 +184,16 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
       <button type="button" className="felt-fab felt-fab--page" aria-label={me ? 'Add my cards' : 'Sign in with your player code'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
 
+      {!sheet && me && toCheck.length > 0 && (
+        <Sheet open onClose={keepCards} title="Check Your Cards" sub={`Your cards for hand ${toCheck.join(', ')} match another entry or the table.`}>
+          <div className="sat-glass-2 felt-list">
+            {toCheck.map((n) => <button key={n} className="felt-row" onClick={() => { setCardsHand(n); setSheet('cards'); }}><span className="felt-row-main"><span className="felt-row-title">Change hand {n}</span></span><span style={{ display: 'inline-flex', transform: 'rotate(-90deg)' }}><Icon name="chevron" size={18} /></span></button>)}
+          </div>
+          <button className="sat-btn sat-btn--block felt-btn-raised" onClick={keepCards}>Keep my cards</button>
+        </Sheet>
+      )}
       {sheet === 'code' && <CodeSheet onClose={() => setSheet(null)} onSubmit={async (c) => { const ok = await tryCode(c); if (ok) setSheet('cards'); return ok; }} />}
-      {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} onClose={() => setSheet(null)} onSave={sendCards}
+      {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} start={cardsHand} onClose={() => { setSheet(null); setCardsHand(null); }} onSave={sendCards}
         onLeave={() => { setMe(null); setCode(null); ss.del(`felt-join-code:${room}`); setSheet(null); }} />}
       {sheet === 'flag' && <FlagSheet hands={hands} now={now} onClose={() => setSheet(null)}
         onSend={async (n, text) => { await driver.set(room, `flags/${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`, await seal({ n, text }, key!)); toast('Flag sent to the host.'); setSheet(null); }} />}
@@ -390,10 +407,10 @@ function CodeSheet({ onSubmit, onClose }: { onSubmit: (c: string) => Promise<boo
   );
 }
 
-function HandPick({ hands, now, entered, me, onSave, onClose, onLeave }: {
-  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
+function HandPick({ hands, now, entered, me, start, onSave, onClose, onLeave }: {
+  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; start: number | null; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
 }) {
-  const [n, setN] = useState<number | null>(null);
+  const [n, setN] = useState<number | null>(start);
   const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board }] : [];
   const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board }))];
   const h = mine.find((x) => x.n === n);
@@ -410,7 +427,7 @@ function HandPick({ hands, now, entered, me, onSave, onClose, onLeave }: {
         {!mine.length && <div className="felt-row sat-small sat-muted">No hands for you yet.</div>}
         {mine.map((x) => (
           <button key={x.n} className="felt-row" onClick={() => setN(x.n)}>
-            <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span></span>
+            <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span>{me.clash?.includes(x.n) && <span className="felt-row-sub" style={{ color: 'var(--sat-neg)' }}>Check these cards</span>}</span>
             <CardPair filled={entered.has(x.n)} />
           </button>
         ))}
@@ -436,7 +453,7 @@ function FlagSheet({ hands, now, onSend, onClose }: { hands: PubSnapshot['hands'
         <label htmlFor="ft">What looks wrong?</label>
         <input id="ft" className="sat-input" maxLength={160} placeholder="For example: Nat bet 8, not 6" value={text} onChange={(e) => setText(e.target.value)} />
       </div>
-      <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!text.trim()} onClick={() => text.trim() && onSend(n, text.trim())}>Send to host</button>
+      <WordButton word="Sent" ready={!!text.trim()} className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!text.trim()} run={() => { if (text.trim()) onSend(n, text.trim()); }}>Send to host</WordButton>
     </Sheet>
   );
 }

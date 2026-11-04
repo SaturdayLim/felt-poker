@@ -1,5 +1,13 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.6', date: '4 Nov 2026', notes: [
+    'Cards that match another entry or the table are flagged to that player alone: a pop-up when connected, and a line in their cards list and report page.',
+    'Until they change, those cards count as entered. Half a pair is left out of all analysis.',
+    'New motion: tabs spring, screens push like iOS, sheets are heavy with no bounce, the QR grows from its icon, tips fade, toasts rise and fall.',
+    'Cards are dealt from the left. Action boxes pop when filled. Dragged rows lift higher and settle with a bounce.',
+    'Each button press now follows what it does. Save and Copy change their word for a moment. Removed rows shrink away.',
+    'Hold to replace code: the pulses speed up, with a strong pulse at the end.',
+  ] },
   { version: '1.2.5', date: '4 Nov 2026', notes: [
     'A hand no longer takes cards out of play. Only the board and the runs do. Felt flags a card entered twice.',
     'The opening screen plays on every launch, also from an icon saved on the app page.',

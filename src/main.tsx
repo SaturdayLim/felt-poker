@@ -6,6 +6,10 @@ import './saturday/css/tokens.css';
 import './saturday/css/skin-felt.css';
 import './saturday/css/saturday.css';
 import './styles.css';
+import { installMotion, installPresses } from './lib/motion';
+
+installMotion();
+installPresses();
 
 registerSW({ immediate: true });
 // Ask the browser to keep our data even under storage pressure.

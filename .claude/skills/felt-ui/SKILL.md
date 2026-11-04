@@ -23,8 +23,8 @@ description: Felt UI principles. Use when adding or changing any screen, button,
 ## The frame reacts to the press
 
 - If text sits in a frame, the frame reacts. Rows reach the edge of their list, so the light reaches the corners.
-- The press finishes first, then the action runs.
-- A quick press and a slow press look different. `docs/MOTION-LIST.md` has the values.
+- The action runs at once on release. A press never waits for its light.
+- A press has one look, however long it lasts. `docs/MOTION-LIST.md` has the values.
 - Each press gives a haptic tick, fired inside the click.
 
 ## Words on the page
@@ -33,3 +33,20 @@ description: Felt UI principles. Use when adding or changing any screen, button,
 - Check every element against the Unslop list in the global CLAUDE.md. Mark each hit as value-adding, with its job, or remove it.
 - Sentence case labels, with no eyebrow above a heading.
 - Instrument Serif is for the Felt wordmark only.
+
+## Elevation
+
+- Use three shadow depths only, in the whole app. Do not write a new drop shadow.
+- `--felt-elev-1`: resting. Glass panels and live cards.
+- `--felt-elev-2`: raised. Buttons that stand up from a panel, a dragged row, the floating card button.
+- `--felt-elev-3`: overlay. Sheets, info tips, toasts, the QR pop-up.
+- Each depth is stacked soft layers. Each layer doubles the offset and the blur, so the blur is 2 x the y-offset, and each layer has a lower opacity.
+- A live card stands on the table (depth 1). A place for a card is etched into it: a groove and a light lip, no fill, no shadow.
+- Give a frame one border only. Never put an outline with a gap around a border: draw the focus line over the border.
+- State glows (lamps, the live switch) and inset lines (etched slots, wells) are not elevation.
+
+## Panels come out of their button
+
+- A sheet opened by a press pulls out of that button, in its colour, and goes back into it on Close.
+- A swipe down slides the sheet away.
+- A long press exists only where it does something different. Everywhere else a press acts at once.

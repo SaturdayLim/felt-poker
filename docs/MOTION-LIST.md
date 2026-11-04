@@ -8,8 +8,8 @@ The motion in Felt, as the owner picked it on 4 Nov 2026 from live samples. `src
 |---|---|---|---|
 | A1 | Tab highlight | Springy | spring 320, bounce 0.3 |
 | A2 | Screen change | iOS push | new slides in, old drifts 28% and fades out in 130, 320. The screens are see-through, so the old one must go first |
-| A3 | Log hand into the hand page | Spring grow | spring 350, bounce 0.08 |
-| A4 | Sheet | Heavy, no bounce | up spring 500, down spring 360, bounce 0 |
+| A3 | Log hand into the hand page | Steps | Close: the page shrinks into the button (spring 350, bounce 0.08), the button turns blue at 320 (120), the text shows at 500 (140). Open: the text goes (90), the blue goes at 60 (120), the page grows from 160 |
+| A4 | Sheet | Out of its button | opened by a press: clip from the button, spring 350, bounce 0.08, button colour fades in 200 after 90, content at 110. Close goes back into the button. Swipe down: spring 360, bounce 0. With no press: up spring 500 |
 | A5 | Keypad and card picker | Spring | spring 280, bounce 0.1 |
 | A6 | QR pop-up | From the icon | spring 300, bounce 0.15, fades on close 220 |
 | A7 | Info tip | Quick fade | 95% to full, 150, from the i. Close 120 |
@@ -22,8 +22,8 @@ The motion in Felt, as the owner picked it on 4 Nov 2026 from live samples. `src
 ## Presses
 
 The frame reacts: the button, or the list around it when the button is its only row. Rows reach the frame edge.
-A quick press (under 180) rushes the light across the frame, and it clears in 170. A slow press sinks 3% deeper, the light fills the frame while the finger stays down, and it clears in 340.
-Go forward, go back and open wait for the light to fill the frame, then the action runs. Copy, share, download and file buttons run at once, because they need the press itself.
+A press has one look, however long the finger stays down: the frame sinks to its depth in 70 and the light spreads in 260. It clears in 200 when the finger lifts.
+Every action runs at once on release. A long press only does something on controls that say so (hold to replace code, a recorder name).
 
 ## B. Button presses, by what the press does
 

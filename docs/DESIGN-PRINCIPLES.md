@@ -4,12 +4,23 @@ Rules for future builds. `CLAUDE.md` links here.
 
 ## Colour: 60 / 30 / 10
 
-- 60%: ink `#02070A` in dark, `#EEF2F1` in light. Backgrounds and surfaces.
-- 30%: blue `#0297DE` in dark, `#026FA6` in light. Tinted surfaces, active tabs, the background mesh, standard primary buttons.
-- 10%: coral `#FC734D` in dark, `#B8441F` in light. One main action per screen, the next box to fill, the signed-in player, marks.
-- Text on a blue or coral fill: ink in dark, white in light. White on the dark-theme fills fails contrast.
+Picked 4 Nov 2026.
+
+- 60%: ink `#1C1E21` (dark background, light text) and ice `#EBF1F5` (light background, dark text). Backgrounds and surfaces.
+- 30%: blue `#0052CC`. Tinted surfaces, active tabs, the background mesh, standard primary buttons.
+- 10%: orange `#FF5722` in dark, `#E64A19` in light. One main action per screen, the next box to fill, the signed-in player, marks.
+- Subtle: `#E2E8F0` for divider lines, borders and disabled states (at low opacity in dark).
+- Blue text: `#0045B5` in light, to pass contrast. In dark, `#0052CC` text fails on ink (2.5:1), so blue text is `#6BA6FF`.
+- Text on blue: white (6.8:1). Text on orange: ink (5.3:1 in dark, 4.3:1 in light).
 - Losses are not coral. Dark uses `#F7A8B8`, and light uses `#A3342A`.
 - Black suit marks always sit on a white card or chip, never on a dark surface.
+
+## Elevation
+
+- Three depths only, in the whole app: 1 resting (glass, live cards), 2 raised (buttons that stand up, a dragged row, the card button), 3 overlay (sheets, tips, toasts, the QR).
+- Each depth is stacked soft layers. Each layer doubles the offset and the blur (blur = 2 x offset) and has a lower opacity.
+- Use `--felt-elev-1`, `--felt-elev-2`, `--felt-elev-3`. Do not write a new drop shadow.
+- Glows that show a state (lamps, the live switch) and inset lines (etched slots, wells) are not elevation.
 
 ## Phone details
 

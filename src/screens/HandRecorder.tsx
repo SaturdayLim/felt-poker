@@ -746,7 +746,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       </SlidePane>
 
       {askCards && (
-        <CardEntrySheet players={log.dealt} name={name} onClose={() => setAskCards(false)} onSave={savePlayerCards}
+        <CardEntrySheet players={log.dealt} name={name} edge onClose={() => setAskCards(false)} onSave={savePlayerCards}
           entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n)])]}
           revealed={shownCards()}
           blocked={[...used]} />

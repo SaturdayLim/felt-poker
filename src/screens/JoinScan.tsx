@@ -17,6 +17,8 @@ export default function JoinScan() {
   const [text, setText] = useState('');
   const [torch, setTorch] = useState<boolean | null>(null);
   const track = useRef<MediaStreamTrack | null>(null);
+  // each press of Turn on camera asks the phone again
+  const [ask, setAsk] = useState(0);
 
   const open = (t: string) => {
     const r = joinRoute(t);
@@ -29,8 +31,10 @@ export default function JoinScan() {
     let live = true;
     let stream: MediaStream | null = null;
     let timer: number | undefined;
+    setState('wait');
     (async () => {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera');
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         if (!live) { stream.getTracks().forEach((t) => t.stop()); return; }
         const v = video.current!;
@@ -59,7 +63,7 @@ export default function JoinScan() {
     })();
     return () => { live = false; window.clearTimeout(timer); stream?.getTracks().forEach((t) => t.stop()); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ask]);
 
   const paste = async () => {
     try {
@@ -73,16 +77,18 @@ export default function JoinScan() {
   };
 
   return (
-    <div className="felt-scan">
+    <div className={`felt-scan ${state === 'on' ? '' : 'is-off'}`}>
       <video ref={video} className="felt-scan-video" playsInline muted />
       <div className="felt-scan-top sat-glass-2">
         <div className="felt-grow">
           <h1 className="felt-scan-title">Join a game</h1>
-          <small>{state === 'off' ? 'Camera is off. Allow the camera, or paste the link.' : 'Point the camera at the QR on the host phone'}</small>
+          <small>{state === 'off' ? 'Camera is off. Turn on the camera, or paste the link.' : 'Point the camera at the QR on the host phone'}</small>
         </div>
         {torch !== null && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Flashlight" aria-pressed={torch} onClick={flip}><Icon name="bolt" /></button>}
       </div>
-      <div className="felt-scan-frame" aria-hidden="true"><i /><i /><i /><i /></div>
+      {state === 'off' ? (
+        <div className="felt-scan-ask"><button type="button" className="sat-btn sat-btn--lg" onClick={() => setAsk((x) => x + 1)}><Icon name="camera" /> Turn on camera</button></div>
+      ) : <div className="felt-scan-frame" aria-hidden="true"><i /><i /><i /><i /></div>}
       <div className="felt-scan-dock sat-glass-2">
         <div className="felt-scan-paste">
           <input className="sat-input" aria-label="Paste the link" placeholder="Paste the link" value={text} autoComplete="off" autoCapitalize="off" spellCheck={false}

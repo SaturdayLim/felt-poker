@@ -1,5 +1,19 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.2.9', date: '4 Nov 2026', notes: [
+    'New colours: ink, vivid blue, ice and orange. Light mode uses a darker blue for text and a darker orange.',
+    'Card back: a blue S on ink with one ice border. Live cards cast a soft shadow. Empty card places are etched.',
+    'Three shadow depths only, in the whole app.',
+    'A press acts at once. A long press does nothing different, so it looks the same as a tap.',
+    'A sheet opens out of the button you pressed and goes back into it. The orange card button opens an orange-edged sheet.',
+    'Log hand: the page shrinks into the button, then the button turns blue and shows its text.',
+    'Room closed shows Undo with a countdown. Viewers see Room has been closed and a Home button.',
+    'Join a game: with the camera off, the page shows Turn on camera instead of a black screen.',
+    'Viewers type a Password to join a locked game.',
+    'Cards shown at the table cannot be replaced by hidden cards, on the host phone or a player phone.',
+    'Player view: an open eye marks cards shown at the table, a shut eye marks hidden cards logged. Check these cards shows only for hands still to check.',
+    'Repeated header lines are gone from Home, Games and Players.',
+  ] },
   { version: '1.2.8', date: '4 Nov 2026', notes: [
     'Tab highlight and screen slides no longer show 2 boxes at once.',
     'A press now fills its frame with light, then the action runs. A slow press sinks deeper and clears more slowly.',

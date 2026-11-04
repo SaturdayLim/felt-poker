@@ -69,7 +69,7 @@ export function LiveRow({ g }: { g: Game }) {
   };
   const stop = () => {
     requestStop(g.id);
-    toast('Sharing off. The room goes in 5 seconds.', { label: 'Undo', run: () => cancelStop(g.id) });
+    toast('Room closed.', { label: 'Undo', run: () => cancelStop(g.id), countdown: 5 });
   };
   const copy = () => {
     if (!live.on) return;

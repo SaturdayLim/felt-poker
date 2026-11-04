@@ -1,5 +1,15 @@
 # Felt: progress
 
+## Latest (4 Nov 2026): 1.2.9
+- New palette in tokens.json (skins.felt), rebuilt with `node src/saturday/tools/build-tokens.js`; all 180 contrast checks pass. Dark blue text is #6BA6FF because #0052CC on ink is 2.5:1. Text on orange is ink: 4.3:1 on #E64A19 in light, under AA for small text. Ask the owner.
+- Elevation: --felt-elev-1/2/3 only (styles.css). --sat-shadow and --sat-shadow-lg are levels 1 and 2.
+- Card back: ink, ice border, blue S at 20%. Live cards elevation 1; empty slots etched (--felt-etch, --felt-etch-hi).
+- Presses act at once (motion.ts); recentPress() lets Sheet pull out of the pressed button and go back into it.
+- Log hand morph runs in steps: router sets html[data-vt=open|close], CSS times the image pair, old and new.
+- Viewer: Room has been closed + Home; Password; open eye and shut eye in the cards list; ident box now carries `logged` (hands with the player's hidden cards).
+- Check these cards on hand 1: root cause not found. The list now follows toCheck (clash minus Keep my cards). Waiting on the owner for a repro.
+- Checked in Chromium at 393 px, both themes: game page, recorder, card sheet morph, card backs, scanner with camera off, closed room.
+
 ## Latest (4 Nov 2026): 1.2.8
 - Owner confirmed motion plays after Settings, Motion: Reduce Motion was the cause.
 - Double box bug: `.felt-tabs button[aria-selected]` and `.sat-seg > button[aria-checked]` beat the rule that clears the selected button, so a box painted under the moving pill. Fixed with !important.

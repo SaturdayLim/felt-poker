@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { DRAWER, SPRING, calm, spring, springCurve } from '../lib/motion';
+import { DRAWER, SPRING, calm, recentPress, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
@@ -46,6 +46,7 @@ const paths: Record<string, ReactNode> = {
   down: <><path d="M3 7l6 6 4-4 8 8" /><path d="M15 17h6v-6" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18" /><path d="M8 3v4" /><path d="M16 3v4" /></>,
   bolt: <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />,
+  camera: <><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13.5" r="3.5" /></>,
   pause: <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>,
   play: <path d="M7 4v16l13-8L7 4z" />,
   skull: <><path d="M12 3a8 8 0 0 0-8 8c0 2.6 1.3 4.6 3 5.8V20h10v-3.2c1.7-1.2 3-3.2 3-5.8a8 8 0 0 0-8-8z" /><circle cx="9" cy="11.5" r="1.6" /><circle cx="15" cy="11.5" r="1.6" /></>,
@@ -354,10 +355,41 @@ export function useDockPush() {
 }
 
 /** Kit sheet: a modal <dialog>, bottom sheet on phones, centred dialog on wider screens. */
-export function Sheet({ open, onClose, title, sub, children }: {
-  open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode;
+/** A clip part way between two inset() clips with the same shape. */
+function mixClip(a: string, b: string, q: number): string {
+  const na = a.match(/-?[\d.]+/g)!.map(Number), nb = b.match(/-?[\d.]+/g)!.map(Number);
+  const v = na.map((x, i) => x + (nb[i] - x) * q);
+  return `inset(${v[0]}px ${v[1]}px ${v[2]}px ${v[3]}px round ${v[4]}px)`;
+}
+/** A layer in the colour of the button over the sheet, fading in or out. Buttons with no fill leave nothing. */
+function morphFill(d: HTMLElement, b: HTMLElement, opacity: [number, number], delay: number) {
+  const bg = getComputedStyle(b).backgroundColor;
+  if (!bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg)) return;
+  const f = document.createElement('span');
+  f.className = 'felt-sheet-fill';
+  f.style.background = bg;
+  d.append(f);
+  f.animate({ opacity }, { duration: 200, delay, easing: 'ease-out', fill: 'both' }).onfinish = () => { if (opacity[1] === 0) f.remove(); };
+}
+
+/** Where a sheet sits against the button that opened it: the clip that shows only the button, and the shift up
+    when the button sits above the sheet. */
+function clipFrom(d: HTMLElement, b: DOMRect, radius: number) {
+  const r = d.getBoundingClientRect();
+  const dy = Math.min(0, b.top - r.top);
+  const ins = [b.top - r.top - dy, r.right - b.right, r.bottom + dy - b.bottom, b.left - r.left].map((v) => Math.max(0, v));
+  return { dy, clip: `inset(${ins[0]}px ${ins[1]}px ${ins[2]}px ${ins[3]}px round ${radius}px)` };
+}
+const FULL_CLIP = 'inset(0px 0px 0px 0px round 24px)';
+
+/** A sheet from the bottom. Opened by a press, it pulls out of the button that opened it, in that button's colour,
+    and goes back into it on Close. A swipe down slides it away. `edge` keeps the coral edge of the card button. */
+export function Sheet({ open, onClose, title, sub, children, edge }: {
+  open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  /** The button that opened the sheet, while it is on the page. */
+  const origin = useRef<HTMLElement | null>(null);
   const closing = useRef(onClose);
   closing.current = onClose;
   /** Leaves the way it came in: down off the screen, then closes. */
@@ -373,6 +405,16 @@ export function Sheet({ open, onClose, title, sub, children }: {
     leaving.current = true;
     fadeBackdrop(d, 1, 0, 300);
     const done = () => { leaving.current = false; closing.current(); };
+    const back = origin.current, swiped = !!d.style.translate;
+    const br = back?.isConnected ? back.getBoundingClientRect() : null;
+    if (phone() && !swiped && back && br && br.width > 0 && br.bottom > 0 && br.top < window.innerHeight) {
+      // back into the button: the content goes, the button colour comes back, the sheet closes around the button
+      const { dy, clip } = clipFrom(d, br, parseFloat(getComputedStyle(back).borderTopLeftRadius) || 12);
+      d.firstElementChild?.animate({ opacity: [1, 0] }, { duration: 120, easing: 'ease-out', fill: 'forwards' });
+      morphFill(d, back, [0, 1], 60);
+      spring(d, (p) => { const q = Math.min(p, 1); return { clipPath: q < 1 ? mixClip(FULL_CLIP, clip, q) : clip, translate: `0 ${dy * q}px` }; }, SPRING.grow, { fill: 'forwards', near: 0.02 })!.onfinish = done;
+      return;
+    }
     if (phone()) {
       const from = parseFloat(d.style.translate.split(' ')[1] ?? '') || 0, by = d.offsetHeight + 24 - from;
       d.style.translate = '';
@@ -389,9 +431,17 @@ export function Sheet({ open, onClose, title, sub, children }: {
       d.showModal();
       // the page behind stays still while the sheet is open
       document.documentElement.classList.add('felt-sheet-open');
+      const from = recentPress();
+      origin.current = from?.el ?? null;
       if (d.animate && !calm()) {
         fadeBackdrop(d, 0, 1, springCurve(SPRING.sheetUp).ms);
-        if (phone()) { const h = d.offsetHeight + 24; spring(d, (p) => ({ translate: `0 ${h * (1 - p)}px` }), SPRING.sheetUp); }
+        if (phone() && from) {
+          // out of the button: the sheet opens around it in the button colour, then its content shows
+          const { dy, clip } = clipFrom(d, from.rect, parseFloat(getComputedStyle(from.el).borderTopLeftRadius) || 12);
+          spring(d, (p) => { const q = Math.min(p, 1); return { clipPath: q < 1 ? mixClip(clip, FULL_CLIP, q) : 'none', translate: `0 ${dy * (1 - q)}px` }; }, SPRING.grow, { fill: 'backwards', near: 0.02 });
+          morphFill(d, from.el, [1, 0], 90);
+          d.firstElementChild?.animate({ opacity: [0, 1] }, { duration: 200, delay: 110, easing: 'ease-out', fill: 'backwards' });
+        } else if (phone()) { const h = d.offsetHeight + 24; spring(d, (p) => ({ translate: `0 ${h * (1 - p)}px` }), SPRING.sheetUp); }
         else d.animate({ opacity: [0, 1], transform: ['scale(.97)', 'scale(1)'] }, { duration: 320, easing: DRAWER });
       }
     }
@@ -411,7 +461,7 @@ export function Sheet({ open, onClose, title, sub, children }: {
   }, [open]);
   if (!open) return null;
   return (
-    <dialog ref={ref} className="sat-sheet sat-glass-2" aria-label={title}>
+    <dialog ref={ref} className={`sat-sheet sat-glass-2${edge ? ' felt-sheet--edge' : ''}`} aria-label={title}>
       <div className="sat-stack">
         <div className="sat-split">
           <h2 className="sat-h3">{title}</h2>
@@ -586,12 +636,12 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
 }
 
-/** A face-down card: the white Felt mark on cobalt, with a gold trim. */
+/** A face-down card: the blue S on ink, with one ice border. The S is 20% of the card height (70, 40, 31 px). */
 export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
-  return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 40 : size === 'sm' ? 19 : 25} /></span>;
+  return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 14 : size === 'sm' ? 6.2 : 8} /></span>;
 }
 
-/** One dotted box split down the middle (Nil), or two face-down cards (Filled). */
+/** One etched box split down the middle (Nil), or two face-down cards (Filled). */
 export function CardPair({ filled, size = 'sm' }: { filled: boolean; size?: 'sm' | 'lg' }) {
   if (!filled) return <span className={`felt-cardsnil ${size}`} role="img" aria-label="Nil" />;
   return <span className="felt-cards" role="img" aria-label="Filled"><CardBack size={size} /><CardBack size={size} /></span>;
@@ -623,7 +673,8 @@ export function Empty({ title, children, action }: { title: string; children?: R
 
 /* ------------------------------- toast ------------------------------- */
 
-type ToastAction = { label: string; run: () => void };
+/** `countdown`: the toast stays that many seconds and the button counts them down ("Undo 5", "Undo 4"). */
+type ToastAction = { label: string; run: () => void; countdown?: number };
 let toastListener: ((msg: string, action?: ToastAction) => void) | null = null;
 /** Short message at the bottom. With an action (for example Undo) it stays 5 seconds instead of 2.6. */
 export function toast(msg: string, action?: ToastAction) { toastListener?.(msg, action); }
@@ -636,8 +687,14 @@ export function withUndo(msg: string, run: () => void) {
 }
 
 export function ToastHost() {
-  const [t, setT] = useState<{ msg: string; action?: ToastAction } | null>(null);
+  const [t, setT] = useState<{ msg: string; action?: ToastAction; until?: number } | null>(null);
   const el2 = useRef<HTMLDivElement | null>(null);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!t?.until) return;
+    const i = window.setInterval(() => tick((x) => x + 1), 250);
+    return () => window.clearInterval(i);
+  }, [t]);
   // rises with a spring, falls the same way out
   const leave = () => {
     const e = el2.current;
@@ -647,9 +704,10 @@ export function ToastHost() {
   useEffect(() => {
     let timer: number | undefined;
     toastListener = (msg, action) => {
-      setT({ msg, action });
+      const ms = action?.countdown ? action.countdown * 1000 : action ? 5000 : 2600;
+      setT({ msg, action, until: action?.countdown ? Date.now() + ms : undefined });
       window.clearTimeout(timer);
-      timer = window.setTimeout(leave, action ? 5000 : 2600);
+      timer = window.setTimeout(leave, ms);
     };
     return () => { toastListener = null; };
   }, []);
@@ -663,7 +721,7 @@ export function ToastHost() {
     <div className={`felt-toast sat-glass-2 sat-small${sheet ? ' felt-toast--sheet' : ''}`} role="status" {...(hasPopover ? { popover: 'manual' } : {})}
       ref={(e) => { el2.current = e; if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }}>
       {t.msg}
-      {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); leave(); }}>{t.action.label}</button>}
+      {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); leave(); }}>{t.action.label}{t.until ? <span className="sat-num"> {Math.max(1, Math.ceil((t.until - Date.now()) / 1000))}</span> : null}</button>}
     </div>
   );
   return sheet ? createPortal(el, sheet) : el;

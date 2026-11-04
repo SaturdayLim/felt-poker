@@ -34,8 +34,16 @@ export function useRoute(): string[] {
       // between main tabs the screen slides (SlidePane in App.tsx)
       if (a >= 0 && b >= 0 && a !== b) { flushSync(() => setParts(read())); window.scrollTo(0, 0); return; }
       const apply = () => { flushSync(() => setParts(read())); window.scrollTo(0, 0); };
-      if (document.startViewTransition && !calm()) document.startViewTransition(apply).ready.catch(() => undefined);
-      else apply();
+      if (document.startViewTransition && !calm()) {
+        // the Log hand morph runs in steps, and the order depends on the way: into the hand page, or back out of it
+        const hand = (u?: string) => /(^|\/)hand(\/|$)/.test(hashPath(u ?? ''));
+        const way = hand(e.newURL) && !hand(e.oldURL) ? 'open' : hand(e.oldURL) && !hand(e.newURL) ? 'close' : '';
+        const root = document.documentElement;
+        if (way) root.dataset.vt = way; else delete root.dataset.vt;
+        const t = document.startViewTransition(apply);
+        t.ready.catch(() => undefined);
+        t.finished.finally(() => { if (root.dataset.vt === way) delete root.dataset.vt; }).catch(() => undefined);
+      } else apply();
     };
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);

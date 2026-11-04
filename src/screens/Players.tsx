@@ -32,7 +32,7 @@ export default function Players() {
 
   return (
     <div className="felt-page">
-      <Header title="Players" sub={`${list.length} ${list.length === 1 ? 'Player' : 'Players'}`} />
+      <Header title="Players" />
       <div className="sat-stack">
         <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
           <input className="sat-input" aria-label="New player name" placeholder="New player (e.g. Dani)" value={nm} onChange={(e) => setNm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} enterKeyHint="done" />

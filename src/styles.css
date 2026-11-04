@@ -90,9 +90,24 @@ button.felt-row { color: inherit; }
 .felt-report-view iframe { flex: 1; width: 100%; border: 0; background: #fff; }
 
 /* The 10%: one main action per screen, the next box, the signed-in player. Text on coral uses ink in dark. */
-:root { --felt-blue: #026fa6; --felt-coral: #b8441f; --felt-on-coral: #ffffff; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --felt-blue: #0297de; --felt-coral: #fc734d; --felt-on-coral: #02070a; } }
-:root[data-theme="dark"] { --felt-blue: #0297de; --felt-coral: #fc734d; --felt-on-coral: #02070a; }
+:root { --felt-blue: #0052cc; --felt-coral: #e64a19; --felt-on-coral: #1c1e21; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --felt-blue: #0052cc; --felt-coral: #ff5722; --felt-on-coral: #1c1e21; } }
+:root[data-theme="dark"] { --felt-blue: #0052cc; --felt-coral: #ff5722; --felt-on-coral: #1c1e21; }
+
+/* Elevation: three depths only, in the whole app. Each depth is stacked soft layers: every layer doubles the
+   offset and the blur (blur = 2 x offset) and loses opacity. 1 = resting (glass, live cards), 2 = raised
+   (buttons that stand up, a dragged row), 3 = overlay (sheets, pop-ups, toasts). Glows that show a state
+   (lamps, the live switch) are not elevation. Nothing else may set its own drop shadow. */
+:root {
+  --felt-elev-1: var(--sat-shadow);
+  --felt-elev-2: var(--sat-shadow-lg);
+  --felt-elev-3: 0 4px 8px rgba(28,30,33,0.08), 0 8px 16px rgba(28,30,33,0.07), 0 16px 32px rgba(28,30,33,0.06), 0 32px 64px rgba(28,30,33,0.05);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --felt-elev-3: 0 4px 8px rgba(0,0,0,0.26), 0 8px 16px rgba(0,0,0,0.22), 0 16px 32px rgba(0,0,0,0.18), 0 32px 64px rgba(0,0,0,0.14); } }
+:root[data-theme="dark"] { --felt-elev-3: 0 4px 8px rgba(0,0,0,0.26), 0 8px 16px rgba(0,0,0,0.22), 0 16px 32px rgba(0,0,0,0.18), 0 32px 64px rgba(0,0,0,0.14); }
+.sat-seg > button[aria-checked="true"] { box-shadow: var(--felt-elev-1), inset 0 1px 0 var(--sat-glass-hi); }
+.sat-switch::after { box-shadow: var(--felt-elev-1); }
+dialog.sat-sheet, .sat-tip-body, .felt-toast { box-shadow: var(--felt-elev-3); }
 .felt-fab.felt-fab { --felt-fab-bg: var(--felt-coral); color: var(--felt-on-coral); }
 .felt-keypad .felt-keypad-ok:not(:disabled), .felt-keypad .felt-keypad-err-acts .is-primary, .felt-rec-dock .sat-btn--primary { background: var(--felt-coral); color: var(--felt-on-coral); border-color: transparent; }
 .felt-acts .felt-box.is-next { border-color: var(--felt-coral); }
@@ -124,6 +139,20 @@ button.felt-row { color: inherit; }
 ::view-transition-group(felt-morph) { animation-duration: var(--felt-grow-ms, 300ms); animation-timing-function: var(--felt-grow, var(--felt-drawer)); overflow: clip; border-radius: var(--sat-radius-md); }
 ::view-transition-old(felt-morph), ::view-transition-new(felt-morph) { animation-duration: 200ms; height: 100%; object-fit: cover; object-position: top; }
 html[data-calm] .felt-logbtn, html[data-calm] .felt-recorder, html[data-calm] .felt-nav { view-transition-name: none; }
+/* Back out of the hand page: the page shrinks into the button first, then the button turns blue, then its text
+   shows after a short wait, so it reads as a button again. Into the hand page: the same steps in reverse. */
+:root { --felt-vt-page: var(--sat-solid-1); }
+@keyframes felt-vt-out { to { opacity: 0; } }
+@keyframes felt-vt-in { from { opacity: 0; } }
+@keyframes felt-vt-to-blue { from { background-color: var(--felt-vt-page); } to { background-color: var(--sat-accent-fill); } }
+@keyframes felt-vt-to-page { from { background-color: var(--sat-accent-fill); } to { background-color: var(--felt-vt-page); } }
+html[data-vt="close"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-blue 120ms ease-out 320ms both; }
+html[data-vt="close"]::view-transition-old(felt-morph) { animation: felt-vt-out 100ms ease-out 300ms both; }
+html[data-vt="close"]::view-transition-new(felt-morph) { animation: felt-vt-in 140ms ease-out 500ms both; }
+html[data-vt="open"]::view-transition-group(felt-morph) { animation-delay: 160ms; }
+html[data-vt="open"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-page 120ms ease-out 60ms both; }
+html[data-vt="open"]::view-transition-old(felt-morph) { animation: felt-vt-out 90ms ease-out both; }
+html[data-vt="open"]::view-transition-new(felt-morph) { animation: felt-vt-in 200ms ease-out 280ms both; }
 
 /* Tab highlight: a rounded box behind the buttons (TabPill in ui.tsx). Same time and curve as the screens. */
 .felt-pill { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; background: var(--sat-accent-soft); opacity: 0; transition: transform var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), width var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), height var(--felt-pill-ms, 280ms) var(--felt-pill, var(--felt-drawer)), opacity var(--sat-dur-fast) var(--sat-ease); }
@@ -137,7 +166,7 @@ html[data-calm] .felt-pill { transition: none; }
 /* Drag to reorder: the others slide aside, the slot marks where the row lands */
 .felt-seatlist, .felt-suit-list { position: relative; }
 .felt-drag-active > [data-drag-row] { transition: transform var(--felt-settle-ms, 420ms) var(--felt-settle, cubic-bezier(.34, 1.3, .64, 1)), box-shadow var(--sat-dur-base) var(--sat-ease); }
-.felt-drag-active > .is-dragging { position: relative; z-index: 3; background: var(--sat-solid-1); box-shadow: 0 16px 36px rgba(0,0,0,.34); transition: box-shadow var(--sat-dur-base) var(--sat-ease); }
+.felt-drag-active > .is-dragging { position: relative; z-index: 3; background: var(--sat-solid-1); box-shadow: var(--felt-elev-2); transition: box-shadow var(--sat-dur-base) var(--sat-ease); }
 .felt-drag-active > .is-dragging.is-settling { box-shadow: none; transition: transform var(--felt-settle-ms, 420ms) var(--felt-settle, cubic-bezier(.34, 1.3, .64, 1)), box-shadow var(--sat-dur-base) var(--sat-ease); }
 .felt-drop-slot { position: absolute; top: 0; left: 8px; right: 8px; height: 3px; z-index: 0; border-radius: 2px; background: color-mix(in srgb, var(--felt-coral) 55%, transparent); transition: transform var(--sat-dur-base) var(--sat-ease); pointer-events: none; }
 
@@ -150,6 +179,9 @@ html[data-calm] .felt-pill { transition: none; }
 html[data-calm] .felt-band { animation: sat-fade var(--sat-dur-base) var(--sat-ease); }
 
 /* Sheets: opening and closing run in Sheet (ui.tsx). A swipe down closes; the page behind stays still; the keyboard pushes the sheet up. */
+/* A sheet opened from the coral card button keeps a coral edge. The fill is the button colour during the morph. */
+.sat-sheet.felt-sheet--edge { border: 1.5px solid var(--felt-coral); }
+.felt-sheet-fill { position: absolute; inset: 0; z-index: 5; border-radius: inherit; pointer-events: none; }
 dialog.sat-sheet[open] { animation: none; overscroll-behavior: contain; margin-bottom: var(--felt-kb, 0px); }
 html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
 .felt-rec-dock { overscroll-behavior: contain; }
@@ -158,7 +190,7 @@ html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
 .felt-dock-panel { display: flex; flex-direction: column; gap: var(--sat-space-2); }
 
 /* Buttons that close a panel stand up from it */
-.felt-btn-raised.felt-btn-raised { background: var(--sat-solid-2); border: 1px solid var(--sat-line-strong); font-weight: 600; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 2px rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.12); }
+.felt-btn-raised.felt-btn-raised { background: var(--sat-solid-2); border: 1px solid var(--sat-line-strong); font-weight: 600; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), var(--felt-elev-2); }
 
 /* Hold to confirm: a ring fills while held, and runs back fast on release */
 .felt-hold { position: relative; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: transform var(--sat-dur-fast) var(--sat-ease); }
@@ -175,12 +207,16 @@ html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
 .felt-acts-titles { display: flex; align-items: center; gap: var(--sat-space-2); padding: 0 8px 2px; }
 .felt-acts-titles > :last-child { margin-left: auto; }
 
-/* Player cards: two outlined slots mean no cards yet */
-.felt-card.felt-cardslot { background: transparent; border: 1.5px solid var(--sat-line-strong); display: inline-block; }
-/* No cards yet: one dotted box split down the middle, so it can never read as two cards */
-.felt-cardsnil { position: relative; display: inline-block; flex: none; width: 50px; height: 31px; border: 1.5px dashed var(--sat-muted); border-radius: 4px; }
+/* Etched slots: a place for a card is cut into the felt. A dark groove with a light lip below it, no fill and no
+   shadow, so it reads as printed on the table. A live card stands on the table (elevation 1). */
+:root { --felt-etch: color-mix(in srgb, var(--sat-text) 26%, transparent); --felt-etch-hi: rgba(255,255,255,.7); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --felt-etch: rgba(0,0,0,.8); --felt-etch-hi: rgba(226,232,240,.2); } }
+:root[data-theme="dark"] { --felt-etch: rgba(0,0,0,.8); --felt-etch-hi: rgba(226,232,240,.2); }
+.felt-card.felt-cardslot { background: transparent; border: 1px solid var(--felt-etch); box-shadow: inset 0 1px 0 var(--felt-etch-hi), 0 1px 0 var(--felt-etch-hi); display: inline-block; }
+/* No cards yet: one etched box split down the middle, so it can never read as two cards */
+.felt-cardsnil { position: relative; display: inline-block; flex: none; width: 50px; height: 31px; border: 1px solid var(--felt-etch); border-radius: 4px; box-shadow: inset 0 1px 0 var(--felt-etch-hi), 0 1px 0 var(--felt-etch-hi); }
 .felt-cardsnil.lg { width: 108px; height: 70px; border-radius: var(--sat-radius-xs); }
-.felt-cardsnil::after { content: ''; position: absolute; left: 50%; top: 3px; bottom: 3px; border-left: 1.5px dashed var(--sat-muted); }
+.felt-cardsnil::after { content: ''; position: absolute; left: 50%; top: 3px; bottom: 3px; width: 1px; margin-left: -.5px; background: var(--felt-etch); box-shadow: 1px 0 0 var(--felt-etch-hi); }
 /* A name that opens the player card */
 .felt-name { cursor: pointer; touch-action: manipulation; border-radius: 4px; text-decoration: underline dotted; text-decoration-color: var(--sat-line-strong); text-underline-offset: 3px; -webkit-tap-highlight-color: transparent; }
 
@@ -194,15 +230,20 @@ button.felt-acts-name { touch-action: manipulation; -webkit-user-select: none; u
 button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-offset: -2px; }
 
 /* Join: the camera fills the screen */
-.felt-scan { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #02070a; color: #eaf4fa; display: flex; flex-direction: column; justify-content: space-between; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); }
+.felt-scan { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #1c1e21; color: #ebf1f5; display: flex; flex-direction: column; justify-content: space-between; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); }
 .felt-scan-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* camera off or still asking: the page background, never a black screen */
+.felt-scan.is-off { background: transparent; color: var(--sat-text); }
+.felt-scan.is-off .felt-scan-video { visibility: hidden; }
+.felt-scan-ask { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; }
+.felt-scan-ask .sat-btn { gap: var(--sat-space-2); }
 /* the panels are kit glass, which is light in the light theme: text follows the theme, not the dark camera behind */
 .felt-scan-top, .felt-scan-dock { position: relative; z-index: 1; border-radius: var(--sat-radius-lg); padding: var(--sat-space-3) var(--sat-space-4); color: var(--sat-text); }
 .felt-scan-top { display: flex; align-items: center; gap: var(--sat-space-2); }
 .felt-scan-title { margin: 0; font-size: 1.125rem; font-weight: 600; }
 .felt-scan-top small { display: block; color: var(--sat-muted); }
 .felt-scan-frame { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(72vw, 300px); aspect-ratio: 1; }
-.felt-scan-frame i { position: absolute; width: 44px; height: 44px; border: 4px solid var(--felt-coral, #fc734d); }
+.felt-scan-frame i { position: absolute; width: 44px; height: 44px; border: 4px solid var(--felt-coral, #ff5722); }
 .felt-scan-frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 20px; }
 .felt-scan-frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 20px; }
 .felt-scan-frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 20px; }
@@ -232,18 +273,18 @@ button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-o
 .felt-table-felt { width: 100%; height: 100%; border-radius: 86px; background: radial-gradient(ellipse at center, #237a59, #17553e); display: grid; place-items: center; text-align: center; padding: 0 var(--sat-space-3); color: #ddefe6; font-family: var(--sat-font-display); font-size: 1.125rem; line-height: 1.15; overflow: hidden; }
 .felt-seat { position: absolute; transform: translate(-50%, -50%); width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; padding: 4px; text-align: center; font-size: .8125rem; background: var(--sat-solid-2); border: 1px solid var(--sat-line-strong); color: var(--sat-text); }
 .felt-seat > b { max-width: 100%; }
-.felt-seat.is-me { border: 3px solid var(--felt-coral, #fc734d); }
+.felt-seat.is-me { border: 3px solid var(--felt-coral, #ff5722); }
 .felt-seat-stack { position: absolute; top: -6px; right: -8px; padding: 1px 6px; border-radius: 10px; font-size: .6875rem; font-weight: 600; background: var(--sat-bg); border: 1px solid var(--sat-line-strong); }
-.felt-seat-btn { position: absolute; bottom: -4px; left: -4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .6875rem; font-weight: 700; background: #fbfcfc; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.felt-seat-btn { position: absolute; bottom: -4px; left: -4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .6875rem; font-weight: 700; background: #fbfcfc; color: #1c1e21; box-shadow: var(--felt-elev-1); }
 .felt-candle { display: block; width: 100%; height: auto; overflow: visible; font-size: 13px; fill: var(--sat-muted); font-variant-numeric: tabular-nums lining-nums; }
 .felt-candle .is-strong { fill: var(--sat-text); font-weight: 700; }
 .felt-candle-wick { stroke: var(--sat-muted); stroke-width: 2; stroke-linecap: round; }
 .felt-candle-wick.is-mine { stroke: var(--sat-text); }
 .felt-candle-ref { opacity: .38; }
 .felt-candle-start { stroke: var(--sat-text); stroke-width: 2; }
-.felt-candle-body.is-blue { fill: var(--felt-blue, #0297de); }
-.felt-candle-body.is-coral { fill: var(--felt-coral, #fc734d); }
-.felt-candle-mark { fill: var(--felt-coral, #fc734d); }
+.felt-candle-body.is-blue { fill: var(--felt-blue, #0052cc); }
+.felt-candle-body.is-coral { fill: var(--felt-coral, #ff5722); }
+.felt-candle-mark { fill: var(--felt-coral, #ff5722); }
 .felt-boxes-wrap { display: flex; flex-direction: column; gap: var(--sat-space-2); }
 .felt-boxes { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .felt-boxes-cell { height: 56px; display: grid; place-items: center; border-radius: var(--sat-radius-sm); border: 1.5px solid var(--sat-line-strong); background: var(--sat-well); font-family: var(--sat-font-mono, monospace); font-size: 1.375rem; font-weight: 700; }
@@ -266,7 +307,7 @@ html[data-calm] .felt-skel { animation: none; }
 
 /* Playing cards: white faces in both themes, four-colour suits */
 .felt-card { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
-  width: 30px; height: 40px; border-radius: 6px; background: var(--felt-card-face, #FBFCFC); border: 1px solid rgba(16,32,31,0.16);
+  width: 30px; height: 40px; border-radius: 6px; background: var(--felt-card-face, #FBFCFC); border: 1px solid rgba(28,30,33,0.14); box-shadow: var(--felt-elev-1);
   font-family: var(--sat-font-ui); font-weight: 600; line-height: 1; }
 .felt-card .r { font-size: 15px; letter-spacing: -0.03em; }
 .felt-card .s { font-size: 13px; margin-top: 1px; font-family: system-ui, sans-serif; }
@@ -276,9 +317,10 @@ html[data-calm] .felt-skel { animation: none; }
 .felt-card.lg { width: 52px; height: 70px; border-radius: var(--sat-radius-xs); }
 .felt-card.lg .r { font-size: 23px; }
 .felt-card.lg .s { font-size: 19px; }
-.felt-card.empty { background: var(--sat-well); border: 1px dashed var(--sat-line-strong); color: var(--sat-muted); }
+.felt-card.empty { background: transparent; border: 1px solid var(--felt-etch); box-shadow: inset 0 1px 0 var(--felt-etch-hi), 0 1px 0 var(--felt-etch-hi); color: var(--sat-muted); }
 .felt-card.empty .s { font: 600 var(--sat-fs-caption) var(--sat-font-ui); letter-spacing: var(--sat-track-caption); }
-.felt-card.target { outline: 2px solid var(--sat-focus); outline-offset: 2px; }
+/* the slot being filled: one line, drawn over the card's own border, never a second ring */
+.felt-card.target { outline: 2px solid var(--sat-focus); outline-offset: -1px; }
 .felt-cards { display: inline-flex; gap: 4px; }
 
 .felt-picker-shell { position: sticky; bottom: calc(var(--felt-safe-bottom) + 92px); z-index: 30; padding: var(--sat-space-3); border-radius: var(--sat-radius-lg); }
@@ -316,7 +358,7 @@ html[data-calm] .felt-skel { animation: none; }
 
 /* Selected card on the board: a small red bar says "tap again to remove" */
 .felt-card { position: relative; }
-.felt-card-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--sat-neg); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.felt-card-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--sat-neg); box-shadow: var(--felt-elev-1); }
 .felt-card-x::after { content: ''; position: absolute; left: 4px; right: 4px; top: 8px; height: 2px; border-radius: 1px; background: #fff; }
 
 /* Press and hold chips: no iOS callout or text selection while holding */
@@ -351,7 +393,7 @@ html[data-calm] .felt-skel { animation: none; }
 
 /* Live game cards: accent edge, pulsing dot, chevron. Closed games use flat, quiet rows instead. */
 .felt-live-card { position: relative; display: grid; gap: 2px; text-align: left; padding: var(--sat-space-4) 48px var(--sat-space-4) var(--sat-space-5);
-  border-color: color-mix(in srgb, var(--sat-pos) 55%, var(--sat-glass-edge)); box-shadow: 0 6px 24px color-mix(in srgb, var(--sat-pos) 14%, transparent); }
+  border-color: color-mix(in srgb, var(--sat-pos) 55%, var(--sat-glass-edge)); box-shadow: var(--felt-elev-1); }
 .felt-live-tag { font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-pos); display: flex; align-items: center; }
 .felt-live-name { font: 400 1.5rem/1.2 var(--sat-font-display); }
 .felt-live-go { position: absolute; right: var(--sat-space-4); top: 50%; transform: translateY(-50%) rotate(180deg); color: var(--sat-muted); display: grid; }
@@ -378,7 +420,7 @@ html[data-calm] .felt-dot--pulse { animation: none; }
   transition: opacity var(--sat-dur-fast) var(--sat-ease); }
 .felt-pcard.is-away { opacity: 0.78; }
 .felt-pcard.is-out { opacity: 0.6; }
-.felt-pcard.is-dragging { box-shadow: 0 10px 30px rgba(0,0,0,0.28); outline: 2px solid var(--sat-accent); position: relative; z-index: 2; }
+.felt-pcard.is-dragging { box-shadow: var(--felt-elev-2); outline: 2px solid var(--sat-accent); position: relative; z-index: 2; }
 .felt-grip { width: 44px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--sat-muted);
   touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .felt-grip span { font-size: var(--sat-fs-caption); font-weight: 600; }
@@ -513,7 +555,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad-err-acts .is-primary { background: var(--sat-accent-fill); color: var(--sat-on-accent); border-color: transparent; }
 .felt-keypad-amount { display: grid; grid-template-columns: minmax(0, 1fr) auto 84px; align-items: center; gap: 8px; }
 .felt-keypad-ghost { color: var(--sat-muted); opacity: .6; }
-.felt-fab { --felt-fab-bg: var(--sat-accent-fill); position: absolute; right: var(--sat-space-4); bottom: calc(100% + 12px); flex: none !important; width: 60px; height: 60px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--felt-fab-bg); color: var(--sat-on-accent); box-shadow: 0 10px 24px rgba(0,0,0,.35); cursor: pointer; transition: transform var(--sat-dur-fast) var(--sat-ease); }
+.felt-fab { --felt-fab-bg: var(--sat-accent-fill); position: absolute; right: var(--sat-space-4); bottom: calc(100% + 12px); flex: none !important; width: 60px; height: 60px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--felt-fab-bg); color: var(--sat-on-accent); box-shadow: var(--felt-elev-2); cursor: pointer; transition: transform var(--sat-dur-fast) var(--sat-ease); }
 .felt-keypad-field { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0 0 0 var(--sat-space-3); border-radius: var(--sat-radius-sm);
   background: var(--sat-well); border: 1.5px solid var(--sat-line); color: var(--sat-muted); }
 .felt-keypad-field.has-value { border-color: var(--sat-accent); color: var(--sat-text); }
@@ -608,7 +650,7 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 /* Settings, Cards */
 .felt-suit-list { display: flex; flex-direction: column; gap: 6px; }
 .felt-suit-row { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 52px; padding: 4px 8px 4px 0; border-radius: var(--sat-radius-md); background: var(--sat-surface-2, rgba(127,127,127,.08)); border: 1px solid var(--sat-line); }
-.felt-suit-row.is-dragging { position: relative; z-index: 2; box-shadow: 0 10px 24px rgba(0,0,0,.28); }
+.felt-suit-row.is-dragging { position: relative; z-index: 2; box-shadow: var(--felt-elev-2); }
 .felt-suit-grip { width: 32px; min-height: 44px; flex: none; display: grid; place-items: center; border: 0; background: none; color: var(--sat-muted); touch-action: pan-y; cursor: grab; padding: 0; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .felt-suit-mark { flex: none; width: 34px; height: 40px; display: grid; place-items: center; font-size: 1.4rem; line-height: 1; border-radius: 6px; background: var(--felt-card-face, #fbfcfc); box-shadow: inset 0 0 0 1px rgba(16,32,31,.16); transition: color var(--sat-dur-fast) var(--sat-ease); }
 .felt-grow { flex: 1; min-width: 0; }
@@ -621,7 +663,7 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-look-toggle { display: inline-flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; cursor: pointer; }
 .felt-look-switch { position: relative; width: 52px; height: 30px; flex: none; padding: 0; border-radius: 15px; border: 1px solid var(--sat-line-strong); background: var(--sat-surface-2, rgba(127,127,127,.12)); cursor: pointer; }
 .felt-look-switch::before { content: ''; position: absolute; inset: -8px -4px; }
-.felt-look-thumb { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.35); transition: transform 360ms cubic-bezier(.32,.72,0,1); }
+.felt-look-thumb { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; box-shadow: var(--felt-elev-1), 0 0 0 1px rgba(255,255,255,.35); transition: transform 360ms cubic-bezier(.32,.72,0,1); }
 .felt-look-switch[aria-checked="true"] .felt-look-thumb { transform: translateX(22px) rotate(180deg); }
 .felt-look-thumb i { position: absolute; inset: 0; transition: opacity 360ms var(--sat-ease); }
 .felt-look-thumb .is-rainbow { background: conic-gradient(#e6333f, #f59a23, #f5d90a, #2fb457, #1f8fe0, #7b3fb8, #e6333f); opacity: 1; }
@@ -640,7 +682,10 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-tiles b { font-size: 1.25rem; }
 
 /* Face-down card: white Felt mark on cobalt, gold trim */
-.felt-card.felt-cardback { background: #0047ab; border: 2px solid #c9a227; display: inline-grid; place-items: center; --sat-mark: #fff; --sat-mark-stroke: 1.25px; }
+/* Card back (card-design skill): ink field, one ice border about 4% of the height, blue S at 20% of the height. */
+.felt-card.felt-cardback { background: #1c1e21; border: 2px solid #ebf1f5; display: inline-grid; place-items: center; --sat-mark: #0052cc; --sat-mark-stroke: 1.1px; }
+.felt-card.felt-cardback.lg { border-width: 3px; --sat-mark-stroke: 1.6px; }
+.felt-card.felt-cardback.sm { border-width: 1.5px; --sat-mark-stroke: 1px; }
 /* 2-7 rules as one group in the player view */
 .felt-rule-group { margin-top: var(--sat-space-1);  }
 .felt-rule-cap { display: flex; align-items: center; gap: 4px; padding: var(--sat-space-3) 0 var(--sat-space-1); }
@@ -682,7 +727,7 @@ html[data-calm] .felt-liveswitch.is-wait { animation: none; opacity: .7; }
 .felt-viewer { cursor: default; }
 .felt-qr-pop { border: 0; padding: 0; margin: auto; background: transparent; overflow: visible; }
 .felt-qr-pop::backdrop { background: rgba(2,7,10,.62); animation: sat-fade 200ms var(--sat-ease); }
-.felt-qr-pop .felt-qr { width: min(78vw, 320px); height: min(78vw, 320px); padding: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+.felt-qr-pop .felt-qr { width: min(78vw, 320px); height: min(78vw, 320px); padding: 12px; box-shadow: var(--felt-elev-3); }
 html[data-calm] .felt-qr-pop, html[data-calm] .felt-qr-pop::backdrop { animation: none; }
 .felt-qr { width: 200px; height: 200px; margin: 0 auto; background: #fff; border-radius: var(--sat-radius-md); padding: 6px; }
 .felt-qr svg { width: 100%; height: 100%; display: block; }

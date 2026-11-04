@@ -20,7 +20,7 @@ export default function Games() {
 
   return (
     <div className="felt-page">
-      <Header title="Games" sub={`${games.length} ${games.length === 1 ? 'Game' : 'Games'} Recorded`} />
+      <Header title="Games" />
       <div className="sat-stack">
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
           <TabPill />

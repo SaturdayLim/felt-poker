@@ -9,7 +9,7 @@
     <script>try{if(localStorage.getItem('felt-motion')!=='full'&&matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.setAttribute('data-calm','')}catch(e){}</script>
     <!-- A launch that lands here directly (an icon saved from this page) still plays the opening screen once. A link with a route goes straight in. -->
     <script>try{if(!sessionStorage.getItem('felt-splashed')&&(!location.hash||location.hash==='#/')&&localStorage.getItem('felt-splash-ms')!=='0'){document.documentElement.style.visibility='hidden';location.replace('../')}}catch(e){}</script>
-    <meta name="theme-color" content="#02070A" />
+    <meta name="theme-color" content="#1C1E21" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -35,13 +35,13 @@
         box.id = 'felt-floor';
         box.setAttribute('role', 'alertdialog');
         box.setAttribute('aria-label', 'This phone cannot run Felt');
-        box.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#02070A;color:#EAF4FA;padding:32px 24px;font:16px/1.45 -apple-system,Roboto,sans-serif;overflow:auto';
+        box.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#1C1E21;color:#EBF1F5;padding:32px 24px;font:16px/1.45 -apple-system,Roboto,sans-serif;overflow:auto';
         var line = function (tag, text, style) { var e = document.createElement(tag); e.textContent = text; e.style.cssText = style || 'margin:0 0 14px'; box.appendChild(e); return e; };
         line('h1', 'This phone cannot run Felt', 'margin:0 0 14px;font-size:26px;line-height:1.2');
         line('p', 'Felt needs iOS 16.2 or later, or Chrome 111 or later.');
         line('p', 'This browser does not have: ' + missing.join(', ') + '.');
         line('p', 'Update the phone, or open Felt on a newer phone.');
-        var go = line('button', 'Open anyway', 'margin-top:10px;min-height:48px;padding:0 20px;border-radius:14px;border:1px solid #9DB4C2;background:none;color:inherit;font:inherit;font-weight:600');
+        var go = line('button', 'Open anyway', 'margin-top:10px;min-height:48px;padding:0 20px;border-radius:14px;border:1px solid #A7B1BD;background:none;color:inherit;font:inherit;font-weight:600');
         go.onclick = function () { box.parentNode.removeChild(box); };
         document.body.appendChild(box);
       })();

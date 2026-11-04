@@ -21,7 +21,7 @@ export default function Home() {
 
   return (
     <div className="felt-page">
-      <Header brand sub="Home Game Tracker" right={<ThemeCycle />} />
+      <Header brand right={<ThemeCycle />} />
       <div className="sat-stack">
         {live.map((g) => {
           const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;

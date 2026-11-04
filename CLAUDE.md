@@ -20,7 +20,8 @@ Standing instructions from the user. They apply to every screen, report and tip.
 
 ## Design
 
-- `docs/DESIGN-PRINCIPLES.md`: colour 60/30/10 (ink, blue, coral), phone details, desktop details for later.
+- `docs/DESIGN-PRINCIPLES.md`: colour 60/30/10 (ink `#1C1E21`, blue `#0052CC`, orange `#FF5722`; ice `#EBF1F5`, subtle `#E2E8F0`), phone details, desktop details for later.
+- Elevation: three shadow depths only (`--felt-elev-1/2/3`). Each is stacked soft layers, blur = 2 x offset. Details in the felt-ui skill.
 
 ## Behaviour
 
@@ -30,6 +31,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Recorder: who acts sits left and the pot right, under the stage tabs and outside the box. On a street tab the pot is that street's closing pot.
 - A hand never blocks anything. Only board and run cards leave the picker. A card entered twice is flagged, not refused.
 - Hold actions give feedback by haptics, not an animation under the thumb. Copy: "Tap and hold to replace code".
+- A press acts at once. Where a long press does nothing different, it looks and acts the same as a tap.
 - Add player mid-game: saved players first. A name already saved is flagged, and the user is asked for a different name.
 - Action table past 4 columns: Players and Action titles stay still; column numbers scroll with their boxes and cut off at the names.
 - Showdown: one bar opens or closes the shown cards, labelled Cards shown or No cards.
@@ -55,14 +57,20 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A bought-in player with an exact stack of 0 is not dealt in by default and cannot be added until a rebuy. A player with no chips in the pot is never a finalist.
 - Viewers see a new hand only after real action (check, call, bet, raise, fold). Blinds and card entry alone do not show it.
 - Viewers can send their own cards for a hand. The host's entry for that player replaces them.
-- Card entry shows no words: filled = two face-down cards (white Felt mark, cobalt, gold trim), nil = one dotted box split down the middle. Cards already shown at the table show face up.
+- Card entry shows no words: filled = two face-down cards (blue S on ink, one ice border), nil = one etched box split down the middle. Cards already shown at the table show face up.
+- Cards shown at the table cannot be replaced by hidden cards (host or player): "Cards in showdown. Remove from showdown to overwrite."
+- Player view cards list: every hand the player was dealt. Open eye = shown at the table (host changes it at the showdown). Shut eye = hidden cards logged, by the host or the player.
 - A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
+- Live link off: toast "Room closed." with Undo and a 5-second countdown. Viewers of a closed room see "Room has been closed" and a Home button.
+- Join a game with the camera off or blocked: the page background, never black, and a Turn on camera button that asks again.
+- Viewers type a Password (not passphrase) for a locked game.
 - Live link sits on the game page, no pop-up: password space with eye and censoring, copy, QR, and a switch that glows green (on) or red (off). Copy and QR exist only when on: closed, they are not on the page.
 - All-in run-out is offered only when no further action is possible (the street's all-ins count, not later ones). With one all-in and 2 still able to bet, the street goes on.
 - Viewers read the same boxes as the host: snapshots replay with the same stacks. More than one run shows one board per run.
 - A name in the recorder needs a press and hold to enter shown cards. A tap does nothing. Run cards stop blocking the picker when the hand goes back to a street.
 - Pop-ups never cover the field being filled: the keypad and picker scroll it clear, and the keyboard pushes sheets up.
-- Every panel from the bottom opens and closes with a slide; a swipe down or a tap outside closes it.
+- A panel opened by a button pulls out of that button, in its colour, and goes back into it on Close. A swipe down slides it away; a tap outside closes it. The orange card button opens a sheet with an orange edge.
+- Log hand: closing, the page shrinks into the button, then the button turns blue, then its text shows. Opening runs the same steps in reverse.
 - Motion is set in `docs/MOTION-LIST.md`, and `src/lib/motion.ts` plays it. Springs use visual duration and bounce. Every button press follows its class.
 - Private cards that match another entry or the table are flagged to that player alone: a pop-up when connected, a line in the cards list, and a line on their report page. Until changed, each entry counts as entered, even if impossible. Half a pair is left out of all analysis.
 - Player view: the card button signs in. Sign out sits in its sheet.

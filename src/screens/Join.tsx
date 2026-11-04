@@ -12,9 +12,13 @@ import { pickDriver } from '../live/host';
 import { viewText, type HandView, type NowSnapshot, type PubSnapshot, type StackLine, type ViewStreet } from '../live/snapshot';
 import type { HelpKey } from '../lib/help';
 import type { Card } from '../types';
+import { go } from '../router';
+import { SHOWDOWN_LOCK } from '../components/cardEntry';
 
 interface Meta { locked?: boolean; check?: string | null; updatedAt?: number; handCount?: number }
-interface Me { id: string; name: string; clash?: number[] }
+interface Me { id: string; name: string; clash?: number[];
+  /** Hands where the host holds this player's hidden cards (entered on the host phone or sent from here). */
+  logged?: number[] }
 type Tab = 'action' | 'settings' | 'hands' | 'players';
 const TABS: { k: Tab; label: string }[] = [{ k: 'action', label: 'Action' }, { k: 'hands', label: 'Hands' }, { k: 'players', label: 'Players' }, { k: 'settings', label: 'Settings' }];
 
@@ -133,7 +137,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   const blank = (body: JSX.Element) => <div className="felt-page"><Header title="Live game" />{body}</div>;
   if (!driver) return blank(<Empty title="Live link not available">This phone cannot open live games. Ask the host for the report instead.</Empty>);
   if (err) return blank(<Empty title="Cannot open the game">{err}</Empty>);
-  if (meta === null) return blank(<Empty title="The host stopped sharing">This game is not live now. This page returns when the host starts sharing again.</Empty>);
+  // the host closed the room: nothing is left to view here
+  if (meta === null) return blank(<Empty title="Room has been closed" action={<button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => go('')}>Home</button>} />);
   if (meta && !key) return <PassForm room={room} meta={meta} onKey={(k) => { setKey(k); ss.set(`felt-join-key:${room}`, k); }} />;
   if (!pub) return blank(<div className="sat-stack" aria-label="Loading the game"><div className="felt-skel" style={{ height: 44 }} /><div className="felt-skel" style={{ height: 220 }} /><div className="felt-skel" style={{ height: 120 }} /></div>);
 
@@ -193,7 +198,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
         </Sheet>
       )}
       {sheet === 'code' && <CodeSheet onClose={() => setSheet(null)} onSubmit={async (c) => { const ok = await tryCode(c); if (ok) setSheet('cards'); return ok; }} />}
-      {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} start={cardsHand} onClose={() => { setSheet(null); setCardsHand(null); }} onSave={sendCards}
+      {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} toCheck={toCheck} start={cardsHand} onClose={() => { setSheet(null); setCardsHand(null); }} onSave={sendCards}
         onLeave={() => { setMe(null); setCode(null); ss.del(`felt-join-code:${room}`); setSheet(null); }} />}
       {sheet === 'flag' && <FlagSheet hands={hands} now={now} onClose={() => setSheet(null)}
         onSend={async (n, text) => { await driver.set(room, `flags/${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`, await seal({ n, text }, key!)); toast('Flag sent to the host.'); setSheet(null); }} />}
@@ -216,10 +221,10 @@ function PassForm({ room, meta, onKey }: { room: string; meta: Meta; onKey: (k: 
       <Header title="Live game" sub="Locked by the host" />
       <div className="sat-glass sat-card sat-stack" style={gap(3)}>
         <div className="sat-field">
-          <label htmlFor="jp">Join passphrase</label>
+          <label htmlFor="jp">Password</label>
           <input id="jp" className="sat-input" autoComplete="off" autoCapitalize="off" value={pass} aria-invalid={bad}
             onChange={(e) => { setPass(e.target.value); setBad(false); }} onKeyDown={(e) => e.key === 'Enter' && go()} />
-          {bad && <span className="sat-error">Passphrase does not match.</span>}
+          {bad && <span className="sat-error">Password does not match.</span>}
         </div>
         <button className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" aria-disabled={!pass.trim()} onClick={() => pass.trim() && go()}>Join</button>
       </div>
@@ -407,28 +412,36 @@ function CodeSheet({ onSubmit, onClose }: { onSubmit: (c: string) => Promise<boo
   );
 }
 
-function HandPick({ hands, now, entered, me, start, onSave, onClose, onLeave }: {
-  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; start: number | null; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
+/** The cards this player showed at the table in a hand, if any. */
+const shownBy = (view: HandView, name: string): Card[] => view.streets.flatMap((s) => s.shown ?? []).find((x) => x.name === name)?.cards ?? [];
+
+function HandPick({ hands, now, entered, me, toCheck, start, onSave, onClose, onLeave }: {
+  hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Set<number>; me: Me; toCheck: number[]; start: number | null; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
 }) {
-  const [n, setN] = useState<number | null>(start);
-  const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board }] : [];
-  const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board }))];
+  const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board, shown: shownBy(now.view, me.name) }] : [];
+  const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board, shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))];
+  // cards shown at the table belong to the host's showdown: they cannot be replaced from here
+  const [n, setN] = useState<number | null>(() => (start !== null && mine.find((x) => x.n === start)?.shown.length ? null : start));
+  const pick = (x: (typeof mine)[number]) => { if (x.shown.length) toast(SHOWDOWN_LOCK); else setN(x.n); };
+  const hidden = (k: number) => entered.has(k) || !!me.logged?.includes(k);
   const h = mine.find((x) => x.n === n);
   if (h) {
     return (
-      <CardEntrySheet players={[me.id]} initial={me.id} closeOnSave name={() => me.name} entered={entered.has(h.n) ? [me.id] : []}
+      <CardEntrySheet players={[me.id]} initial={me.id} closeOnSave edge name={() => me.name} entered={hidden(h.n) ? [me.id] : []}
         blocked={h.blocked} onClose={onClose}
         onSave={(_p, cards) => { onSave(h.n, cards).catch(() => toast('Cards not sent. Check the connection and try again.')); }} />
     );
   }
   return (
-    <Sheet open onClose={onClose} title={me.name} sub="Your cards are write only. Nobody can see them, not even you.">
+    <Sheet open onClose={onClose} edge title={me.name} sub="Your cards are write only. Nobody can see them, not even you.">
       <div className="sat-glass-2 felt-list">
         {!mine.length && <div className="felt-row sat-small sat-muted">No hands for you yet.</div>}
         {mine.map((x) => (
-          <button key={x.n} className="felt-row" onClick={() => setN(x.n)}>
-            <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span>{me.clash?.includes(x.n) && <span className="felt-row-sub" style={{ color: 'var(--sat-neg)' }}>Check these cards</span>}</span>
-            <CardPair filled={entered.has(x.n)} />
+          <button key={x.n} className="felt-row" onClick={() => pick(x)} aria-label={`Hand ${x.n}${x.shown.length ? ', shown at the table' : hidden(x.n) ? ', hidden cards logged' : ''}`}>
+            <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span>{toCheck.includes(x.n) && <span className="felt-row-sub" style={{ color: 'var(--sat-neg)' }}>Check these cards</span>}</span>
+            {x.shown.length ? <Cards cards={x.shown} size="sm" /> : <CardPair filled={hidden(x.n)} />}
+            {/* open eye: shown at the table. Shut eye: hidden cards logged */}
+            {(x.shown.length > 0 || hidden(x.n)) && <span className="felt-eye" aria-hidden="true"><Icon name={x.shown.length ? 'eye' : 'dark'} size={18} /></span>}
           </button>
         ))}
       </div>

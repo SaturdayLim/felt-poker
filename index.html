@@ -26,8 +26,9 @@
       <div class="felt-splash-lockup">
         <svg class="sat-mark felt-splash-mark" viewBox="-2 -2 68 104" aria-hidden="true">
           <path class="s" pathLength="1" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-          <path class="inner" d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-          <path class="inner inner-b" d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
+          <!-- inner rings: each wipes round with the S, from the S's own start and in its direction -->
+          <path class="inner" pathLength="1" d="M38.58 39.48 A15 15 0 1 0 25.42 12.52 A15 15 0 1 0 38.58 39.48" />
+          <path class="inner inner-b" pathLength="1" d="M32 59 A15 15 0 1 1 32 89 A15 15 0 1 1 32 59" />
           <!-- spokes: each swipes out from its chip centre as the S passes it -->
           <path class="spoke" pathLength="1" style="--d:254" d="M32 26 L47.84 41.84" />
           <path class="spoke" pathLength="1" style="--d:714" d="M32 26 L16.16 41.84" />

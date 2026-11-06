@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
 import { applyPalette, cleanPalette } from './lib/palette';
-import { NAV_TABS, useRoute } from './router';
+import { NAV_TABS, go, useRoute } from './router';
 import { SlidePane, ToastHost } from './components/ui';
 import { PlayerHost } from './components/players';
 import { NavRail } from './components/navRail';
@@ -19,6 +19,7 @@ import CloseTable from './screens/CloseTable';
 import Report from './screens/Report';
 import Players from './screens/Players';
 import Settings from './screens/Settings';
+import Start from './screens/Start';
 import Group from './screens/Group';
 import Join from './screens/Join';
 import JoinScan from './screens/JoinScan';
@@ -35,6 +36,7 @@ const NAV = [
 
 export default function App() {
   const hydrated = useStore((s) => s.hydrated);
+  const [role, setRole] = useState<string | null>(() => { try { return sessionStorage.getItem('felt-role'); } catch { return 'host'; } });
   const theme = useStore((s) => s.settings.theme);
   const splashMs = useStore((s) => s.settings.splashMs);
   const face = useStore((s) => lookBg(cleanLook(s.settings.cards)));
@@ -80,6 +82,7 @@ export default function App() {
     return () => { vv?.removeEventListener('resize', fit); vv?.removeEventListener('scroll', fit); document.removeEventListener('focusin', onFocus); window.clearTimeout(t); };
   }, []);
   if (!hydrated) return <div className="felt-app" />;
+  const pickRole = (k: 'host' | 'player') => { try { sessionStorage.setItem('felt-role', k); } catch { /* private mode */ } setRole(k); if (k === 'player') go('join'); };
 
   let screen: JSX.Element;
   let nav = true;
@@ -103,6 +106,8 @@ export default function App() {
   else if (a === 'players') screen = <Players view={b === 'board' ? 'board' : b === 'stats' ? 'stats' : 'list'} pid={c} />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;
   else if (a === 'settings') screen = <Settings />;
+  // each time Felt opens: Host or Player first; a link to a game skips it
+  else if (!role) { screen = <Start onHost={() => pickRole('host')} onPlayer={() => pickRole('player')} />; nav = false; }
   else screen = <Home />;
 
   const active = a === 'game' || a === 'new' ? 'games' : a === 'group' || a === 'insights' ? 'players' : a ?? '';

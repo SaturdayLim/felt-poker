@@ -2,7 +2,7 @@
    iPhones have no built-in QR reader for web pages, so frames go to jsQR. It loads only here. */
 import { useEffect, useRef, useState } from 'react';
 import { Icon, toast } from '../components/ui';
-import { go } from '../router';
+import { back, go } from '../router';
 import { haptic } from '../lib/haptics';
 
 /** The join route inside a pasted or scanned link, or null. */
@@ -80,6 +80,7 @@ export default function JoinScan() {
     <div className={`felt-scan ${state === 'on' ? '' : 'is-off'}`}>
       <video ref={video} className="felt-scan-video" playsInline muted />
       <div className="felt-scan-top sat-glass-2">
+        <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Back" onClick={() => back('')}><Icon name="back" /></button>
         <div className="felt-grow">
           <h1 className="felt-scan-title">Join a game</h1>
           <small>{state === 'off' ? 'Camera is off. Turn on the camera, or paste the link.' : 'Point the camera at the QR on the host phone'}</small>

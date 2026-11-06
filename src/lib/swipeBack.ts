@@ -51,8 +51,8 @@ export function installSwipeBack(page: HTMLElement, leave: () => void): () => vo
     label.textContent = t.text;
     face.append(label);
     document.body.append(face);
-    face.animate({ opacity: [0, 1] }, { duration: 160, delay: 140, easing: 'ease-out', fill: 'both' });
-    label.animate({ opacity: [0, 1] }, { duration: 160, delay: 220, easing: 'ease-out', fill: 'both' });
+    // the button and its text fade up at once while the page fades out as it shrinks
+    face.animate({ opacity: [0, 1] }, { duration: 180, easing: 'ease-out', fill: 'both' });
   };
   const start = (x: number, y: number) => {
     if (x > EDGE || calm()) return;
@@ -82,7 +82,7 @@ export function installSwipeBack(page: HTMLElement, leave: () => void): () => vo
     }
     haptic(10);
     showFace(t);
-    const a = spring(page, (p) => ({ clipPath: clipAt(page, k0 + (1 - k0) * Math.min(p, 1), t) }), SPRING.grow, { fill: 'forwards', near: 0.02 });
+    const a = spring(page, (p) => ({ clipPath: clipAt(page, k0 + (1 - k0) * Math.min(p, 1), t), opacity: String(1 - Math.min(p, 1)) }), SPRING.grow, { fill: 'forwards', near: 0.02 });
     const go = () => {
       const f = face;
       face = null;

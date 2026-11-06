@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { PlayerName } from '../components/players';
-import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, TabPill, withUndo } from '../components/ui';
+import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, TabPill, withUndo, reopenGame } from '../components/ui';
 import { gameResults, handStats, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
 import { dateLabel, gameLength, money, playMs } from '../lib/format';
 import { groupTotals, handPace } from '../lib/stats';
@@ -28,13 +28,8 @@ export default function Games({ player: arg }: { player?: string }) {
 
   return (
     <div className="felt-page">
-      <Header title="Games" />
+      <Header title="Games" tabs={[{ label: 'Games', on: !stats, go: () => go('games', true) }, { label: 'Stats', on: stats, go: () => go('games/stats', true) }]} />
       <div className="sat-stack">
-        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Games view">
-          <TabPill />
-          <button role="radio" aria-checked={!stats} onClick={() => go('games', true)}>Games</button>
-          <button role="radio" aria-checked={stats} onClick={() => go('games/stats', true)}>Stats</button>
-        </div>
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
           <TabPill />
           {(['all', 'cash', 'tournament'] as const).map((t) => (
@@ -81,7 +76,7 @@ export default function Games({ player: arg }: { player?: string }) {
                 const open = openTransfers(g).length;
                 return (
                   <SwipeDelete key={g.id} label={`Delete ${g.name}`} onDelete={(row) => shrinkAway(row, () => withUndo(`${g.name} deleted.`, () => useStore.getState().deleteGame(g.id)))}>
-                  <button className="felt-row" onClick={() => go(`game/${g.id}/close`)}>
+                  <button className="felt-row" onClick={() => reopenGame(g)}>
                     <div className="felt-row-main">
                       <div className="felt-row-title felt-ellipsis">{g.name}</div>
                       <div className="felt-row-sub">
@@ -136,7 +131,7 @@ function SwipeDelete({ children, label, onDelete }: { children: ReactNode; label
         setX(x < OPEN / 2 ? OPEN : 0);
       }}>
       {(x < 0 || drag) && <button type="button" className="felt-swipe-del" aria-label={label} onClick={done}><Icon name="trash" size={20} /> Delete</button>}
-      <div className="felt-swipe-face" style={{ transform: `translateX(${x}px)`, transition: drag ? 'none' : undefined }}
+      <div className="felt-swipe-row" style={{ transform: `translateX(${x}px)`, transition: drag ? 'none' : undefined }}
         onClickCapture={(e) => { if (x) { e.stopPropagation(); e.preventDefault(); setX(0); } }}>{children}</div>
     </div>
   );

@@ -1,5 +1,19 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.3.1', date: '6 Nov 2026', notes: [
+    'Players and Games show their views as notebook tabs: Players, Leaderboard, Stats; Games, Stats.',
+    'The tab chip is in the Main colour, and the rail dips under it as it rolls.',
+    'Closing into a button: the page fades as it shrinks, and the button text shows at once. Sheets always leave by sliding down.',
+    'Load screen: no dot in the chip centres, and each inner ring draws along with the S.',
+    'Theme: Phone, Light and Dark in one toggle.',
+    'Players: Everyone and each group open and close with one tap. Add or take out group players in place.',
+    'Felt opens on Host or Player. Player opens the scanner, which now has a Back button.',
+    'Settings, You: enter your player code to make this phone yours.',
+    'Colours: Default shows the default colours. Picking a colour switches to Custom.',
+    'Card colour boxes no longer zoom the page or clip their outline.',
+    'Game rows have clean separators. Tap a closed game to reopen it, with Undo.',
+    'A tapped name keeps no ring.',
+  ] },
   { version: '1.3.0', date: '6 Nov 2026', notes: [
     'The tab bar is a chip tray: a chip rolls along the rail into the pocket of the open tab.',
     'The page title sits in a notebook tab on the page edge.',

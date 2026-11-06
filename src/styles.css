@@ -35,7 +35,8 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 .felt-title .sat-h1 + p { margin-top: var(--sat-space-1); }
 
 /* Bottom tab bar: a chip tray. One straight rail with a pocket under it for each tab; the icon rests in its pocket and
-   a poker chip rolls along the rail to the open tab (components/navRail.tsx). The page fades out under the tray. */
+   a poker chip in the Main colour rolls along the rail to the open tab, and the rail dips under it all the way
+   (components/navRail.tsx). The page fades out under the tray. */
 .felt-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 10px var(--sat-space-3) calc(var(--felt-safe-bottom) + 4px);
   background: linear-gradient(to bottom, color-mix(in srgb, var(--sat-bg) 0%, transparent), var(--sat-bg) 22px); }
 .felt-rail { position: relative; max-width: 496px; margin: 0 auto; display: flex; height: 72px; }
@@ -44,15 +45,15 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 .felt-rail-pocket { fill: var(--sat-well); }
 .felt-chip { position: absolute; left: 0; z-index: 1; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; will-change: transform;
   background:
-    radial-gradient(circle closest-side, var(--felt-coral) 0 60%, color-mix(in srgb, #fff 88%, var(--felt-coral)) 60% 65%, transparent 65%),
-    repeating-conic-gradient(var(--felt-coral) 0 30deg, #fbfcfc 30deg 45deg);
+    radial-gradient(circle closest-side, var(--felt-blue) 0 60%, color-mix(in srgb, #fff 88%, var(--felt-blue)) 60% 65%, transparent 65%),
+    repeating-conic-gradient(var(--felt-blue) 0 30deg, #fbfcfc 30deg 45deg);
   box-shadow: var(--felt-elev-1), inset 0 0 0 1px rgba(0,0,0,.12); }
 .felt-nav a { position: relative; z-index: 2; flex: 1; min-height: 64px; display: flex; flex-direction: column; align-items: center; padding-top: 13px; gap: 0;
   color: var(--sat-muted); text-decoration: none; -webkit-tap-highlight-color: transparent; }
 .felt-rail-icon { display: grid; place-items: center; width: 22px; height: 22px; transition: color var(--sat-dur-base) var(--sat-ease); }
 .felt-rail-icon svg { width: 20px; height: 20px; }
 .felt-rail-label { margin-top: 18px; font-size: var(--sat-fs-caption); font-weight: 600; transition: color var(--sat-dur-base) var(--sat-ease); }
-.felt-nav a[aria-current="page"] .felt-rail-icon { color: var(--felt-on-coral); }
+.felt-nav a[aria-current="page"] .felt-rail-icon { color: var(--sat-on-accent); }
 .felt-nav a[aria-current="page"] .felt-rail-label { color: var(--sat-text); }
 
 /* The kit hides .sat-bottombar at 640px and up (desktop puts actions in the header).
@@ -166,9 +167,9 @@ html[data-calm] .felt-logbtn, html[data-calm] .felt-recorder, html[data-calm] .f
 @keyframes felt-vt-in { from { opacity: 0; } }
 @keyframes felt-vt-to-blue { from { background-color: var(--felt-vt-page); } to { background-color: var(--sat-accent-fill); } }
 @keyframes felt-vt-to-page { from { background-color: var(--sat-accent-fill); } to { background-color: var(--felt-vt-page); } }
-html[data-vt="close"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-blue 160ms ease-out 200ms both; }
-html[data-vt="close"]::view-transition-old(felt-morph) { animation: felt-vt-out 140ms ease-out 180ms both; }
-html[data-vt="close"]::view-transition-new(felt-morph) { animation: felt-vt-in 160ms ease-out 260ms both; }
+/* closing: the page fades while it shrinks, and the button with its text fades up at once. No solid block first */
+html[data-vt="close"]::view-transition-old(felt-morph) { animation: felt-vt-out 300ms ease-in both; }
+html[data-vt="close"]::view-transition-new(felt-morph) { animation: felt-vt-in 180ms ease-out both; }
 html[data-vt="open"]::view-transition-group(felt-morph) { animation-delay: 60ms; }
 html[data-vt="open"]::view-transition-image-pair(felt-morph) { animation: felt-vt-to-page 160ms ease-out both; }
 html[data-vt="open"]::view-transition-old(felt-morph) { animation: felt-vt-out 120ms ease-out both; }
@@ -676,10 +677,11 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-suit-grip { width: 32px; min-height: 44px; flex: none; display: grid; place-items: center; border: 0; background: none; color: var(--sat-muted); touch-action: pan-y; cursor: grab; padding: 0; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .felt-suit-mark { flex: none; width: 34px; height: 40px; display: grid; place-items: center; font-size: 1.4rem; line-height: 1; border-radius: 6px; background: var(--felt-card-face, #fbfcfc); box-shadow: inset 0 0 0 1px rgba(16,32,31,.16); transition: color var(--sat-dur-fast) var(--sat-ease); }
 .felt-grow { flex: 1; min-width: 0; }
-.felt-suit-custom { display: flex; align-items: center; gap: 4px; max-width: 0; opacity: 0; overflow: hidden; transition: max-width 320ms var(--sat-ease), opacity 240ms var(--sat-ease); }
-.felt-suit-custom.is-open { max-width: 124px; opacity: 1; }
+/* room for the focus ring: the box has a small inset, so the clip never cuts the ring's left edge */
+.felt-suit-custom { display: flex; align-items: center; gap: 4px; max-width: 0; opacity: 0; overflow: hidden; padding: 3px 0 3px 3px; transition: max-width 320ms var(--sat-ease), opacity 240ms var(--sat-ease); }
+.felt-suit-custom.is-open { max-width: 132px; opacity: 1; }
 .felt-suit-row .felt-row-title { font-size: .9375rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.felt-suit-hex { width: 86px; min-height: 40px; padding: 0 6px; font-size: .8125rem; }
+.felt-suit-hex { width: 90px; min-height: 40px; padding: 0 6px; font-size: 16px; } /* 16 px: iPhone zooms into any smaller field */
 .felt-suit-drop { position: relative; flex: none; width: 32px; height: 44px; display: grid; place-items: center; color: var(--sat-text); cursor: pointer; }
 .felt-suit-drop input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
 .felt-look-toggle { display: inline-flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; cursor: pointer; }
@@ -808,9 +810,9 @@ html[data-calm] .felt-qr-pop, html[data-calm] .felt-qr-pop::backdrop { animation
 .felt-swipe { position: relative; overflow: hidden; }
 .felt-swipe + .felt-swipe { border-top: 1px solid var(--sat-line); }
 .felt-swipe .felt-row { border-bottom: 0; }
-.felt-swipe-face { position: relative; z-index: 1; background: var(--sat-solid-2); transition: transform 260ms var(--felt-drawer); touch-action: pan-y; }
+.felt-swipe-row { position: relative; z-index: 1; background: var(--sat-solid-2); transition: transform 260ms var(--felt-drawer); touch-action: pan-y; }
 .felt-swipe-del { position: absolute; inset: 0 0 0 auto; width: 88px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: var(--sat-neg); color: var(--sat-bg); font: 600 var(--sat-fs-caption) var(--sat-font-ui); }
-.felt-swipe-face > .felt-row { padding-inline: var(--sat-space-4); }
+.felt-swipe-row > .felt-row { padding-inline: var(--sat-space-4); }
 /* A sheet with a main button: the title row and its button stay in view while the sheet scrolls */
 .felt-sheet-head { position: sticky; top: calc(var(--sat-space-5) * -1); z-index: 6; margin: 0 calc(var(--sat-space-4) * -1); padding: var(--sat-space-2) var(--sat-space-4); background: var(--sat-solid-2); border-bottom: 1px solid var(--sat-line); }
 
@@ -926,3 +928,39 @@ html[data-skin="felt"][data-palette="custom"][data-theme="dark"] {
   --sat-neg: color-mix(in oklab, var(--felt-down) 65%, #fff);
   --felt-coral: var(--felt-accent);
 }
+
+/* Several views of one page: a row of notebook tabs. The open tab stands forward and joins the page; the others sit
+   behind it, lower and on the page edge. Only the open one has the paper colour and the feet. */
+.felt-notebook[role="tablist"] { gap: 0; padding-left: var(--sat-space-2); }
+.felt-ntab--view { flex: 0 1 auto; color: var(--sat-muted); font: inherit; cursor: pointer; padding: var(--sat-space-2) var(--sat-space-3); }
+.felt-ntab--view .felt-header-title { font-size: 1.0625rem; }
+.felt-ntab--view:not(.is-on) { z-index: 0; margin: 0 -4px -2px; padding-top: 6px; background: var(--sat-well); border-color: var(--sat-line); border-bottom: 2px solid var(--sat-line-strong); box-shadow: none; }
+.felt-ntab--view:not(.is-on)::before, .felt-ntab--view:not(.is-on)::after { display: none; }
+.felt-ntab--view.is-on { z-index: 1; color: var(--sat-text); }
+
+/* Theme toggle in the Home header: Phone, Light, Dark */
+.felt-theme3 { padding: 2px; }
+.felt-theme3 > button { min-height: 36px; padding: 0 8px; gap: 4px; font-size: var(--sat-fs-caption); font-weight: 600; }
+/* a tapped name or link keeps no ring: the ring is for keyboard focus only */
+.felt-name:focus:not(:focus-visible), [data-player]:focus:not(:focus-visible), .felt-pcard-name:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+
+/* A list that opens and closes with one tap on its head (Players: Everyone and each group) */
+.felt-fold { padding: 0; overflow: hidden; }
+.felt-fold > .felt-row { padding-inline: var(--sat-space-4); }
+.felt-fold-head { border-bottom: 0; }
+.felt-fold-head[aria-expanded="true"] { border-bottom: 1px solid var(--sat-line); }
+.felt-fold-chev { display: inline-flex; color: var(--sat-muted); transition: transform var(--sat-dur-fast) var(--sat-ease); transform: rotate(-90deg); }
+.felt-fold-head[aria-expanded="true"] .felt-fold-chev { transform: none; }
+.felt-fold-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sat-space-3); padding: var(--sat-space-3) var(--sat-space-4) var(--sat-space-4); }
+.felt-row.is-hidden { opacity: .55; }
+
+/* Start: Host or Player, the first view when Felt opens */
+.felt-start-view { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; gap: var(--sat-space-8, 48px); padding-top: calc(var(--felt-safe-top) + 32px); }
+.felt-start-mark { display: flex; flex-direction: column; align-items: center; gap: var(--sat-space-2); }
+.felt-start-mark .sat-wordmark { font-size: 2.25rem; }
+.felt-start-choices { display: grid; gap: var(--sat-space-3); }
+.felt-start-choice { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: var(--sat-space-4); row-gap: 2px; align-items: center; text-align: left; padding: var(--sat-space-5); border-radius: var(--sat-radius-lg); color: inherit; border: 1px solid var(--sat-line); }
+.felt-start-choice svg { grid-row: span 2; color: var(--sat-accent-text); }
+.felt-start-choice b { font-size: 1.25rem; }
+/* the Colours switch in Default shows a plain knob: the default colours are not one pair like the card pips */
+.felt-look-thumb.is-blank .is-default { background: var(--sat-solid-2); }

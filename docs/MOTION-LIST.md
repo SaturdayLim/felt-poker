@@ -8,8 +8,8 @@ The motion in Felt, as the owner picked it on 4 Nov 2026 from live samples. `src
 |---|---|---|---|
 | A1 | Tab highlight | Springy | spring 320, bounce 0.3. The main tab bar: a chip rolls along the rail with the same spring, lifting 6 px out of the pocket mid-roll |
 | A2 | Screen change | iOS push | new slides in, old drifts 28% and fades out in 130, 320. The screens are see-through, so the old one must go first |
-| A3 | Log hand into the hand page | Clip morph, overlapped | Close: the page clips into the button (spring 350, bounce 0.08, no stretch), blue at 200 (160), text at 260 (160). Open: text goes (120), blue goes (160), the page opens from 60. Swipe back: the page clips towards the button with the finger (70% of the way at full width); past a third it finishes (spring 350) with a blue stand-in at 140 and its text at 220; earlier it springs back (spring 300, bounce 0.3) |
-| A4 | Sheet | Out of its button | opened by a press: clip from the button, spring 350, bounce 0.08, button colour fades in 200 after 90, content at 110. Close goes back into the button. Swipe down: spring 360, bounce 0. With no press: up spring 500 |
+| A3 | Log hand into the hand page | Clip morph, overlapped | Close: the page clips into the button (spring 350, bounce 0.08, no stretch) and fades over 300; the button with its text fades up at once (180). Open: text goes (120), blue goes (160), the page opens from 60. Swipe back: the page clips towards the button with the finger (70% of the way at full width); past a third it finishes (spring 350) with a blue stand-in at 140 and its text at 220; earlier it springs back (spring 300, bounce 0.3) |
+| A4 | Sheet | Out of its button, down to leave | opened by a press: clip from the button, spring 350, bounce 0.08, button colour fades in 200 after 90, content at 110. With no press: up spring 500. Leaving, always: slides down, spring 360, bounce 0 |
 | A5 | Keypad and card picker | Spring | spring 280, bounce 0.1 |
 | A6 | QR pop-up | From the icon | clip from the icon, spring 300, bounce 0.15; back into the icon on close 220 |
 | A7 | Info tip | Quick fade | 95% to full, 150, from the i. Close 120 |

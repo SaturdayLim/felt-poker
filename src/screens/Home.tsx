@@ -1,7 +1,7 @@
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { PlayerName, openPlayer } from '../components/players';
-import { Delta, Empty, Header, Icon, SourceTip, ThemeCycle, useTick } from '../components/ui';
+import { Delta, Empty, Header, Icon, SourceTip, ThemeCycle, useTick, reopenGame } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
 import { gameLength, money, playMs, shortDate } from '../lib/format';
 import { filterGames, leaderboard } from '../lib/stats';
@@ -71,7 +71,7 @@ export default function Home() {
               {closed.slice(0, 3).map((g) => {
                 const top = gameResults(g)[0];
                 return (
-                  <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(`game/${g.id}/close`)}>
+                  <button key={g.id} className="felt-row felt-row--slim" onClick={() => reopenGame(g)}>
                     <div className="felt-row-main">
                       <div className="felt-row-title felt-ellipsis">{g.name}</div>
                       <div className="felt-row-sub">{shortDate(g.startedAt)}{top ? <>, top: <PlayerName id={top.playerId} /></> : ''}</div>

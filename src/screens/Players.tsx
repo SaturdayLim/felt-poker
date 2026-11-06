@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Empty, Header, Icon, SlidePane, TabPill, toast, SourceTip } from '../components/ui';
+import { Avatar, Caption, Delta, Header, Icon, SlidePane, toast, SourceTip } from '../components/ui';
 import Insights from './Insights';
 import { PlayerSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
@@ -18,12 +18,8 @@ const VIEWS: { k: PlayersView; label: string; path: string }[] = [
 export default function Players({ view = 'list', pid }: { view?: PlayersView; pid?: string }) {
   return (
     <div className="felt-page">
-      <Header title="Players" />
+      <Header title="Players" tabs={VIEWS.map((v) => ({ label: v.label, on: view === v.k, go: () => go(v.path, true) }))} />
       <div className="sat-stack">
-        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Players view">
-          <TabPill />
-          {VIEWS.map((v) => <button key={v.k} role="radio" aria-checked={view === v.k} onClick={() => go(v.path, true)}>{v.label}</button>)}
-        </div>
         <SlidePane k={view} i={VIEWS.findIndex((v) => v.k === view)}>
           {view === 'list' ? <PlayerList /> : <Insights embedded mode={view === 'board' ? 'standings' : 'player'} initialPlayer={pid} />}
         </SlidePane>
@@ -42,7 +38,15 @@ function PlayerList() {
   const [nm, setNm] = useState('');
   const [edit, setEdit] = useState<Player | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const setArchived = useStore((s) => s.setPlayerArchived);
+  const saveGroup = useStore((s) => s.saveGroup);
+  // which lists are open: one tap opens or closes a list. Kept on this phone
+  const [opened, setOpened] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('felt-players-open') ?? '[]'); } catch { return []; } });
+  const isOpen = (k: string) => opened.includes(k);
+  const toggle = (k: string) => setOpened((o) => {
+    const next = o.includes(k) ? o.filter((x) => x !== k) : [...o, k];
+    try { localStorage.setItem('felt-players-open', JSON.stringify(next)); } catch { /* private mode */ }
+    return next;
+  });
   const closed = filterGames(games, 'all', 'all');
   const list = players.filter((p) => showArchived || !p.archived).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -73,49 +77,58 @@ function PlayerList() {
             <Caption tip="groups">Groups</Caption>
             <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setNewGroup(true)}><Icon name="plus" /> New group</button>
           </div>
-          {groups.length === 0 ? null : (
-            <div className="sat-glass-2 felt-list">
-              {groups.map((grp) => {
-                const gs = games.filter((g) => g.groupId === grp.id && g.status === 'closed');
-                const owed = groupSettlement(gs).transfers.length;
-                return (
-                  <button key={grp.id} className="felt-row felt-row--slim" onClick={() => go(`group/${grp.id}`)}>
-                    <div className="felt-row-main">
-                      <div className="felt-row-title">{grp.name}</div>
-                      <div className="felt-row-sub felt-ellipsis">{grp.playerIds.length} players, {gs.length} games</div>
+          {groups.map((grp) => {
+            const gs = games.filter((g) => g.groupId === grp.id && g.status === 'closed');
+            const owed = groupSettlement(gs).transfers.length;
+            const open = isOpen(`g:${grp.id}`);
+            return (
+              <div key={grp.id} className="sat-glass-2 felt-fold">
+                <button type="button" className="felt-row felt-fold-head" aria-expanded={open} onClick={() => toggle(`g:${grp.id}`)}>
+                  <span className="felt-row-main">
+                    <span className="felt-row-title">{grp.name}</span>
+                    <span className="felt-row-sub">{grp.playerIds.length} players, {gs.length} games{owed > 0 ? `, ${owed} to pay` : ''}</span>
+                  </span>
+                  <span className="felt-fold-chev" aria-hidden="true"><Icon name="chevron" size={18} /></span>
+                </button>
+                {open && (
+                  <div className="felt-fold-body">
+                    {/* tap a name to add it to the group or take it out */}
+                    <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+                      {players.filter((p) => !p.archived || grp.playerIds.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map((p) => {
+                        const inGroup = grp.playerIds.includes(p.id);
+                        return <button key={p.id} type="button" className="sat-chip" aria-pressed={inGroup}
+                          onClick={() => saveGroup({ ...grp, playerIds: inGroup ? grp.playerIds.filter((x) => x !== p.id) : [...grp.playerIds, p.id] })}>{p.name}</button>;
+                      })}
                     </div>
-                    {owed > 0 ? <span className="sat-badge sat-badge--muted">{owed} to pay</span> : <span className="sat-small sat-muted">Square</span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                    <button className="sat-btn sat-btn--sm" onClick={() => go(`group/${grp.id}`)}>Open {grp.name}</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </section>
 
-        <Caption>Everyone</Caption>
-        {list.length === 0 && <Empty title="No players">Add the people you play with. They are saved for every game.</Empty>}
-        {list.length > 0 && (
-          <div className="sat-glass-2 felt-list">
-            {list.map((p) => {
+        <div className="sat-glass-2 felt-fold">
+          <button type="button" className="felt-row felt-fold-head" aria-expanded={isOpen('all')} onClick={() => toggle('all')}>
+            <span className="felt-row-main"><span className="felt-row-title">Everyone</span><span className="felt-row-sub">{list.length} players</span></span>
+            <span className="felt-fold-chev" aria-hidden="true"><Icon name="chevron" size={18} /></span>
+          </button>
+          {isOpen('all') && (list.length === 0
+            ? <div className="felt-fold-body sat-small sat-muted">Add the people you play with. They are saved for every game.</div>
+            : list.map((p) => {
               const s = playerSummary(closed, p.id);
               return (
-                <div key={p.id} className={`felt-row felt-row--flag ${p.archived ? 'is-hidden' : ''}`}>
-                  <button type="button" className="felt-row-hit" onClick={() => setEdit(p)}>
-                    <Avatar name={p.name} />
-                    <span className="felt-row-main">
-                      <span className="felt-row-title">{p.name}</span>
-                      <span className="felt-row-sub">{s.games} games, {s.handsWon} hands won</span>
-                    </span>
-                    {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
-                  </button>
-                  {/* open eye: shows in the player list of new games. Shut eye: hidden there, games and stats stay */}
-                  <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-pressed={!p.archived} aria-label={p.archived ? `Show ${p.name} when you start a game` : `Hide ${p.name} when you start a game`}
-                    onClick={() => { setArchived(p.id, !p.archived); toast(p.archived ? `${p.name} shows again` : `${p.name} hidden. Games and stats stay.`); }}><Icon name={p.archived ? 'dark' : 'eye'} /></button>
-                </div>
+                <button key={p.id} type="button" className={`felt-row ${p.archived ? 'is-hidden' : ''}`} onClick={() => setEdit(p)}>
+                  <Avatar name={p.name} />
+                  <span className="felt-row-main">
+                    <span className="felt-row-title">{p.name}</span>
+                    <span className="felt-row-sub">{s.games} games, {s.handsWon} hands won{p.archived ? ', hidden' : ''}</span>
+                  </span>
+                  {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
+                </button>
               );
-            })}
-          </div>
-        )}
+            }))}
+        </div>
         {list.length > 0 && <div className="felt-source"><SourceTip>Felt game log ({closed.length} closed games). Net result in {currency}.</SourceTip></div>}
       </div>
       {edit && <PlayerSheet p={edit} onClose={() => setEdit(null)} />}

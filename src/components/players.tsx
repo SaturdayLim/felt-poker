@@ -364,6 +364,7 @@ export function PlayerHost() {
 /** A player's name anywhere outside logging. A tap opens the player card, even inside a row that opens something else. */
 export function PlayerName({ id }: { id: ID }) {
   const name = usePlayerName();
-  const open = (e: { stopPropagation: () => void; preventDefault: () => void }) => { e.stopPropagation(); e.preventDefault(); openPlayer(id); };
+  // the name lets go of the focus once tapped: no ring stays over it after the card opens
+  const open = (e: { stopPropagation: () => void; preventDefault: () => void; currentTarget: EventTarget }) => { e.stopPropagation(); e.preventDefault(); (e.currentTarget as HTMLElement).blur?.(); openPlayer(id); };
   return <span role="button" tabIndex={0} className="felt-name" data-player={id} data-press="name" aria-label={`Open the player card of ${name(id)}`} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter') open(e); }}>{name(id)}</span>;
 }

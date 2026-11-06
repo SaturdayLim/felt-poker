@@ -3,7 +3,9 @@ import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../sto
 import { motionPref, phoneAsksCalm, setMotionPref, type MotionPref } from '../lib/motion';
 import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
-import { PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
+import { DEFAULT_PALETTE, PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
+import { CodeBoxes } from '../components/codeBoxes';
+import { codeMatches } from '../lib/codes';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
@@ -47,6 +49,7 @@ export default function Settings() {
   const update = useStore((s) => s.updateSettings);
   const games = useStore((s) => s.games);
   const players = useStore((s) => s.players);
+  const me = players.find((p) => p.id === settings.me);
   const exportBackup = useStore((s) => s.exportBackup);
   const importBackup = useStore((s) => s.importBackup);
   const eraseAll = useStore((s) => s.eraseAll);
@@ -161,10 +164,22 @@ export default function Settings() {
           <h2 className="sat-h2">Hands</h2>
           <div className="sat-stack" style={gap(2)}>
             <Caption tip="me">You</Caption>
-            <div className="sat-cluster" style={gap(2)}>
-              <button className="sat-chip" aria-pressed={!settings.me} onClick={() => update({ me: undefined })}>Nobody</button>
-              {players.filter((p) => !p.archived || p.id === settings.me).map((p) => <button key={p.id} className="sat-chip" aria-pressed={settings.me === p.id} onClick={() => update({ me: p.id })}>{p.name}</button>)}
-            </div>
+            {/* this phone belongs to the player whose code is entered here; their own hidden cards then open on it */}
+            {me ? (
+              <div className="sat-split">
+                <span><b>{me.name}</b> <span className="sat-small sat-muted">on this phone</span></span>
+                <button className="sat-btn sat-btn--sm" onClick={() => { try { localStorage.removeItem(`felt-own-open:${me.id}`); } catch { /* private mode */ } update({ me: undefined }); }}>Not me</button>
+              </div>
+            ) : (
+              <CodeBoxes autoFocus={false} onSubmit={async (c) => {
+                const p = players.find((x) => codeMatches(x.code, c));
+                if (!p) return false;
+                update({ me: p.id });
+                try { localStorage.setItem(`felt-own-open:${p.id}`, p.code!); } catch { /* private mode */ }
+                toast(`This phone is now ${p.name}'s.`);
+                return true;
+              }} />
+            )}
           </div>
           <div className="sat-switch-row">
             <span>Track the button <Help k="dealer" /></span>
@@ -236,17 +251,19 @@ export default function Settings() {
 /** The five base colours of the app: Base, Main, Accent, Up and Down. Default uses the tuned palette; Custom makes
     every colour of the app from these five. Kept on this phone. */
 function PaletteEditor() {
-  const palette = cleanPalette(useStore((s) => s.settings.palette));
+  const saved = cleanPalette(useStore((s) => s.settings.palette));
   const update = useStore((s) => s.updateSettings);
-  const isDefault = !palette.custom;
+  const isDefault = !saved.custom;
+  // Default shows the true default colours; the custom ones stay saved, out of sight, for the switch back
+  const shown = isDefault ? DEFAULT_PALETTE : saved;
   return (
     <>
       <div className="sat-split">
         <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Colours</h2><Help k="palette" /></span>
         <label className="felt-look-toggle">
           <span className="sat-small">{isDefault ? 'Default' : 'Custom'}</span>
-          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default colours" className="felt-look-switch" onClick={() => update({ palette: { ...palette, custom: isDefault } })}>
-            <span className="felt-look-thumb"><i className="is-rainbow" /><i className="is-default" /></span>
+          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default colours" className="felt-look-switch" onClick={() => update({ palette: { ...saved, custom: isDefault } })}>
+            <span className="felt-look-thumb is-blank"><i className="is-rainbow" /><i className="is-default" /></span>
           </button>
         </label>
       </div>
@@ -254,10 +271,11 @@ function PaletteEditor() {
         {PALETTE_KEYS.map((k) => (
           <div key={k} className="felt-suit-row">
             <span className="felt-suit-grip" aria-hidden="true" />
-            <span className="felt-suit-mark" style={{ background: palette[k] }} aria-hidden="true" />
+            <span className="felt-suit-mark" style={{ background: shown[k] }} aria-hidden="true" />
             <span className="felt-row-title felt-grow">{PALETTE_NAME[k]}</span>
-            <div className={`felt-suit-custom ${isDefault ? '' : 'is-open'}`} aria-hidden={isDefault}>
-              <SuitColor name={PALETTE_NAME[k]} value={palette[k]} off={isDefault} onChange={(hex) => update({ palette: { ...palette, [k]: hex } })} />
+            {/* a colour picked while on Default starts Custom from the default colours */}
+            <div className="felt-suit-custom is-open">
+              <SuitColor name={PALETTE_NAME[k]} value={shown[k]} off={false} onChange={(hex) => update({ palette: { ...(isDefault ? DEFAULT_PALETTE : saved), [k]: hex, custom: true } })} />
             </div>
           </div>
         ))}

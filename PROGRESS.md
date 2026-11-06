@@ -1,6 +1,9 @@
 # Felt: progress
 
-## Latest (6 Nov 2026): 1.3.0
+## Latest (6 Nov 2026): 1.3.1
+- Header `tabs` prop (notebook tabs per view). NavRail draws the rail as one sampled path with a dip under the chip (rAF during the roll). Sheet exit always slides down; Log hand close fades (no tint). Start view (screens/Start.tsx, sessionStorage felt-role). Settings You by player code. PaletteEditor shows defaults on Default. reopenGame() in ui.tsx. Fixed: .felt-swipe-face name clash (Games rows lost their titles); renamed to .felt-swipe-row.
+
+## Earlier (6 Nov 2026): 1.3.0
 - Poker-made look: NavRail (components/navRail.tsx) with a rolling chip; Header is a notebook tab (.felt-ntab).
 - Tabs now Home, Games, Players, Settings. Players: list, Leaderboard, Stats (Insights embedded). Games: Games and Stats (GameStats in Games.tsx). #/insights/* still opens Players.
 - Streamlining: hide eye per player, SwipeDelete on closed games, Sheet `action` prop (sticky Save), global user-select none plus contextmenu block (main.tsx).

@@ -7,7 +7,6 @@ import { DRAWER, SPRING, calm, recentPress, spring, springCurve } from '../lib/m
 import { HELP, type HelpKey } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
-import { NEXT_THEME } from '../theme';
 
 /* ------------------------------- icons ------------------------------- */
 
@@ -91,13 +90,30 @@ export function FeltMark({ height = 32 }: { height?: number }) {
 
 /** Sticky header, drawn as the tab of a notebook page: the title (and Back) sit in a tab that stands up from the
     page edge, a line across the screen. Actions sit on the edge to the right of the tab. */
-export function Header({ title, sub, back, right, brand, children }: {
+export function Header({ title, sub, back, right, brand, children, tabs }: {
   title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean; children?: ReactNode;
+  /** Views of the page as a row of notebook tabs (for example Players, Leaderboard, Stats). They take the place of the title tab. */
+  tabs?: { label: string; on: boolean; go: () => void }[];
 }) {
+  if (tabs) {
+    return (
+      <header className="sat-header felt-header felt-header--tab">
+        <div className="sat-header-bar felt-notebook" role="tablist" aria-label={title}>
+          {tabs.map((t) => (
+            <button key={t.label} type="button" role="tab" aria-selected={t.on} className={`felt-ntab felt-ntab--view ${t.on ? 'is-on' : ''}`} onClick={t.go}>
+              <span className="felt-header-title">{t.label}</span>
+            </button>
+          ))}
+          {right && <div className="felt-ntab-right">{right}</div>}
+        </div>
+        {children}
+      </header>
+    );
+  }
   return (
     <header className={back ? 'sat-header felt-header' : 'sat-header felt-header felt-header--tab'}>
       <div className="sat-header-bar felt-notebook">
-        <div className="felt-ntab">
+        <div className="felt-ntab is-on">
           {back && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={back} aria-label="Back"><Icon name="back" /></button>}
           <div className="sat-brand">
             {brand && <FeltMark />}
@@ -115,15 +131,20 @@ export function Header({ title, sub, back, right, brand, children }: {
 }
 
 /** Phone theme toggle: one icon button that cycles Auto, Light, Dark. */
+/** Theme: a 3-part toggle, Phone, Light and Dark, so each choice reads by itself (a phone icon alone did not). */
 export function ThemeCycle() {
   const pref = useStore((s) => s.settings.theme);
   const update = useStore((s) => s.updateSettings);
-  const icon = pref === 'auto' ? 'phone' : pref === 'light' ? 'sun' : 'moon';
+  const opts: { k: typeof pref; icon: string; label: string }[] = [{ k: 'auto', icon: 'phone', label: 'Phone' }, { k: 'light', icon: 'sun', label: 'Light' }, { k: 'dark', icon: 'moon', label: 'Dark' }];
   return (
-    <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => update({ theme: NEXT_THEME[pref] })}
-      aria-label={`Theme: ${pref}. Change theme`} title={`Theme: ${pref}`}>
-      <Icon name={icon} />
-    </button>
+    <div className="sat-seg felt-theme3" role="radiogroup" aria-label="Theme">
+      <TabPill />
+      {opts.map((o) => (
+        <button key={o.k} type="button" role="radio" aria-checked={pref === o.k} onClick={() => update({ theme: o.k })} aria-label={`Theme: ${o.label}`}>
+          <Icon name={o.icon} size={15} /><span>{o.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -385,8 +406,8 @@ function clipFrom(d: HTMLElement, b: DOMRect, radius: number) {
 }
 const FULL_CLIP = 'inset(0px 0px 0px 0px round 24px)';
 
-/** A sheet from the bottom. Opened by a press, it pulls out of the button that opened it, in that button's colour,
-    and goes back into it on Close. A swipe down slides it away. `edge` keeps the coral edge of the card button. */
+/** A sheet from the bottom. Opened by a press, it pulls out of the button that opened it, in that button's colour.
+    It always leaves by sliding down: a swipe, a tap outside or a button. `edge` keeps the coral edge of the card button. */
 export function Sheet({ open, onClose, title, sub, children, edge, head, noClose, action }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
   /** No Close button: the swipe bar, a swipe down and a tap outside close it. */
@@ -414,16 +435,7 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
     leaving.current = true;
     fadeBackdrop(d, 1, 0, 300);
     const done = () => { leaving.current = false; closing.current(); };
-    const back = origin.current, swiped = !!d.style.translate;
-    const br = back?.isConnected ? back.getBoundingClientRect() : null;
-    if (phone() && !swiped && back && br && br.width > 0 && br.bottom > 0 && br.top < window.innerHeight) {
-      // back into the button: the content goes, the button colour comes back, the sheet closes around the button
-      const { dy, clip } = clipFrom(d, br, parseFloat(getComputedStyle(back).borderTopLeftRadius) || 12);
-      d.firstElementChild?.animate({ opacity: [1, 0] }, { duration: 120, easing: 'ease-out', fill: 'forwards' });
-      morphFill(d, back, [0, 1], 60);
-      spring(d, (p) => { const q = Math.min(p, 1); return { clipPath: q < 1 ? mixClip(FULL_CLIP, clip, q) : clip, translate: `0 ${dy * q}px` }; }, SPRING.grow, { fill: 'forwards', near: 0.02 })!.onfinish = done;
-      return;
-    }
+    // a sheet with a swipe bar always leaves the way a swipe takes it: down, however it was closed
     if (phone()) {
       const from = parseFloat(d.style.translate.split(' ')[1] ?? '') || 0, by = d.offsetHeight + 24 - from;
       d.style.translate = '';
@@ -690,6 +702,13 @@ type ToastAction = { label: string; run: () => void; countdown?: number };
 let toastListener: ((msg: string, action?: ToastAction) => void) | null = null;
 /** Short message at the bottom. With an action (for example Undo) it stays 5 seconds instead of 2.6. */
 export function toast(msg: string, action?: ToastAction) { toastListener?.(msg, action); }
+
+/** A closed game opens live again: Undo closes it again. Used where a closed game is picked from a list. */
+export function reopenGame(g: { id: string; name: string }) {
+  withUndo(`${g.name} reopened.`, () => useStore.getState().reopenGame(g.id));
+  // a hash change, not a function call, so the page change keeps its slide
+  window.location.hash = `#/game/${g.id}`;
+}
 
 /** Runs a change at once and offers Undo for 5 seconds. Undo puts the games and groups back as they were. */
 export function withUndo(msg: string, run: () => void) {

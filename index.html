@@ -20,7 +20,7 @@
     <title>Felt</title>
   </head>
   <body class="sat">
-    <!-- Splash: the outer S draws in one stroke, the inner rings and ticks complete the chips, the name settles, then the page fades and hands over to the app.
+    <!-- Splash: the outer S draws in one stroke, each spoke swipes out from its chip centre as the S passes it, the inner rings complete the chips, the name settles, then the page fades and hands over to the app.
          Tap or press a key to skip. Length comes from FELT_SPLASH_MS above (default 3s). -->
     <main class="felt-splash" aria-label="Felt is loading">
       <div class="felt-splash-lockup">
@@ -28,8 +28,15 @@
           <path class="s" pathLength="1" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
           <path class="inner" d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
           <path class="inner inner-b" d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-          <path class="notch" d="M45.15 39.15 L47.84 41.84 M18.85 39.15 L16.16 41.84 M18.85 12.85 L16.16 10.16 M45.15 12.85 L47.84 10.16" />
-          <path class="notch" d="M45.15 87.15 L47.84 89.84 M18.85 87.15 L16.16 89.84 M18.85 60.85 L16.16 58.16 M45.15 60.85 L47.84 58.16" />
+          <!-- spokes: each swipes out from its chip centre as the S passes it -->
+          <path class="spoke" pathLength="1" style="--d:254" d="M32 26 L47.84 41.84" />
+          <path class="spoke" pathLength="1" style="--d:714" d="M32 26 L16.16 41.84" />
+          <path class="spoke" pathLength="1" style="--d:634" d="M32 26 L16.16 10.16" />
+          <path class="spoke" pathLength="1" style="--d:517" d="M32 26 L47.84 10.16" />
+          <path class="spoke" pathLength="1" style="--d:866" d="M32 74 L47.84 89.84" />
+          <path class="spoke" pathLength="1" style="--d:983" d="M32 74 L16.16 89.84" />
+          <path class="spoke" pathLength="1" style="--d:1246" d="M32 74 L16.16 58.16" />
+          <path class="spoke" pathLength="1" style="--d:786" d="M32 74 L47.84 58.16" />
         </svg>
         <h1 class="sat-wordmark felt-splash-name">Felt</h1>
       </div>

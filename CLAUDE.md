@@ -23,6 +23,9 @@ Standing instructions from the user. They apply to every screen, report and tip.
 
 - `docs/DESIGN-PRINCIPLES.md`: colour 60/30/10 (ink `#1C1E21`, blue `#0052CC`, orange `#FF5722`; ice `#EBF1F5`, subtle `#E2E8F0`), phone details, desktop details for later.
 - Elevation: three shadow depths only (`--felt-elev-1/2/3`). Each is stacked soft layers, blur = 2 x offset. Details in the felt-ui skill.
+- Made for a poker table, not a generic app: the tab bar is a chip tray (a straight rail with a pocket per tab; a poker chip rolls along the rail to the open tab), and the header is the tab of a notebook page (the title in a paper tab standing up from a line across the screen).
+- Colours, Settings: Default (tuned tokens) or Custom (five base colours: Base, Main, Accent, Up, Down; every other colour derives from them, `src/lib/palette.ts`). Text on a Main or Accent fill is white or Base, whichever reads better. Belongs to the phone: a restore never changes it.
+- Nothing in the interface is selectable or has a long-press menu, as in native apps. Only fields and `.felt-selectable` text (the player code) can be selected.
 
 ## Behaviour
 
@@ -99,6 +102,13 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Awards come from a fixed list, each with a minimum to count (src/report/model.ts, AWARD_LIST). A tie shares an award.
 - Oldest phones: Felt needs iOS 16.2 or Chrome 111. `app/index.html` shows a warning below that. Do not add workarounds for older phones.
 - Report: View (in the app), Link (encrypted online for 30 days, key in the link), Download (HTML file).
+- Tabs: Home, Games, Players, Settings. Players holds Players, Leaderboard and Stats (old #/insights links still open there). Games holds Games and Stats (table-level figures across closed games).
+- Players list: an eye on each row hides or shows the player when a game starts; Show hidden players lists the hidden ones. Games and stats stay.
+- Swipe a closed game left to show Delete; a long swipe deletes at once. Undo puts it back.
+- Game settings: Save sits top right and stays in view. A swipe down or a tap outside leaves without saving.
+- The live room closes by itself when the game is closed, or after 12 hours with no action from the host.
+- End game count starts filled: each player's own count if they sent one from the player view (My final chip count), else an exact estimate. The host edits any of them.
+- Load screen: each chip spoke swipes out from its chip centre as the S stroke passes it.
 - Startup opens Home (host a game), also on a phone with no data. Join a game on Home opens the camera scanner. A scanned or pasted game link opens that game. Host a game instead leads to Home.
 - Motion follows the phone (Reduce Motion) unless Settings, Motion says Full. It belongs to the phone: a backup restore must not change it.
 - Action table: names sit in a panel on the page background, with no box. Boxes cut off at the panel edge. A slide bar shows when columns are out of view.

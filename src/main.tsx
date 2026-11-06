@@ -10,6 +10,10 @@ import { installMotion, installPresses } from './lib/motion';
 
 installMotion();
 installPresses();
+// a long press opens no menu on buttons, rows or images (Android shows one even with no text selected); fields keep theirs
+document.addEventListener('contextmenu', (e) => {
+  if (!(e.target as Element | null)?.closest?.('input, textarea, [contenteditable="true"], .felt-selectable')) e.preventDefault();
+});
 
 registerSW({ immediate: true });
 // Ask the browser to keep our data even under storage pressure.

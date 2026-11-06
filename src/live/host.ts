@@ -21,7 +21,12 @@ interface Session {
   gameId: ID; room: string; key: string; locked: boolean; driver: LiveDriver;
   stops: (() => void)[]; flags: Flag[]; failed: Set<string>; identCodes: Record<ID, string>; inbox: Record<string, unknown>; nowN?: number; nowActed?: boolean; timer?: ReturnType<typeof setTimeout>;
   connected: boolean; stopTimer?: ReturnType<typeof setTimeout>; viewers: Record<string, Viewer>;
+  /** The last time the host changed the game or the hand in play. */
+  lastAct: number;
 }
+
+/** A room with no action from the host for this long closes by itself. */
+export const IDLE_MS = 12 * 60 * 60 * 1000;
 
 const sessions = new Map<ID, Session>();
 const listeners = new Set<() => void>();
@@ -30,11 +35,11 @@ const changed = () => listeners.forEach((l) => l());
 export const onLiveChange = (cb: () => void) => { listeners.add(cb); return () => { listeners.delete(cb); }; };
 
 const LS = (g: ID) => `felt-live:${g}`;
-const load = (g: ID): { room: string; key: string; locked: boolean; flags: Flag[]; stopping?: boolean } | null => {
+const load = (g: ID): { room: string; key: string; locked: boolean; flags: Flag[]; stopping?: boolean; lastAct?: number } | null => {
   try { const t = localStorage.getItem(LS(g)); return t ? JSON.parse(t) : null; } catch { return null; }
 };
 const save = (s: Session, stopping = false) => {
-  try { localStorage.setItem(LS(s.gameId), JSON.stringify({ room: s.room, key: s.key, locked: s.locked, flags: s.flags, stopping })); } catch { /* private mode */ }
+  try { localStorage.setItem(LS(s.gameId), JSON.stringify({ room: s.room, key: s.key, locked: s.locked, flags: s.flags, stopping, lastAct: s.lastAct })); } catch { /* private mode */ }
 };
 /** The last room of a game: sharing on again uses the same id and key, so nobody has to scan again. */
 const KEEP = (g: ID) => `felt-live-keep:${g}`;
@@ -94,6 +99,8 @@ export async function publishPub(gameId: ID) {
   const s = sessions.get(gameId), g = game(gameId);
   if (!s || !g) return;
   const st = useStore.getState();
+  s.lastAct = Date.now();
+  save(s);
   await s.driver.set(s.room, 'pub', await seal(buildPub(g, st.players, st.settings), s.key));
   await s.driver.set(s.room, 'meta/updatedAt', Date.now());
   await s.driver.set(s.room, 'meta/handCount', handCount(g));
@@ -107,6 +114,7 @@ export async function publishNow(gameId: ID, now: NowSnapshot | null) {
   const s = sessions.get(gameId);
   if (!s) return;
   const wasActed = s.nowActed, wasN = s.nowN;
+  s.lastAct = Date.now();
   s.nowN = now?.n;
   s.nowActed = !!(now as Now | null)?.acted;
   await s.driver.set(s.room, 'now', now ? await seal(now, s.key) : null);
@@ -135,6 +143,19 @@ async function applyInbox(s: Session) {
   const players = useStore.getState().players;
   for (const [pid, byHand] of Object.entries(s.inbox)) {
     for (const [n, box] of Object.entries((byHand ?? {}) as Record<string, LockBox>)) {
+      // a final chip count the player sent: kept on the game, and the End game count starts from it
+      if (n === 'count') {
+        const fid = `${pid}/count/${(box as LockBox).data?.slice(0, 16)}`;
+        if (s.failed.has(fid)) continue;
+        const code = players.find((p) => p.id === pid)?.code;
+        let chips: number | null = null;
+        try { const v = code ? await unlock<{ count: number }>(box as LockBox, code) : null; if (v && Number.isFinite(v.count) && v.count >= 0 && v.count < 1e9) chips = Math.round(v.count); } catch { /* wrong code */ }
+        if (chips === null) { s.failed.add(fid); continue; }
+        useStore.getState().updateGame(s.gameId, (x) => { x.claimed = { ...(x.claimed ?? {}), [pid]: { chips: chips!, at: Date.now() } }; });
+        toast(`${players.find((p) => p.id === pid)?.name ?? 'A player'} sent a chip count of ${chips}.`);
+        await s.driver.set(s.room, `inbox/${pid}/count`, null);
+        continue;
+      }
       const id = `${pid}/${n}/${(box as LockBox).data?.slice(0, 16)}`;
       if (s.failed.has(id)) continue;
       const code = players.find((p) => p.id === pid)?.code;
@@ -196,7 +217,7 @@ export async function startSharing(gameId: ID, passphrase?: string): Promise<str
   const locked = !!passphrase?.trim();
   const key = locked ? await keyFromPassphrase(passphrase!, room) : before && !before.locked ? before.key : newRoomKey();
   const st = useStore.getState();
-  const s: Session = { gameId, room, key, locked, driver, stops: [], flags: [], failed: new Set(), identCodes: {}, inbox: {}, connected: true, viewers: {} };
+  const s: Session = { gameId, room, key, locked, driver, stops: [], flags: [], failed: new Set(), identCodes: {}, inbox: {}, connected: true, viewers: {}, lastAct: Date.now() };
   await driver.create(room, {
     owner: uid, createdAt: Date.now(),
     meta: { v: 1, locked, check: locked ? await seal(CHECK_TEXT, key) : null, updatedAt: Date.now(), handCount: handCount(g) },
@@ -259,8 +280,10 @@ export async function resumeSharing() {
     try {
       await driver.signIn();
       // the app closed inside the Undo window: finish the stop
-      if (saved.stopping) { await driver.remove(saved.room); localStorage.removeItem(LS(g.id)); continue; }
-      const s: Session = { gameId: g.id, room: saved.room, key: saved.key, locked: saved.locked, driver, stops: [], flags: saved.flags ?? [], failed: new Set(), identCodes: {}, inbox: {}, connected: true, viewers: {} };
+      // the app closed inside the Undo window, the game is closed, or the room sat idle for 12 hours: finish the stop
+      const idle = Date.now() - (saved.lastAct ?? Date.now()) > IDLE_MS;
+      if (saved.stopping || g.status === 'closed' || idle) { await driver.remove(saved.room); localStorage.removeItem(LS(g.id)); continue; }
+      const s: Session = { gameId: g.id, room: saved.room, key: saved.key, locked: saved.locked, driver, stops: [], flags: saved.flags ?? [], failed: new Set(), identCodes: {}, inbox: {}, connected: true, viewers: {}, lastAct: saved.lastAct ?? Date.now() };
       sessions.set(g.id, s);
       attach(s);
       publishPub(g.id);
@@ -269,11 +292,23 @@ export async function resumeSharing() {
   changed();
 }
 
+/** Closes rooms that need no more viewers: the game was closed, or the host did nothing for 12 hours. */
+function closeStale() {
+  for (const [id, s] of sessions) {
+    const g = game(id);
+    if (!g || g.status === 'closed' || Date.now() - s.lastAct > IDLE_MS) {
+      stopSharing(id).catch(() => undefined);
+      if (g) toast(g.status === 'closed' ? `${g.name}: game closed, so the room closed.` : `${g.name}: no action for 12 hours, so the room closed.`);
+    }
+  }
+}
+
 /** Publishes after changes to a shared game or to a player (debounced), so viewers see closed hands, new settings and new codes. */
 export function watchGames() {
   let last = useStore.getState().games;
   let lastPlayers = useStore.getState().players;
-  return useStore.subscribe((state) => {
+  const idle = window.setInterval(closeStale, 10 * 60 * 1000);
+  const unsub = useStore.subscribe((state) => {
     if (state.games === last && state.players === lastPlayers) return;
     const prev = last, playersChanged = state.players !== lastPlayers;
     last = state.games;
@@ -281,8 +316,11 @@ export function watchGames() {
     for (const [id, s] of sessions) {
       const a = prev.find((g) => g.id === id), b = state.games.find((g) => g.id === id);
       if (!b || (a === b && !playersChanged)) continue;
+      // End game closed the game: the room closes at once (viewers see Room has been closed)
+      if (b.status === 'closed' && a?.status !== 'closed') { closeStale(); continue; }
       clearTimeout(s.timer);
       s.timer = setTimeout(() => { publishPub(id).catch(() => undefined); }, 1500);
     }
   });
+  return () => { window.clearInterval(idle); unsub(); };
 }

@@ -34,13 +34,26 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 .felt-title { padding: var(--sat-space-2) var(--sat-space-1) var(--sat-space-2); }
 .felt-title .sat-h1 + p { margin-top: var(--sat-space-1); }
 
-/* Bottom tab bar (the kit has none; built from glass-2 tokens) */
-.felt-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 0 var(--sat-space-3) calc(var(--felt-safe-bottom) + var(--sat-space-2)); pointer-events: none; }
-.felt-nav .sat-glass-2 { pointer-events: auto; max-width: 496px; margin: 0 auto; display: flex; padding: var(--sat-space-1); }
-.felt-nav a { flex: 1; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  border-radius: var(--sat-radius-md); color: var(--sat-muted); text-decoration: none; font-size: var(--sat-fs-caption); font-weight: 600; }
-.felt-nav a svg { width: 22px; height: 22px; }
-.felt-nav a[aria-current="page"] { color: var(--sat-accent-text); background: var(--sat-accent-soft); }
+/* Bottom tab bar: a chip tray. One straight rail with a pocket under it for each tab; the icon rests in its pocket and
+   a poker chip rolls along the rail to the open tab (components/navRail.tsx). The page fades out under the tray. */
+.felt-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 10px var(--sat-space-3) calc(var(--felt-safe-bottom) + 4px);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--sat-bg) 0%, transparent), var(--sat-bg) 22px); }
+.felt-rail { position: relative; max-width: 496px; margin: 0 auto; display: flex; height: 72px; }
+.felt-rail-line { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+.felt-rail-edge { fill: none; stroke: var(--sat-line-strong); stroke-width: 2; stroke-linecap: round; }
+.felt-rail-pocket { fill: var(--sat-well); }
+.felt-chip { position: absolute; left: 0; z-index: 1; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; will-change: transform;
+  background:
+    radial-gradient(circle closest-side, var(--felt-coral) 0 60%, color-mix(in srgb, #fff 88%, var(--felt-coral)) 60% 65%, transparent 65%),
+    repeating-conic-gradient(var(--felt-coral) 0 30deg, #fbfcfc 30deg 45deg);
+  box-shadow: var(--felt-elev-1), inset 0 0 0 1px rgba(0,0,0,.12); }
+.felt-nav a { position: relative; z-index: 2; flex: 1; min-height: 64px; display: flex; flex-direction: column; align-items: center; padding-top: 13px; gap: 0;
+  color: var(--sat-muted); text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.felt-rail-icon { display: grid; place-items: center; width: 22px; height: 22px; transition: color var(--sat-dur-base) var(--sat-ease); }
+.felt-rail-icon svg { width: 20px; height: 20px; }
+.felt-rail-label { margin-top: 18px; font-size: var(--sat-fs-caption); font-weight: 600; transition: color var(--sat-dur-base) var(--sat-ease); }
+.felt-nav a[aria-current="page"] .felt-rail-icon { color: var(--felt-on-coral); }
+.felt-nav a[aria-current="page"] .felt-rail-label { color: var(--sat-text); }
 
 /* The kit hides .sat-bottombar at 640px and up (desktop puts actions in the header).
    Felt is a one-column phone app at every width, so keep the bar and centre it on the column. */
@@ -789,3 +802,127 @@ html[data-calm] .felt-qr-pop, html[data-calm] .felt-qr-pop::backdrop { animation
    and a blue stand-in of the button takes its place before the game page returns */
 .felt-recorder.is-swiping { background: var(--sat-solid-1); box-shadow: var(--felt-elev-3); }
 .felt-swipe-face { position: fixed; z-index: 95; display: grid; place-items: center; border-radius: var(--sat-radius-md); background: var(--sat-accent-fill); color: var(--sat-on-accent); font-weight: 600; font-size: 1.0625rem; pointer-events: none; }
+.felt-row.is-hidden .felt-row-hit { opacity: .55; }
+
+/* Swipe left on a closed game: the row slides and Delete shows behind it */
+.felt-swipe { position: relative; overflow: hidden; }
+.felt-swipe + .felt-swipe { border-top: 1px solid var(--sat-line); }
+.felt-swipe .felt-row { border-bottom: 0; }
+.felt-swipe-face { position: relative; z-index: 1; background: var(--sat-solid-2); transition: transform 260ms var(--felt-drawer); touch-action: pan-y; }
+.felt-swipe-del { position: absolute; inset: 0 0 0 auto; width: 88px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: var(--sat-neg); color: var(--sat-bg); font: 600 var(--sat-fs-caption) var(--sat-font-ui); }
+.felt-swipe-face > .felt-row { padding-inline: var(--sat-space-4); }
+/* A sheet with a main button: the title row and its button stay in view while the sheet scrolls */
+.felt-sheet-head { position: sticky; top: calc(var(--sat-space-5) * -1); z-index: 6; margin: 0 calc(var(--sat-space-4) * -1); padding: var(--sat-space-2) var(--sat-space-4); background: var(--sat-solid-2); border-bottom: 1px solid var(--sat-line); }
+
+/* Press and hold never selects interface text (as in native apps): the whole app is unselectable and has no
+   long-press callout. Only fields, and text a person may want to copy (.felt-selectable), can be selected. */
+html { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, select, [contenteditable="true"], .felt-selectable, .felt-selectable * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+
+/* Header: the tab of a notebook page. A line runs across the screen (the page edge); the title sits in a paper tab
+   that stands up from it, with rounded top corners and small flared feet where it meets the edge. */
+.felt-header { background: linear-gradient(to bottom, var(--sat-bg) 72%, color-mix(in srgb, var(--sat-bg) 0%, transparent)); padding-bottom: var(--sat-space-3); }
+.felt-header .sat-header-bar.felt-notebook { position: relative; align-items: flex-end; gap: var(--sat-space-2); padding: 0 var(--sat-space-2) 0 var(--sat-space-3); min-height: 0; border-radius: 0; background: none; box-shadow: none;
+  border-bottom: 2px solid var(--sat-line-strong); }
+.felt-ntab { position: relative; display: flex; align-items: center; gap: var(--sat-space-1); min-width: 0; max-width: calc(100% - 56px); margin-bottom: -2px;
+  padding: var(--sat-space-2) var(--sat-space-4) var(--sat-space-2) var(--sat-space-3); background: var(--sat-solid-2);
+  border: 2px solid var(--sat-line-strong); border-bottom: 0; border-radius: 16px 16px 0 0; box-shadow: 0 2px 0 var(--sat-solid-2); }
+.felt-header--tab .felt-ntab { padding-left: var(--sat-space-4); }
+.felt-ntab > .sat-iconbtn { margin-left: calc(var(--sat-space-2) * -1); }
+/* the feet: inverse rounded corners where the tab meets the page edge */
+.felt-ntab::before, .felt-ntab::after { content: ''; position: absolute; bottom: 0; width: 12px; height: 12px; pointer-events: none; }
+.felt-ntab::before { left: -14px; background: radial-gradient(circle at 0 0, transparent 10px, var(--sat-line-strong) 10px 12px, var(--sat-solid-2) 12px); }
+.felt-ntab::after { right: -14px; background: radial-gradient(circle at 100% 0, transparent 10px, var(--sat-line-strong) 10px 12px, var(--sat-solid-2) 12px); }
+.felt-ntab .sat-brand { margin-right: 0; }
+.felt-ntab-right { margin-left: auto; display: flex; align-items: center; gap: var(--sat-space-1); padding-bottom: 4px; }
+
+/* Colours, custom: every token comes from five base colours on <html> (lib/palette.ts). Base is the dark ground
+   and the light text; Main is the blue role; Accent the orange role; Up and Down the results. Default leaves the
+   hand-tuned tokens of skin-felt.css alone. Light first, then dark, guarded the same way as the skin. */
+html[data-skin="felt"][data-palette="custom"] {
+  --sat-bg: color-mix(in oklab, var(--felt-main) 7%, #fff);
+  --sat-mesh-1: color-mix(in oklab, var(--felt-main) 30%, transparent);
+  --sat-mesh-2: color-mix(in oklab, var(--felt-main) 20%, transparent);
+  --sat-mesh-3: color-mix(in oklab, var(--felt-main) 14%, transparent);
+  --sat-text: var(--felt-base);
+  --sat-muted: color-mix(in oklab, var(--felt-base) 72%, #fff);
+  --sat-faint: color-mix(in oklab, var(--felt-base) 50%, #fff);
+  --sat-line: color-mix(in oklab, var(--felt-base) 12%, transparent);
+  --sat-line-strong: color-mix(in oklab, var(--felt-base) 22%, transparent);
+  --sat-glass-1: rgba(255,255,255,0.6);
+  --sat-glass-2: rgba(255,255,255,0.8);
+  --sat-solid-1: color-mix(in oklab, var(--felt-main) 3%, #fff);
+  --sat-solid-2: #fff;
+  --sat-well: color-mix(in oklab, var(--felt-base) 5%, transparent);
+  --sat-hover: color-mix(in oklab, var(--felt-base) 5%, transparent);
+  --sat-accent: var(--felt-main);
+  --sat-accent-fill: var(--felt-main);
+  --sat-accent-fill-hover: color-mix(in oklab, var(--felt-main) 85%, #000);
+  --sat-on-accent: var(--felt-on-main);
+  --sat-accent-text: color-mix(in oklab, var(--felt-main) 85%, #000);
+  --sat-accent-soft: color-mix(in oklab, var(--felt-main) 12%, transparent);
+  --sat-focus: var(--felt-main);
+  --sat-pos: color-mix(in oklab, var(--felt-up) 70%, #000);
+  --sat-neg: color-mix(in oklab, var(--felt-down) 75%, #000);
+  --felt-blue: var(--felt-main);
+  --felt-coral: color-mix(in oklab, var(--felt-accent) 93%, #000);
+  --felt-on-coral: var(--felt-on-accent);
+}
+@media (prefers-color-scheme: dark) { html[data-skin="felt"][data-palette="custom"]:not([data-theme="light"]) {
+  --sat-bg: var(--felt-base);
+  --sat-mesh-1: color-mix(in oklab, var(--felt-main) 22%, transparent);
+  --sat-mesh-2: color-mix(in oklab, var(--felt-main) 12%, transparent);
+  --sat-mesh-3: color-mix(in oklab, var(--felt-main) 18%, transparent);
+  --sat-text: color-mix(in oklab, var(--felt-base) 8%, #fff);
+  --sat-muted: color-mix(in oklab, var(--felt-base) 35%, #fff);
+  --sat-faint: color-mix(in oklab, var(--felt-base) 55%, #fff);
+  --sat-line: rgba(255,255,255,0.12);
+  --sat-line-strong: rgba(255,255,255,0.22);
+  --sat-glass-1: color-mix(in oklab, var(--felt-base) 70%, transparent);
+  --sat-glass-2: color-mix(in oklab, color-mix(in oklab, var(--felt-base) 88%, #fff) 86%, transparent);
+  --sat-solid-1: color-mix(in oklab, var(--felt-base) 92%, #fff);
+  --sat-solid-2: color-mix(in oklab, var(--felt-base) 86%, #fff);
+  --sat-well: rgba(0,0,0,0.22);
+  --sat-hover: rgba(255,255,255,0.06);
+  --sat-accent: var(--felt-main);
+  --sat-accent-fill: var(--felt-main);
+  --sat-on-accent: var(--felt-on-main);
+  --felt-blue: var(--felt-main);
+  --felt-on-coral: var(--felt-on-accent);
+  --sat-accent-fill-hover: color-mix(in oklab, var(--felt-main) 85%, #fff);
+  --sat-accent-text: color-mix(in oklab, var(--felt-main) 55%, #fff);
+  --sat-accent-soft: color-mix(in oklab, var(--felt-main) 28%, transparent);
+  --sat-focus: color-mix(in oklab, var(--felt-main) 55%, #fff);
+  --sat-pos: color-mix(in oklab, var(--felt-up) 70%, #fff);
+  --sat-neg: color-mix(in oklab, var(--felt-down) 65%, #fff);
+  --felt-coral: var(--felt-accent);
+} }
+html[data-skin="felt"][data-palette="custom"][data-theme="dark"] {
+  --sat-bg: var(--felt-base);
+  --sat-mesh-1: color-mix(in oklab, var(--felt-main) 22%, transparent);
+  --sat-mesh-2: color-mix(in oklab, var(--felt-main) 12%, transparent);
+  --sat-mesh-3: color-mix(in oklab, var(--felt-main) 18%, transparent);
+  --sat-text: color-mix(in oklab, var(--felt-base) 8%, #fff);
+  --sat-muted: color-mix(in oklab, var(--felt-base) 35%, #fff);
+  --sat-faint: color-mix(in oklab, var(--felt-base) 55%, #fff);
+  --sat-line: rgba(255,255,255,0.12);
+  --sat-line-strong: rgba(255,255,255,0.22);
+  --sat-glass-1: color-mix(in oklab, var(--felt-base) 70%, transparent);
+  --sat-glass-2: color-mix(in oklab, color-mix(in oklab, var(--felt-base) 88%, #fff) 86%, transparent);
+  --sat-solid-1: color-mix(in oklab, var(--felt-base) 92%, #fff);
+  --sat-solid-2: color-mix(in oklab, var(--felt-base) 86%, #fff);
+  --sat-well: rgba(0,0,0,0.22);
+  --sat-hover: rgba(255,255,255,0.06);
+  --sat-accent: var(--felt-main);
+  --sat-accent-fill: var(--felt-main);
+  --sat-on-accent: var(--felt-on-main);
+  --felt-blue: var(--felt-main);
+  --felt-on-coral: var(--felt-on-accent);
+  --sat-accent-fill-hover: color-mix(in oklab, var(--felt-main) 85%, #fff);
+  --sat-accent-text: color-mix(in oklab, var(--felt-main) 55%, #fff);
+  --sat-accent-soft: color-mix(in oklab, var(--felt-main) 28%, transparent);
+  --sat-focus: color-mix(in oklab, var(--felt-main) 55%, #fff);
+  --sat-pos: color-mix(in oklab, var(--felt-up) 70%, #fff);
+  --sat-neg: color-mix(in oklab, var(--felt-down) 65%, #fff);
+  --felt-coral: var(--felt-accent);
+}

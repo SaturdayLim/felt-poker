@@ -189,7 +189,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
       <div className="sat-stack" style={gap(3)}>
         {tab === 'action' && <ActionLog now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')} />}
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
-        {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button} />}
+        {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
+          onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
         {tab === 'settings' && <Rules pub={pub} />}
       </div>
       </SlidePane>
@@ -391,7 +392,7 @@ function StepTable({ s }: { s: ViewStreet }) {
   );
 }
 
-function PlayersTab({ pub, stacks, me, button }: { pub: PubSnapshot; stacks: StackLine[]; me: Me | null; button: string | null }) {
+function PlayersTab({ pub, stacks, me, button, onCount }: { pub: PubSnapshot; stacks: StackLine[]; me: Me | null; button: string | null; onCount?: (chips: number) => Promise<void> }) {
   const seats = [...pub.players].sort((a, b) => a.seat - b.seat);
   // the signed-in player sits south, otherwise seat 1; the rest follow clockwise
   const at = Math.max(0, seats.findIndex((p) => p.id === me?.id));
@@ -420,7 +421,27 @@ function PlayersTab({ pub, stacks, me, button }: { pub: PubSnapshot; stacks: Sta
         <StandingChart table={table} mine={mine ? { low: mine.low, high: mine.high, now: mine.now } : undefined} />
         <span className="sat-cluster sat-small sat-muted" style={gap(1)}>Table<Help k="candleTable" /></span>
       </section>
+      {me && onCount && <SendCount onCount={onCount} />}
     </>
+  );
+}
+
+/** The signed-in player sends their own final chip count. The host's End game count starts from it. */
+function SendCount({ onCount }: { onCount: (chips: number) => Promise<void> }) {
+  const [v, setV] = useState('');
+  const n = v.trim() === '' ? null : Number(v.replace(/,/g, ''));
+  const ok = n !== null && Number.isFinite(n) && n >= 0;
+  return (
+    <section className="sat-glass-2 sat-card sat-stack" style={gap(2)}>
+      <div className="sat-field">
+        <label htmlFor="mycount">My final chip count <Help k="sendCount" /></label>
+        <div className="felt-addchips" style={{ borderTop: 0, paddingTop: 0 }}>
+          <input id="mycount" className="sat-input sat-num" inputMode="numeric" placeholder="0" value={v} onChange={(e) => setV(e.target.value)} aria-invalid={v !== '' && !ok} />
+          <WordButton word="Sent" ready={ok} className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={!ok}
+            run={() => { if (ok) onCount(Math.round(n!)).then(() => setV(''), () => toast('Count not sent. Check the connection and try again.')); }}>Send</WordButton>
+        </div>
+      </div>
+    </section>
   );
 }
 

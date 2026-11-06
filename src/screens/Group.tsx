@@ -64,7 +64,7 @@ export default function Group({ groupId }: { groupId: string }) {
           {board.length === 0 ? <p className="sat-small sat-muted">Closed games of this group appear here.</p> : (
             <div className="sat-glass-2 felt-list">
               {board.map((s, i) => (
-                <button key={s.playerId} className="felt-row felt-row--slim" onClick={() => go(`insights/${s.playerId}`)}>
+                <button key={s.playerId} className="felt-row felt-row--slim" onClick={() => go(`players/stats/${s.playerId}`)}>
                   <span className="sat-mono sat-muted" style={{ width: 16 }}>{i + 1}</span>
                   <div className="felt-row-main"><div className="felt-row-title"><PlayerName id={s.playerId} /></div><div className="felt-row-sub">{s.games} games</div></div>
                   <Delta value={s.net} format={(a) => money(a, currency)} />

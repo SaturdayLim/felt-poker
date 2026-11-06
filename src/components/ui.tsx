@@ -89,22 +89,25 @@ export function FeltMark({ height = 32 }: { height?: number }) {
 
 /* ------------------------------- header ------------------------------- */
 
-/** Sticky glass header (kit: .sat-header > .sat-header-bar.sat-glass). */
+/** Sticky header, drawn as the tab of a notebook page: the title (and Back) sit in a tab that stands up from the
+    page edge, a line across the screen. Actions sit on the edge to the right of the tab. */
 export function Header({ title, sub, back, right, brand, children }: {
   title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean; children?: ReactNode;
 }) {
   return (
     <header className={back ? 'sat-header felt-header' : 'sat-header felt-header felt-header--tab'}>
-      <div className="sat-header-bar sat-glass">
-        {back && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={back} aria-label="Back"><Icon name="back" /></button>}
-        <div className="sat-brand">
-          {brand && <FeltMark />}
-          <div style={{ minWidth: 0 }}>
-            {brand ? <span className="sat-wordmark">Felt</span> : <div className="felt-header-title">{title}</div>}
-            {sub && <small style={{ display: 'block' }}>{sub}</small>}
+      <div className="sat-header-bar felt-notebook">
+        <div className="felt-ntab">
+          {back && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={back} aria-label="Back"><Icon name="back" /></button>}
+          <div className="sat-brand">
+            {brand && <FeltMark />}
+            <div style={{ minWidth: 0 }}>
+              {brand ? <span className="sat-wordmark">Felt</span> : <div className="felt-header-title">{title}</div>}
+              {sub && <small style={{ display: 'block' }}>{sub}</small>}
+            </div>
           </div>
         </div>
-        {right}
+        {right && <div className="felt-ntab-right">{right}</div>}
       </div>
       {children}
     </header>
@@ -384,10 +387,12 @@ const FULL_CLIP = 'inset(0px 0px 0px 0px round 24px)';
 
 /** A sheet from the bottom. Opened by a press, it pulls out of the button that opened it, in that button's colour,
     and goes back into it on Close. A swipe down slides it away. `edge` keeps the coral edge of the card button. */
-export function Sheet({ open, onClose, title, sub, children, edge, head, noClose }: {
+export function Sheet({ open, onClose, title, sub, children, edge, head, noClose, action }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
   /** No Close button: the swipe bar, a swipe down and a tap outside close it. */
   noClose?: boolean;
+  /** The main button of the sheet (for example Save), top right and always in view. Leaving any other way does not save. */
+  action?: ReactNode;
   /** Takes the place of the title, for example a name that can be edited in place. */
   head?: ReactNode;
 }) {
@@ -470,9 +475,9 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
   return (
     <dialog ref={ref} className={`sat-sheet sat-glass-2${edge ? ' felt-sheet--edge' : ''}`} aria-label={title}>
       <div className="sat-stack">
-        <div className="sat-split">
+        <div className={`sat-split${action ? ' felt-sheet-head' : ''}`}>
           {head ?? <h2 className="sat-h3">{title}</h2>}
-          {!noClose && <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={dismiss}>Close</button>}
+          {action ?? (!noClose && <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={dismiss}>Close</button>)}
         </div>
         {sub && <p className="sat-small sat-muted" style={{ marginTop: -8 }}>{sub}</p>}
         {children}

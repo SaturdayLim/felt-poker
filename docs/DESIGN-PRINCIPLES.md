@@ -16,6 +16,11 @@ Picked 4 Nov 2026.
 - Losses are not coral. Dark uses `#F7A8B8`, and light uses `#A3342A`.
 - Black suit marks always sit on a white card or chip, never on a dark surface.
 
+## Custom colours
+
+- Settings, Colours: Default or Custom. Custom takes five base colours (Base, Main, Accent, Up, Down) and derives every token from them.
+- Text on a Main or Accent fill is white or Base, whichever has more contrast.
+
 ## Elevation
 
 - Three depths only, in the whole app: 1 resting (glass, live cards), 2 raised (buttons that stand up, a dragged row, the card button), 3 overlay (sheets, tips, toasts, the QR).

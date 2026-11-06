@@ -232,7 +232,7 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   return (
     <span className={`felt-codectl ${ready ? '' : 'is-none'}`}>
       {label && <span className="felt-codectl-label">Player code<Help k="playerCode" /></span>}
-      {shown && <b className="felt-codectl-shown sat-num" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
+      {shown && <b className="felt-codectl-shown sat-num felt-selectable" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
       {label && shown && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
       {ready && !shown && p.codeIssued
         ? <HoldButton label={`${what}: ${p.name}`} hint="Tap and hold to replace code" onDone={replace}><Icon name={icon} /></HoldButton>
@@ -284,7 +284,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
   const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
   const closed = played.filter((g) => g.status === 'closed');
-  const stats = () => { onClose(); go(`insights/${p.id}`); };
+  const stats = () => { onClose(); go(`players/stats/${p.id}`); };
   const open = (g: Game) => { onClose(); go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/close`); };
   const back = <button className="sat-btn sat-btn--block" onClick={() => setView('card')}>Back to {p.name}</button>;
   if (view === 'net') {

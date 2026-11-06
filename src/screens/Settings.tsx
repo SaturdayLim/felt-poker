@@ -3,6 +3,7 @@ import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../sto
 import { motionPref, phoneAsksCalm, setMotionPref, type MotionPref } from '../lib/motion';
 import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
+import { PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
@@ -194,6 +195,10 @@ export default function Settings() {
         </section>
 
         <section className="sat-glass sat-card sat-stack">
+          <PaletteEditor />
+        </section>
+
+        <section className="sat-glass sat-card sat-stack">
           <CardLookEditor />
         </section>
 
@@ -225,6 +230,39 @@ export default function Settings() {
         </section>
       </div>
     </div>
+  );
+}
+
+/** The five base colours of the app: Base, Main, Accent, Up and Down. Default uses the tuned palette; Custom makes
+    every colour of the app from these five. Kept on this phone. */
+function PaletteEditor() {
+  const palette = cleanPalette(useStore((s) => s.settings.palette));
+  const update = useStore((s) => s.updateSettings);
+  const isDefault = !palette.custom;
+  return (
+    <>
+      <div className="sat-split">
+        <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Colours</h2><Help k="palette" /></span>
+        <label className="felt-look-toggle">
+          <span className="sat-small">{isDefault ? 'Default' : 'Custom'}</span>
+          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default colours" className="felt-look-switch" onClick={() => update({ palette: { ...palette, custom: isDefault } })}>
+            <span className="felt-look-thumb"><i className="is-rainbow" /><i className="is-default" /></span>
+          </button>
+        </label>
+      </div>
+      <div className="felt-suit-list">
+        {PALETTE_KEYS.map((k) => (
+          <div key={k} className="felt-suit-row">
+            <span className="felt-suit-grip" aria-hidden="true" />
+            <span className="felt-suit-mark" style={{ background: palette[k] }} aria-hidden="true" />
+            <span className="felt-row-title felt-grow">{PALETTE_NAME[k]}</span>
+            <div className={`felt-suit-custom ${isDefault ? '' : 'is-open'}`} aria-hidden={isDefault}>
+              <SuitColor name={PALETTE_NAME[k]} value={palette[k]} off={isDefault} onChange={(hex) => update({ palette: { ...palette, [k]: hex } })} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

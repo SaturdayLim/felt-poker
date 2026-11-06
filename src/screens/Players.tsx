@@ -1,14 +1,38 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Empty, Header, Icon, toast, SourceTip } from '../components/ui';
+import { Avatar, Caption, Delta, Empty, Header, Icon, SlidePane, TabPill, toast, SourceTip } from '../components/ui';
+import Insights from './Insights';
 import { PlayerSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
 import { GroupSheet, groupSettlement } from './Group';
 import { money } from '../lib/format';
 import type { Player } from '../types';
 
-export default function Players() {
+export type PlayersView = 'list' | 'board' | 'stats';
+const VIEWS: { k: PlayersView; label: string; path: string }[] = [
+  { k: 'list', label: 'Players', path: 'players' }, { k: 'board', label: 'Leaderboard', path: 'players/board' }, { k: 'stats', label: 'Stats', path: 'players/stats' },
+];
+
+/** The Players tab: the saved players, the leaderboard and each player's stats, which are all about players. */
+export default function Players({ view = 'list', pid }: { view?: PlayersView; pid?: string }) {
+  return (
+    <div className="felt-page">
+      <Header title="Players" />
+      <div className="sat-stack">
+        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Players view">
+          <TabPill />
+          {VIEWS.map((v) => <button key={v.k} role="radio" aria-checked={view === v.k} onClick={() => go(v.path, true)}>{v.label}</button>)}
+        </div>
+        <SlidePane k={view} i={VIEWS.findIndex((v) => v.k === view)}>
+          {view === 'list' ? <PlayerList /> : <Insights embedded mode={view === 'board' ? 'standings' : 'player'} initialPlayer={pid} />}
+        </SlidePane>
+      </div>
+    </div>
+  );
+}
+
+function PlayerList() {
   const players = useStore((s) => s.players);
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
@@ -18,6 +42,7 @@ export default function Players() {
   const [nm, setNm] = useState('');
   const [edit, setEdit] = useState<Player | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const setArchived = useStore((s) => s.setPlayerArchived);
   const closed = filterGames(games, 'all', 'all');
   const list = players.filter((p) => showArchived || !p.archived).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -31,8 +56,7 @@ export default function Players() {
   };
 
   return (
-    <div className="felt-page">
-      <Header title="Players" />
+    <>
       <div className="sat-stack">
         <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
           <input className="sat-input" aria-label="New player name" placeholder="New player (e.g. Dani)" value={nm} onChange={(e) => setNm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} enterKeyHint="done" />
@@ -40,8 +64,8 @@ export default function Players() {
         </div>
         {players.some((p) => p.archived) && (
           <div className="sat-switch-row">
-            <span>Show archived players</span>
-            <button className="sat-switch" role="switch" aria-checked={showArchived} aria-label="Show archived players" onClick={() => setShowArchived(!showArchived)} />
+            <span>Show hidden players ({players.filter((p) => p.archived).length})</span>
+            <button className="sat-switch" role="switch" aria-checked={showArchived} aria-label="Show hidden players" onClick={() => setShowArchived(!showArchived)} />
           </div>
         )}
         <section className="felt-section">
@@ -75,14 +99,19 @@ export default function Players() {
             {list.map((p) => {
               const s = playerSummary(closed, p.id);
               return (
-                <button key={p.id} className="felt-row" onClick={() => setEdit(p)}>
-                  <Avatar name={p.name} />
-                  <span className="felt-row-main">
-                    <span className="felt-row-title" style={{ display: 'block' }}>{p.name} {p.archived && <span className="sat-badge sat-badge--muted">Archived</span>}</span>
-                    <span className="felt-row-sub" style={{ display: 'block' }}>{s.games} games, {s.handsWon} hands won</span>
-                  </span>
-                  {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
-                </button>
+                <div key={p.id} className={`felt-row felt-row--flag ${p.archived ? 'is-hidden' : ''}`}>
+                  <button type="button" className="felt-row-hit" onClick={() => setEdit(p)}>
+                    <Avatar name={p.name} />
+                    <span className="felt-row-main">
+                      <span className="felt-row-title">{p.name}</span>
+                      <span className="felt-row-sub">{s.games} games, {s.handsWon} hands won</span>
+                    </span>
+                    {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
+                  </button>
+                  {/* open eye: shows in the player list of new games. Shut eye: hidden there, games and stats stay */}
+                  <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-pressed={!p.archived} aria-label={p.archived ? `Show ${p.name} when you start a game` : `Hide ${p.name} when you start a game`}
+                    onClick={() => { setArchived(p.id, !p.archived); toast(p.archived ? `${p.name} shows again` : `${p.name} hidden. Games and stats stay.`); }}><Icon name={p.archived ? 'dark' : 'eye'} /></button>
+                </div>
               );
             })}
           </div>
@@ -91,6 +120,6 @@ export default function Players() {
       </div>
       {edit && <PlayerSheet p={edit} onClose={() => setEdit(null)} />}
       {newGroup && <GroupSheet onClose={() => setNewGroup(false)} />}
-    </div>
+    </>
   );
 }

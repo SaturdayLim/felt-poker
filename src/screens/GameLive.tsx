@@ -535,8 +535,22 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   const [grp, setGrp] = useState<string | undefined>(g.groupId);
   const [notes, setNotes] = useState(g.notes ?? '');
   const [rules, setRules] = useState(() => gameRules(g, st.settings));
+  const save = () => {
+    st.updateGame(g.id, (x) => {
+      x.name = nm.trim() || x.name;
+      x.notes = notes;
+      x.groupId = grp;
+      x.rules = rules;
+      const s = num(sb), b = num(bb);
+      if (s && b && b >= s) { x.sb = s; x.bb = b; }
+      if (x.type === 'cash') { x.unitValue = num(uv) ?? x.unitValue; x.defaultBuyIn = num(bi) ?? x.defaultBuyIn; }
+    });
+    onClose();
+  };
+  // Save sits top right and stays in view; a swipe down or a tap outside leaves without saving
   return (
-    <Sheet open onClose={onClose} title="Game settings">
+    <Sheet open onClose={onClose} title="Game settings" noClose
+      action={<WordButton word="Saved" className="sat-btn sat-btn--primary sat-btn--sm" run={save}>Save</WordButton>}>
       <div className="sat-field"><label htmlFor="eg-n">Game name</label><input id="eg-n" className="sat-input" value={nm} onChange={(e) => setNm(e.target.value)} /></div>
       <div className="sat-grid" style={{ ['--sat-min' as string]: '110px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
         <div className="sat-field"><label htmlFor="eg-sb">SB (chips)</label><input id="eg-sb" className="sat-input sat-num" inputMode="decimal" value={sb} onChange={(e) => setSb(e.target.value)} /></div>
@@ -558,18 +572,6 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
         <RulesFields rules={rules} onChange={setRules} players={g.playerIds.length} idPrefix="eg" />
       </section>
       <div className="sat-field"><label htmlFor="eg-x">Notes</label><textarea id="eg-x" className="sat-input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-      <WordButton word="Saved" className="sat-btn sat-btn--primary sat-btn--block" run={() => {
-        st.updateGame(g.id, (x) => {
-          x.name = nm.trim() || x.name;
-          x.notes = notes;
-          x.groupId = grp;
-          x.rules = rules;
-          const s = num(sb), b = num(bb);
-          if (s && b && b >= s) { x.sb = s; x.bb = b; }
-          if (x.type === 'cash') { x.unitValue = num(uv) ?? x.unitValue; x.defaultBuyIn = num(bi) ?? x.defaultBuyIn; }
-        });
-        onClose();
-      }}>Save settings</WordButton>
       <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }} onClick={() => {
         withUndo(`${g.name} deleted.`, () => st.deleteGame(g.id));
         onClose();

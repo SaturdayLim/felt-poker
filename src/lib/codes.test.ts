@@ -15,3 +15,11 @@ describe('player codes', () => {
     expect(showCode('K7M2QX')).toBe('K7M 2QX');
   });
 });
+
+describe('palette text', () => {
+  it('picks white on a dark fill and the base on a light fill', async () => {
+    const { textOn } = await import('./palette');
+    expect(textOn('#0052CC', '#1C1E21')).toBe('#FFFFFF');
+    expect(textOn('#C9A227', '#1C1E21')).toBe('#1C1E21');
+  });
+});

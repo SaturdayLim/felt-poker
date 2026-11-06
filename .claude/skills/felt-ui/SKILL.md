@@ -58,3 +58,15 @@ description: Felt UI principles. Use when adding or changing any screen, button,
 - Never scale a picture of the old content to fit the new shape.
 - Bring in the new colour and text while the move ends. Do not leave a visible pause and then flip to the new look.
 - Uniform press depth (0.93 to 0.98) and the drag lift are not morphs.
+
+## Made for a poker table
+
+- Draw from the table, not from generic app parts: chips, the chip tray, felt, paper notebook tabs.
+- The tab bar is a chip tray: one straight rail, a pocket per tab, a chip that rolls (it turns by distance over radius).
+- The header is a notebook tab on the page edge. Do not bring back a glass top bar.
+- A new control that marks a choice should feel like a chip or a card before it feels like a pill.
+
+## Colours come from five
+
+- Use tokens only. With Custom colours, every token derives from Base, Main, Accent, Up and Down (styles.css, html[data-palette="custom"]).
+- A new colour must derive from one of the five with color-mix. Do not add a literal colour.

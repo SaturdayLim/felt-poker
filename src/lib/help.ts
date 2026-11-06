@@ -49,6 +49,8 @@ export const HELP = {
   addChips: { title: 'Rebuy', text: ['Chips the player buys now.', 'Add chips records a buy-in of this size and adds the chips to the stack.'] },
   checkCards: { title: 'Check hidden cards', text: ['On: after the next hand starts, Felt marks hidden cards that cannot be right. Only that player sees the mark.', 'Red: a card was shown at the table. The hand is left out of stats and reports.', 'Blue: another player logged the same card. The hand still counts.', 'Off: no marks, and every entry counts.'] },
   archivePlayer: { title: 'Remove from the list', text: ['Past games and stats stay.', 'The player no longer shows when you start a game.'] },
+  sendCount: { title: 'My final chip count', text: ['Count your chips when you leave or when the game ends.', 'The host sees your count and can change it.'] },
+  palette: { title: 'Colours', text: ['Default: the Felt colours.', 'Custom: Felt makes every colour from these five.', 'Base: the dark background, and the text in light mode.', 'Main: tabs, links and main buttons.', 'Accent: the one main action, the next box and the chip.', 'Up and Down: wins and losses.', 'The colours stay on this phone. A restore does not change them.'] },
   stackCount: { title: 'Count', text: ['Chips in front of the player now.', 'The stack estimate starts again from this count.'] },
   missed: { title: 'Missed hand', text: ['Use it for a hand the table played and you did not log.', 'The button moves on. Each stack becomes a range of about 1 average pot. A count or an all-in makes it exact again.', 'Stats do not include missed hands.'] },
   blinds: { title: 'Blinds', text: ['SB and BB for this hand, in chips.', 'A change stays for the next hands of this game.'] },

@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
+import { applyPalette, cleanPalette } from './lib/palette';
 import { NAV_TABS, useRoute } from './router';
-import { Icon, SlidePane, TabPill, ToastHost } from './components/ui';
+import { SlidePane, ToastHost } from './components/ui';
 import { PlayerHost } from './components/players';
+import { NavRail } from './components/navRail';
 import Home from './screens/Home';
 import Games from './screens/Games';
 import NewGame from './screens/NewGame';
@@ -15,7 +17,6 @@ import { useStore as useStoreForRoute } from './store';
 import CountChips from './screens/CountChips';
 import CloseTable from './screens/CloseTable';
 import Report from './screens/Report';
-import Insights from './screens/Insights';
 import Players from './screens/Players';
 import Settings from './screens/Settings';
 import Group from './screens/Group';
@@ -28,7 +29,6 @@ import { cleanReports } from './live/reportLink';
 const NAV = [
   { path: '', label: 'Home', icon: 'home' },
   { path: 'games', label: 'Games', icon: 'games' },
-  { path: 'insights', label: 'Stats', icon: 'chart' },
   { path: 'players', label: 'Players', icon: 'users' },
   { path: 'settings', label: 'Settings', icon: 'settings' },
 ];
@@ -41,6 +41,8 @@ export default function App() {
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
   useEffect(() => { document.documentElement.style.setProperty('--felt-card-face', face); }, [face]);
+  const palette = useStore((s) => s.settings.palette);
+  useEffect(() => { applyPalette(cleanPalette(palette)); }, [palette, theme]);
   // live link: reconnect to rooms that were open, and publish changes to shared games
   useEffect(() => {
     if (!hydrated) return;
@@ -96,29 +98,18 @@ export default function App() {
   else if (a === 'join' && !b) { screen = <JoinScan />; nav = false; }
   else if (a === 'r' && b && c) { screen = <ReportLink id={b} reportKey={c} />; nav = false; }
   else if (a === 'join' && b) { screen = <Join key={`${b}/${c ?? ''}`} room={b} keyFromLink={c} />; nav = false; }
-  else if (a === 'insights') screen = <Insights initialPlayer={b} />;
-  else if (a === 'players') screen = <Players />;
+  // stats live in the Players tab; old insights links still work
+  else if (a === 'insights') screen = <Players view={b === 'standings' ? 'board' : 'stats'} pid={b === 'standings' ? undefined : b} />;
+  else if (a === 'players') screen = <Players view={b === 'board' ? 'board' : b === 'stats' ? 'stats' : 'list'} pid={c} />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;
   else if (a === 'settings') screen = <Settings />;
   else screen = <Home />;
 
-  const active = a === 'game' || a === 'new' ? 'games' : a === 'group' ? 'players' : a ?? '';
+  const active = a === 'game' || a === 'new' ? 'games' : a === 'group' || a === 'insights' ? 'players' : a ?? '';
   return (
     <div className="felt-app felt-enter">
-      <SlidePane k={a ?? ''} i={NAV_TABS.indexOf(a ?? '')}>{screen}</SlidePane>
-      {nav && (
-        <nav className="felt-nav" aria-label="Main">
-          <div className="sat-glass-2">
-            <TabPill />
-            {NAV.map((n) => (
-              <a key={n.path} href={`#/${n.path}`} aria-current={active === n.path ? 'page' : undefined}>
-                <Icon name={n.icon} />
-                {n.label}
-              </a>
-            ))}
-          </div>
-        </nav>
-      )}
+      <SlidePane k={a === 'insights' ? 'players' : a ?? ''} i={NAV_TABS.indexOf(a === 'insights' ? 'players' : a ?? '')}>{screen}</SlidePane>
+      {nav && <NavRail tabs={NAV} active={active} />}
       <PlayerHost />
       <ToastHost />
     </div>

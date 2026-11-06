@@ -7,7 +7,7 @@ import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
 import { dateLabel, money, shortDate, units } from '../lib/format';
-import { cumulativeSeries, filterGames, groupTotals, handPace, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
+import { cumulativeSeries, filterGames, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
 import { canvasToFile, shareFiles } from '../report/share';
@@ -24,12 +24,14 @@ const RANGES: { k: RangeFilter; label: string; long: string }[] = [
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-');
 
-export default function Insights({ initialPlayer }: { initialPlayer?: string }) {
+/** Stats for players. Inside the Players tab (`embedded`) the tab picks the view: Leaderboard or Stats. */
+export default function Insights({ initialPlayer, embedded, mode }: { initialPlayer?: string; embedded?: boolean; mode?: 'player' | 'standings' }) {
   const allGames = useStore((s) => s.games);
   const players = useStore((s) => s.players);
   const currency = useStore((s) => s.settings.currency);
   const name = usePlayerName();
-  const [view, setView] = useState<'player' | 'standings'>(initialPlayer === 'standings' ? 'standings' : 'player');
+  const [own, setView] = useState<'player' | 'standings'>(initialPlayer === 'standings' ? 'standings' : 'player');
+  const view = embedded && mode ? mode : own;
   const [type, setType] = useState<TypeFilter>('all');
   const [range, setRange] = useState<RangeFilter>('all');
   const games = useMemo(() => filterGames(allGames, type, range), [allGames, type, range]);
@@ -39,15 +41,15 @@ export default function Insights({ initialPlayer }: { initialPlayer?: string }) 
   const period = RANGES.find((r) => r.k === range)!.long;
   const typeLabel = type === 'all' ? 'All Games' : type === 'cash' ? 'Cash Games' : 'Tournaments';
 
-  return (
-    <div className="felt-page">
-      <Header title="Stats" sub={`${typeLabel} (${period})`} />
+  const body = (
       <div className="sat-stack">
-        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="View">
-          <TabPill />
-          <button role="radio" aria-checked={view === 'player'} onClick={() => setView('player')}><Icon name="chart" /> Players</button>
-          <button role="radio" aria-checked={view === 'standings'} onClick={() => setView('standings')}><Icon name="trophy" /> Leaderboard</button>
-        </div>
+        {!embedded && (
+          <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="View">
+            <TabPill />
+            <button role="radio" aria-checked={view === 'player'} onClick={() => setView('player')}><Icon name="chart" /> Players</button>
+            <button role="radio" aria-checked={view === 'standings'} onClick={() => setView('standings')}><Icon name="trophy" /> Leaderboard</button>
+          </div>
+        )}
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
           <TabPill />
           {(['all', 'cash', 'tournament'] as const).map((t) => (
@@ -72,6 +74,12 @@ export default function Insights({ initialPlayer }: { initialPlayer?: string }) 
           <Standings games={games} board={board} currency={currency} name={name} scope={`${typeLabel} (${period})`} />
         )}
       </div>
+  );
+  if (embedded) return body;
+  return (
+    <div className="felt-page">
+      <Header title="Stats" sub={`${typeLabel} (${period})`} />
+      {body}
     </div>
   );
 }
@@ -92,8 +100,6 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
   const withRebuy = played.filter((g) => playerResult(g, selected).buyIns > 1);
   const noRebuy = played.filter((g) => playerResult(g, selected).buyIns <= 1);
   const netOf = (gs: Game[]) => gs.reduce((a, g) => a + playerResult(g, selected).net, 0);
-  const totals = groupTotals(games);
-  const pace = handPace(games);
   let cum = 0;
   const cumVals = s.history.map((h) => (cum += h.net));
   const best = s.history.reduce<{ t: number; net: number } | null>((b, h) => (!b || h.net > b.net ? h : b), null);
@@ -211,15 +217,6 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <div className="felt-source"><SourceTip>{sourceLine(played)}</SourceTip></div>
       </section>
 
-      <section className="sat-stack" style={gap(3)}>
-        <h2 className="sat-h2">Whole group</h2>
-        <div className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }}>
-          <div className="sat-glass sat-stat"><Caption>Games</Caption><span className="sat-kpi">{totals.games}</span></div>
-          <div className="sat-glass sat-stat"><Caption>Hands</Caption><span className="sat-kpi">{totals.hands}</span>{pace.hands > 0 && <span className="sat-note">Median {Math.floor(pace.medianSec / 60)}m {pace.medianSec % 60}s per hand</span>}</div>
-          <div className="sat-glass sat-stat"><Caption q="chips">Top pot</Caption><span className="sat-kpi">{totals.biggestPot}</span></div>
-          <div className="sat-glass sat-stat"><Caption q={currency}>Won in total</Caption><span className="sat-kpi">{money(totals.moneyMoved, '')}</span><span className="sat-note">All winning results added up</span></div>
-        </div>
-      </section>
     </>
   );
 }

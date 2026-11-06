@@ -20,7 +20,9 @@ body.sat { overflow: hidden; }
 .felt-splash-mark .inner { opacity: 0; transform-box: fill-box; transform-origin: center;
   animation: felt-grow calc(500ms * var(--k, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(1100ms * var(--k, 1)) forwards; }
 .felt-splash-mark .inner-b { animation-delay: calc(1200ms * var(--k, 1)); }
-.felt-splash-mark .notch { opacity: 0; animation: felt-fade calc(300ms * var(--k, 1)) var(--sat-ease) calc(1500ms * var(--k, 1)) forwards; }
+/* a spoke is the outer 17% of a line from the chip centre: the dash starts at the centre and swipes out to its place */
+.felt-splash-mark .spoke { stroke-dasharray: 0.17 0.83; stroke-dashoffset: 0; opacity: 0;
+  animation: felt-spoke calc(420ms * var(--k, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 1ms * var(--k, 1)) forwards; }
 
 .felt-splash-name { font-size: clamp(2.5rem, 9vw, 3.25rem); letter-spacing: 0.02em;
   opacity: 0; animation: felt-settle calc(800ms * var(--k, 1)) var(--sat-ease) calc(1500ms * var(--k, 1)) forwards; }
@@ -37,6 +39,7 @@ body.is-leaving .felt-splash-version { opacity: 0; }
 
 @keyframes felt-draw { to { stroke-dashoffset: 0; } }
 @keyframes felt-fade { to { opacity: 1; } }
+@keyframes felt-spoke { 0% { opacity: 0; stroke-dashoffset: 0; } 15% { opacity: 1; } 100% { opacity: 1; stroke-dashoffset: -0.83; } }
 @keyframes felt-grow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
 @keyframes felt-settle {
   from { opacity: 0; letter-spacing: 0.24em; filter: blur(6px); transform: translateY(6px); }
@@ -44,4 +47,5 @@ body.is-leaving .felt-splash-version { opacity: 0; }
 }
 
 html[data-calm] .felt-splash-mark .s { stroke-dashoffset: 0; animation: none; }
-html[data-calm] .felt-splash-mark .inner, html[data-calm] .felt-splash-mark .notch, html[data-calm] .felt-splash-name, html[data-calm] .felt-splash-version { opacity: 1; animation: none; }
+html[data-calm] .felt-splash-mark .spoke { stroke-dashoffset: -0.83; opacity: 1; animation: none; }
+html[data-calm] .felt-splash-mark .inner, html[data-calm] .felt-splash-name, html[data-calm] .felt-splash-version { opacity: 1; animation: none; }

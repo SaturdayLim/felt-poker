@@ -4,7 +4,7 @@ import { calm } from './lib/motion';
 
 const hashPath = (h: string) => h.replace(/^[^#]*#?\/?/, '');
 /** The main tabs in bar order: a change between two of them slides in that direction. */
-export const NAV_TABS = ['', 'games', 'insights', 'players', 'settings'];
+export const NAV_TABS = ['', 'games', 'players', 'settings'];
 
 /* The routes behind the current one, oldest first, so a screen can tell whether Back leads to a given
    screen. A replace keeps the stack; a hash change to the route on top of the stack counts as Back. */
@@ -37,6 +37,8 @@ export function useRoute(): string[] {
       const a = NAV_TABS.indexOf(top(e.oldURL)), b = NAV_TABS.indexOf(top(e.newURL));
       // between main tabs the screen slides (SlidePane in App.tsx)
       if (a >= 0 && b >= 0 && a !== b) { flushSync(() => setParts(read())); window.scrollTo(0, 0); return; }
+      // a view inside the same tab (Players, Leaderboard, Stats) slides inside the tab
+      if (a >= 0 && a === b) { flushSync(() => setParts(read())); return; }
       const apply = () => { flushSync(() => setParts(read())); window.scrollTo(0, 0); };
       if (plainNext) { plainNext = false; apply(); return; }
       if (document.startViewTransition && !calm()) {

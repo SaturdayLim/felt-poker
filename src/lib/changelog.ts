@@ -1,5 +1,18 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.3.0', date: '6 Nov 2026', notes: [
+    'The tab bar is a chip tray: a chip rolls along the rail into the pocket of the open tab.',
+    'The page title sits in a notebook tab on the page edge.',
+    'Stats moved into Players (Leaderboard and Stats). Games has a Stats view with figures for the whole table.',
+    'Hide or show each player with the eye on the Players list.',
+    'Swipe a closed game left to delete it. Undo puts it back.',
+    'Game settings: Save sits top right. A swipe down leaves without saving.',
+    'Press and hold no longer selects text anywhere in the app.',
+    'The live room closes when the game closes, or after 12 hours with no action.',
+    'End game starts with each count filled in. Players can send their own final chip count.',
+    'Load screen: each chip spoke swipes out as the S draws past it.',
+    'Settings, Colours: pick five base colours, or go back to Default.',
+  ] },
   { version: '1.2.9', date: '4 Nov 2026', notes: [
     'New colours: ink, vivid blue, ice and orange. Light mode uses a darker blue for text and a darker orange.',
     'Card back: a blue S on ink with one ice border. Live cards cast a soft shadow. Empty card places are etched.',

@@ -45,7 +45,7 @@ export default function Home() {
           <section className="felt-section">
             <div className="sat-split">
               <h2 className="sat-h3">Leaderboard <SourceTip>Felt game log ({allClosed.length} closed games). Net result in {currency}.</SourceTip></h2>
-              <a className="sat-small" href="#/insights/standings">Show all</a>
+              <a className="sat-small" href="#/players/board">Show all</a>
             </div>
             <div className="sat-glass-2 felt-list">
               {board.map((s, i) => (

@@ -270,6 +270,8 @@ export interface Game {
   rules?: GameRules;
   /** Stacks counted mid-game. */
   counts?: StackCount[];
+  /** Final chip counts that players sent from their own phone (live link). The End game count starts from these. */
+  claimed?: Record<ID, { chips: number; at: number }>;
   /** Chips moved between players outside the pots (side games, tips). */
   moves?: ChipMove[];
 }
@@ -304,12 +306,17 @@ export interface BountyRule {
 
 export type SuitKey = 's' | 'h' | 'c' | 'd';
 /** How cards look on this phone: the order of the suit rows in the card picker (top to bottom) and a colour per suit. */
+/** The five base colours of the app (Settings, Colours). `custom` off: the default palette. */
+export interface Palette { custom?: boolean; base: string; main: string; accent: string; up: string; down: string }
+
 export interface CardLook { order: SuitKey[]; colors: Record<SuitKey, string>; custom?: boolean; bg?: string }
 
 export interface Settings {
   theme: ThemePref;
   /** Card picker order and suit colours. This phone's own preference: a restore never changes it. */
   cards?: CardLook;
+  /** The five base colours, if the owner picked their own. Kept on this phone: a restore never changes it. */
+  palette?: Palette;
   /** How long the opening screen shows, in ms. 0 = skip it. */
   splashMs: number;
   /** The player who uses this phone: the recorder offers My cards for that player. Kept on restore. */

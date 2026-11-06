@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
 import { Caption, Delta, Empty, Header, Help, Icon, num, toast } from '../components/ui';
@@ -23,6 +23,24 @@ export default function CountChips({ gameId }: { gameId: string }) {
   const [text, setText] = useState<Record<ID, string>>(() =>
     Object.fromEntries((g?.playerIds ?? []).filter((p) => hasCashedOut(g!, p)).map((p) => [p, String(cashOutUnits(g!, p))])),
   );
+
+  // the count starts filled: each player's own count if they sent one, else an exact estimate. The host edits any of them
+  useEffect(() => {
+    if (!g || g.status === 'closed') return;
+    const e = estimateStacks(g);
+    const t: Record<ID, string> = {};
+    let n = 0;
+    for (const p of g.playerIds) {
+      if (hasCashedOut(g, p)) continue;
+      const v = g.claimed?.[p]?.chips ?? (e.stack[p] !== undefined && !(e.spread[p] > 0) ? Math.round(e.stack[p]!) : null);
+      if (v === null || v < 0) continue;
+      t[p] = String(v); setCashOut(g.id, p, v); n++;
+    }
+    if (!n) return;
+    setText((x) => ({ ...x, ...t }));
+    toast(`${n} counts filled in. Check each against the chips.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Count Chips" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
   const ordered = [...g.playerIds].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99));
@@ -96,6 +114,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
                   {done && <span className="felt-up" aria-label="Counted"><Icon name="check" size={14} /></span>}
                 </div>
                 <div className="sat-small sat-muted"><span className="sat-num">{units(buyInUnits(g, p))}</span> in{estOf(p) !== null ? <>, est <span className="sat-num">{units(estOf(p)!)}</span></> : null}</div>
+                {g.claimed?.[p] && <div className="sat-small" style={{ color: 'var(--sat-accent-text)' }}>Sent <span className="sat-num">{units(g.claimed[p].chips)}</span></div>}
                 {done && estOf(p) !== null && cashOutUnits(g, p) !== estOf(p) && <div className="sat-small felt-warn-text">{units(Math.abs(cashOutUnits(g, p) - estOf(p)!))} {cashOutUnits(g, p) > estOf(p)! ? 'over' : 'under'} the estimate</div>}
                 {net !== null && <Delta value={net} format={(a) => units(a)} />}
               </button>

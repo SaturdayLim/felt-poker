@@ -342,13 +342,13 @@ export const useStore = create<State>()(
             players: withCodes(data.players, data.games),
             games: withPrivate(data.games),
             groups: data.groups ?? [],
-            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
+            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, palette: s.settings.palette, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
           })),
         exportBackup: () => {
           const s = get();
           return { app: 'felt', version: 1, exportedAt: now(), players: s.players, games: s.games, groups: s.groups, settings: s.settings };
         },
-        eraseAll: () => set((s) => ({ players: [], games: [], groups: [], settings: { ...DEFAULT_SETTINGS, theme: s.settings.theme, splashMs: s.settings.splashMs, cards: s.settings.cards } })),
+        eraseAll: () => set((s) => ({ players: [], games: [], groups: [], settings: { ...DEFAULT_SETTINGS, theme: s.settings.theme, splashMs: s.settings.splashMs, cards: s.settings.cards, palette: s.settings.palette } })),
       };
     },
     {

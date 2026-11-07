@@ -215,7 +215,16 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   const [shown, setShown] = useState<string | null>(null);
   if (!p) return null;
   const ready = !!p.code && inGame;
-  const replace = () => { const c = issueCode(pid); setShown(c); toast('Code replaced'); };
+  // the thumb covers the icon, so the hold says what it does: a message while the code is made, then a pulse and the name
+  const replace = () => {
+    toast('Making a new code…');
+    window.setTimeout(() => {
+      const c = issueCode(pid);
+      setShown(c);
+      haptic([30, 60, 30]);
+      toast(`New code for ${p.name}.`);
+    }, 600);
+  };
   const tap = () => {
     if (!ready) { toast('A code starts when this player joins a game.'); return; }
     if (shown) { setShown(null); return; }

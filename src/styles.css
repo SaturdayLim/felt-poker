@@ -821,20 +821,15 @@ html[data-calm] .felt-qr-pop, html[data-calm] .felt-qr-pop::backdrop { animation
 html { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea, select, [contenteditable="true"], .felt-selectable, .felt-selectable * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 
-/* Header: the tab of a notebook page. A line runs across the screen (the page edge); the title sits in a paper tab
-   that stands up from it, with rounded top corners and small flared feet where it meets the edge. */
+/* Header: the tab of a notebook page. A thin line runs across the screen (the page edge); the title sits in a divider
+   tab that stands up from it: a 1.5px outline, small top corners, and the page colour, so it joins the page below. */
 .felt-header { background: linear-gradient(to bottom, var(--sat-bg) 72%, color-mix(in srgb, var(--sat-bg) 0%, transparent)); padding-bottom: var(--sat-space-3); }
 .felt-header .sat-header-bar.felt-notebook { position: relative; align-items: flex-end; gap: var(--sat-space-2); padding: 0 var(--sat-space-2) 0 var(--sat-space-3); min-height: 0; border-radius: 0; background: none; box-shadow: none;
-  border-bottom: 2px solid var(--sat-line-strong); }
-.felt-ntab { position: relative; display: flex; align-items: center; gap: var(--sat-space-1); min-width: 0; max-width: calc(100% - 56px); margin-bottom: -2px;
-  padding: var(--sat-space-2) var(--sat-space-4) var(--sat-space-2) var(--sat-space-3); background: var(--sat-solid-2);
-  border: 2px solid var(--sat-line-strong); border-bottom: 0; border-radius: 16px 16px 0 0; box-shadow: 0 2px 0 var(--sat-solid-2); }
-.felt-header--tab .felt-ntab { padding-left: var(--sat-space-4); }
-.felt-ntab > .sat-iconbtn { margin-left: calc(var(--sat-space-2) * -1); }
-/* the feet: inverse rounded corners where the tab meets the page edge */
-.felt-ntab::before, .felt-ntab::after { content: ''; position: absolute; bottom: 0; width: 12px; height: 12px; pointer-events: none; }
-.felt-ntab::before { left: -14px; background: radial-gradient(circle at 0 0, transparent 10px, var(--sat-line-strong) 10px 12px, var(--sat-solid-2) 12px); }
-.felt-ntab::after { right: -14px; background: radial-gradient(circle at 100% 0, transparent 10px, var(--sat-line-strong) 10px 12px, var(--sat-solid-2) 12px); }
+  border-bottom: 1.5px solid var(--sat-line-strong); }
+.felt-ntab { position: relative; display: flex; align-items: center; gap: var(--sat-space-1); min-width: 0; max-width: calc(100% - 56px); margin-bottom: -1.5px;
+  padding: 6px var(--sat-space-4); background: var(--sat-bg); color: var(--sat-text);
+  border: 1.5px solid var(--sat-line-strong); border-bottom: 0; border-radius: 9px 9px 0 0; box-shadow: none; }
+.felt-ntab > .sat-iconbtn { margin: -4px 0 -4px calc(var(--sat-space-2) * -1); }
 .felt-ntab .sat-brand { margin-right: 0; }
 .felt-ntab-right { margin-left: auto; display: flex; align-items: center; gap: var(--sat-space-1); padding-bottom: 4px; }
 
@@ -929,18 +924,18 @@ html[data-skin="felt"][data-palette="custom"][data-theme="dark"] {
   --felt-coral: var(--felt-accent);
 }
 
-/* Several views of one page: a row of notebook tabs. The open tab stands forward and joins the page; the others sit
-   behind it, lower and on the page edge. Only the open one has the paper colour and the feet. */
-.felt-notebook[role="tablist"] { gap: 0; padding-left: var(--sat-space-2); }
-.felt-ntab--view { flex: 0 1 auto; color: var(--sat-muted); font: inherit; cursor: pointer; padding: var(--sat-space-2) var(--sat-space-3); }
-.felt-ntab--view .felt-header-title { font-size: 1.0625rem; }
-.felt-ntab--view:not(.is-on) { z-index: 0; margin: 0 -4px -2px; padding-top: 6px; background: var(--sat-well); border-color: var(--sat-line); border-bottom: 2px solid var(--sat-line-strong); box-shadow: none; }
-.felt-ntab--view:not(.is-on)::before, .felt-ntab--view:not(.is-on)::after { display: none; }
-.felt-ntab--view.is-on { z-index: 1; color: var(--sat-text); }
+/* Several views of one page: a row of divider tabs. The open tab joins the page (page colour, no line under it).
+   The others sit back: no fill, muted text, a fainter outline, and the page line runs under them. */
+.felt-notebook[role="tablist"] { gap: 4px; padding-left: var(--sat-space-3); }
+.felt-ntab--view { flex: 0 1 auto; font: inherit; cursor: pointer; padding: 6px var(--sat-space-3); }
+.felt-ntab--view .felt-header-title { font-size: 1rem; }
+.felt-ntab--view:not(.is-on) { z-index: 0; margin-bottom: 0; padding-top: 4px; padding-bottom: 5px; background: color-mix(in srgb, var(--sat-text) 4%, transparent); color: var(--sat-muted); border-color: var(--sat-line); }
+.felt-ntab--view:not(.is-on) .felt-header-title { font-weight: 500; }
+.felt-ntab--view.is-on { z-index: 1; }
 
-/* Theme toggle in the Home header: Phone, Light, Dark */
+/* Theme toggle in the Home header: three icons (phone, sun, moon) */
 .felt-theme3 { padding: 2px; }
-.felt-theme3 > button { min-height: 36px; padding: 0 8px; gap: 4px; font-size: var(--sat-fs-caption); font-weight: 600; }
+.felt-theme3 > button { min-height: 34px; min-width: 40px; padding: 0 10px; justify-content: center; }
 /* a tapped name or link keeps no ring: the ring is for keyboard focus only */
 .felt-name:focus:not(:focus-visible), [data-player]:focus:not(:focus-visible), .felt-pcard-name:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 

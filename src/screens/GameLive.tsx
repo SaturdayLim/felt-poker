@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
-import { back, backTo, go } from '../router';
+import { back, backTo, go, setPath } from '../router';
 import { useDragList } from '../components/dragList';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton } from '../components/ui';
 import { shrinkAway } from '../lib/motion';
@@ -40,7 +40,9 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const g = useGame(gameId);
   const name = usePlayerName();
   const st = useStore();
-  const [tab, setTab] = useState<'players' | 'hands'>(initialTab);
+  const [tab, setTabState] = useState<'players' | 'hands'>(initialTab);
+  // the open view is part of the address (game/<id> or game/<id>/hands): Back from a hand comes back to the Hands view
+  const setTab = (t: 'players' | 'hands') => { setTabState(t); setPath(`game/${gameId}${t === 'hands' ? '/hands' : ''}`); };
   const [sheet, setSheet] = useState<SheetKind>(null);
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Game" /><Empty title="Game not found">It may have been deleted.</Empty></div>;

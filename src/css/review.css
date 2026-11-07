@@ -1,1 +1,6 @@
 /* review: rules for this area. Loaded after styles.css (src/main.tsx). */
+
+/* Swipe back from a reviewed hand (swipeBack.ts, mode 'slide'): each part of the page slides right with the finger.
+   The page clips what passes its edge, so the screen never scrolls sideways. */
+.felt-page.is-sliding { overflow-x: clip; }
+.felt-page.is-sliding > * { will-change: translate; }

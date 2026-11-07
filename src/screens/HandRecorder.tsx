@@ -191,16 +191,17 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const me = settings.me;
   const cardsFor: ID | null = readOnly ? null : me ?? null;
   const [askCards, setAskCards] = useState(false);
-  // swipe back from the left edge closes the page into the Log hand button (recording only; review goes to the hand list)
+  // swipe back from the left edge: recording closes the page into the Log hand button; review slides back to the hand list
   const pageRef = useRef<HTMLDivElement>(null);
   const leaveTo = useRef('');
-  leaveTo.current = `game/${g?.id ?? ''}`;
-  const ready = !!g && !readOnly;
+  leaveTo.current = readOnly ? `game/${g?.id ?? ''}/hands` : `game/${g?.id ?? ''}`;
+  const ready = !!g && !!st;
+  // installed once per page, so a render during the swipe never drops a swipe that is finishing
   useEffect(() => {
     const el = pageRef.current;
     if (!el || !ready) return;
-    return installSwipeBack(el, () => backPlain(leaveTo.current));
-  });
+    return installSwipeBack(el, () => backPlain(leaveTo.current), readOnly ? 'slide' : 'morph');
+  }, [ready, readOnly]);
   /** Cards entered through Player cards before the hand is saved. They join the hand when it saves. */
   const [extraPriv, setExtraPriv] = useState<Record<ID, Card[]>>({});
   // load the private cards already saved for that player in this hand

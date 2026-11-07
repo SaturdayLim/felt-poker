@@ -1,1 +1,24 @@
 /* chrome: rules for this area. Loaded after styles.css (src/main.tsx). */
+
+/* Home: Felt is not a tab. The mark and the wordmark sit plain on the page: no tab, no page edge, no bar. */
+.felt-header--brand .sat-header-bar.felt-brandbar { display: flex; align-items: center; gap: var(--sat-space-3); min-height: 52px;
+  padding: 0 var(--sat-space-2) 0 var(--sat-space-3); border: 0; border-radius: 0; background: none; box-shadow: none; }
+.felt-brandbar .sat-brand { gap: var(--sat-space-2); margin-right: auto; }
+.felt-brandbar .sat-wordmark { font-size: 1.75rem; }
+.felt-brandbar-right { display: flex; align-items: center; margin-left: auto; }
+
+/* Info tips: even padding all round, and a little air between lines */
+.sat-tip-body { padding: 11px 12px; line-height: 1.45; }
+.felt-tip-line + .felt-tip-line { margin-top: 6px; }
+/* a sub-entry belongs to the line above it: indented, with a small marker */
+.felt-tip-sub { position: relative; padding-left: 14px; margin-left: 8px; }
+.felt-tip-line + .felt-tip-sub { margin-top: 3px; }
+.felt-tip-sub::before { content: ''; position: absolute; left: 2px; top: 0.6em; width: 5px; height: 5px; border-radius: 50%; background: var(--sat-muted); }
+
+/* Settings, Hands: the same rhythm as the other sections. The code error takes room only while it shows. */
+.felt-set-hands .felt-boxes-wrap { gap: 0; }
+.felt-set-hands .felt-boxes-cell { height: 48px; }
+.felt-set-hands .felt-boxes-err { min-height: 0; max-height: 0; overflow: hidden; transition: opacity 500ms var(--sat-ease) 500ms, max-height 0s linear 1000ms, margin 0s linear 1000ms; }
+.felt-set-hands .felt-boxes-err.is-on { max-height: 3em; margin-top: var(--sat-space-2); transition: none; }
+.felt-set-switches { display: flex; flex-direction: column; }
+.felt-set-switches > .sat-switch-row + .sat-switch-row { border-top: 1px solid var(--sat-line); }

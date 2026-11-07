@@ -71,7 +71,7 @@ export default function Insights({ initialPlayer, embedded, mode }: { initialPla
         </div>
 
         {games.length === 0 ? (
-          <Empty title="No games in this period" action={range !== 'all' || type !== 'all' ? <button className="sat-btn" onClick={() => { setRange('all'); setType('all'); }}>Show all</button> : undefined}>
+          <Empty title="No games found" action={range !== 'all' || type !== 'all' ? <button className="sat-btn" onClick={() => { setRange('all'); setType('all'); }}>Show all</button> : undefined}>
             Try a wider period, or turn on Cash and Tournaments.
           </Empty>
         ) : view === 'player' ? (

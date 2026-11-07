@@ -1,1 +1,11 @@
 /* nav: rules for this area. Loaded after styles.css (src/main.tsx). */
+
+/* The on-screen keyboard (and any sheet) comes up in front of the tab bar: the bar never rides up with it. While a
+   text field has focus on a touch phone, App.tsx sets html.felt-typing; the bar stays pinned to the screen bottom,
+   under the keyboard, and is hidden. It comes back once the keyboard has gone. Sheets are in the top layer, so they
+   always sit in front of the bar. */
+.felt-nav { transition: opacity var(--sat-dur-fast) var(--sat-ease), visibility 0s linear 0s; }
+html.felt-typing .felt-nav { visibility: hidden; opacity: 0; pointer-events: none; transform: translateY(var(--felt-kb, 0px)); transition: none; }
+
+/* While the chip rolls, the new tab's icon stays muted: on the bare pocket a white icon would not show. */
+.felt-nav[data-rolling] a[aria-current="page"] .felt-rail-icon { color: var(--sat-muted); }

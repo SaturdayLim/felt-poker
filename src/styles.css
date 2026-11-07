@@ -35,13 +35,17 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 .felt-title .sat-h1 + p { margin-top: var(--sat-space-1); }
 
 /* Bottom tab bar: a chip tray. One straight rail with a pocket under it for each tab; the icon rests in its pocket and
-   a poker chip in the Main colour rolls along the rail to the open tab, and the rail dips under it all the way
-   (components/navRail.tsx). The page fades out under the tray. */
-.felt-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 10px var(--sat-space-3) calc(var(--felt-safe-bottom) + 4px);
+   a poker chip in the Main colour rolls along the rail to the open tab, and the rail gives way under it all the way
+   (components/navRail.tsx). The page fades out under the tray.
+   Height: a fixed 86 px plus the home indicator inset. --felt-nav-safe is that inset measured by NavRail (capped at
+   34 px); before it is measured, the env() value, capped the same way. Nothing inside can make the bar taller. */
+.felt-nav { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 40; box-sizing: border-box;
+  --felt-nav-pad: var(--felt-nav-safe, min(var(--felt-safe-bottom), 34px));
+  height: calc(86px + var(--felt-nav-pad)); padding: 10px var(--sat-space-3) calc(var(--felt-nav-pad) + 4px); overflow: visible;
   background: linear-gradient(to bottom, color-mix(in srgb, var(--sat-bg) 0%, transparent), var(--sat-bg) 22px); }
 .felt-rail { position: relative; max-width: 496px; margin: 0 auto; display: flex; height: 72px; }
 .felt-rail-line { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
-.felt-rail-edge { fill: none; stroke: var(--sat-line-strong); stroke-width: 2; stroke-linecap: round; }
+.felt-rail-edge { fill: none; stroke: var(--sat-line-strong); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .felt-rail-pocket { fill: var(--sat-well); }
 .felt-chip { position: absolute; left: 0; z-index: 1; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; will-change: transform;
   background:

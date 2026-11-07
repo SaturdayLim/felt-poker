@@ -76,9 +76,11 @@ export function useRoute(): string[] {
         const way = hand(e.newURL) && !hand(e.oldURL) ? 'open' : hand(e.oldURL) && !hand(e.newURL) ? 'close' : '';
         const root = document.documentElement;
         if (way) root.dataset.vt = way; else delete root.dataset.vt;
-        const t = document.startViewTransition(apply);
+        // review of a closed game has no Log hand button to close into: the hand list shows at once
+        const t = document.startViewTransition(() => { apply(); if (way === 'close' && !document.querySelector('.felt-logbtn')) root.dataset.vt = 'none'; });
         t.ready.catch(() => undefined);
-        t.finished.finally(() => { if (root.dataset.vt === way) delete root.dataset.vt; }).catch(() => undefined);
+        t.updateCallbackDone.catch(() => undefined);
+        t.finished.finally(() => { if (root.dataset.vt === way || root.dataset.vt === 'none') delete root.dataset.vt; }).catch(() => undefined);
       } else apply();
     };
     window.addEventListener('hashchange', on);

@@ -56,15 +56,38 @@ export default function App() {
   // an open keyboard must not cover the field being typed in
   useEffect(() => {
     const vv = window.visualViewport;
+    const html = document.documentElement;
+    // a field that brings up the on-screen keyboard
+    const TEXT = 'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="image"]):not([type="hidden"]), textarea, select, [contenteditable]:not([contenteditable="false"])';
+    const typing = () => !!(document.activeElement as HTMLElement | null)?.matches?.(TEXT);
+    const touch = window.matchMedia?.('(hover: none) and (pointer: coarse)');
+    // the gap under the visual viewport; on first load iOS can report one with no keyboard open
+    const gap = () => (vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0);
+    let back: number | undefined;
     const fit = () => {
       if (!vv) return;
-      const root = document.documentElement.style;
-      root.setProperty('--felt-kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+      const root = html.style;
+      // only a focused text field has a keyboard: any other gap is not one
+      root.setProperty('--felt-kb', `${typing() ? gap() : 0}px`);
       // the height left above the keyboard: an open sheet never grows past it, so its top stays on screen
       root.setProperty('--felt-vvh', `${vv.height}px`);
+      // the keyboard has gone: the tab bar comes back
+      if (!typing() && gap() < 80 && html.classList.contains('felt-typing')) { window.clearTimeout(back); html.classList.remove('felt-typing'); }
+    };
+    // the keyboard comes up in front of the tab bar: the bar hides at once, before the keyboard moves (nav.css)
+    const onIn = () => {
+      if (!typing() || !(touch?.matches || gap() > 80)) return;
+      window.clearTimeout(back);
+      html.classList.add('felt-typing');
+    };
+    const onOut = () => {
+      window.clearTimeout(back);
+      // focus can move straight to the next field; wait for the keyboard to close, or give up after a while
+      back = window.setTimeout(() => { if (!typing()) html.classList.remove('felt-typing'); }, 650);
     };
     let t: number | undefined;
     const onFocus = (e: FocusEvent) => {
+      onIn();
       const el = e.target as HTMLElement;
       if (!el.matches?.('input:not([type="color"]):not([type="range"]), textarea, select')) return;
       // a sheet moves up by the keyboard height by itself: scrolling the field as well throws it off the top
@@ -79,7 +102,11 @@ export default function App() {
     // iOS pans the page under the keyboard without a resize: follow the pan too
     vv?.addEventListener('scroll', fit);
     document.addEventListener('focusin', onFocus);
-    return () => { vv?.removeEventListener('resize', fit); vv?.removeEventListener('scroll', fit); document.removeEventListener('focusin', onFocus); window.clearTimeout(t); };
+    document.addEventListener('focusout', onOut);
+    return () => {
+      vv?.removeEventListener('resize', fit); vv?.removeEventListener('scroll', fit); document.removeEventListener('focusin', onFocus);
+      document.removeEventListener('focusout', onOut); window.clearTimeout(t); window.clearTimeout(back); html.classList.remove('felt-typing');
+    };
   }, []);
   if (!hydrated) return <div className="felt-app" />;
   const pickRole = (k: 'host' | 'player') => { try { sessionStorage.setItem('felt-role', k); } catch { /* private mode */ } setRole(k); if (k === 'player') go('join'); };

@@ -16,7 +16,9 @@ const TROUGH_W = 48, TROUGH_D = 32;
 // how far from a pocket centre (px) the chip goes before the trough has fully left the pocket shape
 const SETTLE = 16;
 // where two dips meet, the line rounds the join downwards (away from the chip), never up
-const BLEND = 16;
+const BLEND = 24;
+// the half-width (px) of that rounding, and how far from the chip centre it applies in full
+const SOFTEN = 10, SOFTEN_NEAR = 34;
 // the home indicator inset is 34 px on every iPhone: a larger value is the browser's error, not room to leave
 const SAFE_MAX = 34;
 
@@ -35,7 +37,7 @@ function railPoints(w: number, pockets: number[], chip: { x: number; y: number }
   // at a pocket centre the trough is the pocket shape; away from it, the soft trough
   const near = chip ? Math.min(...pockets.map((cx) => Math.abs(chip.x - cx))) : 0;
   const m = smooth(near / SETTLE);
-  return xs.map((x) => {
+  const depth = (x: number) => {
     let d = 0;
     if (chip) { const dx = x - chip.x; d = Math.max(0, chip.y + (1 - m) * round(dx) + m * soft(dx)); }
     for (const cx of pockets) {
@@ -43,11 +45,23 @@ function railPoints(w: number, pockets: number[], chip: { x: number; y: number }
       if (p <= 0) continue;
       const hi = Math.max(d, p), lo = Math.min(d, p);
       // a smooth maximum where the trough meets a pocket: it only goes deeper, and only where both are open
-      const k = chip ? clamp01(Math.abs(chip.x - cx) / 8) * clamp01(lo / 6) : 0;
+      const k = chip ? clamp01(Math.abs(chip.x - cx) / 8) * clamp01(lo / 4) : 0;
       const g = Math.max(0, 1 - (hi - lo) / BLEND);
       d = hi + k * (BLEND / 4) * g * g;
     }
-    return [x, d];
+    return d;
+  };
+  // the rail ends stay fixed on the rail: a chip that swings past the end pocket bends the line, never its ends
+  const ends = (x: number) => clamp01(Math.min(x, w - x) / 10);
+  return xs.map((x) => {
+    const d = depth(x) * ends(x);
+    // near a moving chip, a pocket rim and the trough meet in a corner: fill it in from below (blurred surface, never
+    // shallower), so the line bends smoothly. A resting chip (m = 0) and pockets away from it keep their clean edges.
+    const reach = chip ? m * clamp01(1 - (Math.abs(x - chip.x) - SOFTEN_NEAR) / 20) : 0;
+    if (reach <= 0) return [x, d];
+    let sum = 0, wsum = 0;
+    for (let k = -SOFTEN; k <= SOFTEN; k += 2) { const g = Math.exp(-(k * k) / (SOFTEN * SOFTEN / 2)); sum += g * depth(x + k); wsum += g; }
+    return [x, d + reach * ends(x) * Math.max(0, sum / wsum - d)];
   });
 }
 
@@ -130,7 +144,10 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
     // a full turn of the chip covers 2 x pi x r along the rail
     const turn = (from?.turn ?? 0) + (from ? ((x - from.x) / R) * (180 / Math.PI) : 0);
     at.current = { x, turn };
-    if (!from || calm() || from.x === x) { draw(x, 0, turn); return; }
+    const n = nav.current;
+    if (!from || calm() || from.x === x) { if (n) delete n.dataset.rolling; draw(x, 0, turn); return; }
+    // the icon of the new tab turns to the chip colours only when the chip is there (nav.css)
+    if (n) n.dataset.rolling = '';
     // it lifts out of the old pocket onto the rail, rolls, and drops into the new one; the rail gives way under it all the way
     const { p, ms } = springCurve(SPRING.pill);
     const t0 = performance.now();
@@ -138,8 +155,10 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
       const i = Math.min(p.length - 1, Math.floor((now - t0) / 16));
       const q = p[i], s = Math.min(q, 1);
       draw(from.x + (x - from.x) * q, Math.sin(s * Math.PI) * -6, from.turn + (turn - from.turn) * q);
+      // the chip has reached the pocket: the icon takes the chip colours while it settles
+      if (n && q > 0.96) delete n.dataset.rolling;
       if (now - t0 < ms) raf.current = requestAnimationFrame(step);
-      else draw(x, 0, turn);
+      else { draw(x, 0, turn); if (n) delete n.dataset.rolling; }
     };
     raf.current = requestAnimationFrame(step);
     // eslint-disable-next-line react-hooks/exhaustive-deps

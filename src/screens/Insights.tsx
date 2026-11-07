@@ -5,10 +5,10 @@ import { go } from '../router';
 import { Avatar, Caption, Cards, Delta, Empty, Header, Help, Icon, toast, SourceTip, TabPill } from '../components/ui';
 import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
-import { playerResult } from '../lib/calc';
+import { gameFigure, playerResult } from '../lib/calc';
 import { FEATURES } from '../lib/features';
-import { dateLabel, money, shortDate, units } from '../lib/format';
-import { cumulativeSeries, filterGames, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
+import { chipsText, dateLabel, figureDelta, money, shortDate, units } from '../lib/format';
+import { cumulativeSeries, filterGames, leaderboard, playerSummary, summaryFigure, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
 import { canvasToFile, shareFiles } from '../report/share';
@@ -102,17 +102,23 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
   setPid: (p: ID) => void; currency: string; name: (id: ID) => string;
 }) {
   const me = useStore((x) => x.settings.me);
+  const showMoney = useStore((x) => x.settings.showMoney);
   if (!selected) return null;
   const s = playerSummary(games, selected);
+  // chips view: cash only, so a player with a tournament in view shows money
+  const chipsView = !showMoney && !s.hasTournament;
+  const unit = chipsView ? 'chips' : currency;
+  const pick = (m: number, c: number) => (chipsView ? c : m);
   const played = games.filter((g) => g.playerIds.includes(selected));
   const withRebuy = played.filter((g) => playerResult(g, selected).buyIns > 1);
   const noRebuy = played.filter((g) => playerResult(g, selected).buyIns <= 1);
-  const netOf = (gs: Game[]) => gs.reduce((a, g) => a + playerResult(g, selected).net, 0);
+  const netOf = (gs: Game[]) => gs.reduce((a, g) => a + pick(playerResult(g, selected).net, gameFigure(g, selected).chips ?? 0), 0);
   let cum = 0;
-  const cumVals = s.history.map((h) => (cum += h.net));
-  const best = s.history.reduce<{ t: number; net: number } | null>((b, h) => (!b || h.net > b.net ? h : b), null);
-  const plain = (v: number) => money(v, '', { sign: true });
-  const fmt = (a: number) => money(a, currency);
+  const cumVals = s.history.map((h) => (cum += pick(h.net, h.chips)));
+  const best = s.history.reduce<{ t: number; net: number; chips: number } | null>((b, h) => (!b || pick(h.net, h.chips) > pick(b.net, b.chips) ? h : b), null);
+  const plain = (m: number, c: number) => (chipsView ? units(c, { sign: true }) : money(m, '', { sign: true }));
+  const signed = (m: number, c: number) => (chipsView ? `${units(c, { sign: true })} chips` : money(m, currency, { sign: true }));
+  const fmt = (a: number) => (chipsView ? chipsText(a) : money(a, currency));
 
   return (
     <>
@@ -124,8 +130,8 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <h2 className="sat-h2">{name(selected)}</h2>
         <div className="sat-split" style={{ alignItems: 'flex-end' }}>
           <div className="sat-stack" style={gap(1)}>
-            <Caption q={currency}>Net result</Caption>
-            <span className="sat-kpi">{plain(s.net)}</span>
+            <Caption q={unit}>Net result</Caption>
+            <span className="sat-kpi">{plain(s.net, s.netChips)}</span>
           </div>
           <div className="sat-stack felt-right" style={gap(1)}>
             <Caption tip="winRate">Win rate</Caption>
@@ -135,17 +141,17 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <p className="sat-small sat-muted">{s.wins} of {s.games} games finished up.</p>
         {s.history.length > 1 && (
           <figure style={{ marginTop: 'var(--sat-space-2)' }}>
-            <LineChart height={170} yTitle={`Net (${currency})`} series={[{ name: 'net', color: 'var(--sat-accent)', values: cumVals }]} />
-            <figcaption className="sat-figcaption"><b>Net = {fmt(s.net)}</b> after {s.games} games{best ? `, best ${money(best.net, currency, { sign: true })} on ${shortDate(best.t)}` : ''}.</figcaption>
-            <div className="felt-source"><SourceTip>{sourceLine(played)} Running total in {currency}.</SourceTip></div>
+            <LineChart height={170} yTitle={`Net (${unit})`} series={[{ name: 'net', color: 'var(--sat-accent)', values: cumVals }]} />
+            <figcaption className="sat-figcaption"><b>Net = {fmt(pick(s.net, s.netChips))}</b> after {s.games} games{best ? `, best ${signed(best.net, best.chips)} on ${shortDate(best.t)}` : ''}.</figcaption>
+            <div className="felt-source"><SourceTip>{sourceLine(played)} Running total in {unit}.</SourceTip></div>
           </figure>
         )}
       </section>
 
       <section className="sat-grid" style={{ ['--sat-min' as string]: '150px', ...gap(3) }} aria-label="Key figures">
-        <div className="sat-glass sat-stat"><Caption q={currency}>Best game</Caption><span className="sat-kpi">{s.biggestWin > 0 ? plain(s.biggestWin) : '-'}</span></div>
-        <div className="sat-glass sat-stat"><Caption q={currency}>Worst game</Caption><span className="sat-kpi">{s.biggestLoss < 0 ? plain(s.biggestLoss) : '-'}</span></div>
-        <div className="sat-glass sat-stat"><Caption q={currency} tip="avg">Per game</Caption><span className="sat-kpi">{plain(s.avg)}</span></div>
+        <div className="sat-glass sat-stat"><Caption q={unit}>Best game</Caption><span className="sat-kpi">{s.biggestWin > 0 ? plain(s.biggestWin, s.biggestWinChips) : '-'}</span></div>
+        <div className="sat-glass sat-stat"><Caption q={unit}>Worst game</Caption><span className="sat-kpi">{s.biggestLoss < 0 ? plain(s.biggestLoss, s.biggestLossChips) : '-'}</span></div>
+        <div className="sat-glass sat-stat"><Caption q={unit} tip="avg">Per game</Caption><span className="sat-kpi">{plain(s.avg, s.avgChips)}</span></div>
         <div className="sat-glass sat-stat"><Caption q="games" tip="streak">Streak</Caption><span className="sat-kpi">{s.streak === 0 ? '-' : Math.abs(s.streak)}</span><span className="sat-note">{s.streak > 0 ? 'Up in a row' : s.streak < 0 ? 'Down in a row' : 'No streak'}</span></div>
         <div className="sat-glass sat-stat"><Caption>Hands won</Caption><span className="sat-kpi">{s.handsWon}</span><span className="sat-note">Top pot {s.biggestPot} chips</span></div>
         <div className="sat-glass sat-stat"><Caption>Buy-ins per game</Caption><span className="sat-kpi">{s.games ? (s.buyIns / s.games).toFixed(1) : '-'}</span><span className="sat-note">{s.buyIns} in total</span></div>
@@ -217,7 +223,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
             return (
               <button key={g.id} className="felt-row" onClick={() => go(`game/${g.id}/close`)}>
                 <div className="felt-row-main"><div className="felt-row-title">{g.name}</div><div className="felt-row-sub">{dateLabel(g.startedAt)}, {r.buyIns} buy-in{r.buyIns === 1 ? '' : 's'}{r.place ? `, place ${r.place}` : ''}</div></div>
-                <Delta value={r.net} format={(a) => money(a, g.currency)} />
+                <Delta {...figureDelta(gameFigure(g, selected), showMoney)} />
               </button>
             );
           })}
@@ -233,15 +239,20 @@ function Standings({ games, board, currency, name, scope }: {
   games: Game[]; board: ReturnType<typeof leaderboard>; currency: string; name: (id: ID) => string; scope: string;
 }) {
   const pref = useStore((s) => s.settings.theme);
+  const showMoney = useStore((s) => s.settings.showMoney);
   const look = useResolvedTheme(pref);
   const [showAll, setShowAll] = useState(false);
   const [cmp, setCmp] = useState<ID[]>(() => board.slice(0, 3).map((b) => b.playerId));
   const [editing, setEditing] = useState(false);
   const shown = showAll ? board : board.slice(0, 5);
-  const series = cumulativeSeries(games, cmp);
+  // chips view: cash only, so any tournament in view keeps the whole table in money
+  const chipsView = !showMoney && !games.some((g) => g.type === 'tournament');
+  const unit = chipsView ? 'chips' : currency;
+  const series = cumulativeSeries(games, cmp, chipsView);
   const lastVals = series[series.length - 1]?.values ?? {};
   const leader = [...cmp].sort((a, b) => (lastVals[b] ?? 0) - (lastVals[a] ?? 0))[0];
-  const fmt = (a: number) => money(a, currency);
+  const fmt = (a: number) => (chipsView ? chipsText(a) : money(a, currency));
+  const signed = (a: number) => (chipsView ? `${units(a, { sign: true })} chips` : money(a, currency, { sign: true }));
 
   const share = async () => {
     try {
@@ -264,20 +275,20 @@ function Standings({ games, board, currency, name, scope }: {
         </div>
         <div className="sat-table-wrap">
           <table className="sat-table">
-            <thead><tr><th>Player</th><th className="n">Games</th><th className="n">Net <span className="sat-qual">({currency})</span></th></tr></thead>
+            <thead><tr><th>Player</th><th className="n">Games</th><th className="n">Net <span className="sat-qual">({unit})</span></th></tr></thead>
             <tbody>
               {shown.map((b, i) => (
                 <tr key={b.playerId} onClick={() => go(`insights/${b.playerId}`)} style={{ cursor: 'pointer' }}>
                   <td><span className="sat-cluster" style={gap(2)}><span className="sat-mono sat-muted" style={{ width: 14 }}>{i + 1}</span><Avatar name={name(b.playerId)} size="sm" /><span style={{ fontWeight: 600 }}><PlayerName id={b.playerId} /></span></span></td>
                   <td className="n">{b.games}</td>
-                  <td className="n"><Delta value={b.net} format={(a) => money(a, '')} /></td>
+                  <td className="n"><Delta value={chipsView ? b.netChips : b.net} format={(a) => (chipsView ? chipsText(a) : money(a, ''))} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         {board.length > 5 && <button className="sat-btn sat-btn--ghost" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show top 5' : `Show ${board.length} players`}</button>}
-        <div className="felt-source"><SourceTip>{sourceLine(games)} Net in {currency}.</SourceTip></div>
+        <div className="felt-source"><SourceTip>{sourceLine(games)} Net in {unit}.</SourceTip></div>
       </section>
 
       <section className="sat-glass sat-card sat-stack" style={gap(3)}>
@@ -291,7 +302,7 @@ function Standings({ games, board, currency, name, scope }: {
           </div>
         )}
         <figure>
-          <LineChart yTitle={`Net (${currency})`} series={cmp.map((p, i) => ({ name: p, color: SERIES_COLORS[i % SERIES_COLORS.length], values: series.map((s) => s.values[p] ?? 0) }))} />
+          <LineChart yTitle={`Net (${unit})`} series={cmp.map((p, i) => ({ name: p, color: SERIES_COLORS[i % SERIES_COLORS.length], values: series.map((s) => s.values[p] ?? 0) }))} />
           <div className="sat-cluster sat-small" style={{ ...gap(4), marginTop: 'var(--sat-space-3)' }}>
             {cmp.map((p, i) => (
               <span key={p} className="sat-cluster" style={gap(2)}>
@@ -300,8 +311,8 @@ function Standings({ games, board, currency, name, scope }: {
               </span>
             ))}
           </div>
-          {leader && <figcaption className="sat-figcaption"><b>Leader = <PlayerName id={leader} /> ({money(lastVals[leader] ?? 0, currency, { sign: true })})</b> over {series.length} games{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
-          <div className="felt-source"><SourceTip>{sourceLine(games)} Running total after each game, in {currency}.</SourceTip></div>
+          {leader && <figcaption className="sat-figcaption"><b>Leader = <PlayerName id={leader} /> ({signed(lastVals[leader] ?? 0)})</b> over {series.length} games{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
+          <div className="felt-source"><SourceTip>{sourceLine(games)} Running total after each game, in {unit}.</SourceTip></div>
         </figure>
       </section>
     </>

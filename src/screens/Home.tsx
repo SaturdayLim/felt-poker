@@ -1,10 +1,12 @@
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { PlayerName, openPlayer } from '../components/players';
-import { Delta, Empty, Header, Icon, SourceTip, ThemeCycle, useTick, reopenGame } from '../components/ui';
+import { Delta, Empty, Header, Icon, SourceTip, ThemeCycle, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
-import { gameLength, money, playMs, shortDate } from '../lib/format';
-import { filterGames, leaderboard } from '../lib/stats';
+import { figureDelta, gameLength, playMs, shortDate } from '../lib/format';
+import { filterGames, leaderboard, summaryFigure } from '../lib/stats';
+import { gameFigure } from '../lib/calc';
+import { FEATURES } from '../lib/features';
 
 /* Home: what is happening now (live games), how to start one, and a short look back.
    Payments live with each game and each group, not here. */
@@ -13,6 +15,7 @@ export default function Home() {
   const games = useStore((s) => s.games);
   const players = useStore((s) => s.players);
   const currency = useStore((s) => s.settings.currency);
+  const showMoney = useStore((s) => s.settings.showMoney);
   const name = usePlayerName();
   const live = games.filter((g) => g.status === 'live');
   const closed = games.filter((g) => g.status === 'closed').sort((a, b) => b.startedAt - a.startedAt);
@@ -21,7 +24,7 @@ export default function Home() {
 
   return (
     <div className="felt-page">
-      <Header brand right={<ThemeCycle />} />
+      <Header brand banner="Felt" right={<ThemeCycle />} />
       <div className="sat-stack">
         {live.map((g) => {
           const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
@@ -35,8 +38,8 @@ export default function Home() {
         })}
 
         <div className="felt-start">
-          <button className={`sat-btn ${live.length ? '' : 'sat-btn--primary'}`} onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
-          <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>
+          <button className={`sat-btn ${live.length ? '' : 'sat-btn--primary'}${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
+          {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
         </div>
 
         <button className="sat-btn sat-btn--block" onClick={() => go('join')}><Icon name="qr" /> Join a game</button>
@@ -44,7 +47,7 @@ export default function Home() {
         {board.length > 0 && (
           <section className="felt-section">
             <div className="sat-split">
-              <h2 className="sat-h3">Leaderboard <SourceTip>Felt game log ({allClosed.length} closed games). Net result in {currency}.</SourceTip></h2>
+              <h2 className="sat-h3">Leaderboard <SourceTip>Felt game log ({allClosed.length} closed games). Net result in {showMoney ? currency : 'chips'}.</SourceTip></h2>
               <a className="sat-small" href="#/players/board">Show all</a>
             </div>
             <div className="sat-glass-2 felt-list">
@@ -52,7 +55,7 @@ export default function Home() {
                 <button key={s.playerId} className="felt-row felt-row--slim" onClick={() => openPlayer(s.playerId)}>
                   <span className="sat-mono sat-muted" style={{ width: 16 }}>{i + 1}</span>
                   <span className="felt-row-main felt-row-title">{name(s.playerId)}</span>
-                  <Delta value={s.net} format={(a) => money(a, currency)} />
+                  <Delta {...figureDelta(summaryFigure(s, currency), showMoney)} />
                 </button>
               ))}
             </div>
@@ -71,12 +74,12 @@ export default function Home() {
               {closed.slice(0, 3).map((g) => {
                 const top = gameResults(g)[0];
                 return (
-                  <button key={g.id} className="felt-row felt-row--slim" onClick={() => reopenGame(g)}>
+                  <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(`game/${g.id}/close`)}>
                     <div className="felt-row-main">
                       <div className="felt-row-title felt-ellipsis">{g.name}</div>
                       <div className="felt-row-sub">{shortDate(g.startedAt)}{top ? <>, top: <PlayerName id={top.playerId} /></> : ''}</div>
                     </div>
-                    {top && <Delta value={top.net} format={(a) => money(a, g.currency)} />}
+                    {top && <Delta {...figureDelta(gameFigure(g, top.playerId), showMoney)} />}
                   </button>
                 );
               })}

@@ -12,6 +12,40 @@ export function units(n: number, opts: { sign?: boolean } = {}): string {
   return sign + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
 
+/** One result in both measures. `chips` null: no chip figure (tournaments), so money always shows. */
+export interface Figure { money: number; chips: number | null; currency: string }
+
+/** True when this figure shows in money: the setting is on, or it has no chip figure. */
+export function showsMoney(f: Figure, showMoney: boolean | undefined): boolean {
+  return !!showMoney || f.chips === null;
+}
+
+/** Chips text, for example "+14 chips" or "9 chips". */
+export function chipsText(n: number, opts: { sign?: boolean } = {}): string {
+  return `${units(n, opts)} chips`;
+}
+
+/** A result as text with its unit: "+14 chips" by default, "+S$1.40" with Show money on. */
+export function figureText(f: Figure, showMoney: boolean | undefined, opts: { sign?: boolean } = {}): string {
+  return showsMoney(f, showMoney) ? money(f.money, f.currency, opts) : chipsText(f.chips ?? 0, opts);
+}
+
+/** A result as a bare number, for tiles whose caption names the unit: "+14" or "+1.40". */
+export function figureNumber(f: Figure, showMoney: boolean | undefined, opts: { sign?: boolean } = {}): string {
+  return showsMoney(f, showMoney) ? money(f.money, '', opts) : units(f.chips ?? 0, opts);
+}
+
+/** The unit a figure shows in, for captions: the currency, or "chips". */
+export function figureUnit(f: Figure, showMoney: boolean | undefined): string {
+  return showsMoney(f, showMoney) ? f.currency : 'chips';
+}
+
+/** Props for a Delta: the value and a formatter in the same measure. */
+export function figureDelta(f: Figure, showMoney: boolean | undefined): { value: number; format: (abs: number) => string } {
+  const m = showsMoney(f, showMoney);
+  return { value: m ? f.money : f.chips ?? 0, format: (a) => (m ? money(a, f.currency) : chipsText(a)) };
+}
+
 /** Units expressed in big blinds. */
 export function inBB(g: Pick<Game, 'bb'>, n: number): string {
   const v = n / g.bb;

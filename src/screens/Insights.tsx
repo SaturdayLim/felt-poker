@@ -6,6 +6,7 @@ import { Avatar, Caption, Cards, Delta, Empty, Header, Help, Icon, toast, Source
 import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
 import { playerResult } from '../lib/calc';
+import { FEATURES } from '../lib/features';
 import { dateLabel, money, shortDate, units } from '../lib/format';
 import { cumulativeSeries, filterGames, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
@@ -25,6 +26,7 @@ const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-'
 /** Game type as two chips that turn on and off on their own: Cash and Tournaments. Both on = all games.
     One chip stays on: turning off the last one turns on the other. */
 export function TypeChips({ type, setType }: { type: TypeFilter; setType: (t: TypeFilter) => void }) {
+  if (!FEATURES.tournaments) return null;
   const on = { cash: type !== 'tournament', tournament: type !== 'cash' };
   const tap = (k: 'cash' | 'tournament') => setType(on[k] ? (k === 'cash' ? 'tournament' : 'cash') : 'all');
   return (

@@ -20,25 +20,23 @@
     <title>Felt</title>
   </head>
   <body class="sat">
-    <!-- Splash: the outer S draws in one stroke, the inner rings fade in as the S reaches each chip, each spoke wipes in along its own segment as the S passes it, the name settles, then the page fades and hands over to the app.
+    <!-- Splash: the S draws in one stroke, then both chip rings fade in, then six edge marks (three per chip) wipe in, so the mark reads as two stacked chips. The name settles, then the page fades and hands over to the app.
          Tap or press a key to skip. Length comes from FELT_SPLASH_MS above (default 3s). -->
     <main class="felt-splash" aria-label="Felt is loading">
       <div class="felt-splash-lockup">
         <svg class="sat-mark felt-splash-mark" viewBox="-2 -2 68 104" aria-hidden="true">
           <path class="s" pathLength="1" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-          <!-- inner rings: each fades in as the S reaches its chip -->
+          <!-- chip rings: both fade in together once the S is drawn -->
           <path class="inner" d="M38.58 39.48 A15 15 0 1 0 25.42 12.52 A15 15 0 1 0 38.58 39.48" />
-          <path class="inner inner-b" d="M32 59 A15 15 0 1 1 32 89 A15 15 0 1 1 32 59" />
-          <!-- spokes: each is its own short segment (radius 18.6 to 22.4 from its chip centre, top 32,26 and bottom 32,74).
-               It wipes in from its inner end to its outer end as the S passes it (--d, ms) -->
-          <path class="spoke" pathLength="1" style="--d:254" d="M45.152 39.152 L47.84 41.84" />
-          <path class="spoke" pathLength="1" style="--d:714" d="M18.848 39.152 L16.16 41.84" />
-          <path class="spoke" pathLength="1" style="--d:634" d="M18.848 12.848 L16.16 10.16" />
-          <path class="spoke" pathLength="1" style="--d:517" d="M45.152 12.848 L47.84 10.16" />
-          <path class="spoke" pathLength="1" style="--d:866" d="M45.152 87.152 L47.84 89.84" />
-          <path class="spoke" pathLength="1" style="--d:983" d="M18.848 87.152 L16.16 89.84" />
-          <path class="spoke" pathLength="1" style="--d:1246" d="M18.848 60.848 L16.16 58.16" />
-          <path class="spoke" pathLength="1" style="--d:786" d="M45.152 60.848 L47.84 58.16" />
+          <path class="inner" d="M32 59 A15 15 0 1 1 32 89 A15 15 0 1 1 32 59" />
+          <!-- edge marks: three per chip, 120 degrees apart, from radius 17 to 22 (top chip centre 32,26; bottom 32,74).
+               Each wipes in from its inner end to its outer end (--d, ms), one after another after the rings -->
+          <path class="edge" pathLength="1" style="--d:1950" d="M32 9 L32 4" />
+          <path class="edge" pathLength="1" style="--d:2010" d="M46.722 34.5 L51.053 37" />
+          <path class="edge" pathLength="1" style="--d:2070" d="M17.278 34.5 L12.947 37" />
+          <path class="edge" pathLength="1" style="--d:2130" d="M32 91 L32 96" />
+          <path class="edge" pathLength="1" style="--d:2190" d="M17.278 65.5 L12.947 63" />
+          <path class="edge" pathLength="1" style="--d:2250" d="M46.722 65.5 L51.053 63" />
         </svg>
         <h1 class="sat-wordmark felt-splash-name">Felt</h1>
       </div>

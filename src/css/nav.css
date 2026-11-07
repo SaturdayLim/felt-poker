@@ -9,3 +9,11 @@ html.felt-typing .felt-nav { visibility: hidden; opacity: 0; pointer-events: non
 
 /* While the chip rolls, the new tab's icon stays muted: on the bare pocket a white icon would not show. */
 .felt-nav[data-rolling] a[aria-current="page"] .felt-rail-icon { color: var(--sat-muted); }
+
+/* The pocket fill: clear at the rail, solid below it, so the rail never shows as a line through an icon. */
+.felt-rail-well-top { stop-color: var(--sat-well); stop-opacity: 0; }
+.felt-rail-well-base { stop-color: var(--sat-well); stop-opacity: 1; }
+
+/* Hierarchy: the open tab is at full strength; the others are fainter and fade when the selection changes. */
+.felt-nav .felt-rail-icon, .felt-nav .felt-rail-label { opacity: 0.5; transition: opacity 200ms ease, color var(--sat-dur-base) var(--sat-ease); }
+.felt-nav a[aria-current="page"] .felt-rail-icon, .felt-nav a[aria-current="page"] .felt-rail-label { opacity: 1; }

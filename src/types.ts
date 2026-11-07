@@ -323,6 +323,8 @@ export interface Settings {
   me?: ID;
   /** Check hidden cards against the table and each other (default on). Off: no flags, and every entry counts. */
   checkCards?: boolean;
+  /** Results show in money (chips x multiplier) instead of chips. Undefined = chips. Kept on this phone: a restore never changes it. */
+  showMoney?: boolean;
   /** Fallback rules for games created before rules were set per game (see Game.rules). */
   minRaise: GameRules['minRaise'];
   bounty27: BountyRule;

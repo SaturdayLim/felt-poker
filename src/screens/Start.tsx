@@ -10,12 +10,12 @@ export default function Start({ onHost, onPlayer }: { onHost: () => void; onPlay
         <button type="button" className="felt-start-choice" data-press="none" onClick={onHost}>
           <Icon name="cards" size={28} />
           <b>Host</b>
-          <span className="sat-small sat-muted">Run the game and log the hands on this phone.</span>
+          <span className="sat-small sat-muted">Run the game and log hands on this phone.</span>
         </button>
         <button type="button" className="felt-start-choice" data-press="none" onClick={onPlayer}>
           <Icon name="qr" size={28} />
           <b>Player</b>
-          <span className="sat-small sat-muted">Scan the host QR to follow the action and log your hands.</span>
+          <span className="sat-small sat-muted">Scan the QR code to follow the action and log your hands.</span>
         </button>
       </div>
     </div>

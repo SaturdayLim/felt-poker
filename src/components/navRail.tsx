@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './ui';
-import { SPRING, calm, springCurve } from '../lib/motion';
+import { calm } from '../lib/motion';
 
 /* The main tab bar, made like a chip tray: one straight rail with a pocket cut under it for each tab. The icon of
    each tab rests in its pocket. A poker chip in the Main colour marks the open tab: it rolls along the rail to the
@@ -11,9 +11,9 @@ import { SPRING, calm, springCurve } from '../lib/motion';
 export interface NavTab { path: string; label: string; icon: string }
 
 const CHIP = 44, R = CHIP / 2, RAIL_Y = 24, POCKET = 50, PR = POCKET / 2;
-// the soft trough under a rolling chip: a raised cosine, wider and deeper than the chip, flat where it meets the rail
-const TROUGH_W = 48, TROUGH_D = 32;
-// how far from a pocket centre (px) the chip goes before the trough has fully left the pocket shape
+// the soft trough under a rolling chip: a raised cosine, wide and gentle, deeper than the chip, flat where it meets the rail
+const TROUGH_W = 64, TROUGH_D = 32;
+// the fallback distance (px) from a pocket centre over which the trough takes over from the pocket shape
 const SETTLE = 16;
 // where two dips meet, the line rounds the join downwards (away from the chip), never up
 const BLEND = 24;
@@ -21,6 +21,9 @@ const BLEND = 24;
 const SOFTEN = 10, SOFTEN_NEAR = 34;
 // the home indicator inset is 34 px on every iPhone: a larger value is the browser's error, not room to leave
 const SAFE_MAX = 34;
+// the roll: one ease-in-out curve with no overshoot, so the chip never passes its pocket and comes back
+const ROLL_MS = 460;
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const smooth = (v: number) => { const t = clamp01(v); return t * t * (3 - 2 * t); };
@@ -36,7 +39,9 @@ function railPoints(w: number, pockets: number[], chip: { x: number; y: number }
   xs.sort((a, b) => a - b);
   // at a pocket centre the trough is the pocket shape; away from it, the soft trough
   const near = chip ? Math.min(...pockets.map((cx) => Math.abs(chip.x - cx))) : 0;
-  const m = smooth(near / SETTLE);
+  // the blend runs from a pocket centre to the midpoint between two pockets, so it spans the whole roll
+  const settle = pockets.length > 1 ? (pockets[1] - pockets[0]) / 2 : SETTLE;
+  const m = smooth(near / settle);
   const depth = (x: number) => {
     let d = 0;
     if (chip) { const dx = x - chip.x; d = Math.max(0, chip.y + (1 - m) * round(dx) + m * soft(dx)); }
@@ -57,7 +62,7 @@ function railPoints(w: number, pockets: number[], chip: { x: number; y: number }
     const d = depth(x) * ends(x);
     // near a moving chip, a pocket rim and the trough meet in a corner: fill it in from below (blurred surface, never
     // shallower), so the line bends smoothly. A resting chip (m = 0) and pockets away from it keep their clean edges.
-    const reach = chip ? m * clamp01(1 - (Math.abs(x - chip.x) - SOFTEN_NEAR) / 20) : 0;
+    const reach = chip ? m * smooth(1 - (Math.abs(x - chip.x) - SOFTEN_NEAR) / 20) : 0;
     if (reach <= 0) return [x, d];
     let sum = 0, wsum = 0;
     for (let k = -SOFTEN; k <= SOFTEN; k += 2) { const g = Math.exp(-(k * k) / (SOFTEN * SOFTEN / 2)); sum += g * depth(x + k); wsum += g; }
@@ -149,15 +154,14 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
     // the icon of the new tab turns to the chip colours only when the chip is there (nav.css)
     if (n) n.dataset.rolling = '';
     // it lifts out of the old pocket onto the rail, rolls, and drops into the new one; the rail gives way under it all the way
-    const { p, ms } = springCurve(SPRING.pill);
     const t0 = performance.now();
     const step = (now: number) => {
-      const i = Math.min(p.length - 1, Math.floor((now - t0) / 16));
-      const q = p[i], s = Math.min(q, 1);
-      draw(from.x + (x - from.x) * q, Math.sin(s * Math.PI) * -6, from.turn + (turn - from.turn) * q);
+      const t = Math.min(1, (now - t0) / ROLL_MS);
+      const q = ease(t);
+      draw(from.x + (x - from.x) * q, Math.sin(t * Math.PI) * -6, from.turn + (turn - from.turn) * q);
       // the chip has reached the pocket: the icon takes the chip colours while it settles
       if (n && q > 0.96) delete n.dataset.rolling;
-      if (now - t0 < ms) raf.current = requestAnimationFrame(step);
+      if (t < 1) raf.current = requestAnimationFrame(step);
       else { draw(x, 0, turn); if (n) delete n.dataset.rolling; }
     };
     raf.current = requestAnimationFrame(step);
@@ -168,6 +172,13 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
     <nav ref={nav} className="felt-nav" aria-label="Main">
       <div ref={bar} className="felt-rail">
         <svg className="felt-rail-line" width={w} height={RAIL_Y + TROUGH_D + 4} aria-hidden="true">
+          {/* the pocket fills from nothing at the rail, so no flat edge crosses the icon in it */}
+          <defs>
+            <linearGradient id="felt-rail-well" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={RAIL_Y} y2={RAIL_Y + 12}>
+              <stop offset="0" className="felt-rail-well-top" />
+              <stop offset="1" className="felt-rail-well-base" />
+            </linearGradient>
+          </defs>
           <path ref={well} className="felt-rail-pocket" />
           <path ref={edge} className="felt-rail-edge" />
         </svg>

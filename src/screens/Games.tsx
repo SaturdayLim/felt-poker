@@ -2,13 +2,14 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { PlayerName } from '../components/players';
-import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, withUndo, reopenGame } from '../components/ui';
+import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, withUndo } from '../components/ui';
 import { TypeChips } from './Insights';
-import { gameResults, handStats, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
-import { dateLabel, gameLength, money, playMs } from '../lib/format';
+import { gameFigure, gameResults, handStats, openTransfers, playerStatus, totalBuyInUnits, totalPotMoney } from '../lib/calc';
+import { dateLabel, figureDelta, figureText, gameLength, playMs } from '../lib/format';
 import { groupTotals, handPace, type TypeFilter } from '../lib/stats';
 import { shrinkAway } from '../lib/motion';
 import { haptic } from '../lib/haptics';
+import { FEATURES } from '../lib/features';
 import type { Game } from '../types';
 
 /* Live games sit in their own section as solid glass cards with a pulsing dot.
@@ -21,6 +22,7 @@ export default function Games({ player: arg }: { player?: string }) {
   const games = useStore((s) => s.games);
   const who = useStore((s) => s.players.find((p) => p.id === player));
   const groups = useStore((s) => s.groups);
+  const showMoney = useStore((s) => s.settings.showMoney);
   const [type, setType] = useState<TypeFilter>('all');
   const list = games.filter((g) => (type === 'all' || g.type === type) && (!who || g.playerIds.includes(who.id))).sort((a, b) => b.startedAt - a.startedAt);
   const live = list.filter((g) => g.status === 'live');
@@ -29,7 +31,7 @@ export default function Games({ player: arg }: { player?: string }) {
 
   return (
     <div className="felt-page">
-      <Header title="Games" tabs={[{ label: 'Game list', on: !stats, go: () => go('games', true) }, { label: 'Stats', on: stats, go: () => go('games/stats', true) }]} />
+      <Header banner="Games" tabs={[{ label: 'Game list', on: !stats, go: () => go('games', true) }, { label: 'Stats', on: stats, go: () => go('games/stats', true) }]} />
       <div className="sat-stack">
         <TypeChips type={type} setType={setType} />
         {who && (
@@ -40,8 +42,8 @@ export default function Games({ player: arg }: { player?: string }) {
         <SlidePane k={stats ? 'stats' : 'list'} i={stats ? 1 : 0}>
         {stats ? <GameStats games={closed} /> : <div className="sat-stack">
         <div className="felt-start">
-          <button className="sat-btn sat-btn--primary" onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
-          <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>
+          <button className={`sat-btn sat-btn--primary${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
+          {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
         </div>
         {list.length === 0 && <Empty title="No games">Games you start appear here.</Empty>}
 
@@ -70,18 +72,18 @@ export default function Games({ player: arg }: { player?: string }) {
                 const open = openTransfers(g).length;
                 return (
                   <SwipeDelete key={g.id} label={`Delete ${g.name}`} onDelete={(row) => shrinkAway(row, () => withUndo(`${g.name} deleted.`, () => useStore.getState().deleteGame(g.id)))}>
-                  <button className="felt-row" onClick={() => reopenGame(g)}>
+                  <button className="felt-row" onClick={() => go(`game/${g.id}/close`)}>
                     <div className="felt-row-main">
                       <div className="felt-row-title felt-ellipsis">{g.name}</div>
                       <div className="felt-row-sub">
-                        {dateLabel(g.startedAt)}, {g.playerIds.length} players, {money(totalPotMoney(g), g.currency)}{groupName(g) ? `, ${groupName(g)}` : ''}
+                        {dateLabel(g.startedAt)}, {g.playerIds.length} players, {figureText({ money: totalPotMoney(g), chips: g.type === 'cash' ? totalBuyInUnits(g) : null, currency: g.currency }, showMoney)}{groupName(g) ? `, ${groupName(g)}` : ''}
                         {open > 0 ? `, ${open} unpaid` : ''}
                       </div>
                     </div>
                     {res[0] && (
                       <div className="felt-right">
                         <div className="sat-small felt-ellipsis" style={{ maxWidth: 96 }}><PlayerName id={res[0].playerId} /></div>
-                        <Delta value={res[0].net} format={(a) => money(a, g.currency)} />
+                        <Delta {...figureDelta(gameFigure(g, res[0].playerId), showMoney)} />
                       </div>
                     )}
                   </button>
@@ -134,6 +136,7 @@ function SwipeDelete({ children, label, onDelete }: { children: ReactNode; label
 /** Figures for the whole table across the closed games of this type: game-level, not per player. */
 function GameStats({ games }: { games: Game[] }) {
   const currency = useStore((s) => s.settings.currency);
+  const showMoney = useStore((s) => s.settings.showMoney);
   if (!games.length) return <Empty title="No closed games">Close a game to see table stats here.</Empty>;
   const t = groupTotals(games);
   const pace = handPace(games);
@@ -161,7 +164,7 @@ function GameStats({ games }: { games: Game[] }) {
         {tile('Showdowns', pct(showdowns, t.hands), `${showdowns} of ${t.hands} hands`)}
         {tile('All-ins', pct(allIns, t.hands), `${allIns} hands`)}
         {tile('Buy-ins per game', (buyIns / games.length).toFixed(1), `${buyIns} in total`)}
-        {tile('Won in total', money(t.moneyMoved, games[0]?.currency ?? currency), 'All winning results added up')}
+        {tile('Won in total', figureText({ money: t.moneyMoved, chips: t.hasTournament ? null : t.chipsMoved, currency: games[0]?.currency ?? currency }, showMoney), 'All winning results added up')}
       </div>
       <div className="felt-source"><SourceTip>Felt game log ({games.length} closed games of this type).</SourceTip></div>
     </div>

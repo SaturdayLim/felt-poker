@@ -7,6 +7,18 @@
 .felt-brandbar .sat-wordmark { font-size: 1.75rem; }
 .felt-brandbar-right { display: flex; align-items: center; margin-left: auto; }
 
+/* Main tabs: a banner row above the page (page name or brand left, theme toggle right). Views sit under it as notebook tabs.
+   The banner and the tabs form one sticky band, full width, in the page colour (styles.css). */
+/* No gap under the band: a gap would let scrolling content show between the band and the page */
+.felt-header { margin-bottom: 0; }
+.felt-header::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 120px; background: var(--sat-bg); pointer-events: none; }
+.felt-header::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 18px; background: linear-gradient(to bottom, var(--sat-bg), transparent); pointer-events: none; }
+.felt-banner { display: flex; align-items: center; gap: var(--sat-space-3); min-height: 52px; padding: 0 var(--sat-space-2) 0 var(--sat-space-3); }
+.felt-banner-title { flex: 1; min-width: 0; margin: 0; font-family: var(--sat-font-ui); font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--sat-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.felt-banner-brand { flex: 1; min-width: 0; gap: var(--sat-space-2); }
+.felt-banner-brand .sat-wordmark { font-size: 1.75rem; }
+.felt-banner-right { display: flex; align-items: center; margin-left: auto; flex: none; }
+
 /* Info tips: even padding all round, and a little air between lines */
 .sat-tip-body { padding: 11px 12px; line-height: 1.45; }
 .felt-tip-line + .felt-tip-line { margin-top: 6px; }

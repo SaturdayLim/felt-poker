@@ -1,4 +1,5 @@
 import type { Game, ID, PlayerStatus, Transfer } from '../types';
+import type { Figure } from './format';
 import { uid } from './ids';
 import { bestHand } from './cards';
 
@@ -161,6 +162,12 @@ export function playerResult(g: Game, pid: ID): PlayerResult {
     buyIns: buyInCount(g, pid),
     place,
   };
+}
+
+/** A player's net result in game g, in money and in chips (cash: chips out - chips in; tournaments: no chips). */
+export function gameFigure(g: Game, pid: ID): Figure {
+  const r = playerResult(g, pid);
+  return { money: r.net, chips: g.type === 'cash' ? round2(r.outUnits - r.inUnits) : null, currency: g.currency };
 }
 
 /** Results sorted best to worst: by net for cash, by finishing place for tournaments. */

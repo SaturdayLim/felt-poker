@@ -76,7 +76,19 @@ export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; 
 /** Felt mark, small version: two stacked poker chips drawn as one S. Both rings of each chip open 65° beside the waist,
     lower right on the top chip and upper left on the bottom, and the ticks go, so the S stays clear at 16 px.
     The opening screen draws the full mark: src/brand/felt-mark.svg. */
-export function FeltMark({ height = 32 }: { height?: number }) {
+export function FeltMark({ height = 32, full = false }: { height?: number; full?: boolean }) {
+  if (full) {
+    // The full mark (src/brand/felt-mark.svg): the S, both inner rings and the edge notches of each chip
+    return (
+      <svg className="sat-mark" style={{ ['--sat-mark-h' as string]: `${height}px` }} viewBox="-2 -2 68 104" aria-hidden="true">
+        <path d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
+        <path d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
+        <path d="M45.15 39.15 L47.84 41.84 M18.85 39.15 L16.16 41.84 M18.85 12.85 L16.16 10.16 M45.15 12.85 L47.84 10.16" />
+        <path d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
+        <path d="M45.15 87.15 L47.84 89.84 M18.85 87.15 L16.16 89.84 M18.85 60.85 L16.16 58.16 M45.15 60.85 L47.84 58.16" />
+      </svg>
+    );
+  }
   return (
     <svg className="sat-mark" style={{ ['--sat-mark-h' as string]: `${height}px` }} viewBox="-2 -2 68 104" aria-hidden="true">
       <path d="M53.75 36.14 A24 24 0 1 0 32 50 A24 24 0 1 1 10.25 63.86" />
@@ -90,22 +102,41 @@ export function FeltMark({ height = 32 }: { height?: number }) {
 
 /** Sticky header, drawn as the tab of a notebook page: the title (and Back) sit in a tab that stands up from the
     page edge, a line across the screen. Actions sit on the edge to the right of the tab. */
-export function Header({ title, sub, back, right, brand, children, tabs }: {
+export function Header({ title, sub, back, right, brand, banner, children, tabs }: {
   title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean; children?: ReactNode;
   /** Views of the page as a row of notebook tabs (for example Players, Leaderboard, Stats). They take the place of the title tab. */
   tabs?: { label: string; on: boolean; go: () => void }[];
+  /** A main tab: a banner row above the page. It holds the page name (or the brand with `brand`) left and the theme toggle right. */
+  banner?: string;
 }) {
+  const tabRow = tabs && (
+    <div className="sat-header-bar felt-notebook" role="tablist" aria-label={banner ?? title}>
+      {tabs.map((t) => (
+        <button key={t.label} type="button" role="tab" aria-selected={t.on} className={`felt-ntab felt-ntab--view ${t.on ? 'is-on' : ''}`} onClick={t.go}>
+          <span className="felt-header-title">{t.label}</span>
+        </button>
+      ))}
+      {right && !banner && <div className="felt-ntab-right">{right}</div>}
+    </div>
+  );
+  if (banner !== undefined) {
+    return (
+      <header className="sat-header felt-header felt-header--banner">
+        <div className="felt-banner">
+          {brand
+            ? <div className="sat-brand felt-banner-brand"><FeltMark full height={34} /><span className="sat-wordmark">{banner}</span></div>
+            : <h1 className="felt-banner-title">{banner}</h1>}
+          <div className="felt-banner-right">{right ?? <ThemeCycle />}</div>
+        </div>
+        {tabRow}
+        {children}
+      </header>
+    );
+  }
   if (tabs) {
     return (
       <header className="sat-header felt-header felt-header--tab">
-        <div className="sat-header-bar felt-notebook" role="tablist" aria-label={title}>
-          {tabs.map((t) => (
-            <button key={t.label} type="button" role="tab" aria-selected={t.on} className={`felt-ntab felt-ntab--view ${t.on ? 'is-on' : ''}`} onClick={t.go}>
-              <span className="felt-header-title">{t.label}</span>
-            </button>
-          ))}
-          {right && <div className="felt-ntab-right">{right}</div>}
-        </div>
+        {tabRow}
         {children}
       </header>
     );

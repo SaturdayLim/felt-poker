@@ -1,5 +1,6 @@
 import type { Game, GameType, ID } from '../types';
 import { handStats, playerResult, round2 } from './calc';
+import type { Figure } from './format';
 import { finalists, inAtEnd, pfr, vpip } from './hand';
 import { addFlow, addMoves, addStyle, emptyFlow, emptyStyle, wonAt, type ChipFlow, type StyleCounts, type WonAt } from './style';
 
@@ -31,8 +32,15 @@ export interface PlayerSummary {
   buyIns: number;
   handsWon: number;
   biggestPot: number;
-  /** Per-game net in chronological order. */
-  history: { gameId: ID; t: number; net: number }[];
+  /** Chips net over cash games only (tournaments have no chip figure). See hasTournament. */
+  netChips: number;
+  biggestWinChips: number;
+  biggestLossChips: number;
+  avgChips: number;
+  /** True when a tournament is in the set: its figures show in money. */
+  hasTournament: boolean;
+  /** Per-game net in chronological order. chips: cash chips (0 for tournaments). */
+  history: { gameId: ID; t: number; net: number; chips: number }[];
   /** Hands logged street by street that this player was dealt into (the base for the rates below). */
   logged: number;
   vpip: number;
@@ -55,6 +63,7 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
   const s: PlayerSummary = {
     playerId: pid, games: 0, net: 0, wins: 0, winRate: 0, biggestWin: 0, biggestLoss: 0,
     avg: 0, streak: 0, buyIns: 0, handsWon: 0, biggestPot: 0, history: [],
+    netChips: 0, biggestWinChips: 0, biggestLossChips: 0, avgChips: 0, hasTournament: false,
     logged: 0, vpip: 0, pfr: 0, sawFlop: 0, wtsd: 0, wsd: 0,
     style: emptyStyle(), wonAt: { preflop: 0, flop: 0, turn: 0, river: 0, showdown: 0 }, flow: emptyFlow(),
   };
@@ -67,7 +76,12 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
     s.biggestWin = Math.max(s.biggestWin, r.net);
     s.biggestLoss = Math.min(s.biggestLoss, r.net);
     s.buyIns += r.buyIns;
-    s.history.push({ gameId: g.id, t: g.startedAt, net: r.net });
+    const chips = g.type === 'cash' ? round2(r.outUnits - r.inUnits) : 0;
+    if (g.type === 'tournament') s.hasTournament = true;
+    s.netChips = round2(s.netChips + chips);
+    s.biggestWinChips = Math.max(s.biggestWinChips, chips);
+    s.biggestLossChips = Math.min(s.biggestLossChips, chips);
+    s.history.push({ gameId: g.id, t: g.startedAt, net: r.net, chips });
     addMoves(s.flow, g, pid);
     for (const h of g.hands) {
       if (h.missed) continue;
@@ -96,6 +110,7 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
   }
   s.winRate = s.games ? s.wins / s.games : 0;
   s.avg = s.games ? round2(s.net / s.games) : 0;
+  s.avgChips = s.games ? round2(s.netChips / s.games) : 0;
   // streak counted back from the latest game; a 0 result breaks the streak
   for (let i = s.history.length - 1; i >= 0; i--) {
     const n = s.history[i].net;
@@ -106,6 +121,11 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
   return s;
 }
 
+/** A summary's net in both measures. Chips are null when a tournament is in the set. */
+export function summaryFigure(s: PlayerSummary, currency: string): Figure {
+  return { money: s.net, chips: s.hasTournament ? null : s.netChips, currency };
+}
+
 export function leaderboard(games: Game[], playerIds: ID[]): PlayerSummary[] {
   return playerIds
     .map((p) => playerSummary(games, p))
@@ -113,18 +133,18 @@ export function leaderboard(games: Game[], playerIds: ID[]): PlayerSummary[] {
     .sort((a, b) => b.net - a.net);
 }
 
-/** Cumulative net per player at each game in the list. */
-export function cumulativeSeries(games: Game[], playerIds: ID[]) {
+/** Cumulative net per player at each game in the list. chips: cash chips instead of money (tournaments count 0). */
+export function cumulativeSeries(games: Game[], playerIds: ID[], chips = false) {
   const totals: Record<ID, number> = Object.fromEntries(playerIds.map((p) => [p, 0]));
   const points = games.map((g) => {
-    for (const p of playerIds) if (g.playerIds.includes(p)) totals[p] = round2(totals[p] + playerResult(g, p).net);
+    for (const p of playerIds) if (g.playerIds.includes(p)) totals[p] = round2(totals[p] + (chips ? (g.type === 'cash' ? playerResult(g, p).outUnits - playerResult(g, p).inUnits : 0) : playerResult(g, p).net));
     return { t: g.startedAt, gameId: g.id, values: { ...totals } };
   });
   return points;
 }
 
 export function groupTotals(games: Game[]) {
-  let hands = 0, biggestPot = 0, moneyMoved = 0;
+  let hands = 0, biggestPot = 0, moneyMoved = 0, chipsMoved = 0;
   for (const g of games) {
     const hs = handStats(g);
     hands += hs.hands;
@@ -132,9 +152,10 @@ export function groupTotals(games: Game[]) {
     for (const p of g.playerIds) {
       const r = playerResult(g, p);
       if (r.net > 0) moneyMoved += r.net;
+      if (r.net > 0 && g.type === 'cash') chipsMoved += r.outUnits - r.inUnits;
     }
   }
-  return { games: games.length, hands, biggestPot, moneyMoved: round2(moneyMoved) };
+  return { games: games.length, hands, biggestPot, moneyMoved: round2(moneyMoved), chipsMoved: round2(chipsMoved), hasTournament: games.some((g) => g.type === 'tournament') };
 }
 
 /** Median seconds per hand, for hands logged with start and end times. */

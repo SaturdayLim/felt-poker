@@ -51,6 +51,7 @@ export const HELP = {
   pickPlayers: { title: 'Players', text: ['Tap a name to pick it. Tap again to remove it.', 'Press and hold a name to edit or delete it.', 'Felt saves new players for later games.'] },
   addChips: { title: 'Rebuy', text: ['Chips the player buys now.', 'Add chips records a buy-in of this size and adds the chips to the stack.'] },
   checkCards: { title: 'Check hidden cards', text: ['On: Felt marks hidden cards that cannot be right, once the next hand starts. Only that player sees the mark.', { sub: 'Red: a card was shown at the table. Stats and reports leave out the hand.' }, { sub: 'Blue: another player logged the same card. The hand still counts.' }, 'Off: no marks. Every entry counts.'] },
+  showMoney: { title: 'Show money', text: ['On: results show in money, at the game multiplier.', 'Off: results show in chips.'] },
   archivePlayer: { title: 'Remove from the list', text: ['Past games and stats stay.', 'The player no longer shows when you start a game.'] },
   sendCount: { title: 'My final chip count', text: ['Count your chips when you leave or when the game ends.', 'The host sees your count and can change it.'] },
   palette: { title: 'Colours', text: ['Default: the Felt colours.', 'Custom: Felt makes every colour from these five.', { sub: 'Base: the dark background, and the text in light mode.' }, { sub: 'Main: tabs, links and main buttons.' }, { sub: 'Accent: the one main action, the next box and the chip.' }, { sub: 'Up and Down: wins and losses.' }, 'The colours stay on this phone. A restore does not change them.'] },

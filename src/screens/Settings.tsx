@@ -119,7 +119,7 @@ export default function Settings() {
 
   return (
     <div className="felt-page">
-      <Header title="Settings" />
+      <Header banner="Settings" />
       <div className="sat-stack" style={gap(6)}>
         <section className="sat-stack" style={gap(2)}>
           <Caption>Theme</Caption>
@@ -157,6 +157,10 @@ export default function Settings() {
             {numField('s-bi', 'Buy-in (chips)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} BB`)}
             {numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
             {numField('s-ss', 'Starting stack (chips)', 'startingStack')}
+          </div>
+          <div className="sat-switch-row">
+            <span>Show money <Help k="showMoney" /></span>
+            <Toggle on={!!settings.showMoney} onChange={(v) => update({ showMoney: v })} label="Show money" />
           </div>
         </section>
 

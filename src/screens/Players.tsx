@@ -1,12 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Header, Icon, SlidePane, toast, SourceTip } from '../components/ui';
+import { Avatar, Caption, Delta, Header, Icon, SlidePane, toast } from '../components/ui';
 import Insights from './Insights';
 import { PlayerSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
 import { GroupSheet, groupSettlement } from './Group';
-import { money } from '../lib/format';
+import { figureDelta } from '../lib/format';
+import { summaryFigure } from '../lib/stats';
 import type { Player } from '../types';
 
 export type PlayersView = 'list' | 'board' | 'stats';
@@ -18,7 +19,7 @@ const VIEWS: { k: PlayersView; label: string; path: string }[] = [
 export default function Players({ view = 'list', pid }: { view?: PlayersView; pid?: string }) {
   return (
     <div className="felt-page">
-      <Header title="Players" tabs={VIEWS.map((v) => ({ label: v.label, on: view === v.k, go: () => go(v.path, true) }))} />
+      <Header banner="Players" tabs={VIEWS.map((v) => ({ label: v.label, on: view === v.k, go: () => go(v.path, true) }))} />
       <div className="sat-stack">
         <SlidePane k={view} i={VIEWS.findIndex((v) => v.k === view)}>
           {view === 'list' ? <PlayerList /> : <Insights embedded mode={view === 'board' ? 'standings' : 'player'} initialPlayer={pid} />}
@@ -44,6 +45,7 @@ function PlayerList() {
   const players = useStore((s) => s.players);
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
+  const showMoney = useStore((s) => s.settings.showMoney);
   const addPlayer = useStore((s) => s.addPlayer);
   const groups = useStore((s) => s.groups);
   const [newGroup, setNewGroup] = useState(false);
@@ -136,13 +138,12 @@ function PlayerList() {
                     <span className="felt-row-title">{p.name}</span>
                     <span className="felt-row-sub">{s.games} games, {s.handsWon} hands won{p.archived ? ', hidden' : ''}</span>
                   </span>
-                  {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
+                  {s.games ? <Delta {...figureDelta(summaryFigure(s, currency), showMoney)} /> : <span className="sat-muted">-</span>}
                 </button>
               );
             })}
           </FoldBody>
         </div>
-        {list.length > 0 && <div className="felt-source"><SourceTip>Felt game log ({closed.length} closed games). Net result in {currency}.</SourceTip></div>}
       </div>
       {edit && <PlayerSheet p={edit} onClose={() => setEdit(null)} />}
       {newGroup && <GroupSheet onClose={() => setNewGroup(false)} />}

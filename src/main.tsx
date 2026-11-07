@@ -6,6 +6,11 @@ import './saturday/css/tokens.css';
 import './saturday/css/skin-felt.css';
 import './saturday/css/saturday.css';
 import './styles.css';
+import './css/nav.css';
+import './css/motion.css';
+import './css/players.css';
+import './css/chrome.css';
+import './css/review.css';
 import { installMotion, installPresses } from './lib/motion';
 
 installMotion();

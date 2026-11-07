@@ -23,8 +23,10 @@ Standing instructions from the user. They apply to every screen, report and tip.
 
 - `docs/DESIGN-PRINCIPLES.md`: colour 60/30/10 (ink `#1C1E21`, blue `#0052CC`, orange `#FF5722`; ice `#EBF1F5`, subtle `#E2E8F0`), phone details, desktop details for later.
 - Elevation: three shadow depths only (`--felt-elev-1/2/3`). Each is stacked soft layers, blur = 2 x offset. Details in the felt-ui skill.
-- Made for a poker table, not a generic app: the tab bar is a chip tray (a straight rail with a pocket per tab; a poker chip in the Main colour rolls along the rail to the open tab, and the rail dips under it all the way). The header is the tab of a notebook page (the title in a paper tab standing up from a line across the screen). A page with views (Players, Leaderboard, Stats; Games, Stats) shows the views as the notebook tabs, with no page-name tab and no segmented control.
-- Theme: a 3-part toggle in the Home header, Phone, Light, Dark.
+- Made for a poker table, not a generic app: the tab bar is a chip tray (a straight rail with a pocket per tab; a poker chip in the Main colour rolls along the rail to the open tab, and the rail bends away under it like a soft surface, never touching it). The bar keeps one height and hides while a text field has the keyboard. The header is the tab of a notebook page (a light outlined paper tab on a line across the screen). A page with views (Players, Leaderboard, Stats; Game list, Stats) shows the views as the notebook tabs, with no page-name tab and no segmented control. Home has no tab: the Felt mark sits plain on the page.
+- Theme: a 3-part icon toggle in the Home header (phone, sun, moon), no labels.
+- Animation times by type: button press 100-200 ms; standard transitions (dropdown, card expansion) 200-300 ms; page or screen transitions 300-400 ms; complex loaders 500 ms or more (docs/MOTION-LIST.md).
+- Every pressable control sinks a little when pressed (data-press="none" opts out).
 - Colours, Settings: Default (tuned tokens) or Custom (five base colours: Base, Main, Accent, Up, Down; every other colour derives from them, `src/lib/palette.ts`). Text on a Main or Accent fill is white or Base, whichever reads better. Belongs to the phone: a restore never changes it. Default shows the true default colours (the custom ones stay saved, out of sight). Picking a colour while on Default switches to Custom, starting from the defaults. The Default knob is blank.
 - Nothing in the interface is selectable or has a long-press menu, as in native apps. Only fields and `.felt-selectable` text (the player code) can be selected.
 
@@ -79,9 +81,10 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Viewers read the same boxes as the host: snapshots replay with the same stacks. More than one run shows one board per run.
 - A name in the recorder needs a press and hold to enter shown cards. A tap does nothing. Run cards stop blocking the picker when the hand goes back to a street.
 - Pop-ups never cover the field being filled: the keypad and picker scroll it clear, and the keyboard pushes sheets up.
-- A panel opened by a button pulls out of that button, in its colour. A sheet with a swipe bar always leaves by sliding down, however it is closed (swipe, tap outside, a button). The orange card button opens a sheet with an orange edge.
+- A sheet with a swipe bar always opens by sliding up and leaves by sliding down, however it is opened or closed. The orange card button opens a sheet with an orange edge.
 - Log hand: closing, the page fades as it closes into the button shape, and the button with its text fades up at once (no solid block first). Opening: the text goes, then the page opens.
-- Swipe back on the hand page (owner pick B): a drag from the left edge closes the page towards the Log hand button as the finger moves. Past a third it goes into the button; earlier it springs back. When the phone does its own back swipe, no morph plays on top.
+- Swipe back on the hand page (owner pick B): a drag from the left edge closes the page towards the Log hand button as the finger moves. Past a third it goes into the button; earlier it springs back. When the phone does its own back swipe, no morph plays on top. In hand review the swipe slides the page back to the Hands list.
+- The game page keeps its tab in the address (game/<id> or game/<id>/hands), so Back from a hand returns to the same tab and scroll position.
 - Morphs clip, never stretch: anything that grows or shrinks keeps its content at its own size while the frame changes shape, and the colour and text change overlaps the move (no pause, then a flip).
 - Motion is set in `docs/MOTION-LIST.md`, and `src/lib/motion.ts` plays it. Springs use visual duration and bounce. Every button press follows its class.
 - Private cards that match another entry or the table are flagged to that player alone (the ! above, and a line on their report page for blue). Half a pair is left out of all analysis.
@@ -105,12 +108,14 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Oldest phones: Felt needs iOS 16.2 or Chrome 111. `app/index.html` shows a warning below that. Do not add workarounds for older phones.
 - Report: View (in the app), Link (encrypted online for 30 days, key in the link), Download (HTML file).
 - Tabs: Home, Games, Players, Settings. Players holds Players, Leaderboard and Stats (old #/insights links still open there). Games holds Games and Stats (table-level figures across closed games).
-- Players list: Everyone and each group open and close with one tap on the head (kept on this phone). An open group shows every player as a chip; a tap adds or takes out that player. No per-player hide eye; Show hidden players lists players hidden from new games.
+- Players list: Everyone and each group open and close with one tap on the head (kept on this phone); the arrow turns over and the rows slide in. An open group shows every player as a chip; a tap adds or takes out that player. No per-player hide eye; Show hidden players lists players hidden from new games.
+- Stats filters: Cash and Tournaments are two on/off chips (both on = all; one is always on). Periods: All, CYTD, L30D, across the full width. Charts carry axis labels and titles.
 - Swipe a closed game left to show Delete; a long swipe deletes at once. Undo puts it back.
 - Game settings: Save sits top right and stays in view. A swipe down or a tap outside leaves without saving.
 - The live room closes by itself when the game is closed, or after 12 hours with no action from the host.
 - End game count starts filled: each player's own count if they sent one from the player view (My final chip count), else an exact estimate. The host edits any of them.
-- Load screen: each chip spoke swipes out from its chip centre as the S stroke passes it.
+- Load screen: the S draws, the two inner circles fade in, and each spoke wipes in along its own short segment as the S passes it (never across a circle).
+- Start view (Host or Player): two equal buttons, no movement on press, a soft fade in.
 - Each time Felt opens, the first view asks Host or Player (a game link skips it). Host opens Home. Player opens the camera scanner, which has a Back button top left. A scanned or pasted game link opens that game. Host a game instead leads to Home.
 - Settings, Hands, You: enter your player code to make this phone yours (Not me undoes it). Your own hidden cards then open on this phone.
 - Tap a closed game on Home or Games: it reopens (live) with Undo.

@@ -1,5 +1,18 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.3.2', date: '7 Nov 2026', notes: [
+    'Load screen: the circles fade in and each spoke wipes in along its own line.',
+    'Host and Player are the same size, stay still on a press, and fade in softly.',
+    'Home has no tab. The header tabs are lighter, like notebook dividers. Games shows Game list and Stats.',
+    'The tab bar line bends away under the rolling chip. The bar keeps one height and hides while you type.',
+    'Every sheet slides up to open and down to close. Every button sinks a little when pressed.',
+    'Animations take a set time by type: presses are quick, screens take a little longer.',
+    'Players: lists open with a turning arrow and rows that slide in.',
+    'Stats: Cash and Tournaments are separate chips. Periods are All, CYTD and L30D. Charts have axis titles.',
+    'Theme toggle shows icons only. Tips are shorter, with sub-options indented.',
+    'Replacing a player code shows a message and vibrates.',
+    'Back from a reviewed hand returns to the Hands list at once.',
+  ] },
   { version: '1.3.1', date: '6 Nov 2026', notes: [
     'Players and Games show their views as notebook tabs: Players, Leaderboard, Stats; Games, Stats.',
     'The tab chip is in the Main colour, and the rail dips under it as it rolls.',

@@ -539,7 +539,7 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
     if (!el?.animate || !btn || calm()) return;
     const b = el.getBoundingClientRect();
     el.style.transformOrigin = `${btn.left + btn.width / 2 - b.left}px ${btn.top < b.top ? 0 : b.height}px`;
-    el.animate({ opacity: [0, 1], scale: [0.95, 1] }, { duration: 150, easing: 'ease-out' });
+    el.animate({ opacity: [0, 1], scale: [0.95, 1] }, { duration: 200, easing: 'ease-out' });
   }, [show, mounted]);
   useEffect(() => {
     if (!show) return;

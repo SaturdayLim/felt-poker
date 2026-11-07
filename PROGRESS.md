@@ -1,6 +1,11 @@
 # Felt: progress
 
-## Latest (6 Nov 2026): 1.3.1
+## Latest (7 Nov 2026): 1.3.2
+- Done by six parallel agents, one per area; area CSS now lives in src/css/{nav,motion,players,chrome,review}.css (loaded after styles.css).
+- Not checked on a real iPhone: tall-bar fix (bottom inset measured late and capped at 34 px), bar hidden while typing, Safari's own back swipe, code-replace feedback. Bar charts with axis titles not seen with real hand data.
+- Left: the old tab icon draws over the chip for a moment as a roll starts.
+
+## Earlier (6 Nov 2026): 1.3.1
 - Header `tabs` prop (notebook tabs per view). NavRail draws the rail as one sampled path with a dip under the chip (rAF during the roll). Sheet exit always slides down; Log hand close fades (no tint). Start view (screens/Start.tsx, sessionStorage felt-role). Settings You by player code. PaletteEditor shows defaults on Default. reopenGame() in ui.tsx. Fixed: .felt-swipe-face name clash (Games rows lost their titles); renamed to .felt-swipe-row.
 
 ## Earlier (6 Nov 2026): 1.3.0

@@ -208,7 +208,6 @@ html[data-calm] .felt-band { animation: sat-fade var(--sat-dur-base) var(--sat-e
 /* Sheets: opening and closing run in Sheet (ui.tsx). A swipe down closes; the page behind stays still; the keyboard pushes the sheet up. */
 /* A sheet opened from the coral card button keeps a coral edge. The fill is the button colour during the morph. */
 .sat-sheet.felt-sheet--edge { border: 1.5px solid var(--felt-coral); }
-.felt-sheet-fill { position: absolute; inset: 0; z-index: 5; border-radius: inherit; pointer-events: none; }
 dialog.sat-sheet[open] { animation: none; overscroll-behavior: contain; margin-bottom: var(--felt-kb, 0px); max-height: min(80dvh, 720px, calc(var(--felt-vvh, 100dvh) - var(--felt-safe-top) - 12px)); }
 html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
 .felt-rec-dock { overscroll-behavior: contain; }

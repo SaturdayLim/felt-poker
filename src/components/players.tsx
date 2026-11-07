@@ -6,7 +6,7 @@ import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary, summaryFigure } from '../lib/stats';
 import { gameFigure, gameResults } from '../lib/calc';
 import { contributions } from '../lib/hand';
-import { figureDelta, figureText, shortDate } from '../lib/format';
+import { figureDelta, figureNumber, figureText, figureUnit, shortDate } from '../lib/format';
 import { go } from '../router';
 import type { Game, ID, Player } from '../types';
 
@@ -354,7 +354,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
     <Sheet open noClose onClose={onClose} title={p.name} head={<NameField p={p} />}>
       <CodeControl pid={p.id} label />
       <div className="felt-tiles">
-        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('net')}><span className="sat-caption">Net</span><b className="sat-num">{s.games ? figureText(summaryFigure(s, currency), showMoney, { sign: true }) : '-'}</b></button>
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('net')}><span className="sat-caption">Net ({figureUnit(summaryFigure(s, currency), showMoney)})</span><b className="sat-num">{s.games ? figureNumber(summaryFigure(s, currency), showMoney, { sign: true }) : '-'}</b></button>
         <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('rate')}><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></button>
         <button type="button" className="sat-flat sat-card felt-fig" onClick={() => { onClose(); go(`games/${p.id}`); }}><span className="sat-caption">Games</span><b className="sat-num">{played.length}</b></button>
       </div>

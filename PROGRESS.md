@@ -1,6 +1,11 @@
 # Felt: progress
 
-## Latest (7 Nov 2026): 1.3.2
+## Latest (7 Nov 2026): 1.3.3
+- Five Haiku agents, one per set. Figure helpers (format.ts: figureText, figureNumber, figureUnit, figureDelta; calc.ts gameFigure; stats summaryFigure). Header `banner` prop; FeltMark `full` matches the splash. FEATURES.tournaments in src/lib/features.ts.
+- Motion catalogue for the owner to pick from: https://claude.ai/artifact/QJyKRx8wHqDoAUFj7nch1u (IDs match docs/MOTION-LIST.md; L1 and L2 are the two load-screen options).
+- Still money: Settle Up, payments, share image, report and CSV exports.
+
+## Earlier (7 Nov 2026): 1.3.2
 - Done by six parallel agents, one per area; area CSS now lives in src/css/{nav,motion,players,chrome,review}.css (loaded after styles.css).
 - Not checked on a real iPhone: tall-bar fix (bottom inset measured late and capped at 34 px), bar hidden while typing, Safari's own back swipe, code-replace feedback. Bar charts with axis titles not seen with real hand data.
 - Left: the old tab icon draws over the chip for a moment as a roll starts.

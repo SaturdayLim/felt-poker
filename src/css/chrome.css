@@ -15,7 +15,7 @@
 .felt-header::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 18px; background: linear-gradient(to bottom, var(--sat-bg), transparent); pointer-events: none; }
 .felt-banner { display: flex; align-items: center; gap: var(--sat-space-3); min-height: 52px; padding: 0 var(--sat-space-2) 0 var(--sat-space-3); }
 .felt-banner-title { flex: 1; min-width: 0; margin: 0; font-family: var(--sat-font-ui); font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--sat-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.felt-banner-brand { flex: 1; min-width: 0; gap: var(--sat-space-2); }
+.felt-banner-brand { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sat-space-2); }
 .felt-banner-brand .sat-wordmark { font-size: 1.75rem; }
 .felt-banner-right { display: flex; align-items: center; margin-left: auto; flex: none; }
 
@@ -34,3 +34,7 @@
 .felt-set-hands .felt-boxes-err.is-on { max-height: 3em; margin-top: var(--sat-space-2); transition: none; }
 .felt-set-switches { display: flex; flex-direction: column; }
 .felt-set-switches > .sat-switch-row + .sat-switch-row { border-top: 1px solid var(--sat-line); }
+/* the page starts clear of the header's soft fade, so its first row is never cut */
+.felt-header + * { margin-top: var(--sat-space-3); }
+/* one start button (tournaments parked): it takes the whole row */
+.felt-start > :only-child { grid-column: 1 / -1; }

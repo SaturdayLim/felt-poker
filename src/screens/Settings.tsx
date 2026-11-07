@@ -5,6 +5,7 @@ import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill }
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { DEFAULT_PALETTE, PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
 import { CodeBoxes } from '../components/codeBoxes';
+import { FEATURES } from '../lib/features';
 import { codeMatches } from '../lib/codes';
 import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
@@ -155,8 +156,9 @@ export default function Settings() {
             </div>
             {numField('s-uv', `Multiplier (${settings.currency})`, 'unitValue', undefined, 'unitValue')}
             {numField('s-bi', 'Buy-in (chips)', 'defaultBuyIn', `${money(settings.defaultBuyIn * settings.unitValue, settings.currency)}, ${(settings.defaultBuyIn / (settings.bb || 1)).toFixed(0)} BB`)}
-            {numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
-            {numField('s-ss', 'Starting stack (chips)', 'startingStack')}
+            {/* tournaments are parked (src/lib/features.ts): their defaults show again with them */}
+            {FEATURES.tournaments && numField('s-te', `Tournament entry (${settings.currency})`, 'tournamentBuyIn')}
+            {FEATURES.tournaments && numField('s-ss', 'Starting stack (chips)', 'startingStack')}
           </div>
           <div className="sat-switch-row">
             <span>Show money <Help k="showMoney" /></span>

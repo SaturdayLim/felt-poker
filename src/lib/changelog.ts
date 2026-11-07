@@ -1,5 +1,15 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.3.3', date: '7 Nov 2026', notes: [
+    'Results and stats show in chips. Settings, Show money switches them to money.',
+    'Home, Games, Players and Settings open with a banner: the page name and the theme toggle. The header no longer shows a hard edge when you scroll.',
+    'Load screen: the S draws, the rings fade in, then six thick edge marks. The mark carries over to the Host or Player screen.',
+    'Host and Player captions fit on one line.',
+    'The tab chip rolls slower with no bounce. The line bends softly. Tabs not open are fainter. No line runs through the icons.',
+    'Tapping a game in the list opens it without reopening it.',
+    'Tournaments are hidden for now. The Cash game button takes the whole row.',
+    'The stray source tip at the bottom of Players is gone.',
+  ] },
   { version: '1.3.2', date: '7 Nov 2026', notes: [
     'Load screen: the circles fade in and each spoke wipes in along its own line.',
     'Host and Player are the same size, stay still on a press, and fade in softly.',

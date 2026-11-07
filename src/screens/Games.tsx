@@ -5,7 +5,7 @@ import { PlayerName } from '../components/players';
 import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, withUndo } from '../components/ui';
 import { TypeChips } from './Insights';
 import { gameFigure, gameResults, handStats, openTransfers, playerStatus, totalBuyInUnits, totalPotMoney } from '../lib/calc';
-import { dateLabel, figureDelta, figureText, gameLength, playMs } from '../lib/format';
+import { dateLabel, figureDelta, figureNumber, figureText, figureUnit, gameLength, playMs } from '../lib/format';
 import { groupTotals, handPace, type TypeFilter } from '../lib/stats';
 import { shrinkAway } from '../lib/motion';
 import { haptic } from '../lib/haptics';
@@ -140,6 +140,7 @@ function GameStats({ games }: { games: Game[] }) {
   if (!games.length) return <Empty title="No closed games">Close a game to see table stats here.</Empty>;
   const t = groupTotals(games);
   const pace = handPace(games);
+  const won = { money: t.moneyMoved, chips: t.hasTournament ? null : t.chipsMoved, currency: games[0]?.currency ?? currency };
   const hs = games.map((g) => handStats(g));
   const pots = hs.reduce((a, h) => a + h.totalPot, 0);
   const showdowns = hs.reduce((a, h) => a + h.showdowns, 0);
@@ -164,7 +165,7 @@ function GameStats({ games }: { games: Game[] }) {
         {tile('Showdowns', pct(showdowns, t.hands), `${showdowns} of ${t.hands} hands`)}
         {tile('All-ins', pct(allIns, t.hands), `${allIns} hands`)}
         {tile('Buy-ins per game', (buyIns / games.length).toFixed(1), `${buyIns} in total`)}
-        {tile('Won in total', figureText({ money: t.moneyMoved, chips: t.hasTournament ? null : t.chipsMoved, currency: games[0]?.currency ?? currency }, showMoney), 'All winning results added up')}
+        {tile(`Won in total (${figureUnit(won, showMoney)})`, figureNumber(won, showMoney), 'All winning results added up')}
       </div>
       <div className="felt-source"><SourceTip>Felt game log ({games.length} closed games of this type).</SourceTip></div>
     </div>

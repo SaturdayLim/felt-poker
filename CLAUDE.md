@@ -11,6 +11,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 ## UI copy
 
 - **Chips, not units.** Amounts at the table are "chips" (1 chip = 1 small blind). Code names such as `units()` and `inUnits` stay as they are.
+- **Chips first.** Every result and statistic shows in chips by default. Settings, Show money switches results to money at the game multiplier. Settle Up, payments, the share image and exports stay in money (settling is about money). Use the figure helpers in src/lib/format.ts.
 - **Source only as a tip.** A figure's source is never printed on the page. Use `SourceTip` (an info tip titled Source) beside the heading or block it belongs to.
 - **One line per field in a tip.** When an info tip covers two or more separate fields or options (for example Bet entry and Pot count), give each its own line: write `text` as an array in `src/lib/help.ts`; `Help` renders each entry as its own paragraph.
 - Saturday WRITING.md still applies: no contractions, no middle-dot chains, Title Case page titles.
@@ -24,6 +25,8 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - `docs/DESIGN-PRINCIPLES.md`: colour 60/30/10 (ink `#1C1E21`, blue `#0052CC`, orange `#FF5722`; ice `#EBF1F5`, subtle `#E2E8F0`), phone details, desktop details for later.
 - Elevation: three shadow depths only (`--felt-elev-1/2/3`). Each is stacked soft layers, blur = 2 x offset. Details in the felt-ui skill.
 - Made for a poker table, not a generic app: the tab bar is a chip tray (a straight rail with a pocket per tab; a poker chip in the Main colour rolls along the rail to the open tab, and the rail bends away under it like a soft surface, never touching it). The bar keeps one height and hides while a text field has the keyboard. The header is the tab of a notebook page (a light outlined paper tab on a line across the screen). A page with views (Players, Leaderboard, Stats; Game list, Stats) shows the views as the notebook tabs, with no page-name tab and no segmented control. Home has no tab: the Felt mark sits plain on the page.
+- Main tabs (Home, Games, Players, Settings) open with a banner: the page name (Home: the full Felt mark with its chip edge marks, and the word Felt) left, the theme toggle right. Views sit under it as notebook tabs. Banner and tabs are one sticky band in the page colour, covered above and ending in a soft fade, so nothing shows above it.
+- Tab bar: the chip rolls in about 460 ms with no bounce; the line bends away in a wide soft trough; the tabs not open are at half strength.
 - Theme: a 3-part icon toggle in the Home header (phone, sun, moon), no labels.
 - Animation times by type: button press 100-200 ms; standard transitions (dropdown, card expansion) 200-300 ms; page or screen transitions 300-400 ms; complex loaders 500 ms or more (docs/MOTION-LIST.md).
 - Every pressable control sinks a little when pressed (data-press="none" opts out).
@@ -114,11 +117,12 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Game settings: Save sits top right and stays in view. A swipe down or a tap outside leaves without saving.
 - The live room closes by itself when the game is closed, or after 12 hours with no action from the host.
 - End game count starts filled: each player's own count if they sent one from the player view (My final chip count), else an exact estimate. The host edits any of them.
-- Load screen: the S draws, the two inner circles fade in, and each spoke wipes in along its own short segment as the S passes it (never across a circle).
-- Start view (Host or Player): two equal buttons, no movement on press, a soft fade in.
+- Load screen: the S draws, the two chip rings fade in, then six thick edge marks (three per chip) wipe in, so the mark reads as two stacked chips. The mark carries over to the Start view as a shared element (view-transition-name felt-logo), where browsers support it.
+- Start view (Host or Player): two equal buttons with one-line captions (Host: Run the game and log hands on this phone. Player: Scan the QR code to follow the action and log your hands.), no movement on press, a soft fade in.
+- Tournaments are parked (src/lib/features.ts, FEATURES.tournaments = false): no Tournament buttons, filter chip or tournament defaults in Settings. The code stays; old tournament games still open.
 - Each time Felt opens, the first view asks Host or Player (a game link skips it). Host opens Home. Player opens the camera scanner, which has a Back button top left. A scanned or pasted game link opens that game. Host a game instead leads to Home.
 - Settings, Hands, You: enter your player code to make this phone yours (Not me undoes it). Your own hidden cards then open on this phone.
-- Tap a closed game on Home or Games: it reopens (live) with Undo.
+- Tap a closed game on Home or the Game list: it opens for viewing (Settle Up). It does not reopen; Reopen sits on that page.
 - Motion follows the phone (Reduce Motion) unless Settings, Motion says Full. It belongs to the phone: a backup restore must not change it.
 - Action table: names sit in a panel on the page background, with no box. Boxes cut off at the panel edge. A slide bar shows when columns are out of view.
 - A hand opened again goes to where it stopped: the street cards if missing, else the player to act.

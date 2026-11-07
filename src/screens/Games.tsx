@@ -2,13 +2,14 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { PlayerName } from '../components/players';
-import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, TabPill, withUndo, reopenGame } from '../components/ui';
+import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, withUndo, reopenGame } from '../components/ui';
+import { TypeChips } from './Insights';
 import { gameResults, handStats, openTransfers, playerStatus, totalPotMoney } from '../lib/calc';
 import { dateLabel, gameLength, money, playMs } from '../lib/format';
-import { groupTotals, handPace } from '../lib/stats';
+import { groupTotals, handPace, type TypeFilter } from '../lib/stats';
 import { shrinkAway } from '../lib/motion';
 import { haptic } from '../lib/haptics';
-import type { Game, GameType } from '../types';
+import type { Game } from '../types';
 
 /* Live games sit in their own section as solid glass cards with a pulsing dot.
    Closed games are flat, quieter rows underneath, so the two never read alike. */
@@ -20,7 +21,7 @@ export default function Games({ player: arg }: { player?: string }) {
   const games = useStore((s) => s.games);
   const who = useStore((s) => s.players.find((p) => p.id === player));
   const groups = useStore((s) => s.groups);
-  const [type, setType] = useState<'all' | GameType>('all');
+  const [type, setType] = useState<TypeFilter>('all');
   const list = games.filter((g) => (type === 'all' || g.type === type) && (!who || g.playerIds.includes(who.id))).sort((a, b) => b.startedAt - a.startedAt);
   const live = list.filter((g) => g.status === 'live');
   const closed = list.filter((g) => g.status === 'closed');
@@ -28,16 +29,9 @@ export default function Games({ player: arg }: { player?: string }) {
 
   return (
     <div className="felt-page">
-      <Header title="Games" tabs={[{ label: 'Games', on: !stats, go: () => go('games', true) }, { label: 'Stats', on: stats, go: () => go('games/stats', true) }]} />
+      <Header title="Games" tabs={[{ label: 'Game list', on: !stats, go: () => go('games', true) }, { label: 'Stats', on: stats, go: () => go('games/stats', true) }]} />
       <div className="sat-stack">
-        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
-          <TabPill />
-          {(['all', 'cash', 'tournament'] as const).map((t) => (
-            <button key={t} role="radio" aria-checked={type === t} onClick={() => setType(t)}>
-              {t === 'all' ? 'All' : t === 'cash' ? 'Cash' : 'Tournaments'}
-            </button>
-          ))}
-        </div>
+        <TypeChips type={type} setType={setType} />
         {who && (
           <div className="sat-cluster">
             <button className="sat-chip" aria-pressed="true" aria-label={`Showing games of ${who.name}. Tap to show all games`} onClick={() => go('games', true)}>{who.name} <Icon name="close" size={14} stroke={2.4} /></button>

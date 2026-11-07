@@ -1,1 +1,28 @@
 /* players: rules for this area. Loaded after styles.css (src/main.tsx). */
+
+/* Lists that open and close (Groups, Everyone). The body grows from 0fr to 1fr, so the rows slide down from
+   under the head and fade in; a close runs the same move back. The chevron points down when closed and
+   turns half a circle to point up when open. html[data-calm] (Reduce Motion) shows the end state at once. */
+.felt-fold-wrap { display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows 260ms var(--sat-ease), opacity 220ms var(--sat-ease); }
+.felt-fold-wrap[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.felt-fold-inner { min-height: 0; overflow: hidden; }
+.felt-fold-inner > * { transform: translateY(-8px); transition: transform 260ms var(--sat-ease); }
+.felt-fold-wrap[data-open="true"] > .felt-fold-inner > * { transform: none; }
+.felt-fold-inner > .felt-row { padding-inline: var(--sat-space-4); }
+.felt-fold .felt-fold-chev { transform: none; transition: transform 260ms var(--sat-ease); }
+.felt-fold .felt-fold-head[aria-expanded="true"] .felt-fold-chev { transform: rotate(180deg); }
+html[data-calm] .felt-fold-wrap, html[data-calm] .felt-fold-inner > *, html[data-calm] .felt-fold .felt-fold-chev { transition: none; }
+
+/* Game type filter: two chips that turn on and off on their own (Cash, Tournaments) */
+.felt-typechips { display: flex; flex-wrap: wrap; gap: var(--sat-space-2); }
+
+/* Period control: the options share the full width; the info tip sits as a circle on its top-right corner */
+.felt-period-wrap > .felt-period { width: 100%; }
+.felt-period-wrap > .felt-period > button { flex: 1 1 0; min-width: 0; justify-content: center; }
+
+/* Chart axis titles: count bars name the label column and the value column */
+.felt-bars-row { grid-template-columns: 76px 1fr 44px; }
+.felt-bars-head { color: var(--sat-muted); font-size: var(--sat-fs-caption); font-weight: 600; letter-spacing: var(--sat-track-caption); }
+.felt-bars-head > :last-child { text-align: right; }
+.felt-chart { width: 100%; }

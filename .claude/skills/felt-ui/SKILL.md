@@ -48,13 +48,23 @@ description: Felt UI principles. Use when adding or changing any screen, button,
 
 ## Panels come out of their button
 
-- A sheet opened by a press pulls out of that button, in its colour, and goes back into it on Close.
+- A pop-up opened by a press pulls out of that button, in its colour (for example the QR out of its icon).
+- A bottom sheet does not. On a phone it always opens by sliding up and always leaves by sliding down.
 - A swipe down slides the sheet away.
 - A long press exists only where it does something different. Everywhere else a press acts at once.
 
+## Each kind of motion takes its own time
+
+- A button press and its spring back take 100 to 200 ms.
+- A standard change takes 200 to 300 ms. Examples are a pop-up, a menu, a card that grows and a row that moves.
+- A page or screen change takes 300 to 400 ms. A sheet is a screen change.
+- A complex loader takes 500 ms or more.
+- For a spring, the visual duration is the time. Put each new animation in its band, in `SPRING` or `MS` in `src/lib/motion.ts`.
+- Every pressable control sinks on press and springs back on release. Hold controls and player names are the exceptions.
+
 ## Morphs clip, never stretch
 
-- When an element grows into another or shrinks into one (a page into a button, a sheet out of a button, the QR out of its icon), change the frame with a clip. The content keeps its own size inside it.
+- When an element grows into another or shrinks into one (a page into a button, the QR out of its icon), change the frame with a clip. The content keeps its own size inside it.
 - Never scale a picture of the old content to fit the new shape.
 - Bring in the new colour and text while the move ends. Do not leave a visible pause and then flip to the new look.
 - Uniform press depth (0.93 to 0.98) and the drag lift are not morphs.

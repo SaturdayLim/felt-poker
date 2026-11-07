@@ -18,12 +18,19 @@ export function setMotionPref(p: MotionPref) {
   document.documentElement.toggleAttribute('data-calm', p !== 'full' && phoneAsksCalm());
 }
 
-/** The picked springs: visual duration in seconds, then bounce. */
+/** The picked springs: visual duration in seconds, then bounce. Each sits in the band of its kind
+    (docs/MOTION-LIST.md): press 0.1 to 0.2, standard 0.2 to 0.3, screen 0.3 to 0.4, loader 0.5 and more. */
 export const SPRING = {
-  pill: [0.32, 0.3], grow: [0.35, 0.08], sheetUp: [0.5, 0], sheetDown: [0.36, 0], dock: [0.28, 0.1], qr: [0.3, 0.15],
-  toast: [0.3, 0.15], settle: [0.3, 0.3], fill: [0.22, 0.45], deal: [0.42, 0.14], log: [0.16, 0.2], select: [0.24, 0.4],
-  toggle: [0.24, 0.35], remove: [0.3, 0.12],
+  // press
+  log: [0.16, 0.2], select: [0.18, 0.4], toggle: [0.18, 0.35], fill: [0.18, 0.45],
+  // standard: a panel, a pop-up, a row that moves
+  pill: [0.28, 0.3], dock: [0.28, 0.1], qr: [0.28, 0.15], toast: [0.26, 0.15], settle: [0.28, 0.3], deal: [0.3, 0.14],
+  remove: [0.26, 0.12],
+  // screen: a sheet, a page that opens or closes
+  grow: [0.35, 0.08], sheetUp: [0.36, 0], sheetDown: [0.3, 0],
 } as const satisfies Record<string, readonly [number, number]>;
+/** Fixed lengths in ms, in the same bands. */
+export const MS = { pressDown: 100, ink: 200, inkClear: 160, rowGap: 220 } as const;
 export type Spring = readonly [number, number];
 
 /** Progress of a spring from 0 to 1, one value per step, and its length in ms. */
@@ -67,7 +74,7 @@ export function installMotion() {
 
 /* ------------------------------- button presses ------------------------------- */
 
-type PressClass = 'log' | 'commit' | 'forward' | 'dismiss' | 'select' | 'toggle' | 'open' | 'name' | 'none';
+type PressClass = 'log' | 'commit' | 'forward' | 'dismiss' | 'select' | 'toggle' | 'open' | 'name' | 'plain' | 'none';
 
 const DISMISS = /^(close|done|cancel|back)$/i;
 
@@ -84,12 +91,15 @@ function classOf(b: HTMLElement): PressClass {
   if (b.matches('.felt-fab, .felt-row, .felt-live-card, .felt-pcard-name, .felt-fig, [aria-label="Show the QR code"], .felt-hand, .felt-showbar-btn')) return 'open';
   if (b.matches('[aria-label="Back"]') || DISMISS.test(b.textContent?.trim() ?? '')) return 'dismiss';
   if (b.matches('.sat-btn, .felt-addbar')) return 'forward';
-  return 'none';
+  return 'plain';
 }
 
-const DOWN: Partial<Record<PressClass, number>> = { log: 0.93, commit: 0.96, forward: 0.97, dismiss: 0.98, open: 0.96 };
+/** The depth each class sinks to. Every press sinks, except a hold control and a name (it glows instead). */
+const DOWN: Partial<Record<PressClass, number>> = { log: 0.93, commit: 0.96, forward: 0.97, dismiss: 0.98, open: 0.96, select: 0.96, toggle: 0.97, plain: 0.97 };
+/** The spring back to full size when the finger lifts. */
+const BACK: Partial<Record<PressClass, Spring>> = { select: SPRING.select, toggle: SPRING.toggle };
 /** The light spreads this fast from the finger. A press never waits for it: the action runs at once. */
-const INK_MS = 260;
+const INK_MS = MS.ink;
 
 /** The pulse colour around the letters of a name: the blue of the theme. */
 const glow = () => getComputedStyle(document.documentElement).getPropertyValue('--sat-accent').trim() || '#0052cc';
@@ -119,8 +129,8 @@ type Ink = ReturnType<typeof startInk>;
 
 /** The light clears as soon as the finger lifts. */
 function endInk({ wrap, ink }: Ink) {
-  ink.animate({ opacity: [0.16, 0] }, { duration: 200, easing: 'ease-out', fill: 'both' });
-  window.setTimeout(() => wrap.remove(), 240);
+  ink.animate({ opacity: [0.16, 0] }, { duration: MS.inkClear, easing: 'ease-out', fill: 'both' });
+  window.setTimeout(() => wrap.remove(), MS.inkClear + 40);
 }
 
 /** The last pressed button and where it sat, so a panel it opens can pull out of it. */
@@ -134,7 +144,7 @@ export function recentPress(ms = 600): { el: HTMLElement; rect: DOMRect } | null
     A press has one look, however long the finger stays down, and the action runs on release with no wait.
     A long press only does something on controls that say so (.felt-hold, the recorder names). */
 export function installPresses() {
-  let down: { b: HTMLElement; frame: HTMLElement; c: PressClass; sink?: Animation; ink?: Ink } | null = null;
+  let down: { b: HTMLElement; frame: HTMLElement; c: PressClass; sink?: Animation; lift?: Animation; ink?: Ink } | null = null;
   const find = (t: EventTarget | null) => (t as Element | null)?.closest?.<HTMLElement>('[data-player], button, a[href], .felt-nav a');
   document.addEventListener('click', (e) => {
     const b = find(e.target);
@@ -152,21 +162,24 @@ export function installPresses() {
     down = { b, frame, c };
     const s = DOWN[c];
     // straight to the press depth, and it stays there: a longer press looks the same
-    if (s) down.sink = frame.animate([{ scale: 1 }, { scale: s }], { duration: 70, easing: 'ease-out', fill: 'forwards' });
+    if (s) down.sink = frame.animate([{ scale: 1 }, { scale: s }], { duration: MS.pressDown, easing: 'ease-out', fill: 'forwards' });
     if (c === 'forward' || c === 'dismiss' || c === 'open') down.ink = startInk(frame, e);
-    if (c === 'toggle') down.sink = b.animate({ translate: ['0 0', '0 3px'] }, { duration: 70, easing: 'ease-out', fill: 'forwards' });
-    if (c === 'name') down.sink = b.animate({ textShadow: ['0 0 0 transparent', `0 0 10px ${glow()}`] }, { duration: 90, easing: 'ease-out', fill: 'forwards' });
+    // a toggle also goes down with weight
+    if (c === 'toggle') down.lift = b.animate({ translate: ['0 0', '0 3px'] }, { duration: MS.pressDown, easing: 'ease-out', fill: 'forwards' });
+    if (c === 'name') down.lift = b.animate({ textShadow: ['0 0 0 transparent', `0 0 10px ${glow()}`] }, { duration: MS.pressDown, easing: 'ease-out', fill: 'forwards' });
   }, true);
   const up = () => {
     if (!down) return;
-    const { b, frame, c, sink, ink } = down;
+    const { b, frame, c, sink, lift, ink } = down;
     down = null;
     const now = sink && DOWN[c] ? parseFloat(getComputedStyle(frame).scale) || DOWN[c]! : 1;
+    const dy = lift && c === 'toggle' ? parseFloat(getComputedStyle(b).translate.split(' ')[1] ?? '') || 3 : 0;
     sink?.cancel();
-    if (DOWN[c]) spring(frame, (p) => ({ scale: String(now + (1 - now) * p) }), SPRING.log);
-    if (c === 'select') spring(b, (p) => ({ scale: String(0.86 + 0.14 * p) }), SPRING.select);
-    if (c === 'toggle') spring(b, (p) => ({ translate: `0 ${3 * (1 - p)}px` }), SPRING.toggle);
-    if (c === 'name') b.animate({ textShadow: [`0 0 10px ${glow()}`, `0 0 14px transparent`] }, { duration: 320, easing: 'ease-out' });
+    lift?.cancel();
+    // a quick spring back to full size; a select and a toggle overshoot a little (clear pop, with weight)
+    if (DOWN[c]) spring(frame, (p) => ({ scale: String(now + (1 - now) * p) }), BACK[c] ?? SPRING.log);
+    if (c === 'toggle') spring(b, (p) => ({ translate: `0 ${dy * (1 - p)}px` }), SPRING.toggle);
+    if (c === 'name') b.animate({ textShadow: [`0 0 10px ${glow()}`, `0 0 14px transparent`] }, { duration: 200, easing: 'ease-out' });
     if (ink) endInk(ink);
   };
   document.addEventListener('pointerup', up, true);
@@ -179,7 +192,7 @@ export function shrinkAway(el: Element | null | undefined, run: () => void) {
   if (!el || calm() || !el.animate) { run(); return; }
   const h = (el as HTMLElement).offsetHeight;
   spring(el, (p) => ({ opacity: String(1 - Math.min(p, 1)) }), SPRING.remove, { fill: 'forwards' });
-  const gap = el.animate({ height: [`${h}px`, '0px'], marginBottom: ['0px', `-${parseFloat(getComputedStyle(el.parentElement ?? el).rowGap) || 0}px`] }, { duration: 200, delay: 60, easing: DRAWER, fill: 'forwards' });
+  const gap = el.animate({ height: [`${h}px`, '0px'], marginBottom: ['0px', `-${parseFloat(getComputedStyle(el.parentElement ?? el).rowGap) || 0}px`] }, { duration: MS.rowGap, delay: 40, easing: DRAWER, fill: 'forwards' });
   (el as HTMLElement).style.overflow = 'hidden';
   let done = false;
   const finish = () => { if (!done) { done = true; run(); } };

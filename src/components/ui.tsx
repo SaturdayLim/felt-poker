@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { DRAWER, SPRING, calm, recentPress, spring, springCurve } from '../lib/motion';
-import { HELP, type HelpKey } from '../lib/help';
+import { DRAWER, SPRING, calm, spring, springCurve } from '../lib/motion';
+import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
 
@@ -110,15 +110,29 @@ export function Header({ title, sub, back, right, brand, children, tabs }: {
       </header>
     );
   }
+  // Home: Felt is not a tab. The mark and the wordmark sit plain on the page, with no tab and no page edge.
+  if (brand) {
+    return (
+      <header className="sat-header felt-header felt-header--brand">
+        <div className="sat-header-bar felt-brandbar">
+          <div className="sat-brand">
+            <FeltMark />
+            <span className="sat-wordmark">Felt</span>
+          </div>
+          {right && <div className="felt-brandbar-right">{right}</div>}
+        </div>
+        {children}
+      </header>
+    );
+  }
   return (
     <header className={back ? 'sat-header felt-header' : 'sat-header felt-header felt-header--tab'}>
       <div className="sat-header-bar felt-notebook">
         <div className="felt-ntab is-on">
           {back && <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={back} aria-label="Back"><Icon name="back" /></button>}
           <div className="sat-brand">
-            {brand && <FeltMark />}
             <div style={{ minWidth: 0 }}>
-              {brand ? <span className="sat-wordmark">Felt</span> : <div className="felt-header-title">{title}</div>}
+              <div className="felt-header-title">{title}</div>
               {sub && <small style={{ display: 'block' }}>{sub}</small>}
             </div>
           </div>
@@ -130,8 +144,7 @@ export function Header({ title, sub, back, right, brand, children, tabs }: {
   );
 }
 
-/** Phone theme toggle: one icon button that cycles Auto, Light, Dark. */
-/** Theme: a 3-part toggle, Phone, Light and Dark, so each choice reads by itself (a phone icon alone did not). */
+/** Theme: a 3-part toggle of icons only (phone, sun, moon). Each part keeps its name as an aria-label. */
 export function ThemeCycle() {
   const pref = useStore((s) => s.settings.theme);
   const update = useStore((s) => s.updateSettings);
@@ -141,7 +154,7 @@ export function ThemeCycle() {
       <TabPill />
       {opts.map((o) => (
         <button key={o.k} type="button" role="radio" aria-checked={pref === o.k} onClick={() => update({ theme: o.k })} aria-label={`Theme: ${o.label}`}>
-          <Icon name={o.icon} size={15} /><span>{o.label}</span>
+          <Icon name={o.icon} size={16} />
         </button>
       ))}
     </div>
@@ -385,29 +398,8 @@ export function mixClip(a: string, b: string, q: number): string {
   const v = na.map((x, i) => x + (nb[i] - x) * q);
   return `inset(${v[0]}px ${v[1]}px ${v[2]}px ${v[3]}px round ${v[4]}px)`;
 }
-/** A layer in the colour of the button over the sheet, fading in or out. Buttons with no fill leave nothing. */
-function morphFill(d: HTMLElement, b: HTMLElement, opacity: [number, number], delay: number) {
-  const bg = getComputedStyle(b).backgroundColor;
-  if (!bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg)) return;
-  const f = document.createElement('span');
-  f.className = 'felt-sheet-fill';
-  f.style.background = bg;
-  d.append(f);
-  f.animate({ opacity }, { duration: 200, delay, easing: 'ease-out', fill: 'both' }).onfinish = () => { if (opacity[1] === 0) f.remove(); };
-}
-
-/** Where a sheet sits against the button that opened it: the clip that shows only the button, and the shift up
-    when the button sits above the sheet. */
-function clipFrom(d: HTMLElement, b: DOMRect, radius: number) {
-  const r = d.getBoundingClientRect();
-  const dy = Math.min(0, b.top - r.top);
-  const ins = [b.top - r.top - dy, r.right - b.right, r.bottom + dy - b.bottom, b.left - r.left].map((v) => Math.max(0, v));
-  return { dy, clip: `inset(${ins[0]}px ${ins[1]}px ${ins[2]}px ${ins[3]}px round ${radius}px)` };
-}
-const FULL_CLIP = 'inset(0px 0px 0px 0px round 24px)';
-
-/** A sheet from the bottom. Opened by a press, it pulls out of the button that opened it, in that button's colour.
-    It always leaves by sliding down: a swipe, a tap outside or a button. `edge` keeps the coral edge of the card button. */
+/** A sheet from the bottom. On a phone it always opens by sliding up and always leaves by sliding down: a swipe,
+    a tap outside or a button. `edge` keeps the coral edge of the card button. */
 export function Sheet({ open, onClose, title, sub, children, edge, head, noClose, action }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
   /** No Close button: the swipe bar, a swipe down and a tap outside close it. */
@@ -418,8 +410,6 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
   head?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  /** The button that opened the sheet, while it is on the page. */
-  const origin = useRef<HTMLElement | null>(null);
   const closing = useRef(onClose);
   closing.current = onClose;
   /** Leaves the way it came in: down off the screen, then closes. */
@@ -433,7 +423,7 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
     if (leaving.current) return;
     if (!d?.animate || calm()) { closing.current(); return; }
     leaving.current = true;
-    fadeBackdrop(d, 1, 0, 300);
+    fadeBackdrop(d, 1, 0, SPRING.sheetDown[0] * 1000);
     const done = () => { leaving.current = false; closing.current(); };
     // a sheet with a swipe bar always leaves the way a swipe takes it: down, however it was closed
     if (phone()) {
@@ -455,17 +445,10 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
       if (act?.matches('.felt-name-edit')) act.blur();
       // the page behind stays still while the sheet is open
       document.documentElement.classList.add('felt-sheet-open');
-      const from = recentPress();
-      origin.current = from?.el ?? null;
       if (d.animate && !calm()) {
-        fadeBackdrop(d, 0, 1, springCurve(SPRING.sheetUp).ms);
-        if (phone() && from) {
-          // out of the button: the sheet opens around it in the button colour, then its content shows
-          const { dy, clip } = clipFrom(d, from.rect, parseFloat(getComputedStyle(from.el).borderTopLeftRadius) || 12);
-          spring(d, (p) => { const q = Math.min(p, 1); return { clipPath: q < 1 ? mixClip(clip, FULL_CLIP, q) : 'none', translate: `0 ${dy * (1 - q)}px` }; }, SPRING.grow, { fill: 'backwards', near: 0.02 });
-          morphFill(d, from.el, [1, 0], 90);
-          d.firstElementChild?.animate({ opacity: [0, 1] }, { duration: 200, delay: 110, easing: 'ease-out', fill: 'backwards' });
-        } else if (phone()) { const h = d.offsetHeight + 24; spring(d, (p) => ({ translate: `0 ${h * (1 - p)}px` }), SPRING.sheetUp); }
+        fadeBackdrop(d, 0, 1, SPRING.sheetUp[0] * 1000);
+        // on a phone a sheet always slides up from the bottom, the way it leaves, whatever opened it
+        if (phone()) { const h = d.offsetHeight + 24; spring(d, (p) => ({ translate: `0 ${h * (1 - p)}px` }), SPRING.sheetUp); }
         else d.animate({ opacity: [0, 1], transform: ['scale(.97)', 'scale(1)'] }, { duration: 320, easing: DRAWER });
       }
     }
@@ -580,10 +563,17 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
   );
 }
 
-/** Info tip with the shared help copy. Each array entry is its own line. */
+/** Info tip with the shared help copy. Each array entry is its own line. A `{ sub }` entry belongs to the line
+    above it: it shows indented under that line, with a small marker. */
 export function Help({ k }: { k: HelpKey }) {
-  const t = HELP[k].text;
-  return <Info title={HELP[k].title}>{typeof t === 'string' ? t : t.map((x, i) => <span key={i} className="felt-tip-line">{x}</span>)}</Info>;
+  const t: string | readonly TipLine[] = HELP[k].text;
+  return (
+    <Info title={HELP[k].title}>
+      {typeof t === 'string' ? t : t.map((x, i) => typeof x === 'string'
+        ? <span key={i} className="felt-tip-line">{x}</span>
+        : <span key={i} className="felt-tip-line felt-tip-sub">{x.sub}</span>)}
+    </Info>
+  );
 }
 
 /** Standing rule: a figure's source is shown only as a tip, never as text on the page. */

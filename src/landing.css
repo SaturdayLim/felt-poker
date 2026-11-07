@@ -1,7 +1,8 @@
 /* Splash at the site root: Felt mark, name and version on the kit's mesh, then a fade into the app.
    Timeline at the standard length (--k = 1, set from the length in index.html): the outer S draws in one stroke
-   0 to 1500ms (top chip anticlockwise, through the waist, bottom chip clockwise), the inner rings grow in
-   1100 to 1700ms and the ticks fade in, the name settles 1500 to 2300ms, hold, fade out at 3000ms.
+   0 to 1500ms (top chip anticlockwise, through the waist, bottom chip clockwise). The top inner ring fades in
+   300 to 750ms and the bottom one 900 to 1350ms. Each spoke wipes in along its own short segment as the S passes it.
+   The name settles 1500 to 2300ms, hold, fade out at 3000ms.
    The app page fades in on arrival (.felt-enter in styles.css); browsers with cross-document
    view transitions also cross-fade the two pages. */
 
@@ -17,11 +18,12 @@ body.sat { overflow: hidden; }
 .felt-splash-mark { --sat-mark-h: 88px; }
 .felt-splash-mark path { vector-effect: none; stroke-width: 2.6px; }
 .felt-splash-mark .s { stroke-dasharray: 1; stroke-dashoffset: 1; animation: felt-draw calc(1500ms * var(--k, 1)) cubic-bezier(0.65, 0, 0.35, 1) forwards; }
-/* each inner ring wipes round with the S: the top one in the first half of the stroke, the bottom one in the second */
-.felt-splash-mark .inner { stroke-dasharray: 1; stroke-dashoffset: 1; animation: felt-draw calc(750ms * var(--k, 1)) cubic-bezier(0.65, 0, 1, 1) forwards; }
-.felt-splash-mark .inner-b { animation: felt-draw calc(750ms * var(--k, 1)) cubic-bezier(0, 0, 0.35, 1) calc(750ms * var(--k, 1)) forwards; }
-/* a spoke is the outer 17% of a line from the chip centre: the dash starts at the centre and swipes out to its place */
-.felt-splash-mark .spoke { stroke-dasharray: 0.17 1; stroke-dashoffset: 0; opacity: 0;
+/* each inner ring fades in as the S reaches its chip: the top one early in the stroke, the bottom one later */
+.felt-splash-mark .inner { opacity: 0; animation: felt-fade calc(450ms * var(--k, 1)) ease-out calc(300ms * var(--k, 1)) forwards; }
+.felt-splash-mark .inner-b { animation-delay: calc(900ms * var(--k, 1)); }
+/* a spoke is its own short segment: it wipes in from its inner end to its outer end and never crosses the inner ring.
+   The gap in the dash is longer than the path, and the spoke stays hidden until its start, so no round cap shows a dot early */
+.felt-splash-mark .spoke { stroke-dasharray: 1 2; stroke-dashoffset: 1.01; opacity: 0;
   animation: felt-spoke calc(420ms * var(--k, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 1ms * var(--k, 1)) forwards; }
 
 .felt-splash-name { font-size: clamp(2.5rem, 9vw, 3.25rem); letter-spacing: 0.02em;
@@ -39,7 +41,7 @@ body.is-leaving .felt-splash-version { opacity: 0; }
 
 @keyframes felt-draw { to { stroke-dashoffset: 0; } }
 @keyframes felt-fade { to { opacity: 1; } }
-@keyframes felt-spoke { 0% { opacity: 0; stroke-dashoffset: 0; } 15% { opacity: 1; } 100% { opacity: 1; stroke-dashoffset: -0.83; } }
+@keyframes felt-spoke { from { opacity: 1; stroke-dashoffset: 1.01; } to { opacity: 1; stroke-dashoffset: 0; } }
 @keyframes felt-grow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
 @keyframes felt-settle {
   from { opacity: 0; letter-spacing: 0.24em; filter: blur(6px); transform: translateY(6px); }
@@ -47,6 +49,5 @@ body.is-leaving .felt-splash-version { opacity: 0; }
 }
 
 html[data-calm] .felt-splash-mark .s { stroke-dashoffset: 0; animation: none; }
-html[data-calm] .felt-splash-mark .spoke { stroke-dashoffset: -0.83; opacity: 1; animation: none; }
-html[data-calm] .felt-splash-mark .inner { stroke-dashoffset: 0; animation: none; }
+html[data-calm] .felt-splash-mark .spoke { stroke-dashoffset: 0; opacity: 1; animation: none; }
 html[data-calm] .felt-splash-mark .inner, html[data-calm] .felt-splash-name, html[data-calm] .felt-splash-version { opacity: 1; animation: none; }

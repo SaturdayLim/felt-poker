@@ -16,13 +16,24 @@ import type { Game, ID } from '../types';
 
 const RANGES: { k: RangeFilter; label: string; long: string }[] = [
   { k: 'all', label: 'All', long: 'All Time' },
-  { k: 'fy', label: 'FYTD', long: 'FYTD' },
   { k: 'cy', label: 'CYTD', long: 'CYTD' },
-  { k: '90d', label: 'L90D', long: 'L90D' },
   { k: '30d', label: 'L30D', long: 'L30D' },
 ];
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-');
+
+/** Game type as two chips that turn on and off on their own: Cash and Tournaments. Both on = all games.
+    One chip stays on: turning off the last one turns on the other. */
+export function TypeChips({ type, setType }: { type: TypeFilter; setType: (t: TypeFilter) => void }) {
+  const on = { cash: type !== 'tournament', tournament: type !== 'cash' };
+  const tap = (k: 'cash' | 'tournament') => setType(on[k] ? (k === 'cash' ? 'tournament' : 'cash') : 'all');
+  return (
+    <div className="felt-typechips" role="group" aria-label="Game types">
+      <button type="button" className="sat-chip" aria-pressed={on.cash} onClick={() => tap('cash')}>Cash</button>
+      <button type="button" className="sat-chip" aria-pressed={on.tournament} onClick={() => tap('tournament')}>Tournaments</button>
+    </div>
+  );
+}
 
 /** Stats for players. Inside the Players tab (`embedded`) the tab picks the view: Leaderboard or Stats. */
 export default function Insights({ initialPlayer, embedded, mode }: { initialPlayer?: string; embedded?: boolean; mode?: 'player' | 'standings' }) {
@@ -50,14 +61,9 @@ export default function Insights({ initialPlayer, embedded, mode }: { initialPla
             <button role="radio" aria-checked={view === 'standings'} onClick={() => setView('standings')}><Icon name="trophy" /> Leaderboard</button>
           </div>
         )}
-        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Game type">
-          <TabPill />
-          {(['all', 'cash', 'tournament'] as const).map((t) => (
-            <button key={t} role="radio" aria-checked={type === t} onClick={() => setType(t)}>{t === 'all' ? 'All' : t === 'cash' ? 'Cash' : 'Tournaments'}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sat-space-2)' }}>
-          <div className="sat-seg felt-period" role="radiogroup" aria-label="Period" style={{ flex: 1, minWidth: 0 }}>
+        <TypeChips type={type} setType={setType} />
+        <div className="felt-tipped felt-period-wrap">
+          <div className="sat-seg sat-seg--block felt-period" role="radiogroup" aria-label="Period">
             <TabPill />
             {RANGES.map((r) => <button key={r.k} role="radio" aria-checked={range === r.k} onClick={() => setRange(r.k)}>{r.label}</button>)}
           </div>
@@ -66,7 +72,7 @@ export default function Insights({ initialPlayer, embedded, mode }: { initialPla
 
         {games.length === 0 ? (
           <Empty title="No games in this period" action={range !== 'all' || type !== 'all' ? <button className="sat-btn" onClick={() => { setRange('all'); setType('all'); }}>Show all</button> : undefined}>
-            Try a wider period or switch the game type to All.
+            Try a wider period, or turn on Cash and Tournaments.
           </Empty>
         ) : view === 'player' ? (
           <PlayerStats games={games} board={board} selected={selected} setPid={setPid} currency={currency} name={name} />
@@ -127,7 +133,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         <p className="sat-small sat-muted">{s.wins} of {s.games} games finished up.</p>
         {s.history.length > 1 && (
           <figure style={{ marginTop: 'var(--sat-space-2)' }}>
-            <LineChart height={110} series={[{ name: 'net', color: 'var(--sat-accent)', values: cumVals }]} />
+            <LineChart height={170} yTitle={`Net (${currency})`} series={[{ name: 'net', color: 'var(--sat-accent)', values: cumVals }]} />
             <figcaption className="sat-figcaption"><b>Net = {fmt(s.net)}</b> after {s.games} games{best ? `, best ${money(best.net, currency, { sign: true })} on ${shortDate(best.t)}` : ''}.</figcaption>
             <div className="felt-source"><SourceTip>{sourceLine(played)} Running total in {currency}.</SourceTip></div>
           </figure>
@@ -167,7 +173,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
       {s.logged > 0 && (
         <section className="sat-glass sat-card sat-stack" style={gap(3)}>
           <div className="sat-split"><h2 className="sat-h3">Where hands were won</h2><Help k="wonAt" /></div>
-          <CountBars unit="hands" rows={[
+          <CountBars unit="hands" title="Stage" rows={[
             { label: 'Pre-flop', value: s.wonAt.preflop }, { label: 'Flop', value: s.wonAt.flop }, { label: 'Turn', value: s.wonAt.turn },
             { label: 'River', value: s.wonAt.river }, { label: 'Showdown', value: s.wonAt.showdown },
           ]} />
@@ -181,7 +187,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         return (
           <section className="sat-glass sat-card sat-stack" style={gap(3)}>
             <div className="sat-split"><h2 className="sat-h3">Chips won and lost</h2><Help k="flow" /></div>
-            <BackToBack format={(v) => units(v)} rows={[
+            <BackToBack unit="chips" format={(v) => units(v)} rows={[
               { label: 'Folds', win: f.winFold, loss: f.lossFold },
               { label: 'Showdown', win: f.winShowdown, loss: f.lossShowdown },
               { label: 'Others', win: f.winOther, loss: f.lossOther },
@@ -283,7 +289,7 @@ function Standings({ games, board, currency, name, scope }: {
           </div>
         )}
         <figure>
-          <LineChart series={cmp.map((p, i) => ({ name: p, color: SERIES_COLORS[i % SERIES_COLORS.length], values: series.map((s) => s.values[p] ?? 0) }))} />
+          <LineChart yTitle={`Net (${currency})`} series={cmp.map((p, i) => ({ name: p, color: SERIES_COLORS[i % SERIES_COLORS.length], values: series.map((s) => s.values[p] ?? 0) }))} />
           <div className="sat-cluster sat-small" style={{ ...gap(4), marginTop: 'var(--sat-space-3)' }}>
             {cmp.map((p, i) => (
               <span key={p} className="sat-cluster" style={gap(2)}>

@@ -4,22 +4,14 @@ import { finalists, inAtEnd, pfr, vpip } from './hand';
 import { addFlow, addMoves, addStyle, emptyFlow, emptyStyle, wonAt, type ChipFlow, type StyleCounts, type WonAt } from './style';
 
 export type TypeFilter = 'all' | GameType;
-/** all, FYTD (financial year from 1 July), CYTD (from 1 January), L90D, L30D. */
-export type RangeFilter = 'all' | 'fy' | 'cy' | '90d' | '30d';
-
-/** Start of the financial year (July to June) that contains t. */
-export function fyStart(t: number): number {
-  const d = new Date(t);
-  const y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
-  return new Date(y, 6, 1).getTime();
-}
+/** all, CYTD (from 1 January), L30D (the last 30 days). */
+export type RangeFilter = 'all' | 'cy' | '30d';
 
 export function filterGames(games: Game[], type: TypeFilter, range: RangeFilter, now = Date.now()): Game[] {
   const since =
     range === 'all' ? 0
-    : range === 'fy' ? fyStart(now)
     : range === 'cy' ? new Date(new Date(now).getFullYear(), 0, 1).getTime()
-    : now - (range === '90d' ? 90 : 30) * 86400000;
+    : now - 30 * 86400000;
   return games
     .filter((g) => g.status === 'closed' && (type === 'all' || g.type === type) && g.startedAt >= since)
     .sort((a, b) => a.startedAt - b.startedAt);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { Avatar, Caption, Delta, Header, Icon, SlidePane, toast, SourceTip } from '../components/ui';
@@ -24,6 +24,18 @@ export default function Players({ view = 'list', pid }: { view?: PlayersView; pi
           {view === 'list' ? <PlayerList /> : <Insights embedded mode={view === 'board' ? 'standings' : 'player'} initialPlayer={pid} />}
         </SlidePane>
       </div>
+    </div>
+  );
+}
+
+/** The body of a list that opens and closes: the rows slide down as it opens and back up as it closes.
+    The rows mount on the first open and then stay, so a close can slide them away. A closed body is inert. */
+function FoldBody({ open, children }: { open: boolean; children: ReactNode }) {
+  const [seen, setSeen] = useState(open);
+  if (open && !seen) setSeen(true);
+  return (
+    <div className="felt-fold-wrap" data-open={open} {...(open ? {} : { inert: '' })}>
+      <div className="felt-fold-inner">{seen && children}</div>
     </div>
   );
 }
@@ -90,7 +102,7 @@ function PlayerList() {
                   </span>
                   <span className="felt-fold-chev" aria-hidden="true"><Icon name="chevron" size={18} /></span>
                 </button>
-                {open && (
+                <FoldBody open={open}>
                   <div className="felt-fold-body">
                     {/* tap a name to add it to the group or take it out */}
                     <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
@@ -102,7 +114,7 @@ function PlayerList() {
                     </div>
                     <button className="sat-btn sat-btn--sm" onClick={() => go(`group/${grp.id}`)}>Open {grp.name}</button>
                   </div>
-                )}
+                </FoldBody>
               </div>
             );
           })}
@@ -113,7 +125,7 @@ function PlayerList() {
             <span className="felt-row-main"><span className="felt-row-title">Everyone</span><span className="felt-row-sub">{list.length} players</span></span>
             <span className="felt-fold-chev" aria-hidden="true"><Icon name="chevron" size={18} /></span>
           </button>
-          {isOpen('all') && (list.length === 0
+          <FoldBody open={isOpen('all')}>{list.length === 0
             ? <div className="felt-fold-body sat-small sat-muted">Add the people you play with. They are saved for every game.</div>
             : list.map((p) => {
               const s = playerSummary(closed, p.id);
@@ -127,7 +139,8 @@ function PlayerList() {
                   {s.games ? <Delta value={s.net} format={(a) => money(a, currency)} /> : <span className="sat-muted">-</span>}
                 </button>
               );
-            }))}
+            })}
+          </FoldBody>
         </div>
         {list.length > 0 && <div className="felt-source"><SourceTip>Felt game log ({closed.length} closed games). Net result in {currency}.</SourceTip></div>}
       </div>

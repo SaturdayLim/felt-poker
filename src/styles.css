@@ -955,12 +955,25 @@ html[data-skin="felt"][data-palette="custom"][data-theme="dark"] {
 .felt-row.is-hidden { opacity: .55; }
 
 /* Start: Host or Player, the first view when Felt opens */
-.felt-start-view { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; gap: var(--sat-space-8, 48px); padding-top: calc(var(--felt-safe-top) + 32px); }
+/* The view fades in on its own (opacity only, short). The app fade on first load runs at once here, so the two do not stack */
+.felt-app:has(.felt-start-view) { animation-duration: 1ms; }
+.felt-start-view { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; gap: var(--sat-space-8, 48px); padding-top: calc(var(--felt-safe-top) + 32px);
+  animation: felt-start-in 280ms ease-out backwards; }
+@keyframes felt-start-in { from { opacity: 0; } }
 .felt-start-mark { display: flex; flex-direction: column; align-items: center; gap: var(--sat-space-2); }
 .felt-start-mark .sat-wordmark { font-size: 2.25rem; }
-.felt-start-choices { display: grid; gap: var(--sat-space-3); }
-.felt-start-choice { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: var(--sat-space-4); row-gap: 2px; align-items: center; text-align: left; padding: var(--sat-space-5); border-radius: var(--sat-radius-lg); color: inherit; border: 1px solid var(--sat-line); }
+/* both choices take the height of the taller one, and the full width */
+.felt-start-choices { display: grid; grid-template-columns: 1fr; grid-auto-rows: 1fr; gap: var(--sat-space-3); }
+/* solid, not glass: a blurred backdrop repaints on show and on press and makes the frame shimmer */
+.felt-start-choice { display: grid; grid-template-columns: 28px 1fr; grid-template-rows: auto auto; align-content: center; column-gap: var(--sat-space-4); row-gap: 2px; align-items: center;
+  width: 100%; min-height: 96px; text-align: left; padding: var(--sat-space-5); border-radius: var(--sat-radius-lg); color: inherit;
+  background: var(--sat-solid-2); border: 1px solid var(--sat-line); box-shadow: var(--felt-elev-1);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background-color 160ms ease-out, opacity 160ms ease-out; }
+.felt-start-choice:active { background: color-mix(in oklab, var(--sat-solid-2), var(--sat-text) 6%); opacity: .88; }
 .felt-start-choice svg { grid-row: span 2; color: var(--sat-accent-text); }
 .felt-start-choice b { font-size: 1.25rem; }
+.felt-start-choice span { text-wrap: balance; }
+html[data-calm] .felt-start-view { animation: none; }
+html[data-calm] .felt-start-choice { transition: none; }
 /* the Colours switch in Default shows a plain knob: the default colours are not one pair like the card pips */
 .felt-look-thumb.is-blank .is-default { background: var(--sat-solid-2); }

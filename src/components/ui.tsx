@@ -78,14 +78,16 @@ export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; 
     The opening screen draws the full mark: src/brand/felt-mark.svg. */
 export function FeltMark({ height = 32, full = false }: { height?: number; full?: boolean }) {
   if (full) {
-    // The full mark (src/brand/felt-mark.svg): the S, both inner rings and the edge notches of each chip
+    // The full mark, the same as the load screen (index.html): the S, both chip rings and three thick edge marks per
+    // chip, so the load screen hands over to it with no change of shape
+    const edge = { strokeWidth: 'calc(var(--sat-mark-stroke, 1.75px) * 2.2)', strokeLinecap: 'butt' as const };
     return (
       <svg className="sat-mark" style={{ ['--sat-mark-h' as string]: `${height}px` }} viewBox="-2 -2 68 104" aria-hidden="true">
         <path d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-        <path d="M17 26 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-        <path d="M45.15 39.15 L47.84 41.84 M18.85 39.15 L16.16 41.84 M18.85 12.85 L16.16 10.16 M45.15 12.85 L47.84 10.16" />
-        <path d="M17 74 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0" />
-        <path d="M45.15 87.15 L47.84 89.84 M18.85 87.15 L16.16 89.84 M18.85 60.85 L16.16 58.16 M45.15 60.85 L47.84 58.16" />
+        <path d="M38.58 39.48 A15 15 0 1 0 25.42 12.52 A15 15 0 1 0 38.58 39.48" />
+        <path d="M32 59 A15 15 0 1 1 32 89 A15 15 0 1 1 32 59" />
+        <path style={edge} d="M32 9 L32 4 M46.722 34.5 L51.053 37 M17.278 34.5 L12.947 37" />
+        <path style={edge} d="M32 91 L32 96 M17.278 65.5 L12.947 63 M46.722 65.5 L51.053 63" />
       </svg>
     );
   }

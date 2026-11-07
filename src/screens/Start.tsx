@@ -5,7 +5,7 @@ import { FeltMark, Icon } from '../components/ui';
 export default function Start({ onHost, onPlayer }: { onHost: () => void; onPlayer: () => void }) {
   return (
     <div className="felt-page felt-start-view">
-      <div className="felt-start-mark"><FeltMark height={64} /><span className="sat-wordmark">Felt</span></div>
+      <div className="felt-start-mark"><FeltMark height={64} full /><span className="sat-wordmark">Felt</span></div>
       <div className="felt-start-choices">
         <button type="button" className="felt-start-choice" data-press="none" onClick={onHost}>
           <Icon name="cards" size={28} />

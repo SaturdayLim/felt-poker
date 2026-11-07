@@ -8,7 +8,7 @@ import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/c
 import { gameFigure, playerResult } from '../lib/calc';
 import { FEATURES } from '../lib/features';
 import { chipsText, dateLabel, figureDelta, money, shortDate, units } from '../lib/format';
-import { cumulativeSeries, filterGames, leaderboard, playerSummary, summaryFigure, type RangeFilter, type TypeFilter } from '../lib/stats';
+import { cumulativeSeries, filterGames, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
 import { canvasToFile, shareFiles } from '../report/share';

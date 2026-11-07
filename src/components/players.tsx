@@ -3,10 +3,10 @@ import { usePlayerName, useStore } from '../store';
 import { Delta, Help, HoldButton, Icon, Sheet, toast, WordButton } from './ui';
 import { showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
-import { filterGames, playerSummary } from '../lib/stats';
-import { gameResults } from '../lib/calc';
+import { filterGames, playerSummary, summaryFigure } from '../lib/stats';
+import { gameFigure, gameResults } from '../lib/calc';
 import { contributions } from '../lib/hand';
-import { money, shortDate } from '../lib/format';
+import { figureDelta, figureText, shortDate } from '../lib/format';
 import { go } from '../router';
 import type { Game, ID, Player } from '../types';
 
@@ -283,12 +283,18 @@ function handTally(g: Game, p: ID) {
   return { won, lost };
 }
 
+/** One figure of a cash game in both measures. Tournaments have no chip figure, so they stay in money. */
+function cashPart(g: Game, m: number, chips: number) {
+  return { money: m, chips: g.type === 'cash' ? chips : null, currency: g.currency };
+}
+
 /** The player pop-up, top to bottom: the name (edit in place), the code, Net, Win rate and Games, then Full stats.
     Net lists each game's buy-in, end and result. Win rate lists hands won and lost in each game. Games opens the
     Games page for this player. A swipe down or a tap outside closes it. */
 export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) {
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
+  const showMoney = useStore((s) => s.settings.showMoney);
   const [view, setView] = useState<'card' | 'net' | 'rate'>('card');
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
   const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
@@ -308,9 +314,9 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
                 <button key={g.id} className="felt-row" onClick={() => open(g)}>
                   <span className="felt-row-main">
                     <span className="felt-row-title felt-ellipsis">{g.name}</span>
-                    <span className="felt-row-sub sat-num">{shortDate(g.startedAt)}: in {money(r.in, g.currency)}, out {money(r.out, g.currency)}</span>
+                    <span className="felt-row-sub sat-num">{shortDate(g.startedAt)}: in {figureText(cashPart(g, r.in, r.inUnits), showMoney)}, out {figureText(cashPart(g, r.out, r.outUnits), showMoney)}</span>
                   </span>
-                  <Delta value={r.net} format={(a) => money(a, g.currency)} />
+                  <Delta {...figureDelta(gameFigure(g, p.id), showMoney)} />
                 </button>
               );
             })}
@@ -348,7 +354,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
     <Sheet open noClose onClose={onClose} title={p.name} head={<NameField p={p} />}>
       <CodeControl pid={p.id} label />
       <div className="felt-tiles">
-        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('net')}><span className="sat-caption">Net</span><b className="sat-num">{s.games ? money(s.net, currency, { sign: true }) : '-'}</b></button>
+        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('net')}><span className="sat-caption">Net</span><b className="sat-num">{s.games ? figureText(summaryFigure(s, currency), showMoney, { sign: true }) : '-'}</b></button>
         <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('rate')}><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></button>
         <button type="button" className="sat-flat sat-card felt-fig" onClick={() => { onClose(); go(`games/${p.id}`); }}><span className="sat-caption">Games</span><b className="sat-num">{played.length}</b></button>
       </div>

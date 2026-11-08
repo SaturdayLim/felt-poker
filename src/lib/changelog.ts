@@ -1,5 +1,20 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.3.4', date: '8 Nov 2026', notes: [
+    'Load screen: two grey chips drop one after the other and fade back. The gold S draws around them and glows.',
+    'Changing tab swipes only the content. The bars stay. The swipe and the chip roll start and end together.',
+    'The tab chip roll has a wider dip, and the chip turns exactly as far as it travels.',
+    'Home: New Game is the one button. Join a game is the camera button in the banner. A swipe back from the first screen bounces.',
+    'Save, Copy and other word buttons show Saving, then a check and the word. Saved player cards show for a moment, then turn face down.',
+    'Raise: the amount box lights the number pad with an orange trail when you tap it. Raise turns orange only once a number is in. The error sits under the box.',
+    'Replace player code: tap the icon, then hold the button. The new code loads in as it fills.',
+    'Code entry: each character blurs in and a wrong code shakes the boxes once.',
+    'Players: a search button opens into a field with a match count.',
+    'Player view: a pill shows new hands that arrived out of view. The player card Games tile opens a list.',
+    'Settings, Animation speed: a slider with three stops, Reduced, Follow phone and Full.',
+    'A game back in: tapping the red light seats the player with the chips they left with. Hands swipe left to delete. Stacks keep the first buy-in when a hand was opened early.',
+    'Cards: a player who showed two cards and entered a different pair is flagged.',
+  ] },
   { version: '1.3.3', date: '7 Nov 2026', notes: [
     'Results and stats show in chips. Settings, Show money switches them to money.',
     'Home, Games, Players and Settings open with a banner: the page name and the theme toggle. The header no longer shows a hard edge when you scroll.',

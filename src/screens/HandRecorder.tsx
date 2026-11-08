@@ -767,7 +767,10 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       )}
       <div ref={dock} className="sat-bottombar sat-glass-2 felt-rec-dock">
         {!target && !(replay && selCell && sel) && (
-          <button type="button" className="felt-fab" aria-label="Add player cards" onClick={() => setAskCards(true)}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
+          <button type="button" className="felt-fab" aria-label="Add player cards" onClick={() => setAskCards(true)}>
+            {/* the icon morphs as the sheet opens: the cards turn and fade into a cross, and back when it closes */}
+            <span className="felt-fab-icon" data-open={askCards}><span className="a"><Icon name="cardsadd" size={30} stroke={1.8} /></span><span className="b"><Icon name="close" size={26} stroke={2.2} /></span></span>
+          </button>
         )}
         <DockPanel k={target ? 'picker' : replay && selCell && sel ? 'keypad' : ''}>
         {target ? (
@@ -1081,17 +1084,9 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
         <button type="button" onClick={onFold}>Fold</button>
         <button type="button" onClick={onAllIn} disabled={!canRaise && !toCall}>All-in</button>
       </div>
-      {minErr !== null ? (
-        <div className="felt-keypad-err" role="alert">
-          <span>{verb} minimum = {units(minErr)}</span>
-          <span className="felt-keypad-err-acts">
-            <button type="button" onClick={onCall}>{toCall ? `Call ${units(toCall)}` : 'Check'}</button>
-            <button type="button" className="is-primary" onClick={onMin}>{verb} to {units(minErr)}</button>
-          </span>
-        </div>
-      ) : (
+      {/* amount first: it stays in view with its error under it, so the number being fixed never disappears */}
         <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
-          <div className={`felt-keypad-field felt-tipped ${typed ? 'has-value' : ''}`} aria-live="polite" onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) pointAtPad(); }}>
+          <div className={`felt-keypad-field felt-tipped ${typed ? 'has-value' : ''} ${minErr !== null ? 'is-invalid' : ''}`} aria-live="polite" onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) pointAtPad(); }}>
             <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || (allInAsk ? <span className="felt-keypad-min">Type the all-in amount</span> : <span className="felt-keypad-ghost">{units(minTo)}</span>)}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
             <Help k="raiseBox" />
@@ -1101,6 +1096,14 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
             <Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} />
           </span>
           <button type="button" className={`felt-keypad-ok ${typed ? 'is-ready' : ''}`} aria-disabled={!canRaise || (allInAsk && !typed)} disabled={!canRaise} onClick={onOk}>{verb}</button>
+        </div>
+      {minErr !== null && (
+        <div className="felt-keypad-err is-in" role="alert">
+          <span>{verb} minimum = {units(minErr)}</span>
+          <span className="felt-keypad-err-acts">
+            <button type="button" onClick={onCall}>{toCall ? `Call ${units(toCall)}` : 'Check'}</button>
+            <button type="button" className="is-primary" onClick={onMin}>{verb} to {units(minErr)}</button>
+          </span>
         </div>
       )}
       <div className="felt-keypad-digits" data-nudge={nudge || undefined} key={nudge ? `n${nudge}` : 'pad'}>

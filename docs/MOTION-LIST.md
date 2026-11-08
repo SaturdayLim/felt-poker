@@ -52,3 +52,25 @@ Every action runs at once on release. A long press only does something on contro
 | B9 | Remove | Chip move, missed hand, buy-in | Fades away | Standard band: fade, spring 260, bounce 0.12, its space closes in 220 after 40, rows close up |
 | B10 | Copy or send | Copy link, Send to host | Word changes | Copied, Sent. Icon-only copy keeps its toast |
 | B11 | Plain | Any other button or link | Small sink | scale 0.97, spring back 160 |
+
+## C. Interior.dev behaviours, picked 8 Nov 2026
+
+Springs are stiffness, damping and mass. `physCurve` in `src/lib/motion.ts` plays them; CSS reads them through `--felt-cross`, `--felt-cell` and `--felt-pill`.
+
+| # | Element | Pick | Values |
+|---|---|---|---|
+| L2 | Load screen | Grey chips, glowing S | two chips drop (bottom 0, top 260), fade to 22% from 800, gold S draws 1000 to 1900 with a blurred glow |
+| A2 | Tab change | Content swipes, bars stay | NAV_MS 600, ease-in-out, shared with the chip roll |
+| A1 | Chip roll | Rolls, wide dip | turn = distance over radius, dip 78 wide and 36 deep |
+| A1b | Highlight | Tabs spring | 620, 42, 0.35 (over-damped: never leaves the frame) |
+| B1, B2 | Commit | Loading button | faces cross-fade on 260, 34, 0.8; Saving 520 ms, then the word |
+| B2b | Saved cards | Flip face down | 420 ms, 70 apart, starts 160 after the list returns |
+| P1 | Replace player code | Hold to confirm | 1800 ms fill, drain 720 ms, new code loads one box per sixth |
+| O1 | Player code entry | OTP input | blur-in 220 ms, shake 320 ms |
+| S1 | Player search | Expanding search | width spring 380, 38, 0.7; field fades in 60 ms late |
+| N2 | New hands | New items pill | 540, 34, 0.5 in; 160 ms out |
+| G1 | Player card Games | Accordion | height 480, 40, 0.6; text fades 180 in, 140 out |
+| Z1 | Animation speed | Slider detents | cell spring 520, 34, 0.45; thumb grows to 108% while held |
+| A9 | Reorder | Reorder list | lift 102%, cell spring |
+| I1 | Player cards button | Icon morph | cards turn into a cross on the cell spring |
+| V1 | Raise amount | Inline validation | box turns red, message rises in on the cross-fade spring |

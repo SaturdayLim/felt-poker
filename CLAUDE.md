@@ -26,7 +26,8 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Elevation: three shadow depths only (`--felt-elev-1/2/3`). Each is stacked soft layers, blur = 2 x offset. Details in the felt-ui skill.
 - Made for a poker table, not a generic app: the tab bar is a chip tray (a straight rail with a pocket per tab; a poker chip in the Main colour rolls along the rail to the open tab, and the rail bends away under it like a soft surface, never touching it). The bar keeps one height and hides while a text field has the keyboard. The header is the tab of a notebook page (a light outlined paper tab on a line across the screen). A page with views (Players, Leaderboard, Stats; Game list, Stats) shows the views as the notebook tabs, with no page-name tab and no segmented control. Home has no tab: the Felt mark sits plain on the page.
 - Main tabs (Home, Games, Players, Settings) open with a banner: the page name (Home: the full Felt mark with its chip edge marks, and the word Felt) left, the theme toggle right. Views sit under it as notebook tabs. Banner and tabs are one sticky band in the page colour, covered above and ending in a soft fade, so nothing shows above it.
-- Tab bar: the chip rolls in about 460 ms with no bounce; the line bends away in a wide soft trough; the tabs not open are at half strength.
+- Tab change: the content swipes under still bars (header and tab bar stay), and the swipe and the chip roll share one 600 ms ease-in-out (NAV_MS). The chip rolls without slipping (turn = distance over radius) in a wide, deep dip.
+- Tab bar: the chip rolls with no bounce; the line bends away in a wide soft trough; the tabs not open are at half strength.
 - Theme: a 3-part icon toggle in the Home header (phone, sun, moon), no labels.
 - Animation times by type: button press 100-200 ms; standard transitions (dropdown, card expansion) 200-300 ms; page or screen transitions 300-400 ms; complex loaders 500 ms or more (docs/MOTION-LIST.md).
 - Every pressable control sinks a little when pressed (data-press="none" opts out).
@@ -117,7 +118,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Game settings: Save sits top right and stays in view. A swipe down or a tap outside leaves without saving.
 - The live room closes by itself when the game is closed, or after 12 hours with no action from the host.
 - End game count starts filled: each player's own count if they sent one from the player view (My final chip count), else an exact estimate. The host edits any of them.
-- Load screen: the S draws, the two chip rings fade in, then six thick edge marks (three per chip) wipe in, so the mark reads as two stacked chips. The mark carries over to the Start view as a shared element (view-transition-name felt-logo), where browsers support it.
+- Load screen: two whole grey chips (six bands each) drop one after the other and fade back to 22%, then the gold S draws around them and glows. The mark carries over to the Start view as a shared element (view-transition-name felt-logo), where browsers support it.
 - Start view (Host or Player): two equal buttons with one-line captions (Host: Run the game and log hands on this phone. Player: Scan the QR code to follow the action and log your hands.), no movement on press, a soft fade in.
 - Tournaments are parked (src/lib/features.ts, FEATURES.tournaments = false): no Tournament buttons, filter chip or tournament defaults in Settings. The code stays; old tournament games still open.
 - Each time Felt opens, the first view asks Host or Player (a game link skips it). Host opens Home. Player opens the camera scanner, which has a Back button top left. A scanned or pasted game link opens that game. Host a game instead leads to Home.
@@ -131,3 +132,12 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - UI principles (names open cards, controls show only when they work, frames react): `.claude/skills/felt-ui/SKILL.md`.
 - Card design rules: `.claude/skills/card-design/SKILL.md`. Logo on a card back is 15% to 25% of the card height.
 - Download options name the content and the file type: Results (1 image), Results and stats, Full game record, Spreadsheet data (3 CSV files).
+- Commit buttons (Save, Saved, Copy) are loading buttons: a spinner and Saving, then a check and the word, on the interior.dev spring. Copy, share and download skip the spinner.
+- Player cards saved: they go back to the list face up for a moment and turn face down in turn. They never stay face up.
+- Raise: a tap on the amount box runs an orange trail round the number pad. Raise is orange only once a number is typed. Call or Check carries the default outline.
+- Home: New Game is the one start button. Join a game is the camera button in the banner. A swipe back from the first screen bounces.
+- A player back in: the red light seats them with the chips they left with. No question about how they buy back.
+- Replace a player code: tap the icon, then hold the button in the sheet (1800 ms fill); the new code loads in as it fills.
+- Settings, Animation speed: a three-stop slider (Reduced, Follow phone, Full).
+- Hands in a live game swipe left to delete, with Undo.
+- Interior.dev behaviours in use: loading button, hold to confirm, expanding search, new items pill, accordion, slider detents, tabs spring, icon morph, inline validation, OTP input, reorder list (docs/MOTION-LIST.md).

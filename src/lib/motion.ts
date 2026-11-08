@@ -87,7 +87,11 @@ export function installMotion() {
     root.setProperty(`--felt-${name}`, `linear(${p.map((x) => +x.toFixed(4)).join(', ')})`);
     root.setProperty(`--felt-${name}-ms`, `${ms}ms`);
   };
-  set('pill', SPRING.pill);
+  // the highlight of tabs and segments: the tabs spring of interior.dev (stiffness 620, damping 42, mass 0.35). It is over-damped,
+  // so the highlight never passes its tab and never leaves the frame
+  const tabs = physCurve([620, 42, 0.35]);
+  root.setProperty('--felt-pill', `linear(${tabs.p.map((x) => +x.toFixed(4)).join(', ')})`);
+  root.setProperty('--felt-pill-ms', `${tabs.ms}ms`);
   set('grow', SPRING.grow);
   set('settle', SPRING.settle);
   // the cross-fade of a button's faces (Save, Saving, Saved) uses the interior.dev spring: stiffness 260, damping 34, mass 0.8

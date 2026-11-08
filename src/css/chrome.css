@@ -40,5 +40,5 @@
 .felt-start > :only-child { grid-column: 1 / -1; }
 
 /* Join a game: a camera button apart from the Start choices, in the Home banner. It is a filled circle, so it reads as a different kind of control from the theme toggle. */
-.felt-joinbtn { width: 40px; height: 40px; margin-right: var(--sat-space-2); border-radius: 50%; display: grid; place-items: center; background: var(--felt-main); color: var(--sat-on-accent, #fff); }
+.felt-joinbtn { width: 40px; height: 40px; margin-right: var(--sat-space-2); border-radius: 50%; display: grid; place-items: center; background: var(--sat-accent-fill); color: var(--sat-on-accent, #fff); }
 .felt-joinbtn svg { width: 20px; height: 20px; }

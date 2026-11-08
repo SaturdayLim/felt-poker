@@ -3,7 +3,7 @@
 /* The amount box brings no keyboard: a tap on it runs an orange trail round the number pad. The trail is a dashed outline
    that travels once round the frame. Calm mode shows the frame without the travel. */
 .felt-keypad-digits { position: relative; }
-.felt-keypad-quick .is-default { border-color: var(--felt-main); }
+.felt-keypad-quick .is-default { border-color: var(--sat-accent); }
 .felt-trail { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); pointer-events: none; overflow: visible; }
 .felt-trail rect { fill: none; stroke: var(--felt-coral); stroke-width: 2.5px; stroke-linecap: round; stroke-dasharray: 0.22 0.78; stroke-dashoffset: 1; opacity: 0;
   animation: felt-trail 1000ms cubic-bezier(0.45, 0, 0.2, 1) forwards; }
@@ -66,3 +66,18 @@ html[data-calm] .felt-boxes.is-bad { animation: none; }
 .felt-detents-labels { display: flex; justify-content: space-between; margin-inline: 2px; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
 .felt-detents-labels [data-on="true"] { color: var(--sat-text); font-weight: 600; transition: color var(--felt-cross-ms, 200ms) var(--felt-cross, ease-out); }
 html[data-calm] .felt-detents-fill, html[data-calm] .felt-detents-thumb, html[data-calm] .felt-detents-tick { transition: none; }
+
+/* Inline check of the raise amount: the amount box stays in view and turns red; the message rises in under it on the cross-fade spring. */
+.felt-keypad-field { transition: border-color 150ms var(--sat-ease), background-color 150ms var(--sat-ease); }
+.felt-keypad-field.is-invalid { border-color: var(--sat-neg); background: color-mix(in oklab, var(--sat-neg) 8%, transparent); }
+.felt-keypad-err.is-in { animation: felt-err-in var(--felt-cross-ms, 260ms) var(--felt-cross, ease-out) backwards; }
+@keyframes felt-err-in { from { opacity: 0; transform: translateY(-3px); } }
+html[data-calm] .felt-keypad-err.is-in { animation: none; }
+
+/* The player cards button: its icon morphs between the cards and a cross on the cell spring. */
+.felt-fab-icon { position: relative; display: grid; place-items: center; width: 30px; height: 30px; }
+.felt-fab-icon > span { grid-area: 1 / 1; display: grid; place-items: center; transition: opacity var(--felt-cell-ms, 200ms) var(--felt-cell, ease-out), rotate var(--felt-cell-ms, 200ms) var(--felt-cell, ease-out), scale var(--felt-cell-ms, 200ms) var(--felt-cell, ease-out); }
+.felt-fab-icon .b { opacity: 0; rotate: -90deg; scale: 0.7; }
+.felt-fab-icon[data-open="true"] .a { opacity: 0; rotate: 90deg; scale: 0.7; }
+.felt-fab-icon[data-open="true"] .b { opacity: 1; rotate: 0deg; scale: 1; }
+html[data-calm] .felt-fab-icon > span { transition: none; }

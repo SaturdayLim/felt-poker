@@ -101,7 +101,7 @@ export default function Games({ player: arg }: { player?: string }) {
 }
 
 /** A row that slides left to show Delete. A long swipe deletes at once; Undo puts the game back. */
-function SwipeDelete({ children, label, onDelete }: { children: ReactNode; label: string; onDelete: (row: HTMLElement) => void }) {
+export function SwipeDelete({ children, label, onDelete }: { children: ReactNode; label: string; onDelete: (row: HTMLElement) => void }) {
   const row = useRef<HTMLDivElement>(null);
   const [x, setX] = useState(0);
   const [drag, setDrag] = useState(false);

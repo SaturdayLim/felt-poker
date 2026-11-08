@@ -4,6 +4,7 @@ import { back, backTo, go, setPath } from '../router';
 import { useDragList } from '../components/dragList';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton } from '../components/ui';
 import { shrinkAway } from '../lib/motion';
+import { SwipeDelete } from './Games';
 import { rememberLogButton } from '../lib/swipeBack';
 import { SeatPicker, CodeControl, PlayerName, openPlayer } from '../components/players';
 import {
@@ -20,7 +21,6 @@ import type { ChipMove, Game, Hand, ID } from '../types';
 type SheetKind =
   | { k: 'clockout'; pid: ID }
   | { k: 'buyins'; pid: ID }
-  | { k: 'back'; pid: ID }
   | { k: 'seats' }
   | { k: 'edit' }
   | { k: 'count'; pid: ID }
@@ -58,7 +58,13 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
     const cur = playerStatus(g, pid);
     if (v === cur) return;
     if (v === 'out') { if (isCash) setSheet({ k: 'clockout', pid }); else { st.bust(g.id, pid); toast(`${name(pid)} busted`); } return; }
-    if (cur === 'out') { setSheet({ k: 'back', pid }); return; }
+    // back in: the seat wakes up with the balance they left with. No question about how they buy back; stacks can be adjusted after
+    if (cur === 'out') {
+      if (isCash && hasCashedOut(g, pid)) { const left = cashOutUnits(g, pid); st.setCashOut(g.id, pid, null); st.setStatus(g.id, pid, 'playing'); toast(`${name(pid)} is back with ${units(left)} chips.`); }
+      else if (!isCash) { st.unbust(g.id, pid); toast(`${name(pid)} is back in.`); }
+      else rebuy(pid);
+      return;
+    }
     st.setStatus(g.id, pid, v);
     toast(v === 'away' ? `${name(pid)} is away. Clock paused.` : `${name(pid)} is back. Clock running.`);
   };
@@ -160,7 +166,6 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
       })()}
       {sheet?.k === 'move' && <MoveSheet g={g} name={name} onClose={() => setSheet(null)} />}
       {sheet?.k === 'buyins' && <BuyInsSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
-      {sheet?.k === 'back' && <BackInSheet g={g} pid={sheet.pid} name={name(sheet.pid)} onClose={() => setSheet(null)} />}
       {sheet?.k === 'seats' && <SeatDrawSheet g={g} onClose={() => setSheet(null)} />}
       {sheet?.k === 'edit' && <EditGameSheet g={g} onClose={() => setSheet(null)} />}
     </div>
@@ -263,25 +268,6 @@ function AddPlayerCard({ g }: { g: Game }) {
   );
 }
 
-/** Red lamp tapped on a clocked-out or busted player: undo, or buy back in. */
-function BackInSheet({ g, pid, name, onClose }: { g: Game; pid: ID; name: string; onClose: () => void }) {
-  const st = useStore();
-  const isCash = g.type === 'cash';
-  return (
-    <Sheet open onClose={onClose} title={`${name} back in`}>
-      <p className="sat-small sat-muted">{isCash ? `Left with ${units(cashOutUnits(g, pid))} chips.` : 'Busted.'} Choose how they rejoin.</p>
-      <button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => { st.addBuyIn(g.id, pid, isCash ? g.defaultBuyIn : g.tournament!.buyIn); toast(`${name} bought back in`); onClose(); }}>
-        {isCash ? `Buy back in for ${units(g.defaultBuyIn)}` : 'Re-enter'}
-      </button>
-      <button className="sat-btn sat-btn--block" onClick={() => {
-        if (isCash) { st.setCashOut(g.id, pid, null); st.setStatus(g.id, pid, 'playing'); } else st.unbust(g.id, pid);
-        toast(isCash ? 'Clock-out undone' : 'Bust undone');
-        onClose();
-      }}><Icon name="undo" /> {isCash ? 'Undo clock-out (wrong tap)' : 'Undo bust (wrong tap)'}</button>
-    </Sheet>
-  );
-}
-
 function HandList({ g, closed }: { g: Game; closed: boolean }) {
   const st = useStore();
   const hands = [...g.hands].reverse();
@@ -306,7 +292,7 @@ function HandList({ g, closed }: { g: Game; closed: boolean }) {
             {!closed && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={(e) => shrinkAway(e.currentTarget.closest('.felt-hand'), () => { st.deleteHand(g.id, h.id); toast(`Hand ${h.n} removed`); })}>Remove</button>}
           </div>
         </div>
-      ) : (
+      ) : (() => { const card = (
         <button key={h.id} className="felt-hand" onClick={() => go(`game/${g.id}/hand/${h.id}`)}>
           <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
             <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap', minWidth: 0 }}>
@@ -326,7 +312,10 @@ function HandList({ g, closed }: { g: Game; closed: boolean }) {
             </div>
           </div>
         </button>
-      ); })())}
+      ); return closed ? card : (
+        // a swipe left shows Delete; a long swipe deletes at once. Undo puts the hand back
+        <SwipeDelete key={h.id} label={`Delete hand ${h.n}`} onDelete={(r) => shrinkAway(r, () => withUndo(`Hand ${h.n} deleted.`, () => st.deleteHand(g.id, h.id)))}>{card}</SwipeDelete>
+      ); })(); })())}
     </div>
   );
 }

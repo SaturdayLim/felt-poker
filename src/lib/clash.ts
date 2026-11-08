@@ -6,6 +6,12 @@ export const privateOf = (h: Hand): Record<ID, Card[]> => h.private ?? (h.mine ?
 /** Private cards that count: a full pair only. Half a pair says nothing, so it stays out of all analysis. */
 export const fullPairs = (h: Hand): Record<ID, Card[]> => Object.fromEntries(Object.entries(privateOf(h)).filter(([, c]) => c.length === 2));
 
+/** A player showed two cards at the table and entered a different pair as their hidden cards: both cannot be right. */
+const differsFromShown = (h: Hand, p: ID, cards: Card[]): boolean => {
+  const own = h.shown.find((s) => s.playerId === p)?.cards;
+  return !!own && own.length === 2 && !cards.every((c) => own.includes(c));
+};
+
 /** Players whose private cards for a hand cannot all be right: two players hold the same card, or a private card
     is also on the board or shown by another player. Felt tells each of them in private. Until an entry changes,
     every entry counts as entered, so each player's stats follow what that player reported, even if it is impossible.
@@ -22,6 +28,7 @@ export function clashingPlayers(h: Hand): ID[] {
     }
   }
   for (const [p, cards] of Object.entries(priv)) {
+    if (differsFromShown(h, p, cards)) out.add(p);
     for (const c of cards) {
       if (h.board.includes(c)) out.add(p);
       if (h.shown.some((s) => s.playerId !== p && s.cards.includes(c))) out.add(p);
@@ -41,6 +48,7 @@ export function clashWhy(h: Hand, p: ID): ClashWhy[] {
   const mine = priv[p];
   if (!mine) return [];
   const out = new Set<ClashWhy>();
+  if (differsFromShown(h, p, mine)) out.add('shown');
   for (const c of mine) {
     if (h.board.includes(c)) out.add('board');
     if (h.shown.some((s) => s.playerId !== p && s.cards.includes(c))) out.add('shown');

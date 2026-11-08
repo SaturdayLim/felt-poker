@@ -135,6 +135,16 @@ describe('stack estimate anchors', () => {
     expect(est.spread.Nat).toBe(0);
   });
 
+  it('a hand opened before the buy-ins were entered still sees the first buy-ins', () => {
+    const g = game();
+    g.buyIns = g.buyIns.map((b) => ({ ...b, at: 50 }));
+    g.hands = [hand(1, 10)];
+    expect(estimateStacks(g, 1).stack.Bel).toBe(200);
+    // a rebuy after the hand started still waits for the next hand
+    g.buyIns = [...g.buyIns, { id: 'rb', playerId: 'Bel', amount: 100, at: 60 }];
+    expect(estimateStacks(g, 1).stack.Bel).toBe(200);
+  });
+
   it('stacks before a hand ignore the cash-outs at the end of the game', () => {
     const g = game();
     g.hands = [hand(1, 10), hand(2, 20)];

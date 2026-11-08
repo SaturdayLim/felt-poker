@@ -31,8 +31,13 @@ describe('clashingPlayers', () => {
   });
   it('flags a private card another player showed, but not the same player', () => {
     const h = hand({ private: { a: ['As', 'Kd'], b: ['2c', '3h'] }, shown: [{ playerId: 'b', cards: ['As', 'Kh'] }] });
-    expect(clashingPlayers(h)).toEqual(['a']);
+    // a holds a card b showed. b's own hidden pair also differs from the pair b showed, so b is flagged as well
+    expect(clashingPlayers(h).sort()).toEqual(['a', 'b']);
     expect(clashingPlayers(hand({ private: { b: ['As', 'Kh'] }, shown: [{ playerId: 'b', cards: ['As', 'Kh'] }] }))).toEqual([]);
+  });
+  it('flags a player whose hidden pair differs from the pair they showed', () => {
+    expect(clashingPlayers(hand({ private: { a: ['As', 'Kd'] }, shown: [{ playerId: 'a', cards: ['2c', '3h'] }] }))).toEqual(['a']);
+    expect(clashingPlayers(hand({ private: { a: ['Kd', 'As'] }, shown: [{ playerId: 'a', cards: ['As', 'Kd'] }] }))).toEqual([]);
   });
   it('reads the older single-owner form', () => {
     expect(clashingPlayers(hand({ mine: { playerId: 'a', cards: ['As', 'Kd'] }, board: ['Kd'] }))).toEqual(['a']);

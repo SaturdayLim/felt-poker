@@ -40,7 +40,7 @@ export function clashingPlayers(h: Hand): ID[] {
 /** The hand numbers a player must check. Only saved hands count, so nothing leaks while a hand is in play. */
 export const clashHands = (g: Game, p: ID): number[] => g.hands.filter((h) => !h.missed && clashingPlayers(h).includes(p)).map((h) => h.n);
 
-export type ClashWhy = 'board' | 'shown' | 'entry';
+export type ClashWhy = 'board' | 'shown' | 'entry' | 'own';
 /** Why a player's cards for a hand cannot all be right: on the board, shown by another player, or also in another
     player's hidden entry. Only that player sees it. The other entry's cards stay hidden. */
 export function clashWhy(h: Hand, p: ID): ClashWhy[] {
@@ -48,7 +48,7 @@ export function clashWhy(h: Hand, p: ID): ClashWhy[] {
   const mine = priv[p];
   if (!mine) return [];
   const out = new Set<ClashWhy>();
-  if (differsFromShown(h, p, mine)) out.add('shown');
+  if (differsFromShown(h, p, mine)) out.add('own');
   for (const c of mine) {
     if (h.board.includes(c)) out.add('board');
     if (h.shown.some((s) => s.playerId !== p && s.cards.includes(c))) out.add('shown');
@@ -61,7 +61,7 @@ export function clashWhy(h: Hand, p: ID): ClashWhy[] {
     be right, so it is left out of stats and reports. Blue: it only contradicts another hidden entry; it still counts. */
 export function clashLevel(h: Hand, p: ID): 'red' | 'blue' | null {
   const why = clashWhy(h, p);
-  return why.includes('board') || why.includes('shown') ? 'red' : why.includes('entry') ? 'blue' : null;
+  return why.includes('board') || why.includes('shown') || why.includes('own') ? 'red' : why.includes('entry') ? 'blue' : null;
 }
 
 /** Hidden pairs that count in stats and reports. With the check on (the default), a red entry is left out. */

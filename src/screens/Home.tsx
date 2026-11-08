@@ -31,7 +31,7 @@ export default function Home() {
           return (
             <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
               <span className="felt-live-name"><span className="felt-dot felt-dot--pulse" />{g.name}</span>
-              <span className="sat-small sat-muted">Live{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hands</span>
+              <span className="sat-small sat-muted">Live{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}</span>
               <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
             </button>
           );
@@ -65,7 +65,7 @@ export default function Home() {
             <h2 className="sat-h3">Recent games</h2>
             {closed.length > 3 && <a className="sat-small" href="#/games">Show all</a>}
           </div>
-          {closed.length === 0 && live.length === 0 && <Empty title="No games yet">Start a cash game or tournament to begin the record.</Empty>}
+          {closed.length === 0 && live.length === 0 && <Empty title="No games yet">{FEATURES.tournaments ? 'Start a cash game or tournament to begin the record.' : 'Start a cash game to begin the record.'}</Empty>}
           {closed.length === 0 && live.length > 0 && <p className="sat-small sat-muted">Closed games appear here.</p>}
           {closed.length > 0 && (
             <div className="sat-glass-2 felt-list">

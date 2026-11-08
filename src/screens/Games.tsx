@@ -55,7 +55,7 @@ export default function Games({ player: arg }: { player?: string }) {
               return (
                 <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
                   <span className="felt-live-name">{g.name}</span>
-                  <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} cash` : 'Tournament'}{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hands{groupName(g) ? `, ${groupName(g)}` : ''}</span>
+                  <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} cash` : 'Tournament'}{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}{groupName(g) ? `, ${groupName(g)}` : ''}</span>
                   <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
                 </button>
               );

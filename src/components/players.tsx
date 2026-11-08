@@ -361,7 +361,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
               ))}
             </div>
           )}
-          {played.length > 0 && <button className="sat-btn sat-btn--block sat-btn--ghost" onClick={() => { onClose(); go(`games/${p.id}`); }}>Show all {played.length} games</button>}
+          {played.length > 0 && <button className="sat-btn sat-btn--block sat-btn--ghost" onClick={() => { onClose(); go(`games/${p.id}`); }}>Show all {played.length} game{played.length === 1 ? '' : 's'}</button>}
         </div>
       </Disclose>
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={stats}>Full stats</button>

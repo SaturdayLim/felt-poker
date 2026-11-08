@@ -71,7 +71,7 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
   const faceUp = (p: ID): Card[] => (locked(p) ? revealed![p] : mineOpen(p) && own!.cards?.length === 2 ? own!.cards : []);
 
   return (
-    <Sheet open onClose={onClose} edge={edge} title={unlock ? 'My cards' : pid ? name(pid) : 'Player cards'} sub={unlock ? 'Enter your player code to show your own cards on this phone.' : !pid ? 'Write only. Saved cards turn face down at once.' : ask ? 'Check the cards before saving.' : undefined}>
+    <Sheet open onClose={onClose} edge={edge} title={unlock ? 'My cards' : pid ? name(pid) : 'Player cards'} sub={unlock ? 'Enter your player code to show your own cards on this phone.' : !pid ? 'Write only. Saved cards turn face down.' : ask ? 'Check the cards before saving.' : undefined}>
       <SlidePane k={String(step)} i={step}>
         {unlock ? (
           <div className="sat-stack">
@@ -107,7 +107,7 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
         ) : ask ? (
           <div className="sat-stack">
             <div className="felt-cards" style={{ justifyContent: 'center' }}>{cards.map((c) => <PlayingCard key={c} card={c} size="lg" />)}</div>
-            <p style={{ textAlign: 'center' }}>You selected {cardText(cards[0])} and {cardText(cards[1])}. Confirm submission?</p>
+            <p style={{ textAlign: 'center' }}>You selected {cardText(cards[0])} and {cardText(cards[1])}. Save them?</p>
             <WordButton word="Saved" className="sat-btn sat-btn--primary sat-btn--lg sat-btn--block" run={confirm}>Confirm</WordButton>
             <button className="sat-btn sat-btn--block" onClick={() => { setCards([]); setAsk(false); }}>Change</button>
           </div>

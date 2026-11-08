@@ -79,7 +79,7 @@ function PlayerList() {
       <div className="sat-stack">
         <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
           <input className="sat-input" aria-label="New player name" placeholder="New player (e.g. Dani)" value={nm} onChange={(e) => setNm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} enterKeyHint="done" />
-          <button className="sat-btn sat-btn--primary" onClick={add} aria-disabled={!nm.trim()}><Icon name="plus" /> Add</button>
+          <button className={`sat-btn ${nm.trim() ? "sat-btn--primary" : ""}`} onClick={add} aria-disabled={!nm.trim()}><Icon name="plus" /> Add</button>
         </div>
         {players.some((p) => p.archived) && (
           <div className="sat-switch-row">

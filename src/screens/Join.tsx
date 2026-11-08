@@ -26,8 +26,8 @@ interface Me { id: string; name: string; clash?: number[];
 /** The hidden cards of each hand that this player can see: theirs only. A number with no cards means cards are logged but unknown here. */
 const loggedOf = (me: Me): Record<number, Card[]> => Array.isArray(me.logged) ? Object.fromEntries(me.logged.map((n) => [n, []])) : Object.fromEntries(Object.entries(me.logged ?? {}).map(([n, c]) => [Number(n), c]));
 /** Red: a card contradicts the table, and the hand is left out of stats. Blue: it only matches another hidden entry. */
-const WHY: Record<string, string> = { board: 'A card is also on the board.', shown: 'Another player showed a card you logged.', entry: 'Another player logged a card you logged.' };
-const levelOf = (why: string[] = []) => (why.includes('board') || why.includes('shown') ? 'red' : why.length ? 'blue' : null);
+const WHY: Record<string, string> = { board: 'A card is also on the board.', shown: 'Another player showed a card you logged.', own: 'You showed other cards than you logged.', entry: 'Another player logged a card you logged.' };
+const levelOf = (why: string[] = []) => (why.includes('board') || why.includes('shown') || why.includes('own') ? 'red' : why.length ? 'blue' : null);
 type Tab = 'action' | 'settings' | 'hands' | 'players';
 const TABS: { k: Tab; label: string }[] = [{ k: 'action', label: 'Action' }, { k: 'hands', label: 'Hands' }, { k: 'players', label: 'Players' }, { k: 'settings', label: 'Settings' }];
 

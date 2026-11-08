@@ -60,7 +60,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
     if (v === 'out') { if (isCash) setSheet({ k: 'clockout', pid }); else { st.bust(g.id, pid); toast(`${name(pid)} busted`); } return; }
     // back in: the seat wakes up with the balance they left with. No question about how they buy back; stacks can be adjusted after
     if (cur === 'out') {
-      if (isCash && hasCashedOut(g, pid)) { const left = cashOutUnits(g, pid); st.setCashOut(g.id, pid, null); st.setStatus(g.id, pid, 'playing'); toast(`${name(pid)} is back with ${units(left)} chips.`); }
+      if (isCash && hasCashedOut(g, pid)) { const left = cashOutUnits(g, pid); st.setCashOut(g.id, pid, null); st.setStatus(g.id, pid, 'playing'); st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: pid, chips: left, at: Date.now() }); }); toast(`${name(pid)} is back with ${units(left)} chips.`); }
       else if (!isCash) { st.unbust(g.id, pid); toast(`${name(pid)} is back in.`); }
       else rebuy(pid);
       return;
@@ -284,12 +284,12 @@ function HandList({ g, closed }: { g: Game; closed: boolean }) {
   return (
     <div className="sat-glass-2 felt-list">
       {rows.map((row) => row.k === 'move' ? (
-        <MoveRow key={row.m.id} m={row.m} onRemove={closed ? undefined : (e) => shrinkAway(e.currentTarget.closest('.felt-move'), () => { st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); }); toast('Chip move removed'); })} />
+        <MoveRow key={row.m.id} m={row.m} onRemove={closed ? undefined : (e) => shrinkAway(e.currentTarget.closest('.felt-move'), () => { withUndo('Chip move deleted.', () => st.updateGame(g.id, (x) => { x.moves = (x.moves ?? []).filter((y) => y.id !== row.m.id); })); })} />
       ) : (() => { const h = row.h; return h.missed ? (
         <div key={h.id} className="felt-hand felt-hand--missed">
           <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
             <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}><span className="sat-mono sat-small sat-muted">{h.n}</span><span className="sat-muted">Missed hand</span></span>
-            {!closed && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={(e) => shrinkAway(e.currentTarget.closest('.felt-hand'), () => { st.deleteHand(g.id, h.id); toast(`Hand ${h.n} removed`); })}>Remove</button>}
+            {!closed && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={(e) => shrinkAway(e.currentTarget.closest('.felt-hand'), () => withUndo(`Hand ${h.n} deleted.`, () => st.deleteHand(g.id, h.id)))}>Delete</button>}
           </div>
         </div>
       ) : (() => { const card = (

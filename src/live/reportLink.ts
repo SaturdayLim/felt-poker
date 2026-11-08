@@ -20,14 +20,14 @@ export const reportLinkOf = (gameId: ID): { link: string; expiresAt: number } | 
 };
 
 /** Puts the report online, or refreshes it under the same link and restarts the 30 days. */
-export async function publishReport(g: Game, players: Player[], settings: Settings): Promise<string> {
+export async function publishReport(g: Game, players: Player[], settings: Settings, opts: { gameLog?: boolean } = {}): Promise<string> {
   const driver = pickDriver();
   if (!driver) throw new Error('The live link is not set up yet.');
   const uid = await driver.signIn();
   const kept = load();
   const live = kept[g.id] && kept[g.id].expiresAt > Date.now() ? kept[g.id] : null;
   const id = live?.id ?? newRoomId(), key = live?.key ?? newRoomKey();
-  const { report } = await buildReport(g, players, settings);
+  const { report } = await buildReport(g, players, settings, opts);
   const expiresAt = Date.now() + REPORT_DAYS * DAY;
   await driver.putReport(id, { owner: uid, createdAt: Date.now(), expiresAt, title: await seal(g.name, key), data: await seal(report, key) });
   kept[g.id] = { id, key, expiresAt };

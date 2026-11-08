@@ -1,4 +1,5 @@
 import { rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
+import { ICON_GRID, ICON_STROKE, awardPaths } from './awardIcons';
 
 /* Canvas drawing for the shareable report images, in the Saturday Signature style:
    mesh background, glass-2 panels, Instrument Serif titles and KPIs (never bold), Geist text,
@@ -227,8 +228,23 @@ export function feltMark(ctx: Ctx, x: number, y: number, h: number) {
   ctx.restore();
 }
 
-/** Lay blocks onto one or more canvases no taller than maxH. */
-export function paginate(blocks: Block[], opts: { maxH: number; top: (page: number) => Block; footer: (page: number, pages: number) => Block }): HTMLCanvasElement[] {
+/** An award mark (see awardIcons.ts) with its top-left corner at (x, y), `size` px square, in one colour. */
+export function awardIcon(ctx: Ctx, title: string, x: number, y: number, size: number, color: string = C.text) {
+  const s = size / ICON_GRID;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = ICON_STROKE;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const d of awardPaths(title)) ctx.stroke(new Path2D(d));
+  ctx.restore();
+}
+
+/** Lay blocks onto one or more canvases no taller than maxH. `scale` draws each canvas at that many pixels per
+    layout pixel (2 = twice as many pixels, so it stays sharp when zoomed on a phone). */
+export function paginate(blocks: Block[], opts: { maxH: number; top: (page: number) => Block; footer: (page: number, pages: number) => Block; scale?: number }): HTMLCanvasElement[] {
   const pages: Block[][] = [];
   let cur: Block[] = [];
   let h = 0;
@@ -254,24 +270,27 @@ export function paginate(blocks: Block[], opts: { maxH: number; top: (page: numb
   return pages.map((page, pi) => {
     const foot = opts.footer(pi, pages.length);
     const total = page.reduce((a, b) => a + b.h, 0) + foot.h;
+    const k = opts.scale ?? 1;
+    const H = Math.ceil(total);
     const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = Math.ceil(total);
+    canvas.width = W * k;
+    canvas.height = H * k;
     const ctx = canvas.getContext('2d')!;
+    ctx.scale(k, k);
     // The mesh: three soft colour fields, as body.sat::before in the kit
     ctx.fillStyle = C.bg;
-    ctx.fillRect(0, 0, W, canvas.height);
-    const vmax = Math.max(W, Math.min(canvas.height, 1920));
+    ctx.fillRect(0, 0, W, H);
+    const vmax = Math.max(W, Math.min(H, 1920));
     const field = (fx: number, fy: number, r: number, color: string) => {
       const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, r);
       g.addColorStop(0, color);
       g.addColorStop(0.7, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, canvas.height);
+      ctx.fillRect(0, 0, W, H);
     };
-    field(W * 0.08, Math.min(canvas.height, 1920) * 0.04, 0.42 * vmax * 1.4, C.mesh1);
-    field(W * 0.96, canvas.height * 0.92, 0.46 * vmax * 1.4, C.mesh2);
-    field(W * 0.7, Math.min(canvas.height, 1920) * 0.18, 0.3 * vmax * 1.4, C.mesh3);
+    field(W * 0.08, Math.min(H, 1920) * 0.04, 0.42 * vmax * 1.4, C.mesh1);
+    field(W * 0.96, H * 0.92, 0.46 * vmax * 1.4, C.mesh2);
+    field(W * 0.7, Math.min(H, 1920) * 0.18, 0.3 * vmax * 1.4, C.mesh3);
     let y = 0;
     for (const b of page) { b.draw(ctx, y); y += b.h; }
     foot.draw(ctx, y);

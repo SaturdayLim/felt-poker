@@ -61,3 +61,12 @@ html[data-calm] .felt-search-input, html[data-calm] .felt-search-clear { transit
 .felt-fig-chev { position: absolute; right: 8px; top: 8px; color: var(--sat-muted); transition: rotate var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out); rotate: 0deg; }
 .felt-fig-chev[data-open="true"] { rotate: 180deg; }
 html[data-calm] .felt-fig-chev { transition: none; }
+
+/* the player code with its Copy code button beneath it */
+.felt-codectl-col { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+
+/* Rebuy sheet: one row per busted player, a stepper in whole buy-ins and the two choices */
+.felt-rebuy-row + .felt-rebuy-row { margin-top: var(--sat-space-4); }
+.felt-rebuy-ctl { display: flex; align-items: center; gap: var(--sat-space-2); flex-wrap: wrap; }
+.felt-rebuy-step { display: inline-flex; align-items: center; gap: var(--sat-space-1); margin-right: auto; }
+.felt-rebuy-n { min-width: 5.5em; text-align: center; font-weight: 600; }

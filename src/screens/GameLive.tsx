@@ -10,7 +10,7 @@ import { SeatPicker, CodeControl, PlayerName, openPlayer } from '../components/p
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
-import { buyInsEquivalent, dateLabel, duration, gameLength, inBB, money, timeLabel, units } from '../lib/format';
+import { buyInsEquivalent, dateLabel, duration, inBB, runningLabel, money, timeLabel, units } from '../lib/format';
 import { estimateStacks, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
@@ -57,12 +57,13 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const onLight = (pid: ID, v: Light) => {
     const cur = playerStatus(g, pid);
     if (v === cur) return;
-    if (v === 'out') { if (isCash) setSheet({ k: 'clockout', pid }); else { st.bust(g.id, pid); toast(`${name(pid)} busted`); } return; }
-    // back in: the seat wakes up with the balance they left with. No question about how they buy back; stacks can be adjusted after
+    if (v === 'out') { if (isCash) setSheet({ k: 'clockout', pid }); else { st.bust(g.id, pid); toast(`${name(pid)} is out.`); } return; }
+    // back in: the store resumes the balance they left with, or buys them in again. Stacks can be adjusted after
     if (cur === 'out') {
-      if (isCash && hasCashedOut(g, pid)) { const left = cashOutUnits(g, pid); st.setCashOut(g.id, pid, null); st.setStatus(g.id, pid, 'playing'); st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: pid, chips: left, at: Date.now() }); }); toast(`${name(pid)} is back with ${units(left)} chips.`); }
-      else if (!isCash) { st.unbust(g.id, pid); toast(`${name(pid)} is back in.`); }
-      else rebuy(pid);
+      const r = st.backIn(g.id, pid);
+      if (r.kind === 'resumed') toast(`${name(pid)} is back with ${units(r.chips)} chips.`);
+      else if (r.kind === 'rebuy') toast(`${name(pid)} rebuys ${units(r.chips)} chips.`);
+      else if (r.kind === 'reentry') toast(`${name(pid)} re-enters.`);
       return;
     }
     st.setStatus(g.id, pid, v);
@@ -71,19 +72,14 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const rebuy = (pid: ID) => {
     const amt = isCash ? g.defaultBuyIn : g.tournament!.buyIn;
     st.addBuyIn(g.id, pid, amt);
-    toast(`${name(pid)}: ${isCash ? `rebuy of ${units(amt)} chips` : 're-entry'} added`);
+    toast(isCash ? `${name(pid)} rebuys ${units(amt)} chips.` : `${name(pid)} re-enters.`);
   };
 
   return (
     <div className="felt-page">
-      <Header back={() => back(closed ? `game/${g.id}/close` : '')} title={g.name} sub={gameSubtitle(g)}
-        right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>}>
-        <div className="felt-subnav sat-glass" role="tablist" aria-label="Game sections">
-          <TabPill />
-          <button role="tab" aria-selected={tab === 'players'} onClick={() => setTab('players')}><Icon name="users" size={18} /> Players <span className="sat-num">{inPlayers.length}</span></button>
-          <button role="tab" aria-selected={tab === 'hands'} onClick={() => setTab('hands')}><Icon name="cards" size={18} /> Hands <span className="sat-num">{g.hands.length}</span></button>
-        </div>
-      </Header>
+      <Header back={() => back(closed ? `game/${g.id}/close` : '')} banner={g.name} sub={gameSubtitle(g)}
+        tabs={[{ label: `Players ${inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }]}
+        right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>} />
 
       <SlidePane k={tab} i={tab === 'players' ? 0 : 1}>
       <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
@@ -98,7 +94,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         <div className="felt-summary">
           <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins` : money(totalPotMoney(g), g.currency)}</b></span>
           <span><Caption>Chips</Caption><b className="sat-num">{units(totalBuyInUnits(g))}</b></span>
-          <span><Caption>{closed ? 'Length' : 'Running'}</Caption><b className="sat-num">{gameLength(g)}</b></span>
+          <span><Caption>{closed ? 'Length' : 'Running'}</Caption><b className="sat-num">{runningLabel(g)}</b></span>
         </div>
 
         {tab === 'players' && (
@@ -152,7 +148,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         const exact = !(est.spread[sheet.pid] > 0);
         return <AmountSheet g={g} title={`Clock out ${name(sheet.pid)}`} label="Chips at clock-out" tip="clockOut" initial={v !== undefined ? Math.max(0, Math.round(v)) : null}
           hint={v !== undefined ? (exact ? 'Filled from the stack estimate. Change it to the real count.' : `Estimate ${stackLabel(g, est, sheet.pid)}. Enter the real count.`) : undefined}
-          cta="Clock out" onClose={() => setSheet(null)} onSave={(n) => { st.clockOut(g.id, sheet.pid, n); setSheet(null); toast(`${name(sheet.pid)} clocked out with ${units(n)} chips`); }} />;
+          cta="Clock out" onClose={() => setSheet(null)} onSave={(n) => { st.clockOut(g.id, sheet.pid, n); setSheet(null); toast(`${name(sheet.pid)} clocked out with ${units(n)} chips.`); }} />;
       })()}
       {sheet?.k === 'count' && (() => {
         const v = est.stack[sheet.pid];
@@ -160,8 +156,8 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         return <AmountSheet g={g} title={`Count ${name(sheet.pid)}`} label="Chips counted" tip="stackCount" initial={exact && v !== undefined ? Math.max(0, Math.round(v)) : null}
           hint={exact ? 'The estimate is exact. A count still overrides it.' : `Estimate ${stackLabel(g, est, sheet.pid)}. The count makes it exact again.`}
           cta="Save count" onClose={() => setSheet(null)}
-          onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips`); }}>
-          {isCash && <AddChips g={g} onAdd={(amt) => { st.addBuyIn(g.id, sheet.pid, amt); setSheet(null); toast(`${name(sheet.pid)}: rebuy of ${units(amt)} chips added`); }} />}
+          onSave={(n) => { st.updateGame(g.id, (x) => { (x.counts ??= []).push({ id: uid(), playerId: sheet.pid, chips: n, at: Date.now() }); }); setSheet(null); toast(`${name(sheet.pid)} counted at ${units(n)} chips.`); }}>
+          {isCash && <AddChips g={g} onAdd={(amt) => { st.addBuyIn(g.id, sheet.pid, amt); setSheet(null); toast(`${name(sheet.pid)} rebuys ${units(amt)} chips.`); }} />}
         </AmountSheet>;
       })()}
       {sheet?.k === 'move' && <MoveSheet g={g} name={name} onClose={() => setSheet(null)} />}
@@ -188,7 +184,7 @@ function SeatList({ g, ids, disabled, render }: { g: Game; ids: ID[]; disabled?:
       for (const p of [...x.playerIds].sort((a, b) => (x.seats[a] ?? 99) - (x.seats[b] ?? 99))) if (!(p in seats)) seats[p] = s++;
       x.seats = seats;
     });
-    toast('Seat order saved');
+    toast('Seat order saved.');
   });
   return (
     <div ref={list.wrap} className={`felt-seatlist ${list.listClass}`}>
@@ -262,7 +258,7 @@ function AddPlayerCard({ g }: { g: Game }) {
       </div>
       <SeatPicker inGame={g.playerIds} onPick={(p) => {
         st.addPlayerToGame(g.id, p.id);
-        toast(`${p.name} seated${isCash ? ` with ${units(g.defaultBuyIn)} chips` : ''}`);
+        toast(`${p.name} seated${isCash ? ` with ${units(g.defaultBuyIn)} chips` : ''}.`);
       }} />
     </div>
   );
@@ -356,11 +352,11 @@ function MoveSheet({ g, name, onClose }: { g: Game; name: (id: ID) => string; on
   const ok = !!from && to !== undefined && to !== from && n !== null && n > 0;
   const afterN = g.hands[g.hands.length - 1]?.n ?? 0;
   const save = () => {
-    if (!ok) { toast(!from ? 'Pick who paid.' : to === undefined ? 'Pick who got the chips.' : 'Type the chips moved (e.g. 20).'); return; }
+    if (!ok) { toast(!from ? 'Pick who paid.' : to === undefined ? 'Pick who got the chips.' : 'Type the chips moved (for example 20).'); return; }
     st.updateGame(g.id, (x) => {
       (x.moves ??= []).push({ id: uid(), from: from!, to: to ?? undefined, amount: n!, kind, note: note.trim() || undefined, at: Date.now(), afterN });
     });
-    toast(`${name(from!)} paid ${to ? name(to) : 'off the table'} ${units(n!)} chips`);
+    toast(`${name(from!)} paid ${to ? name(to) : 'off the table'} ${units(n!)} chips.`);
     onClose();
   };
   return (
@@ -409,7 +405,7 @@ function AmountSheet({ g, title, label, tip, hint, initial, isMoney, cta = 'Add'
         <label htmlFor="amt">{label ?? (isMoney ? `Amount (${g.currency})` : 'Amount (chips)')}{tip && <> <Help k={tip} /></>}</label>
         <input id="amt" className="sat-input sat-num" style={{ fontSize: '1.5rem', minHeight: 56 }} autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="0" aria-invalid={v !== '' && bad} />
         {!isMoney && n !== null && <span className="sat-hint">{inBB(g, n)}{hint ? `. ${hint}` : ''}</span>}
-        {v !== '' && bad && <span className="sat-error">Use numbers only (e.g. 200).</span>}
+        {v !== '' && bad && <span className="sat-error">Use numbers only (for example 200).</span>}
       </div>
       {!isMoney && g.type === 'cash' && !hint && (
         <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>

@@ -1,5 +1,16 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.4.0', date: '9 Nov 2026', notes: [
+    'Shown cards always win over what a player logged. No flag, no message.',
+    'Not shown and muck are one thing. The last player left with hidden cards wins the pot as a takedown.',
+    'A busted player gets a Rebuy sheet before the next hand. Type any amount, or skip.',
+    'Stacks no longer drop to zero when a clocked-out player is topped up.',
+    'The action table opens two columns when the blinds are posted, and the box being filled stays in view above the keypad.',
+    'Keypad: the info buttons no longer overlap Backspace.',
+    'Player view: Big pips, custom card colours, and the flop turns face up as the host picks it.',
+    'Reports: award icons, Comeback needs a 20 BB fall and a 50 BB finish, takedown caption, a Settings tab, every seat in Result by seat, the result and street for each hand, a starting-hand map, a full action log, an optional Game Log tab and clear file names. The game summary saves as separate sharp pictures.',
+    'The playing light is clearer in the light theme. Replace code has a Copy code button. Hands swipe left to delete.',
+  ] },
   { version: '1.3.4', date: '8 Nov 2026', notes: [
     'Load screen: two grey chips drop one after the other and fade back. The gold S draws around them and glows.',
     'Changing tab swipes only the content. The bars stay. The swipe and the chip roll start and end together.',

@@ -4,7 +4,6 @@ import { Empty, Header, Icon } from '../components/ui';
 import { fetchReport } from '../live/reportLink';
 import { fillTemplate, loadTemplate } from '../report/htmlReport';
 import { shareFiles } from '../report/share';
-import { slug } from '../report/csv';
 
 export default function ReportLink({ id, reportKey }: { id: string; reportKey: string }) {
   const [state, setState] = useState<'load' | 'gone' | 'bad' | { html: string; title: string }>('load');
@@ -23,7 +22,7 @@ export default function ReportLink({ id, reportKey }: { id: string; reportKey: s
   if (state === 'load') return <div className="felt-page"><Header title="Report" /><div className="sat-stack" aria-label="Loading the report"><div className="felt-skel" style={{ height: 180 }} /><div className="felt-skel" style={{ height: 320 }} /></div></div>;
   if (state === 'gone') return <div className="felt-page"><Header title="Report" /><Empty title="This report link has expired">Ask the host to share the report again.</Empty></div>;
   if (state === 'bad') return <div className="felt-page"><Header title="Report" /><Empty title="Cannot open the report">Check the connection and the link, then try again.</Empty></div>;
-  const download = () => shareFiles([new File([state.html], `${slug(state.title)}-report.html`, { type: 'text/html' })], `${state.title} report`);
+  const download = () => shareFiles([new File([state.html], `${state.title.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim() || 'game'} - game record.html`, { type: 'text/html' })], `${state.title} report`);
   return (
     <div className="felt-report-view">
       <div className="felt-report-bar sat-glass-2">

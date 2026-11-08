@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
-import { motionPref, phoneAsksCalm, setMotionPref, type MotionPref } from '../lib/motion';
+import { motionPref, setMotionPref, type MotionPref } from '../lib/motion';
 import { haptic } from '../lib/haptics';
 import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
@@ -53,7 +53,6 @@ function MotionField() {
         <div className="felt-detents-thumb" style={{ left: `${pos * 100}%` }} aria-hidden="true" />
       </div>
       <div className="felt-detents-labels" aria-hidden="true">{SPEEDS.map((x, i) => <span key={x.v} data-on={i === idx}>{x.label}</span>)}</div>
-      <p className="sat-small sat-muted">{phoneAsksCalm() ? 'Reduce Motion is on for this phone.' : 'Reduce Motion is off for this phone.'}</p>
     </section>
   );
 }
@@ -217,7 +216,7 @@ export default function Settings() {
 
         <section className="sat-glass sat-card sat-stack">
           <div className="sat-split"><h2 className="sat-h2">Data</h2><Help k="backup" /></div>
-          <p className="sat-small sat-muted">{count(games.length, 'game')} and {count(players.length, 'player')} stored on this phone{usage ? ` (${usage})` : ''}. Nothing is sent online unless you turn on a live link.</p>
+          <p className="sat-small sat-muted">{count(games.length, 'game')} and {count(players.length, 'player')} stored on this phone{usage ? ` (${usage})` : ''}.</p>
           <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(2) }}>
             <button className="sat-btn sat-btn--primary" onClick={backup}><Icon name="download" /> Back up (1 file)</button>
             <button className="sat-btn" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Restore</button>

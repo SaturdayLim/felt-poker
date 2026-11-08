@@ -1,1 +1,22 @@
 /* recorder area styles (owned by one package at a time) */
+
+/* Keypad hit areas: every key is 44 px high with 8 px between neighbours. A tip is a 20 px circle inside its own
+   44 px lane beside the element it explains, at that element's top, so its target never covers a key. */
+.felt-keypad { gap: 8px; }
+.felt-keypad-quick, .felt-keypad-digits, .felt-keypad-err-acts { gap: 8px; }
+.felt-keypad-amount { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.felt-keypad .felt-keypad-line { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; align-items: start; }
+.felt-keypad .felt-keypad-line--act { grid-template-columns: auto 44px minmax(0, 1fr); }
+.felt-keypad .felt-keypad-field { min-height: 48px; padding-right: 2px; }
+.felt-keypad .felt-keypad-bs { width: 48px; min-height: 44px; }
+.felt-keypad .felt-keypad-clear { min-height: 44px; }
+.felt-keypad .felt-keypad-line--act > button { min-height: 48px; }
+.felt-keypad .felt-keypad-tip { position: relative; display: flex; justify-content: center; align-items: flex-start; width: 44px; height: 44px; }
+.felt-keypad .felt-keypad-tip .sat-tip { position: static; }
+.felt-keypad .felt-keypad-tip .sat-tip-btn { width: 20px; height: 20px; min-width: 20px; min-height: 20px; background: var(--sat-solid-2); }
+.felt-keypad .felt-keypad-tip .sat-tip-btn::after { inset: 0; }
+
+/* Card picker header and the dock: 44 px keys, 8 px apart. The 52 picker keys are 13 across, so they stay narrow (see the audit). */
+.felt-picker-wrap .sat-btn--sm { min-height: 44px; min-width: 44px; }
+.felt-picker-wrap .sat-split .sat-cluster { gap: 8px; }
+.felt-picker { gap: 3px; }

@@ -69,7 +69,10 @@ export default function Insights({ initialPlayer, embedded, mode }: { initialPla
             <TabPill />
             {RANGES.map((r) => <button key={r.k} role="radio" aria-checked={range === r.k} onClick={() => setRange(r.k)}>{r.label}</button>)}
           </div>
-          <Help k="periods" />
+          {/* one tip per chip, each a circle at the top right of its chip */}
+          <div className="felt-period-tips">
+            {RANGES.map((r) => <span key={r.k} className="felt-tipped">{r.k === 'cy' ? <Help k="periodCYTD" /> : r.k === '30d' ? <Help k="periodL30D" /> : null}</span>)}
+          </div>
         </div>
 
         {games.length === 0 ? (

@@ -45,3 +45,14 @@
 
 /* a hand row inside a swipe wrapper keeps the list's side padding */
 .felt-swipe-row > .felt-hand { padding-inline: var(--sat-space-4); }
+
+/* Status light, playing: a clear mid-green on every card. The shared --sat-pos is a dark green in light mode and read as off. */
+.felt-lamp--playing { color: #1f9d55; }
+html[data-theme="dark"] .felt-lamp--playing { color: #3ddc84; }
+@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .felt-lamp--playing { color: #3ddc84; } }
+
+/* Banner with a back button and a subtitle (the game page) */
+.felt-banner-back { flex: none; margin-left: calc(var(--sat-space-2) * -1); }
+.felt-banner-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.felt-banner-stack .felt-banner-title { flex: none; font-size: 1.375rem; }
+.felt-banner-sub { color: var(--sat-muted); font-size: var(--sat-fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -130,9 +130,12 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs 
     return (
       <header className="sat-header felt-header felt-header--banner">
         <div className="felt-banner">
+          {back && !brand && <button className="sat-btn sat-btn--ghost sat-iconbtn felt-banner-back" onClick={back} aria-label="Back"><Icon name="back" /></button>}
           {brand
             ? <div className="sat-brand felt-banner-brand"><FeltMark full height={34} /><span className="sat-wordmark">{banner}</span></div>
-            : <h1 className="felt-banner-title">{banner}</h1>}
+            : sub
+              ? <div className="felt-banner-stack"><h1 className="felt-banner-title">{banner}</h1><small className="felt-banner-sub">{sub}</small></div>
+              : <h1 className="felt-banner-title">{banner}</h1>}
           <div className="felt-banner-right">{right ?? <ThemeCycle />}</div>
         </div>
         {tabRow}

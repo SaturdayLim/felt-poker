@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, ExpandingSearch, Header, Icon, SlidePane, toast } from '../components/ui';
+import { Avatar, Caption, Delta, ExpandingSearch, Header, Help, Icon, SlidePane, toast } from '../components/ui';
 import Insights from './Insights';
 import { PlayerSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
@@ -87,7 +87,7 @@ function PlayerList() {
             <button className="sat-switch" role="switch" aria-checked={showArchived} aria-label="Show hidden players" onClick={() => setShowArchived(!showArchived)} />
           </div>
         )}
-        <div className="felt-searchrow"><span className="felt-searchrow-title sat-caption">Find a player</span><ExpandingSearch value={q} onChange={setQ} count={list.length} label="Search players" /></div>
+        <div className="felt-searchrow"><span className="felt-searchrow-title sat-caption">Find a player <Help k="playerRows" /></span><ExpandingSearch value={q} onChange={setQ} count={list.length} label="Search players" /></div>
         <section className="felt-section">
           <div className="sat-split">
             <Caption tip="groups">Groups</Caption>

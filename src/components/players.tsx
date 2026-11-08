@@ -44,7 +44,7 @@ export function matchPlayer(input: string, players: Player[]): Player | null {
 }
 
 /** Name field that corrects to a saved player on Enter, with an explicit option to add a new name instead. */
-export function NameEntry({ onPick, exclude = [], placeholder = 'Player name (e.g. Keven)' }: {
+export function NameEntry({ onPick, exclude = [], placeholder = 'Player name (e.g. Dani)' }: {
   onPick: (p: Player) => void; exclude?: string[]; placeholder?: string;
 }) {
   const players = useStore((s) => s.players);
@@ -174,7 +174,7 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
   const inGames = st.games.filter((g) => g.playerIds.includes(p.id)).length;
   const save = () => {
     const n = titleCase(nm);
-    if (!n) { toast('Enter a name (e.g. Keven).'); return; }
+    if (!n) { toast('Enter a name (e.g. Dani).'); return; }
     if (st.players.some((x) => x.id !== p.id && x.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already saved. Use a different name.`); return; }
     st.renamePlayer(p.id, n);
     onClose();
@@ -223,16 +223,21 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   };
   const copy = () => {
     if (!shown) return;
-    navigator.clipboard?.writeText(`${p.name}, your Felt player code is ${showCode(shown)}. Keep it private.`)
-      .then(() => toast(`Message for ${p.name} copied.`), () => toast('Copy was blocked.'));
+    navigator.clipboard?.writeText(`${p.name}: ${showCode(shown)}`)
+      .then(() => toast('Code copied.'), () => toast('Copy was blocked.'));
   };
   const icon = !ready ? 'dark' : shown ? 'eye' : p.codeIssued ? 'refresh' : 'dark';
   const what = !ready ? 'No code yet' : shown ? 'Hide the code' : p.codeIssued ? 'Replace the code' : 'Show the code';
   return (
     <span className={`felt-codectl ${ready ? '' : 'is-none'}`}>
       {label && <span className="felt-codectl-label">Player code<Help k="playerCode" /></span>}
-      {shown && <b className="felt-codectl-shown sat-num felt-selectable" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
-      {label && shown && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
+      {label && shown ? (
+        // the code with its copy button beneath it
+        <span className="felt-codectl-col">
+          <b className="felt-codectl-shown sat-num felt-selectable" aria-label={`Code ${shown}`}>{showCode(shown)}</b>
+          <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" onClick={copy}><Icon name="file" size={16} /> Copy code</button>
+        </span>
+      ) : shown && <b className="felt-codectl-shown sat-num felt-selectable" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
       {asking && <ReplaceCodeSheet pid={pid} name={p.name} onClose={() => setAsking(false)} onNew={(c) => setShown(c)} />}
       {ready && !shown && p.codeIssued
         ? <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} onClick={() => setAsking(true)}><Icon name={icon} /></button>
@@ -250,7 +255,7 @@ function NameField({ p }: { p: Player }) {
   const save = () => {
     const n = titleCase(nm);
     if (n === p.name) { setNm(p.name); return; }
-    if (!n) { toast('Enter a name (e.g. Keven).'); setNm(p.name); return; }
+    if (!n) { toast('Enter a name (e.g. Dani).'); setNm(p.name); return; }
     if (st.players.some((x) => x.id !== p.id && x.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already saved. Use a different name.`); setNm(p.name); return; }
     st.renamePlayer(p.id, n);
     setNm(n);
@@ -398,8 +403,8 @@ function ReplaceCodeSheet({ pid, name, onClose, onNew }: { pid: ID; name: string
   const next = useRef(newCode());
   const [left, setLeft] = useState(0);
   const [code, setCode] = useState<string | null>(null);
-  const copy = () => navigator.clipboard?.writeText(`${name}, your Felt player code is ${showCode(code ?? next.current)}. Keep it private.`)
-    .then(() => toast(`Message for ${name} copied.`), () => toast('Copy was blocked.'));
+  const copy = () => navigator.clipboard?.writeText(`${name}: ${showCode(code ?? next.current)}`)
+    .then(() => toast('Code copied.'), () => toast('Copy was blocked.'));
   return (
     <Sheet open onClose={onClose} title={`Replace code for ${name}`} sub="The old code stops working when the button is full.">
       <div className="felt-boxes is-idle felt-boxes--static" role="img" aria-label={code ? `New code ${code}` : 'New code loading'}>
@@ -409,7 +414,7 @@ function ReplaceCodeSheet({ pid, name, onClose, onNew }: { pid: ID; name: string
       </div>
       <HoldFill label="Hold to replace code" doneLabel="Code replaced" onProgress={(v) => setLeft(Math.floor(v * 6 + 0.001))}
         onDone={() => { const c = issueCode(pid, next.current); setCode(c); setLeft(6); onNew(c); }} />
-      {code && <button type="button" className="sat-btn sat-btn--block" onClick={copy}><Icon name="file" /> Copy message with the code</button>}
+      {code && <button type="button" className="sat-btn sat-btn--block" onClick={copy}><Icon name="file" /> Copy code</button>}
     </Sheet>
   );
 }

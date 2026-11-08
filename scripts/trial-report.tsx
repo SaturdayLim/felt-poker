@@ -20,11 +20,14 @@ import './trial-report.css';
 import { Cards, Icon, Info } from '../src/components/ui';
 import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
-import { AWARD_LIST, buildModel, type Award, type Pos, type TrialModel, type TrialPlayer } from '../src/report/model';
+import { RANKS } from '../src/lib/cards';
+import { AWARD_LIST, buildModel, type Award, type HandView, type TrialModel, type TrialPlayer } from '../src/report/model';
+import { ICON_GRID, ICON_STROKE, awardPaths } from '../src/report/awardIcons';
 import { unlock, type LockBox } from '../src/report/lock';
 
-type View = 'summary' | 'players' | 'compare';
+type View = 'summary' | 'players' | 'compare' | 'settings' | 'log';
 interface ReportFile { model: TrialModel; locks: Record<string, LockBox> }
+const TAB_LABEL: Record<View, string> = { summary: 'Summary', players: 'Players', compare: 'Compare', settings: 'Settings', log: 'Game Log' };
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 const signed = (v: number) => `${v > 0 ? '+' : ''}${units(Math.round(v))}`;
 const tone = (v: number) => (v > 0 ? 'felt-up' : v < 0 ? 'felt-down' : '');
@@ -67,8 +70,8 @@ function App() {
           </div>
         </header>
         <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Report">
-          {(['summary', 'players', 'compare'] as View[]).map((v) => (
-            <button key={v} role="radio" aria-checked={view === v} onClick={() => setView(v)}>{v === 'summary' ? 'Game Summary' : v === 'players' ? 'Players' : 'Compare'}</button>
+          {(['summary', 'players', 'compare', 'settings', ...(m.log ? ['log'] : [])] as View[]).map((v) => (
+            <button key={v} role="radio" aria-checked={view === v} onClick={() => setView(v)}>{TAB_LABEL[v]}</button>
           ))}
         </div>
         {view === 'summary' && <Summary m={m} onPlayer={open} />}
@@ -79,6 +82,8 @@ function App() {
           </>
         )}
         {view === 'compare' && <Compare m={m} onPlayer={open} />}
+        {view === 'settings' && <Settings m={m} />}
+        {view === 'log' && m.log && <GameLog m={m} />}
       </div>
     </div>
   );
@@ -86,9 +91,19 @@ function App() {
 
 /* ------------------------------- shared parts ------------------------------- */
 
-/** Fixed player colour by seat order (categorical slots 1 to 4): one colour per player on every chart. */
-const colorOf = (m: TrialModel, id: string) => `var(--trial-s${(m.players.findIndex((p) => p.id === id || p.name === id) % 4) + 1})`;
+/** Fixed player colour by seat order (categorical slots 1 to 8): one colour per player on every chart. */
+const colorOf = (m: TrialModel, id: string) => `var(--trial-s${(m.players.findIndex((p) => p.id === id || p.name === id) % 8) + 1})`;
 const Dot = ({ m, id }: { m: TrialModel; id: string }) => <i className="trial-dot" style={{ background: colorOf(m, id) }} />;
+
+/** The mark of one award (see src/report/awardIcons.ts): strokes in the colour of the text around it. */
+export function AwardIcon({ title, size = 20 }: { title: string; size?: number }) {
+  const paths = awardPaths(title);
+  if (!paths.length) return <Icon name="trophy" size={size} />;
+  return (
+    <svg viewBox={`0 0 ${ICON_GRID} ${ICON_GRID}`} width={size} height={size} fill="none" stroke="currentColor" strokeWidth={ICON_STROKE}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths.map((d, i) => <path key={i} d={d} />)}</svg>
+  );
+}
 
 function Section({ title, tip, children }: { title: ReactNode; tip?: string[]; children: ReactNode }) {
   return (
@@ -110,7 +125,7 @@ function AwardCard({ m, a, showWho = true }: { m: TrialModel; a: Award; showWho?
   return (
     <div className={`trial-award ${open ? 'is-open' : ''}`}>
       <button type="button" className="trial-award-head" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="trial-award-icon"><Icon name="trophy" size={18} /></span>
+        <span className="trial-award-icon"><AwardIcon title={a.title} size={20} /></span>
         <span className="trial-award-title"><b>{a.title}</b>{showWho && <span className="sat-muted">{who}</span>}</span>
         <span className="trial-chev" aria-hidden="true"><Icon name="chevron" size={16} /></span>
       </button>
@@ -160,7 +175,7 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
         <div className="trial-awards">{m.awards.map((a) => <AwardCard key={a.title} m={m} a={a} />)}</div>
       </Section>
 
-      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips a player bought so far.', 'Circle on a line = a rebuy. The number counts rebuys so far, each the size of the first buy-in. Par rises, so the line stays level.', 'The last point uses the final count.']}>
+      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips a player bought so far.', 'Circle on a line = a rebuy by that player. The number counts the extra buy-ins so far, each the size of the first buy-in (2 = 400 chips in a 200 game).', 'Par rises with a rebuy, so the line stays level.', 'The last point uses the final count.']}>
         <StackChart m={m} />
       </Section>
 
@@ -204,12 +219,6 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
           {m.moves.map((x, i) => <div key={`m${i}`} className="felt-row"><span className="trial-tag">Move</span><span className="felt-row-main">{x.from} to {x.to}, after hand #{x.afterN}{x.note ? <span className="felt-row-sub">{x.note}</span> : null}</span><b>{x.amount}</b></div>)}
         </div>
       </Section>
-      <Section title="House Rules" tip={['The rules this game used.', 'Set in New Game or the game settings.']}>
-        <div className="sat-glass-2 felt-list">
-          {m.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>{r.label}</span><span className="sat-small" style={{ textAlign: 'right', flex: '1 1 auto', minWidth: 0 }}>{r.value}</span></div>)}
-        </div>
-      </Section>
-
       <Section title="Settle Up" tip={['Smallest set of payments that closes every account.', 'Chips, before any money rate.', 'Copy puts the list on your clipboard.']}>
         <div className="sat-glass-2 felt-list">
           {m.settle.length === 0 && <div className="felt-row"><span className="felt-row-main">All square.</span></div>}
@@ -218,6 +227,57 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
         {m.settle.length > 0 && <CopyButton text={[`${m.game}, ${m.date}`, ...m.settle.map((t) => `${t.from} pays ${t.to} ${t.amount} chips`)].join(String.fromCharCode(10))} />}
       </Section>
     </div>
+  );
+}
+
+/** The settings page: the rules this game used. */
+function Settings({ m }: { m: TrialModel }) {
+  return (
+    <div className="sat-stack" style={gap(4)}>
+      <Section title="House Rules" tip={['The rules this game used.', 'Set in New Game or the game settings.']}>
+        <div className="sat-glass-2 felt-list">
+          {m.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>{r.label}</span><span className="sat-small" style={{ textAlign: 'right', flex: '1 1 auto', minWidth: 0 }}>{r.value}</span></div>)}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/** One hand's action log: a dropdown with every action in time order, the cards shown and the result. */
+function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
+  return (
+    <details className="trial-log">
+      <summary>{label ?? 'Action log'}</summary>
+      <div className="trial-log-body">
+        {v.streets.map((st) => (
+          <div key={st.street} className="trial-log-street">
+            <div className="trial-log-head"><b>{st.street}</b>{st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}</div>
+            {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.lines.map((l, i) => <span key={i} className="trial-log-line">{l}</span>)}
+          </div>
+        ))}
+        {v.shown.map((x) => (
+          <div key={x.p} className="trial-shown"><span>{x.p}</span><Cards cards={x.cards} size="sm" /><span className="sat-small sat-muted">{x.rank}</span></div>
+        ))}
+        <span className="sat-small"><b>{v.result}</b></span>
+        {v.note && <span className="sat-small sat-muted">{v.note}</span>}
+      </div>
+    </details>
+  );
+}
+
+/** The full game log: every hand in order, each opening to its action log. */
+function GameLog({ m }: { m: TrialModel }) {
+  return (
+    <Section title="Game Log" tip={['Every recorded hand in order.', 'Tap a hand to open its actions, the cards shown and the result.', 'Amounts are chips.']}>
+      <div className="sat-stack" style={gap(2)}>
+        {(m.log ?? []).map((v) => (
+          <div key={v.n} className="trial-hand">
+            <div className="sat-split"><span><b>#{v.n}</b> <span className="sat-muted">{v.button ? `Button: ${v.button}` : ''}</span></span><b className="sat-num">{v.pot}</b></div>
+            <LogDrop v={v} label={v.result} />
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
@@ -324,7 +384,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         </div>
       </Section>
 
-      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips bought so far.', 'Circle on the line = a rebuy, numbered.', 'Other players in grey.']}>
+      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips bought so far.', 'Circle on your line = your rebuy. The number counts your extra buy-ins so far, each the size of your first buy-in (2 = 400 chips in a 200 game).', 'Other players in grey.']}>
         <StackChart m={m} focus={p} />
       </Section>
 
@@ -343,39 +403,101 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         ]} />
       </Section>
 
-      <Section title="Result by Seat" tip={['Net result in each position.', 'Button at the top, then clockwise.', 'Small number = hands played in that seat.']}>
-        <FeltTable m={m} seats={(['BTN', 'SB', 'BB', 'UTG'] as Pos[]).map((k) => ({ id: k, label: k, value: p.byPos[k], sub: `${p.byPosN[k]}` }))} />
+      <Section title="Result by Seat" tip={['Net result in each position.', 'Every seat of the table shows, not only those played.', 'Button at the top, then clockwise.', 'Small number = hands played in that seat.']}>
+        <FeltTable m={m} seats={(m.positions ?? Object.keys(p.byPos)).map((k) => ({ id: k, label: k, value: p.byPos[k] ?? 0, sub: `${p.byPosN[k] ?? 0}` }))} />
       </Section>
 
-      {p.mine.some((h) => h.clash) && <p className="sat-small" style={{ color: 'var(--sat-neg)' }}>Check your cards for hand {p.mine.filter((h) => h.clash).map((h) => h.n).join(', ')}. They match another entry or the table. Felt counts them as you entered them.</p>}
       {p.mine.length > 0 && (
-        <Section title={`Your Cards (${p.mine.length})`} tip={['Your own record of your cards, apart from the cards shown at the table.', 'Only you see these, with your player code.', 'Shown = also shown at the table.']}>
+        <Section title={`Your Cards (${p.mine.length})`} tip={['Your own record of your cards, apart from the cards shown at the table.', 'Only you see these, with your player code.', 'Shown = also shown at the table.', 'Each hand shows the chips won or lost and where the hand was decided.', 'Red ! = a card is on the board or in a card shown at the table.', "Blue ! = a card is also in another player's entry.", 'A hand with a red ! stays out of the hand record.']}>
           <div className="sat-glass-2 felt-list">
-            {p.mine.map((h) => (
-              <div key={h.n} className={`felt-row trial-shown-row ${h.won ? 'is-won' : ''}`}>
-                <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{h.n}</span>
-                <Cards cards={h.cards} size="sm" />
-                <span className="felt-row-main"><span className="felt-row-sub">{[h.rank, h.shownAtTable ? 'Shown' : ''].filter(Boolean).join(', ') || '-'}</span></span>
-                <b className={`sat-small ${h.won ? 'felt-up' : 'sat-muted'}`}>{h.won ? `Won: ${h.got}` : '-'}</b>
-              </div>
-            ))}
+            {p.mine.map((h) => {
+              const v = p.logs.find((x) => x.n === h.n);
+              return (
+                <div key={h.n} className="trial-row-wrap">
+                  <div className={`felt-row trial-shown-row ${h.net > 0 ? 'is-won' : ''}`}>
+                    <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{h.n}</span>
+                    <Cards cards={h.cards} size="sm" />
+                    <span className="felt-row-main"><span className="felt-row-sub">{[h.rank, h.shownAtTable ? 'Shown' : ''].filter(Boolean).join(', ') || '-'}</span></span>
+                    {h.lvl && <span className={`trial-bang is-${h.lvl}`} role="img" aria-label={h.lvl === 'red' ? 'A card is on the board or in a card shown at the table' : "A card is also in another player's entry"}>!</span>}
+                    <b className={`sat-small ${h.net > 0 ? 'felt-up' : h.net < 0 ? 'felt-down' : 'sat-muted'}`}>{h.net > 0 ? 'Won' : h.net < 0 ? 'Lost' : 'Even'} {Math.abs(h.net)} ({h.street})</b>
+                  </div>
+                  {v && <LogDrop v={v} />}
+                </div>
+              );
+            })}
           </div>
         </Section>
       )}
 
+      <HandRecord p={p} />
+
       <Section title={`Cards Shown (${p.shown.length})`} tip={["Hands where the player's cards were entered at showdown.", 'In hand order.']}>
         <div className="sat-glass-2 felt-list">
-          {p.shown.map((h) => (
-            <div key={h.n} className={`felt-row trial-shown-row ${h.won ? 'is-won' : ''}`}>
-              <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{h.n}</span>
-              <Cards cards={h.cards} size="sm" />
-              <span className="felt-row-main"><span className="felt-row-sub">{h.rank || '-'}</span></span>
-              <b className={`sat-small ${h.won ? 'felt-up' : 'sat-muted'}`}>{h.won ? `${h.split ? 'Split' : 'Won'}: ${h.got}` : `Lost: ${h.pot}`}</b>
-            </div>
-          ))}
+          {p.shown.map((h) => {
+            const v = p.logs.find((x) => x.n === h.n);
+            return (
+              <div key={h.n} className="trial-row-wrap">
+                <div className={`felt-row trial-shown-row ${h.won ? 'is-won' : ''}`}>
+                  <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{h.n}</span>
+                  <Cards cards={h.cards} size="sm" />
+                  <span className="felt-row-main"><span className="felt-row-sub">{h.rank || '-'}</span></span>
+                  <b className={`sat-small ${h.won ? 'felt-up' : 'sat-muted'}`}>{h.won ? `${h.split ? 'Split' : 'Won'}: ${h.got}` : `Lost: ${h.pot}`}</b>
+                </div>
+                {v && <LogDrop v={v} />}
+              </div>
+            );
+          })}
         </div>
       </Section>
     </div>
+  );
+}
+
+/** The starting-hand grid and a short guide to how a hand could have gone differently. */
+function HandRecord({ p }: { p: TrialPlayer }) {
+  const [sel, setSel] = useState<string | null>(null);
+  const range = p.range ?? {};
+  const logs = p.logs ?? [];
+  const key = (i: number, j: number) => (i === j ? `${RANKS[i]}${RANKS[i]}` : i < j ? `${RANKS[i]}${RANKS[j]}s` : `${RANKS[j]}${RANKS[i]}o`);
+  const cur = sel ? range[sel] : undefined;
+  if (!logs.length) return null;
+  return (
+    <Section title="Hand Record" tip={['A guide, not a verdict. It uses only what was logged: your cards, your actions and your position.', 'Each square is a starting hand, ace down to two on both sides. Pairs run down the middle, suited hands above it, offsuit hands below it.', 'Each square shows your pre-flop actions with that hand: red = fold, orange = call or check, green = raise. The mix fills the square.', 'Grey = never dealt. Only hands with your cards entered or shown count.', 'Tap a square for the counts.']}>
+      <p className="sat-small sat-muted">Cards known for {p.known} of {logs.length} hands.</p>
+      <div className="trial-legend"><span><i style={{ background: 'var(--sat-neg)' }} />Fold</span><span><i style={{ background: 'var(--trial-s2)' }} />Call or check</span><span><i style={{ background: 'var(--sat-pos)' }} />Raise</span><span><i style={{ background: 'var(--sat-well)' }} />Never dealt</span></div>
+      <div className="trial-range-scroll"><div className="trial-range" role="grid" aria-label="Pre-flop actions for each starting hand">
+        <div className="trial-range-row"><span />{RANKS.map((r) => <span key={r} className="trial-range-axis">{r}</span>)}</div>
+        {RANKS.map((r, i) => (
+          <div key={r} className="trial-range-row" role="row">
+            <span className="trial-range-axis">{r}</span>
+            {RANKS.map((_, j) => {
+              const k = key(i, j), c = range[k];
+              const n = c ? c.fold + c.call + c.raise : 0;
+              const f = c ? (c.fold / n) * 100 : 0, f2 = c ? f + (c.call / n) * 100 : 0;
+              const say = c ? `${k}: ${c.fold} fold, ${c.call} call or check, ${c.raise} raise` : `${k}: never dealt`;
+              return (
+                <button key={k} type="button" role="gridcell" aria-label={say} title={say}
+                  className={`trial-range-cell ${!c ? 'is-none' : ''} ${sel === k ? 'is-sel' : ''}`}
+                  style={c ? { background: `linear-gradient(to top, var(--sat-neg) 0 ${f}%, var(--trial-s2) ${f}% ${f2}%, var(--sat-pos) ${f2}% 100%)` } : undefined}
+                  onClick={() => setSel(sel === k ? null : k)}><span>{k}</span></button>
+              );
+            })}
+          </div>
+        ))}
+      </div></div>
+      <p className="sat-small" aria-live="polite">{sel ? (cur ? `${sel}: ${cur.fold} fold, ${cur.call} call or check, ${cur.raise} raise.` : `${sel}: never dealt.`) : 'Tap a square for the counts.'}</p>
+      <div className="sat-stack" style={gap(2)}>
+        <b className="sat-small">How a hand could have gone differently</b>
+        {p.advice.length === 0
+          ? <span className="sat-small sat-muted">Nothing stands out in the hands logged.</span>
+          : <ul className="trial-notes">{p.advice.map((a, i) => <li key={i}><span><b>#{a.n}</b> <span className="trial-advice">{a.text}</span></span></li>)}</ul>}
+      </div>
+      <div className="sat-glass-2 felt-list">
+        {logs.map((v) => (
+          <div key={v.n} className="trial-row-wrap"><LogDrop v={v} label={`#${v.n}: ${v.result}`} /></div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
@@ -469,7 +591,8 @@ function StackChart({ m, focus }: { m: TrialModel; focus?: TrialPlayer }) {
   // a rebuy is a circle on the player's line with the number of rebuys so far (each = the first buy-in);
   // circles at the same spot are pushed apart sideways so every one stays visible
   const rebuyMarks: { p: TrialPlayer; after: number; amount: number; count: number; cx: number; cy: number }[] = [];
-  for (const p of m.players) {
+  // with a player in focus, only that player's own rebuys show
+  for (const p of focus ? [focus] : m.players) {
     const first = p.bought - p.rebuys.reduce((a, r) => a + r.amount, 0);
     let count = 0;
     for (const r of p.rebuys) {
@@ -498,7 +621,7 @@ function StackChart({ m, focus }: { m: TrialModel; focus?: TrialPlayer }) {
           <g key={i}>
             <circle cx={r.cx} cy={r.cy} r={8} className="trial-rebuy" style={{ stroke: dim(r.p) ? 'var(--sat-line-strong)' : colorOf(m, r.p.id) }} />
             <text x={r.cx} y={r.cy + 3.5} textAnchor="middle" className="trial-rebuy-n">{r.count}</text>
-            <title>{`${r.p.name}: rebuy ${r.count} (${r.amount}) after hand #${r.after}`}</title>
+            <title>{`${r.p.name}: ${r.count} extra ${r.count === 1 ? 'buy-in' : 'buy-ins'} so far, ${r.amount} chips after hand #${r.after}`}</title>
           </g>
         ))}
         {ends.map(({ p, y: ly }) => (

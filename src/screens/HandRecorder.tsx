@@ -4,6 +4,7 @@ import { useGame, useStore, usePlayerName } from '../store';
 import { back, backPlain, backTo, go } from '../router';
 import { installSwipeBack } from '../lib/swipeBack';
 import { CardEntrySheet } from '../components/cardEntry';
+import { useRebuyOffer } from '../components/rebuy';
 import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
 import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush, useSwipeDown, SlidePane, DockPanel, WordButton } from '../components/ui';
@@ -14,8 +15,8 @@ import { units } from '../lib/format';
 import { uid } from '../lib/ids';
 import { haptic } from '../lib/haptics';
 import {
-  STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
-  newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, unknownBoxes, type Replay,
+  NOT_SHOWN, STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
+  isTakedown, newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, unknownBoxes, type Replay,
 } from '../lib/hand';
 import { estimateStacks, exactStacks } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
@@ -135,6 +136,14 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const updateGame = useStore((s) => s.updateGame);
   const setStatus = useStore((s) => s.setStatus);
   const name = usePlayerName();
+  // busted players are offered a rebuy once their hand is saved. It never blocks: Skip always works.
+  const { offer: offerRebuy, sheet: rebuySheet } = useRebuyOffer(gameId);
+  // Save hand leaves the page; it waits while the rebuy sheet is open, then leaves
+  const leaveAfterRebuy = useRef(false);
+  const [, setSaved] = useState(0);
+  useEffect(() => {
+    if (leaveAfterRebuy.current && !rebuySheet) { leaveAfterRebuy.current = false; back(`game/${gameId}`); }
+  });
   const existing = g?.hands.find((h) => h.id === handId);
   const nNew = (g?.hands[g.hands.length - 1]?.n ?? 0) + 1;
 
@@ -224,6 +233,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   useEffect(() => { if (target) pickerAt.current = Date.now(); }, [!!target]); // eslint-disable-line react-hooks/exhaustive-deps
   // the keypad or card picker never covers the field being filled: it scrolls clear, between the header and the dock
   const fieldKey = target ? JSON.stringify(target) : sel ? `${sel.p}/${sel.r}` : '';
+  // This runs whenever the selected box changes: a tap on a box, or a finished box that moves the selection on to
+  // the next open box. With many players the table is taller than the screen, so the box scrolls into the band
+  // between the sticky header and whatever is at the bottom (the dock with the keypad, or the keyboard).
   useEffect(() => {
     if (!fieldKey) return;
     const clear = () => {
@@ -231,15 +243,26 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       const el = all.find((x) => !x.closest('.felt-header, .felt-slide-out'));
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const top = (document.querySelector('.felt-header')?.getBoundingClientRect().bottom ?? 0) + 8;
-      const bottom = window.innerHeight - (document.querySelector<HTMLElement>('.felt-rec-dock')?.offsetHeight ?? 0) - 20;
+      const vv = window.visualViewport;
+      const root = document.documentElement;
+      const cssPx = (name: string) => parseFloat(getComputedStyle(root).getPropertyValue(name)) || 0;
+      // the bottom edge of what the person can see: the visual viewport (it shrinks under a keyboard, see --felt-kb)
+      const seen = vv ? vv.offsetTop + vv.height : window.innerHeight - cssPx('--felt-kb');
+      const dockEl = document.querySelector<HTMLElement>('.felt-rec-dock');
+      const dockH = dockEl?.offsetHeight || cssPx('--felt-dock-h');
+      const dockTop = dockEl ? dockEl.getBoundingClientRect().top : window.innerHeight - dockH;
+      const bottom = Math.min(seen, dockTop) - 16;
+      const top = Math.max(document.querySelector('.felt-header')?.getBoundingClientRect().bottom ?? 0, vv?.offsetTop ?? 0) + 8;
       const dy = r.bottom > bottom ? r.bottom - bottom : r.top < top ? r.top - top : 0;
-      if (dy) window.scrollBy({ top: dy, behavior: 'smooth' });
+      if (Math.abs(dy) > 1) window.scrollBy({ top: dy, behavior: calm() ? 'auto' : 'smooth' });
     };
     const f = requestAnimationFrame(clear);
-    // the header shrinks with the board: check again once it has settled
-    const t = window.setTimeout(clear, 280);
-    return () => { cancelAnimationFrame(f); window.clearTimeout(t); };
+    // the dock grows as the keypad opens and the header shrinks with the board: check again once they have settled
+    const t1 = window.setTimeout(clear, 160);
+    const t2 = window.setTimeout(clear, 380);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', clear);
+    return () => { cancelAnimationFrame(f); window.clearTimeout(t1); window.clearTimeout(t2); vv?.removeEventListener('resize', clear); };
   }, [fieldKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -487,8 +510,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     };
     saveHand(g.id, hand);
     try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }
+    offerRebuy(hand);
     if (next) nextHand(hand.n + 1, `Hand ${hand.n} saved. Hand ${hand.n + 1} dealt.`);
-    else back(`game/${g.id}`);
+    else { leaveAfterRebuy.current = true; setSaved((n) => n + 1); }
   };
   const nextHand = (n: number, msg: string) => {
     try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }
@@ -758,6 +782,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       </div>
       </SlidePane>
 
+      {rebuySheet}
       {askCards && (
         <CardEntrySheet players={log.dealt} name={name} edge onClose={() => setAskCards(false)} onSave={savePlayerCards}
           entered={[...new Set([...Object.keys({ ...(existing?.private ?? {}), ...extraPriv }), ...inboxFor(g.id, st.n), ...(me && mineCards.length === 2 ? [me] : [])])]}
@@ -824,6 +849,42 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     </div>
   );
 }
+
+/* ------------------------------- tap audit (dev only) ------------------------------- */
+
+/** Dev only: `window.__tapCheck()` lists the pairs of visible buttons in the dock (keypad, card picker, actions) whose
+    tap targets overlap or sit closer than 8 px, and every target under 44 px. The hit area of a tip button is its
+    ::after box, so the check measures that. Pass a selector to audit other parts of the page. */
+function tapCheck(root = '.felt-rec-dock') {
+  type R = { l: number; t: number; r: number; b: number };
+  const boxes = [...document.querySelectorAll<HTMLElement>(`${root} button, ${root} [role="button"], ${root} input`)].flatMap((el) => {
+    const cs = getComputedStyle(el);
+    const er = el.getBoundingClientRect();
+    if (cs.visibility === 'hidden' || cs.display === 'none' || er.width === 0 || er.height === 0 || el.closest('[inert], [aria-hidden="true"]')) return [];
+    let rect: R = { l: er.left, t: er.top, r: er.right, b: er.bottom };
+    const after = getComputedStyle(el, '::after');
+    if (after.content !== 'none' && after.position === 'absolute' && el.classList.contains('sat-tip-btn')) {
+      let cb: HTMLElement | null = el.parentElement;
+      while (cb && getComputedStyle(cb).position === 'static') cb = cb.parentElement;
+      const c = cb?.getBoundingClientRect();
+      if (c) { const l = c.left + parseFloat(after.left), t = c.top + parseFloat(after.top); rect = { l, t, r: l + parseFloat(after.width), b: t + parseFloat(after.height) }; }
+    }
+    const label = (el.getAttribute('aria-label') || el.textContent || el.className).trim().slice(0, 24);
+    return [{ label, rect, w: Math.round(rect.r - rect.l), h: Math.round(rect.b - rect.t) }];
+  });
+  const gapOf = (a: R, b: R) => Math.max(b.l - a.r, a.l - b.r, b.t - a.b, a.t - b.b);
+  const overlaps: string[] = [], close: string[] = [];
+  boxes.forEach((a, i) => boxes.slice(i + 1).forEach((b) => {
+    const gap = gapOf(a.rect, b.rect);
+    if (gap < 0) overlaps.push(`${a.label} x ${b.label}`);
+    else if (gap < 8) close.push(`${a.label} | ${b.label}: ${Math.round(gap * 10) / 10} px`);
+  }));
+  const small = boxes.filter((x) => x.w < 44 || x.h < 44).map((x) => `${x.label}: ${x.w}x${x.h}`);
+  // a long list (the 52 picker keys) is cut to its first entries; the counts stay whole
+  const cut = (l: string[]) => (l.length > 10 ? [...l.slice(0, 10), `... ${l.length - 10} more`] : l);
+  return { checked: boxes.length, overlaps: cut(overlaps), overlapCount: overlaps.length, closerThan8px: cut(close), closeCount: close.length, smallerThan44px: cut(small), smallCount: small.length };
+}
+if (import.meta.env.DEV) (window as unknown as { __tapCheck: typeof tapCheck }).__tapCheck = tapCheck;
 
 function tabDone(log: HandLog, t: Tab, ended: boolean) {
   if (t === 'setup') return true;
@@ -1084,19 +1145,22 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
         <button type="button" onClick={onFold}>Fold</button>
         <button type="button" onClick={onAllIn} disabled={!canRaise && !toCall}>All-in</button>
       </div>
-      {/* amount first: it stays in view with its error under it, so the number being fixed never disappears */}
-        <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
-          <div className={`felt-keypad-field felt-tipped ${typed ? 'has-value' : ''} ${minErr !== null ? 'is-invalid' : ''}`} aria-live="polite" onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) pointAtPad(); }}>
+      {/* amount first: it stays in view with its error under it, so the number being fixed never disappears.
+          Each tip sits in its own 44 px lane beside the element it explains, so no tip target covers a key. */}
+      <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
+        <div className="felt-keypad-line felt-tipped">
+          <div className={`felt-keypad-field ${typed ? 'has-value' : ''} ${minErr !== null ? 'is-invalid' : ''}`} aria-live="polite" onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) pointAtPad(); }}>
             <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || (allInAsk ? <span className="felt-keypad-min">Type the all-in amount</span> : <span className="felt-keypad-ghost">{units(minTo)}</span>)}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
-            <Help k="raiseBox" />
           </div>
-          <span className="felt-tipped">
-            <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
-            <Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} />
-          </span>
+          <span className="felt-keypad-tip"><Help k="raiseBox" /></span>
+        </div>
+        <div className="felt-keypad-line felt-keypad-line--act felt-tipped">
+          <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
+          <span className="felt-keypad-tip"><Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} /></span>
           <button type="button" className={`felt-keypad-ok ${typed ? 'is-ready' : ''}`} aria-disabled={!canRaise || (allInAsk && !typed)} disabled={!canRaise} onClick={onOk}>{verb}</button>
         </div>
+      </div>
       {minErr !== null && (
         <div className="felt-keypad-err is-in" role="alert">
           <span>{verb} minimum = {units(minErr)}</span>
@@ -1152,6 +1216,9 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
         </section>
       )}
 
+      {/* Not shown (the old Muck) is one rule for every screen: a Not shown player is out of the card comparison, but can still
+          win when every other player is Not shown too (a takedown). `takedownWinner` in hand.ts picks that winner and
+          `resolve` puts it in `res.winners`, so the Result card below names it. */}
       {/* with the 2-7 bounty on, a player who wins uncontested can still show their cards */}
       {(live.length > 1 || (bountyOn && live.length === 1)) && (
         <section className="felt-section">
@@ -1177,12 +1244,12 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
                     <span className="felt-show-n sat-num">{i + 1}</span>
                     <div className="felt-row-main">
                       <div className="felt-row-title">{g.status === 'closed' ? <PlayerName id={p} /> : name(p)}{log.allInAt?.[p] ? <span className="sat-badge sat-badge--muted" style={{ marginLeft: 6 }}>All-in</span> : null}</div>
-                      <div className="felt-row-sub">{mucked ? 'Mucked' : v ? v.name : cards.every(Boolean) ? 'Shown' : 'Not shown'}</div>
+                      <div className="felt-row-sub">{mucked ? NOT_SHOWN : v ? v.name : cards.every(Boolean) ? 'Shown' : 'No cards entered'}</div>
                       {twice && <div className="sat-small" style={{ color: 'var(--sat-neg)' }}>Same card entered twice</div>}
                       {!mucked && payTag(p)}
                     </div>
                     {!mucked && cards.map((c, ci) => <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', p, ci })} onClick={() => tapSlot({ kind: 'shown', p, ci }, !!c)} />)}
-                    {live.length > 1 && <button className="sat-chip felt-mini" aria-pressed={mucked} onClick={() => set({ log: { ...log, mucked: mucked ? log.mucked.filter((x) => x !== p) : [...log.mucked, p] } })}>Muck</button>}
+                    {live.length > 1 && <button className="sat-chip felt-mini" aria-pressed={mucked} onClick={() => set({ log: { ...log, mucked: mucked ? log.mucked.filter((x) => x !== p) : [...log.mucked, p] } })}>{NOT_SHOWN}</button>}
                   </div>
                 );
               })}
@@ -1206,7 +1273,7 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
         </section>
       )}
 
-      {res && <Result res={res} live={live} runs={log.runs ?? 1} name={name} manual={st.manual} onManual={(i, ids) => set({ manual: { ...st.manual, [i]: ids } })} />}
+      {res && <Result res={res} log={log} live={live} runs={log.runs ?? 1} name={name} manual={st.manual} onManual={(i, ids) => set({ manual: { ...st.manual, [i]: ids } })} />}
       {children}
 
       <div className="sat-field">
@@ -1218,8 +1285,8 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
 }
 
 /** Who wins: one accent card. Undecided pots ask "Who won?" with big name buttons. */
-function Result({ res, live, runs, name, manual, onManual }: {
-  res: ReturnType<typeof resolve>; live: ID[]; runs: number; name: (id: ID) => string;
+function Result({ res, log, live, runs, name, manual, onManual }: {
+  res: ReturnType<typeof resolve>; log: HandLog; live: ID[]; runs: number; name: (id: ID) => string;
   manual: Record<number, ID[]>; onManual: (i: number, ids: ID[]) => void;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
@@ -1230,6 +1297,7 @@ function Result({ res, live, runs, name, manual, onManual }: {
   return (
     <section className={`felt-result ${res.missing ? 'is-open' : ''}`} aria-live="polite">
       {live.length === 1 && <span className="sat-caption">Everyone else folded</span>}
+      {live.length > 1 && !res.missing && isTakedown(log) && <span className="sat-caption">Everyone else was {NOT_SHOWN}</span>}
       <div className="felt-result-head">
         <span className="felt-result-name">{headline}</span>
         <span className="felt-result-pot sat-num">{units(total)}<small> chips</small></span>

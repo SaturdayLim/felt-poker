@@ -6,16 +6,24 @@ import { back, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, toast, TabPill, WordButton } from '../components/ui';
 import { renderReport, type Tier } from '../report/reports';
 import { loadReportFonts, type ReportTheme } from '../report/canvas';
-import { handsCsv, ledgerCsv, playersCsv, slug } from '../report/csv';
+import { handsCsv, ledgerCsv, outputName, playersCsv } from '../report/csv';
+import { buildModel } from '../report/model';
+import { SEGMENTS, renderSegment, type SegmentKey } from '../report/segments';
 import { canvasToFile, shareFiles, textFile } from '../report/share';
 import { MIN_REPORT_HANDS, makeHtmlReport, recordedHands, reportReady } from '../report/htmlReport';
 import { useResolvedTheme } from '../theme';
 
-type Choice = Tier | 'data' | 'html';
+type Choice = Tier | 'data' | 'html' | 'segments';
+
+/** Ticks kept on this phone (not in the game, not in a backup). */
+const KEEP = { segments: 'felt-report-segments', gameLog: 'felt-report-gamelog' };
+function readKept<T>(key: string, fallback: T): T { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; } }
+function keep(key: string, v: unknown) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode: the ticks last for this visit only */ } }
 
 /** Each option says what it contains and which files it gives, so nobody has to guess before sharing. */
 const TIERS: { k: Choice; label: string; file: string; desc: string }[] = [
   { k: 'html', label: 'Game report', file: '1 HTML file', desc: 'Interactive page: awards, charts, stats and house rules. Each player opens their own page with a code.' },
+  { k: 'segments', label: 'Game summary', file: 'Images (PNG)', desc: 'One sharp image for each part you tick: results, awards, charts and more.' },
   { k: 'summary', label: 'Results', file: '1 image (PNG)', desc: 'Buy-ins, results and who pays whom.' },
   { k: 'detailed', label: 'Results and stats', file: 'Image (PNG)', desc: 'Adds game stats, the money chart and highlights.' },
   { k: 'full', label: 'Full game record', file: 'Images (PNG)', desc: 'Adds the buy-in log and every hand with its cards.' },
@@ -34,6 +42,10 @@ export default function Report({ gameId }: { gameId: string }) {
   const [files, setFiles] = useState<File[]>([]);
   const [urls, setUrls] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [segOn, setSegOn] = useState<Record<string, boolean>>(() => ({ ...Object.fromEntries(SEGMENTS.map((x) => [x.k, x.on])), ...readKept<Record<string, boolean>>(KEEP.segments, {}) }));
+  const [gameLog, setGameLog] = useState<boolean>(() => readKept(KEEP.gameLog, false));
+  const picked = SEGMENTS.filter((x) => segOn[x.k]);
+  const pickKey = picked.map((x) => x.k).join(',');
 
   useEffect(() => {
     if (!g) return;
@@ -41,23 +53,36 @@ export default function Report({ gameId }: { gameId: string }) {
     setBusy(true);
     const t = window.setTimeout(async () => {
       try {
-        const base = `${slug(g.name)}-${new Date(g.startedAt).toLocaleDateString('en-CA')}`;
         let out: File[];
         if (tier === 'html') {
           // a game too short for the report gets the card below that says why, not an error
-          const made = reportReady(g) ? await makeHtmlReport(g, allPlayers, settings) : undefined;
+          const made = reportReady(g) ? await makeHtmlReport(g, allPlayers, settings, { gameLog }) : undefined;
           out = made ? [made.file] : [];
         } else if (tier === 'data') {
           const list = [g];
           out = [
-            textFile(playersCsv(list, name), `${base}-players.csv`),
-            textFile(handsCsv(list, name), `${base}-hands.csv`),
-            textFile(ledgerCsv(list, name), `${base}-ledger.csv`),
+            textFile(playersCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'players')),
+            textFile(handsCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'hands')),
+            textFile(ledgerCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'ledger')),
           ];
+        } else if (tier === 'segments') {
+          // each ticked part is its own render at 2x
+          out = [];
+          if (reportReady(g) && picked.length) {
+            await loadReportFonts();
+            const model = buildModel({ players: allPlayers, games: [g], settings });
+            for (const sg of picked) {
+              const c = renderSegment(model, sg.k, look);
+              out.push(await canvasToFile(c, outputName(g, `game summary, ${sg.label.toLowerCase()}`, 'png')));
+              c.width = 0; c.height = 0; // free canvas memory on iOS
+              if (cancelled) return;
+            }
+          }
         } else {
           await loadReportFonts();
           const canvases = renderReport(g, tier, name, look);
-          out = await Promise.all(canvases.map((c, i) => canvasToFile(c, `${base}-${tier}${canvases.length > 1 ? `-${i + 1}` : ''}.png`)));
+          const what = tier === 'summary' ? 'results' : tier === 'detailed' ? 'results and stats' : 'full game record';
+          out = await Promise.all(canvases.map((c, i) => canvasToFile(c, outputName(g, what, 'png', canvases.length > 1 ? `(page ${i + 1} of ${canvases.length})` : undefined))));
           canvases.forEach((c) => { c.width = 0; c.height = 0; }); // free canvas memory on iOS
         }
         if (cancelled) return;
@@ -71,7 +96,7 @@ export default function Report({ gameId }: { gameId: string }) {
     }, 30);
     return () => { cancelled = true; window.clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [g, tier, look]);
+  }, [g, tier, look, pickKey, gameLog]);
 
   useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
 
@@ -82,6 +107,8 @@ export default function Report({ gameId }: { gameId: string }) {
   const noCode = g ? allPlayers.filter((p) => g.playerIds.includes(p.id) && !p.codeIssued) : [];
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Report" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
 
+  const toggleSeg = (k: SegmentKey) => { const next = { ...segOn, [k]: !segOn[k] }; setSegOn(next); keep(KEEP.segments, next); };
+  const toggleLog = () => { setGameLog(!gameLog); keep(KEEP.gameLog, !gameLog); };
   const share = async () => {
     const r = await shareFiles(files, `${g.name} report`);
     if (r === 'downloaded') toast(`${info.label} saved to Downloads`);
@@ -91,7 +118,7 @@ export default function Report({ gameId }: { gameId: string }) {
     if (busy || linking || !files.length) return;
     setLinking(true);
     try {
-      const link = await publishReport(g, allPlayers, st.settings);
+      const link = await publishReport(g, allPlayers, st.settings, { gameLog });
       setLinkMade(link);
       if (navigator.share) await navigator.share({ title: `${g.name} report`, url: link }).catch(() => undefined);
       else await navigator.clipboard?.writeText(link).catch(() => undefined);
@@ -128,7 +155,32 @@ export default function Report({ gameId }: { gameId: string }) {
           )}
         </div>
 
+        {tier === 'segments' && (
+          <div className="sat-glass-2 felt-list" role="group" aria-label="Parts to include">
+            {SEGMENTS.map((x) => (
+              <label key={x.k} className="felt-row felt-tick">
+                <input type="checkbox" checked={!!segOn[x.k]} onChange={() => toggleSeg(x.k)} />
+                <span className="felt-row-main"><span className="felt-row-title">{x.label}</span><span className="felt-row-sub">{x.desc}</span></span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {tier === 'html' && (
+          <div className="sat-glass-2 felt-list">
+            <label className="felt-row felt-tick">
+              <input type="checkbox" checked={gameLog} onChange={toggleLog} />
+              <span className="felt-row-main"><span className="felt-row-title">Game Log tab</span><span className="felt-row-sub">Every hand with its actions, open to anyone with the report. It does not show hidden cards.</span></span>
+            </label>
+          </div>
+        )}
+
         {busy && <div className="felt-skel" style={{ height: 160 }} aria-label="Building the report" />}
+
+        {tier === 'segments' && !reportReady(g) && (
+          <div className="sat-flat sat-card sat-small">The game summary needs a closed game with at least {MIN_REPORT_HANDS} recorded hands. This game has {recordedHands(g)}.</div>
+        )}
+        {tier === 'segments' && reportReady(g) && picked.length === 0 && <div className="sat-flat sat-card sat-small">Tick at least 1 part.</div>}
 
         {!busy && tier !== 'data' && tier !== 'html' && (
           <div>

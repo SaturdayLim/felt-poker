@@ -1,18 +1,20 @@
 /* Trial report model: every figure the trial report pages show, worked out from a Felt backup with the
    app's own logic (src/lib). The backup holds the group's game data and stays in trial/ (git-ignored).
    All amounts are chips; the report never converts to money. */
-import type { Card, Game, ID, Player } from '../types';
+import type { Card, Game, HandLog, ID, Player, StreetName } from '../types';
 import { playerSummary, type PlayerSummary } from '../lib/stats';
 import { estimateStacks } from '../lib/stacks';
-import { actingOrder, bountyPay, bountyTotal, contributions, finalists, inAtEnd } from '../lib/hand';
-import { bestHand } from '../lib/cards';
+import { STREETS, STREET_CARDS, actingOrder, bountyPay, bountyTotal, contributions, defaultAct, inAtEnd, replayStreet, pfr, takedown, vpip, wentToShowdown } from '../lib/hand';
+import { RANKS, bestHand } from '../lib/cards';
 import { playMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
-import { clashLevel, countedPairs } from '../lib/clash';
+import { clashLevel, countedPairs, effectivePairs } from '../lib/clash';
+import { wonAt } from '../lib/style';
 import { playerResult, suggestTransfers } from '../lib/calc';
 
-export type Pos = 'BTN' | 'SB' | 'BB' | 'UTG';
+/** A table position: BTN, SB, BB, then UTG, UTG+1 and so on round to HJ and CO (see `positionNames`). */
+export type Pos = string;
 /** A strength or weakness: "Strength: Aggression - Won 42 in takedowns", with what to do about it. */
 export interface Note { kind: 'strength' | 'weakness'; title: string; stat: string; advice: string; w: number }
 /** A table award. `detail` is one sentence with the figures behind it (shown when the award is expanded). */
@@ -29,9 +31,21 @@ export interface TrialPlayer {
   /** Net of showdowns, and of hands won or folded without a showdown. */
   sdNet: number; foldNet: number;
   byPos: Record<Pos, number>; byPosN: Record<Pos, number>;
-  /** The player's own private cards (recorded apart from the table), with how each hand went. Locked. */
-  /** A hand with `clash` matches another entry or the table. It still counts as the player entered it. */
-  mine: { n: number; cards: Card[]; rank: string; shownAtTable: boolean; won: boolean; got: number; clash: boolean }[];
+  /** The player's own private cards (recorded apart from the table), with how each hand went. Locked.
+      `net` is the chips won (above 0) or lost (below 0) and `street` where the hand was decided. `lvl` marks a card
+      that conflicts: red = the board or a card shown at the table, blue = another player's entry. */
+  mine: { n: number; cards: Card[]; rank: string; shownAtTable: boolean; won: boolean; got: number; net: number; street: string; lvl: 'red' | 'blue' | null }[];
+  /** Pots won, and how many of them were takedowns (no showdown). */
+  takedowns: number;
+  /** Starting-hand record (locked): for each hand type like "AKs", the pre-flop actions taken with it: folds, calls
+      (a free check counts as a call) and raises. */
+  range: Record<string, { fold: number; call: number; raise: number }>;
+  /** Hands dealt in with the cards known (entered or shown). */
+  known: number;
+  /** Short list of ways a hand could have been played differently, from the logged action and position. A guide. */
+  advice: { n: number; text: string }[];
+  /** The action log of every hand the player was dealt into (locked). */
+  logs: HandView[];
   /** Cards shown: chips won (part of the pot when split), or the pot lost. */
   shown: { n: number; cards: Card[]; rank: string; won: boolean; pot: number; got: number; split: boolean }[];
   /** Result against par (chips bought so far) at the start and after each hand; the last point uses the
@@ -45,8 +59,21 @@ export interface TrialPlayer {
   /** Only the public part is in the shared report until the player's code unlocks the rest. */
   locked?: boolean;
 }
+/** One street of the action log: the board so far and one line per action. */
+export interface LogStreet { street: string; cards: Card[]; lines: string[] }
+/** One hand's full action log, as text: every action in time order, the cards shown and the result. */
+export interface HandView {
+  n: number; pot: number; button: string; streets: LogStreet[];
+  shown: { p: string; cards: Card[]; rank: string }[]; result: string; note?: string;
+}
 export interface TrialModel {
   game: string; date: string;
+  /** Every position of the table, button first, then clockwise: BTN, SB, BB, UTG ... HJ, CO. */
+  positions: Pos[];
+  /** The seats the game had: the most seats used, never fewer than the players. */
+  seatsN: number;
+  /** The full game log, only when the host ticked it for the report. */
+  log?: HandView[];
   hands: number; minutes: number; medianSec: number; players4: number;
   pots: { n: number; pot: number; winners: string[] }[];
   reach: { preflop: number; flop: number; turn: number; river: number; showdown: number };
@@ -73,34 +100,155 @@ export function targetFor(n: number): TrialModel['target'] {
   return { vpip: v[Math.min(6, Math.max(2, n))] ?? 21, af: 2.5 };
 }
 
-export function buildModel(backup: { players: Player[]; games: Game[]; settings?: Settings }, gameIndex = 0): TrialModel {
+/** Position names for a table of `n` seats, button first: BTN, SB, BB, then from the deepest seat to the cutoff. */
+export function positionNames(n: number): Pos[] {
+  const seats = Math.max(4, n);
+  const out: Pos[] = ['BTN', 'SB', 'BB'];
+  for (let d = seats - 3; d >= 1; d--) out.push(posAt(d, seats));
+  return out;
+}
+/** The name for a seat `d` places before the button (1 = cutoff). */
+function posAt(d: number, n: number): Pos {
+  if (d === n - 3) return 'UTG';
+  if (d === 1) return 'CO';
+  if (d === 2) return 'HJ';
+  return `UTG+${n - 3 - d}`;
+}
+
+/** A hand type as the grid shows it: AA, AKs (suited), AKo (offsuit), high card first. */
+export function handClass(cards: Card[]): string {
+  const [a, b] = cards;
+  const ia = RANKS.indexOf(a[0]), ib = RANKS.indexOf(b[0]);
+  const [hi, lo] = ia <= ib ? [a, b] : [b, a];
+  return hi[0] === lo[0] ? `${hi[0]}${lo[0]}` : `${hi[0]}${lo[0]}${hi[1] === lo[1] ? 's' : 'o'}`;
+}
+
+const STREET_LABEL: Record<StreetName | 'showdown', string> = { preflop: 'Pre-flop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Showdown' };
+const FOLD_PREMIUM = new Set(['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AKo']);
+/** Weakest starting hands: offsuit, 9 high or lower, and at least 4 ranks between the two cards. */
+const trash = (c: string) => c.endsWith('o') && RANKS.indexOf(c[0]) >= 4 && RANKS.indexOf(c[1]) - RANKS.indexOf(c[0]) >= 4;
+
+/** The action log of one hand as text: every action in time order, by street. */
+export function handView(g: Game, h: Game['hands'][number], name: (id: ID) => string): HandView {
+  const L = h.log as HandLog;
+  const streets: LogStreet[] = [];
+  for (const st of STREETS) {
+    const s = L.streets[st];
+    if (!s) continue;
+    const lines: string[] = [];
+    if (L.mode === 'bets' && s.acts) {
+      const rp = replayStreet(g, L, st);
+      for (let r = 0; r < rp.cols; r++) {
+        for (const p of rp.order) {
+          const c = rp.cells[p]?.[r];
+          if (!c) continue;
+          if (c.post) { lines.push(`${name(p)} posts ${c.amount}`); continue; }
+          if (!c.needed) continue;
+          const a = c.act ?? (c.implied ? (s.partial ? { k: 'call' as const } : defaultAct(c.toCall)) : null);
+          if (!a) continue;
+          const dark = (a as { dark?: boolean }).dark ? ' (dark)' : '';
+          if (a.k === 'fold') lines.push(`${name(p)} folds`);
+          else if (a.k === 'allin') lines.push(`${name(p)} is all-in for ${c.amount}${dark}`);
+          else if (c.amount > c.high) lines.push(`${name(p)} ${c.high > 0 ? 'raises to' : 'bets'} ${c.amount}${dark}`);
+          else if (c.toCall > 0) lines.push(`${name(p)} calls ${c.toCall}${dark}`);
+          else lines.push(`${name(p)} checks${dark}`);
+        }
+      }
+    } else {
+      // an older log or a pot count: the wagers and the folds, without the order
+      for (const p of L.dealt) if (s.bets[p]) lines.push(`${name(p)} has ${s.bets[p]} in`);
+      for (const p of s.folded) lines.push(`${name(p)} folds`);
+      if (s.pot !== undefined) lines.push(`Pot counted: ${s.pot}`);
+    }
+    streets.push({ street: STREET_LABEL[st], cards: h.board.slice(0, STREET_CARDS[st]), lines });
+  }
+  const dec = STREET_LABEL[wonAt(L)];
+  const result = h.winners.length
+    ? `${h.winners.map((w) => `${name(w.playerId)} wins ${w.amount}`).join(', ')} (${dec})`
+    : 'No winner recorded';
+  return {
+    n: h.n, pot: h.pot, button: L.button ? name(L.button) : '', streets, result, note: h.note,
+    shown: h.shown.filter((x) => x.cards.length).map((x) => ({ p: name(x.playerId), cards: x.cards, rank: h.board.length === 5 && x.cards.length === 2 ? bestHand([...x.cards, ...h.board])?.name ?? '' : '' })),
+  };
+}
+
+export function buildModel(backup: { players: Player[]; games: Game[]; settings?: Settings }, gameIndex = 0, opts: { gameLog?: boolean } = {}): TrialModel {
   const name = (id: ID) => backup.players.find((p) => p.id === id)?.name ?? id;
   const g = backup.games[gameIndex];
   const hands = g.hands.filter((h) => !h.missed && h.log);
   const noOut = { ...g, cashOuts: [] };
   const finalEst = estimateStacks(noOut);
+  // every seat the game had: the highest seat number used, never fewer than the players
+  const seatsN = Math.max(4, g.playerIds.length, ...Object.values(g.seats ?? {}));
+  const positions = positionNames(seatsN);
   const pos = (h: (typeof hands)[number], p: ID): Pos => {
     if (p === h.log!.button) return 'BTN';
-    const i = actingOrder(g, h.log!.dealt, h.log!.button).indexOf(p);
-    return i === 0 ? 'SB' : i === 1 ? 'BB' : 'UTG';
+    const order = actingOrder(g, h.log!.dealt, h.log!.button);
+    const i = order.indexOf(p);
+    if (i === 0) return 'SB';
+    if (i === 1) return 'BB';
+    // seats before the button: the last one before it is the cutoff (the button's own place ends the order)
+    const btnIn = order.includes(h.log!.button ?? '');
+    const d = order.length - 1 - i + (btnIn ? 0 : 1);
+    return posAt(Math.max(1, Math.min(d, seatsN - 3)), seatsN);
   };
+  const views = new Map<number, HandView>(hands.map((h) => [h.n, handView(g, h, name)]));
+  const zero = (): Record<Pos, number> => Object.fromEntries(positions.map((k) => [k, 0]));
 
   const players: TrialPlayer[] = g.playerIds.map((p) => {
     const s = playerSummary([g], p);
     const r = playerResult(g, p);
-    const byPos: Record<Pos, number> = { BTN: 0, SB: 0, BB: 0, UTG: 0 };
-    const byPosN: Record<Pos, number> = { BTN: 0, SB: 0, BB: 0, UTG: 0 };
+    const byPos = zero();
+    const byPosN = zero();
     const shown: TrialPlayer['shown'] = [];
     const mine: TrialPlayer['mine'] = [];
+    const range: TrialPlayer['range'] = {};
+    const advice: TrialPlayer['advice'] = [];
+    const logs: HandView[] = [];
+    let known = 0, takedowns = 0;
+    const checkCards = backup.settings?.checkCards !== false;
     for (const h of hands) {
       const L = h.log!;
-      const net = (h.winners.find((w) => w.playerId === p)?.amount ?? 0) + (h.returned?.[p] ?? 0) - (contributions(g, L, L.button)[p] ?? 0);
+      const put = contributions(g, L, L.button)[p] ?? 0;
+      const got = (h.winners.find((w) => w.playerId === p)?.amount ?? 0) + (h.returned?.[p] ?? 0);
+      const net = got - put;
       const ps = pos(h, p);
-      byPos[ps] += net; byPosN[ps]++;
-      // red entries contradict the table: left out of the report
-      const own = countedPairs(h, backup.settings?.checkCards !== false)[p];
-      if (own) mine.push({ n: h.n, cards: own, clash: clashLevel(h, p) === 'blue', rank: h.board.length === 5 ? bestHand([...own, ...h.board])?.name ?? '' : '',
-        shownAtTable: h.shown.some((x) => x.playerId === p), won: h.winners.some((w) => w.playerId === p), got: h.winners.find((w) => w.playerId === p)?.amount ?? 0 });
+      byPos[ps] = (byPos[ps] ?? 0) + net; byPosN[ps] = (byPosN[ps] ?? 0) + 1;
+      const dealt = L.dealt.includes(p);
+      if (dealt && views.has(h.n)) logs.push(views.get(h.n)!);
+      if (!h.excluded && h.winners.some((w) => w.playerId === p) && takedown(h)) takedowns++;
+      // Your Cards lists every full entry, red ones too, each with its mark. The analysis leaves red entries out.
+      const own = effectivePairs(h)[p];
+      if (own) mine.push({
+        n: h.n, cards: own, lvl: clashLevel(h, p), rank: h.board.length === 5 ? bestHand([...own, ...h.board])?.name ?? '' : '',
+        shownAtTable: h.shown.some((x) => x.playerId === p), won: h.winners.some((w) => w.playerId === p),
+        got: h.winners.find((w) => w.playerId === p)?.amount ?? 0, net: Math.round(net), street: STREET_LABEL[wonAt(L)],
+      });
+      const cards = countedPairs(h, checkCards)[p];
+      const pre = L.streets.preflop;
+      if (dealt && cards) {
+        known++;
+        const cl = handClass(cards);
+        const played = vpip(g, L, p, L.button);
+        const cell = (range[cl] ??= { fold: 0, call: 0, raise: 0 });
+        if (pfr(L, p)) cell.raise++; else if (played || !pre?.folded.includes(p)) cell.call++; else cell.fold++;
+        if (!played && pre?.folded.includes(p) && FOLD_PREMIUM.has(cl) && pre.raisers.length <= 1)
+          advice.push({ n: h.n, text: `You folded ${cl} before the flop against ${pre.raisers.length ? 'one raise' : 'no raise'}. A hand this strong is usually worth a call or a raise.` });
+        else if (played && trash(cl) && ps !== 'BB')
+          advice.push({ n: h.n, text: `You played ${cl} from ${ps}. A hand this weak is usually a fold, most of all out of position.` });
+      }
+      // from the action alone: a limp followed by a later fold, and a fold when a check was free
+      if (dealt && pre && L.mode === 'bets' && !pre.raisers.length && pre.bets[p] === g.bb && ps !== 'BB' && ps !== 'SB'
+        && STREETS.slice(1).some((st) => L.streets[st]?.folded.includes(p)))
+        advice.push({ n: h.n, text: `You limped in from ${ps} and folded later. A raise or a fold before the flop gives you a clearer plan.` });
+      if (dealt && L.mode === 'bets') {
+        for (const st of STREETS) {
+          if (!L.streets[st]?.acts) continue;
+          const rp = replayStreet(g, L, st);
+          const free = (rp.cells[p] ?? []).some((c) => c.needed && !c.post && c.act?.k === 'fold' && !c.act.d && c.toCall === 0);
+          if (free) { advice.push({ n: h.n, text: `You folded on the ${STREET_LABEL[st].toLowerCase()} when a check was free. A check keeps your hand alive at no cost.` }); break; }
+        }
+      }
       const sh = h.shown.find((x) => x.playerId === p);
       if (sh) shown.push({ n: h.n, cards: sh.cards, rank: h.board.length === 5 ? bestHand([...sh.cards, ...h.board])?.name ?? '' : '', won: h.winners.some((w) => w.playerId === p), pot: h.pot, got: h.winners.find((w) => w.playerId === p)?.amount ?? 0, split: h.winners.length > 1 });
     }
@@ -122,7 +270,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
       estimate, off: r.outUnits - estimate, moves, bounty, s,
       vpip: ratio(s.vpip, s.logged) * 100, pfr: ratio(s.pfr, s.logged) * 100, af: st.calls ? st.betsRaises / st.calls : st.betsRaises,
       sdNet: f.winShowdown - f.lossShowdown, foldNet: f.winFold - f.lossFold,
-      byPos, byPosN, shown, mine, dev, rebuys, high, highAt: dev.indexOf(high), low, lowAt: dev.indexOf(low), notes: [],
+      byPos, byPosN, shown, mine, takedowns, range, known, advice: advice.slice(0, 8), logs, dev, rebuys, high, highAt: dev.indexOf(high), low, lowAt: dev.indexOf(low), notes: [],
     };
   });
   const dealtN = Math.round(hands.reduce((a, h) => a + h.log!.dealt.length, 0) / (hands.length || 1));
@@ -132,7 +280,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
   const reach = { preflop: hands.length, flop: 0, turn: 0, river: 0, showdown: 0 };
   for (const h of hands) {
     // a showdown means every street was dealt, even when an all-in left no betting on it
-    const sd = finalists(h.log!).length > 1;
+    const sd = wentToShowdown(h.log!);
     if (h.log!.streets.flop || sd) reach.flop++;
     if (h.log!.streets.turn || sd) reach.turn++;
     if (h.log!.streets.river || sd) reach.river++;
@@ -157,6 +305,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
   const bounties = hands.filter((h) => h.bounty).map((h) => ({ n: h.n, to: name(h.bounty!.playerId), total: bountyTotal(h.bounty!) }));
   return {
     game: g.name, date: new Date(g.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    positions, seatsN, log: opts.gameLog ? [...views.values()] : undefined,
     hands: hands.length, minutes: Math.round((playMs(g) ?? 0) / 60000),
     medianSec: secs[Math.floor(secs.length / 2)] ?? 0, players4: dealtN,
     pots: hands.map((h) => ({ n: h.n, pot: h.pot, winners: h.winners.map((w) => name(w.playerId)) })),
@@ -243,15 +392,21 @@ export const AWARD_LIST: { title: string; best: string; min: string }[] = [
   { title: 'Leprechaun', best: 'Biggest single pot won', min: 'A pot of more than 50 BB' },
   { title: 'Apollo', best: 'Most pots won in a row', min: 'More than 3 in a row' },
   { title: 'Ice Cold', best: 'Lowest pots won against bets and raises made', min: 'Fewer than 10% won' },
-  { title: 'Comeback', best: 'Largest climb from the lowest point to the final result', min: 'At least 50 BB' },
+  { title: 'Comeback', best: 'Largest climb from the lowest point to the final result', min: 'A low point at least 20 BB under par, then a final result at least 50 BB over par' },
   { title: 'Unrelenting', best: 'Highest c-bet rate', min: '5 c-bet chances' },
   { title: 'The Rock', best: 'Lowest VPIP', min: 'VPIP under 40%' },
   { title: 'Bounty Hunter', best: 'Most 2-7 bounties won', min: '1 bounty' },
   { title: 'Iron Defender', best: 'Highest BB defense rate', min: '5 raises faced in the BB, more than 60% defended' },
 ];
 
+/** "Won 11 pots, including 4 takedowns". A tie lists each name. A takedown is a pot won without a showdown. */
+export function kingCaption(won: Pick<TrialPlayer, 'name' | 'takedowns' | 's'>[]): string {
+  const line = (p: (typeof won)[number]) => `Won ${p.s.handsWon} ${p.s.handsWon === 1 ? 'pot' : 'pots'}, including ${p.takedowns} ${p.takedowns === 1 ? 'takedown' : 'takedowns'}`;
+  return won.length === 1 ? `${line(won[0])}.` : `${won.map((p) => `${p.name}: ${line(p).replace('Won', 'won')}`).join('. ')}.`;
+}
+
 /** Table awards from AWARD_LIST, each with one sentence of the figures behind it. */
-function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undefined, bounties: TrialModel['bounties'], bb: number, streaks: Record<ID, number>): Award[] {
+export function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undefined, bounties: TrialModel['bounties'], bb: number, streaks: Record<ID, number>): Award[] {
   const top = (k: (p: TrialPlayer) => number, ok: (p: TrialPlayer) => boolean) => {
     const pool = ps.filter(ok);
     if (!pool.length) return [];
@@ -263,7 +418,7 @@ function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undef
   const sd = top((p) => p.s.wtsd, (p) => p.s.wtsd > 5);
   if (sd.length) out.push({ title: 'Diamond Hands', to: ids(sd), detail: `Saw ${sd[0].s.wtsd} showdowns and won ${sd[0].s.wsd}, ${sd[0].sdNet > 0 ? '+' : ''}${sd[0].sdNet} from them.` });
   const won = top((p) => p.s.handsWon, (p) => p.s.handsWon > 5);
-  if (won.length) out.push({ title: 'King Of The Hill', to: ids(won), detail: `${won[0].s.handsWon} pots${won.length > 1 ? ' each' : ''}. ${won.map((p) => `${p.name}: ${p.s.handsWon - p.s.wsd} without a showdown`).join('. ')}.` });
+  if (won.length) out.push({ title: 'King Of The Hill', to: ids(won), detail: kingCaption(won) });
   if (big && big.pot > 50 * bb) {
     const rank = big.shown.find((s) => big.winners.includes(s.p))?.rank;
     out.push({ title: 'Leprechaun', to: ps.filter((p) => big.winners.includes(p.name)).map((p) => p.id), detail: `Won ${big.pot} on hand #${big.n}${rank ? ` with a ${rank.toLowerCase()}` : ''}.` });
@@ -272,7 +427,7 @@ function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undef
   if (hot.length) out.push({ title: 'Apollo', to: ids(hot), detail: `Won ${streaks[hot[0].id]} pots in a row.` });
   const cold = top((p) => -ratio(p.s.handsWon, p.s.style.betsRaises), (p) => p.s.style.betsRaises > 0 && p.s.handsWon / p.s.style.betsRaises < 0.1);
   if (cold.length) out.push({ title: 'Ice Cold', to: ids(cold), detail: `Won ${cold[0].s.handsWon} pots after ${cold[0].s.style.betsRaises} bets or raises.` });
-  const back = top((p) => p.net - p.low, (p) => p.net - p.low >= 50 * bb && p.lowAt < p.dev.length - 1);
+  const back = top((p) => p.net - p.low, (p) => p.net >= 50 * bb && p.low <= -20 * bb && p.lowAt < p.dev.length - 1);
   if (back.length) out.push({ title: 'Comeback', to: ids(back), detail: `Climbed ${back[0].net - back[0].low} from ${back[0].low} after hand #${back[0].lowAt} to finish ${back[0].net > 0 ? '+' : ''}${back[0].net}.` });
   const cb = top((p) => ratio(p.s.style.cbet, p.s.style.cbetOpp), (p) => p.s.style.cbetOpp >= 5);
   if (cb.length) out.push({ title: 'Unrelenting', to: ids(cb), detail: `Bet the flop after raising ${cb[0].s.style.cbet} of ${cb[0].s.style.cbetOpp} times.` });
@@ -289,9 +444,8 @@ function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] | undef
 /** The part of a player everyone sees in the shared report: the figures behind Game Summary and Compare.
     Strengths, weaknesses, seats, cards shown and chip sources stay in the player's locked box. */
 export function publicPlayer(p: TrialPlayer): TrialPlayer {
-  const zero = { BTN: 0, SB: 0, BB: 0, UTG: 0 };
   return {
-    ...p, notes: [], shown: [], mine: [], byPos: { ...zero }, byPosN: { ...zero }, sdNet: 0, foldNet: 0, locked: true,
+    ...p, notes: [], shown: [], mine: [], range: {}, known: 0, advice: [], logs: [], byPos: {}, byPosN: {}, sdNet: 0, foldNet: 0, locked: true,
     s: {
       ...p.s, history: [],
       flow: { winFold: 0, winShowdown: 0, winOther: 0, lossFold: 0, lossShowdown: 0, lossOther: 0 },

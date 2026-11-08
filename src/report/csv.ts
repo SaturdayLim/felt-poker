@@ -125,6 +125,15 @@ export function ledgerCsv(games: Game[], name: NameFn): string {
   return toCsv(['game_id', 'game', 'time', 'event', 'player', 'to_player', 'chips', 'money', 'detail'], rows);
 }
 
+/** A game name made safe for a file name (no slashes, colons or quotes). */
+export const fileSafe = (s: string) => s.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Game';
+
+/** A file name that says what is inside: "<game name> - results - 2026-11-09.png". `what` is the content, for example
+    "results", "results and stats", "full game record", "game record" or "data (3 csv) players". No two outputs of one game share a name. */
+export function outputName(g: Pick<Game, 'name' | 'startedAt'>, what: string, ext: string, part?: string) {
+  return `${fileSafe(g.name)} - ${what}${part ? ` ${part}` : ''} - ${new Date(g.startedAt).toLocaleDateString('en-CA')}.${ext}`;
+}
+
 export function slug(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'game';
 }

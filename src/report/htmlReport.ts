@@ -5,7 +5,7 @@ import type { Game, Player, Settings } from '../types';
 import { newCode } from '../lib/codes';
 import { buildModel, publicPlayer, type TrialModel } from './model';
 import { lock, type LockBox } from './lock';
-import { slug } from './csv';
+import { outputName } from './csv';
 
 /** A game needs this many recorded hands before the report has anything to show. */
 export const MIN_REPORT_HANDS = 3;
@@ -29,8 +29,8 @@ export function fillTemplate(template: string, report: ReportFile, title: string
 }
 
 /** The model for one game, with every player page locked by that player's code. A player without a code gets a new one. */
-export async function buildReport(g: Game, players: Player[], settings?: Settings): Promise<{ report: ReportFile; codes: PlayerCode[] }> {
-  const model = buildModel({ players, games: [g], settings });
+export async function buildReport(g: Game, players: Player[], settings?: Settings, opts: { gameLog?: boolean } = {}): Promise<{ report: ReportFile; codes: PlayerCode[] }> {
+  const model = buildModel({ players, games: [g], settings }, 0, opts);
   const codes: PlayerCode[] = [];
   const locks: ReportFile['locks'] = {};
   for (const p of model.players) {
@@ -41,7 +41,8 @@ export async function buildReport(g: Game, players: Player[], settings?: Setting
   return { report: { model: { ...model, players: model.players.map(publicPlayer) }, locks }, codes };
 }
 
-export const reportFileName = (g: Game) => `${slug(g.name)}-${new Date(g.startedAt).toLocaleDateString('en-CA')}-report.html`;
+/** "<game name> - game record - <date>.html". */
+export const reportFileName = (g: Game) => outputName(g, 'game record', 'html');
 
 /** The template is part of the app (cached for offline use). */
 export async function loadTemplate(): Promise<string> {
@@ -50,8 +51,9 @@ export async function loadTemplate(): Promise<string> {
   return res.text();
 }
 
-export async function makeHtmlReport(g: Game, players: Player[], settings: Settings): Promise<{ file: File; codes: PlayerCode[] }> {
-  const [template, built] = await Promise.all([loadTemplate(), buildReport(g, players, settings)]);
+/** `gameLog`: add the Game Log tab (every hand with its action log). The host ticks it in Report.tsx. */
+export async function makeHtmlReport(g: Game, players: Player[], settings: Settings, opts: { gameLog?: boolean } = {}): Promise<{ file: File; codes: PlayerCode[] }> {
+  const [template, built] = await Promise.all([loadTemplate(), buildReport(g, players, settings, opts)]);
   const html = fillTemplate(template, built.report, g.name);
   return { file: new File([html], reportFileName(g), { type: 'text/html' }), codes: built.codes };
 }

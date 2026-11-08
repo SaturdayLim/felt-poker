@@ -303,7 +303,7 @@ function ActionLog({ now: sent, hands, blinds, onFlag }: { now: NowSnapshot | nu
     <>
       <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />
       {!now && !hands.length && <div className="sat-flat sat-card sat-small">No hands yet.</div>}
-      {now && <HandFrame n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}
+      {now && <HandFrame key={now.n} n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}
       {closed.map((h) => <HandFrame key={h.n} n={h.n} view={h.view} blinds={blinds} />)}
       <button className="sat-btn sat-btn--ghost" onClick={onFlag}><Icon name="flag" size={18} /> Flag a wrong update</button>
     </>

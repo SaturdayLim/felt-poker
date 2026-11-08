@@ -303,13 +303,17 @@ export function takedownWinner(g: Game, log: HandLog, eligible: ID[]): ID | null
 }
 
 /** The hand was decided with nobody left to answer: the pot went to one player without cards being compared. That is
-    every other player folding, or every other player left Not shown. Two or more finalists with at most one of them
-    not mucked also counts. */
+    every other player folding, or every other player left Not shown while the one left did not show a pair.
+    If the one left SHOWED, that is a real showdown (winner shows, loser taps Not shown). If every finalist is
+    Not shown, the last in showdown order wins: a takedown. */
 export function isTakedown(log: HandLog): boolean {
   const fin = finalists(log);
   if (fin.length <= 1) return true;
   const out = new Set(log.mucked ?? []);
-  return fin.filter((p) => !out.has(p)).length <= 1 && fin.some((p) => out.has(p));
+  const left = fin.filter((p) => !out.has(p));
+  if (left.length === 0) return true;
+  if (left.length === 1) return log.shown?.[left[0]]?.length !== 2;
+  return false;
 }
 
 /** Two or more players reached a real showdown. A takedown is not a showdown. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Game, HandLog } from '../types';
-import { bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, takedown, tapPlayer, typeBet, vpip, wentToShowdown } from './hand';
+import type { Game, Hand, HandLog } from '../types';
+import { handStats } from './calc';
+import { isTakedown, bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, takedown, tapPlayer, typeBet, vpip, wentToShowdown } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -473,6 +474,33 @@ describe('Not shown and takedowns', () => {
     expect(wentToShowdown(log)).toBe(true);
     expect(takedown({ log })).toBe(false);
     expect(res.winners.map((w) => w.playerId)).toEqual(['CY']);
+  });
+
+  it('winner shows and the loser taps Not shown: a real showdown, not a takedown', () => {
+    const log = base({ shown: { CY: ['As', 'Ad'] }, mucked: ['Edwin', 'Mike'] });
+    expect(wentToShowdown(log)).toBe(true);
+    expect(takedown({ log })).toBe(false);
+    expect(isTakedown(log)).toBe(false);
+    const res = resolve(g3(), log, board, 'CY', {});
+    expect(res.winners.map((w) => w.playerId)).toEqual(['CY']);
+    // the viewer lists the losers as Not shown
+    const h = { id: "h", tags: [], n: 1, pot: 6, winners: res.winners, board, shown: [{ playerId: 'CY', cards: ['As', 'Ad'] }], log } as unknown as Hand;
+    const gm = { ...g3(), name: 'T', type: 'cash', status: 'live', startedAt: 0, buyIns: [], hands: [h] } as unknown as Game;
+    expect(handStats(gm).showdowns).toBe(1);
+  });
+
+  it('everyone Not shown is a takedown by the last in showdown order; a 2-7 reveal in a takedown is no showdown', () => {
+    const log = base({ mucked: ['CY', 'Edwin', 'Mike'] });
+    expect(isTakedown(log)).toBe(true);
+    expect(wentToShowdown(log)).toBe(false);
+    let folded = newLog(g3(), three, 'bets', 'CY');
+    folded = tapPlayer(folded, 'preflop', 'Edwin');
+    folded = tapPlayer(folded, 'preflop', 'Mike');
+    folded = { ...folded, shown: { Edwin: ['2c', '7d'] } };
+    const h = { id: "h", tags: [], n: 1, pot: 3, winners: [{ playerId: 'CY', amount: 3 }], board: [], shown: [{ playerId: 'Edwin', cards: ['2c', '7d'] }], log: folded } as unknown as Hand;
+    const gm = { ...g3(), name: 'T', type: 'cash', status: 'live', startedAt: 0, buyIns: [], hands: [h] } as unknown as Game;
+    expect(isTakedown(folded)).toBe(true);
+    expect(handStats(gm).showdowns).toBe(0);
   });
 
   it('takedown needs the pot to have a log and a saved hand', () => {

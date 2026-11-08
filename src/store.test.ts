@@ -54,6 +54,17 @@ describe('stacks before the game starts', () => {
     tick(); st().clockOut(id, a, 0);
     tick(); expect(st().backIn(id, a)).toEqual({ kind: 'rebuy', chips: 200 });
     expect(playerStatus(game(), a)).toBe('playing');
+    expect(hasCashedOut(game(), a)).toBe(false);
+    expect(game().cashOuts.filter((x) => x.playerId === a)).toEqual([]);
+    expect(stack(a)).toBe(200);
+  });
+
+  it('+ on a player clocked out with 0 chips drops the 0 cash-out and buys in', () => {
+    const { a, id, game, stack, tick } = setup();
+    tick(); st().clockOut(id, a, 0);
+    tick(); st().addBuyIn(id, a, 200);
+    expect(hasCashedOut(game(), a)).toBe(false);
+    expect(playerStatus(game(), a)).toBe('playing');
     expect(stack(a)).toBe(200);
   });
 

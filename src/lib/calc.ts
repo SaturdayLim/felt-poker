@@ -2,6 +2,7 @@ import type { Game, ID, PlayerStatus, Transfer } from '../types';
 import type { Figure } from './format';
 import { uid } from './ids';
 import { bestHand } from './cards';
+import { wentToShowdown } from './hand';
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -260,7 +261,8 @@ export function handStats(g: Game): GameHandStats {
     if (!s.biggest || h.pot > s.biggest.pot)
       s.biggest = { handId: h.id, n: h.n, pot: h.pot, winners: h.winners.map((w) => w.playerId) };
     if (h.allIn) s.allIns++;
-    if (h.shown.length) s.showdowns++;
+    // a 2-7 reveal in a takedown is not a showdown; hands without a log fall back to the shown cards
+    if (h.log && !h.missed ? wentToShowdown(h.log) : h.shown.length) s.showdowns++;
     for (const w of h.winners) {
       s.handsWon[w.playerId] = (s.handsWon[w.playerId] ?? 0) + 1;
       s.potsWon[w.playerId] = (s.potsWon[w.playerId] ?? 0) + w.amount;

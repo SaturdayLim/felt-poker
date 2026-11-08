@@ -18,7 +18,7 @@ import {
   NOT_SHOWN, STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
   isTakedown, newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, unknownBoxes, type Replay,
 } from '../lib/hand';
-import { estimateStacks, exactStacks } from '../lib/stacks';
+import { bustedAfterSave, estimateStacks, exactStacks } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import type { Act, Card, Game, Hand, HandLog, ID, StreetName } from '../types';
 
@@ -138,11 +138,26 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const name = usePlayerName();
   // busted players are offered a rebuy once their hand is saved. It never blocks: Skip always works.
   const { offer: offerRebuy, sheet: rebuySheet } = useRebuyOffer(gameId);
-  // Save hand leaves the page; it waits while the rebuy sheet is open, then leaves
+  // Save hand leaves the page and Save, next hand deals the next one. Both wait while the rebuy sheet is open
+  // (Rebuy, Skip, swipe or tap outside all close it), so a rebuy lands before the next hand is dealt.
+  // The recorder stays mounted meanwhile: the route changes only after the sheet closes.
   const leaveAfterRebuy = useRef(false);
+  const nextAfterRebuy = useRef<{ n: number; msg: string } | null>(null);
   const [, setSaved] = useState(0);
+  // sheetDue: busted players exist, so the sheet is about to open (its state lands a render after the save).
+  // If it never opens (everyone skipped before), a short timer moves on, so nothing blocks.
+  const sheetDue = useRef(false);
+  const move = () => {
+    sheetDue.current = false;
+    if (nextAfterRebuy.current) { const p = nextAfterRebuy.current; nextAfterRebuy.current = null; nextHand(p.n, p.msg); }
+    else if (leaveAfterRebuy.current) { leaveAfterRebuy.current = false; back(`game/${gameId}`); }
+  };
   useEffect(() => {
-    if (leaveAfterRebuy.current && !rebuySheet) { leaveAfterRebuy.current = false; back(`game/${gameId}`); }
+    if (rebuySheet) { sheetDue.current = false; return; }
+    if (!nextAfterRebuy.current && !leaveAfterRebuy.current) return;
+    if (!sheetDue.current) { move(); return; }
+    const t = window.setTimeout(move, 500);
+    return () => window.clearTimeout(t);
   });
   const existing = g?.hands.find((h) => h.id === handId);
   const nNew = (g?.hands[g.hands.length - 1]?.n ?? 0) + 1;
@@ -511,8 +526,11 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     saveHand(g.id, hand);
     try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }
     offerRebuy(hand);
-    if (next) nextHand(hand.n + 1, `Hand ${hand.n} saved. Hand ${hand.n + 1} dealt.`);
-    else { leaveAfterRebuy.current = true; setSaved((n) => n + 1); }
+    sheetDue.current = bustedAfterSave(useStore.getState().games.find((x) => x.id === g.id) ?? g, hand).length > 0;
+    // the effect above runs the move once no rebuy sheet is open (at once when nobody busted)
+    if (next) nextAfterRebuy.current = { n: hand.n + 1, msg: `Hand ${hand.n} saved. Hand ${hand.n + 1} dealt.` };
+    else leaveAfterRebuy.current = true;
+    setSaved((n) => n + 1);
   };
   const nextHand = (n: number, msg: string) => {
     try { localStorage.removeItem(draftKey(g.id)); } catch { /* ignore */ }

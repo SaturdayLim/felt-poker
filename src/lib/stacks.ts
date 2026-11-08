@@ -162,3 +162,11 @@ export function rebuyOffered(g: Game, hand: Hand, pid: ID): boolean {
   if (g.buyIns.some((b) => b.playerId === pid && b.at > handClose(hand))) return false;
   return bustedPlayers(g, hand).includes(pid);
 }
+
+/** Players to offer a rebuy right after `hand` was saved: busted in it, rebuy still open, and no later hand exists.
+    Re-editing hand 5 after hands 6 to 9 gives an empty list. The recorder uses this to decide whether to wait for the
+    rebuy sheet before the next hand. */
+export function bustedAfterSave(g: Game, hand: Hand): ID[] {
+  if (g.hands.some((h) => h.id !== hand.id && h.n > hand.n)) return [];
+  return bustedPlayers(g, hand).filter((p) => rebuyOffered(g, hand, p));
+}

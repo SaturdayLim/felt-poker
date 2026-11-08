@@ -124,6 +124,15 @@ export function handClass(cards: Card[]): string {
 }
 
 const STREET_LABEL: Record<StreetName | 'showdown', string> = { preflop: 'Pre-flop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Showdown' };
+
+/** The street a player's result was decided on. A loser who folded is out on the street they folded, even when the hand went to showdown. */
+export function resultStreet(L: HandLog, p: ID, net: number): string {
+  if (net < 0) {
+    const folded = STREETS.find((st) => L.streets[st]?.folded.includes(p));
+    if (folded) return STREET_LABEL[folded];
+  }
+  return STREET_LABEL[wonAt(L)];
+}
 const FOLD_PREMIUM = new Set(['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AKo']);
 /** Weakest starting hands: offsuit, 9 high or lower, and at least 4 ranks between the two cards. */
 const trash = (c: string) => c.endsWith('o') && RANKS.indexOf(c[0]) >= 4 && RANKS.indexOf(c[1]) - RANKS.indexOf(c[0]) >= 4;
@@ -222,7 +231,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
       if (own) mine.push({
         n: h.n, cards: own, lvl: clashLevel(h, p), rank: h.board.length === 5 ? bestHand([...own, ...h.board])?.name ?? '' : '',
         shownAtTable: h.shown.some((x) => x.playerId === p), won: h.winners.some((w) => w.playerId === p),
-        got: h.winners.find((w) => w.playerId === p)?.amount ?? 0, net: Math.round(net), street: STREET_LABEL[wonAt(L)],
+        got: h.winners.find((w) => w.playerId === p)?.amount ?? 0, net: Math.round(net), street: resultStreet(L, p, net),
       });
       const cards = countedPairs(h, checkCards)[p];
       const pre = L.streets.preflop;

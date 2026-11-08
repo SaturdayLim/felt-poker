@@ -121,14 +121,16 @@ function withCodes(players: Player[], games: Pick<Game, 'playerIds'>[]): Player[
 
 /** A clocked-out cash player comes back with the chips they left with: the cash-out goes (a playing player must not
     keep one, or the stack reads 0 when a later buy-in is deleted), the status turns to playing and a count at `t`
-    makes the stack exact. A cash-out of 0 chips changes nothing and needs a buy-in instead. Returns the chips left. */
+    makes the stack exact. A cash-out of 0 chips goes too (CountChips would read the player as counted at 0). The count
+    then reads 0, which resets the stack, so the buy-in that follows is the new stack. Returns the chips left. */
 function resumeFromCashOut(g: Game, playerId: ID, t: number): number {
+  const had = g.cashOuts.some((c) => c.playerId === playerId);
   const left = cashOutUnits(g, playerId);
-  if (left <= 0) return 0;
   g.cashOuts = g.cashOuts.filter((c) => c.playerId !== playerId);
   g.statusEvents.push({ playerId, status: 'playing', at: t });
-  (g.counts ??= []).push({ id: uid(), playerId, chips: left, at: t });
-  return left;
+  // no cash-out on record (clocked out by status only): the stack stays as the log left it, no count
+  if (had) (g.counts ??= []).push({ id: uid(), playerId, chips: Math.max(0, left), at: t });
+  return had ? Math.max(0, left) : 0;
 }
 
 /** Hands saved with `mine` (the phone owner's cards) move into `private`. */
@@ -274,7 +276,7 @@ export const useStore = create<State>()(
             if (playerStatus(g, playerId) === 'out') {
               // the + on a player who is out: the seat wakes up with the chips left at clock-out, then the buy-in adds to them.
               // The buy-in comes 1 ms after the count so that deleting it later leaves the count.
-              if (g.type === 'cash' && resumeFromCashOut(g, playerId, t) > 0) at = t + 1;
+              if (g.type === 'cash') { const n = g.counts?.length ?? 0; resumeFromCashOut(g, playerId, t); if ((g.counts?.length ?? 0) > n) at = t + 1; }
               else g.statusEvents.push({ playerId, status: 'playing', at: t });
             }
             g.buyIns.push({ id: uid(), playerId, amount, at });

@@ -85,9 +85,11 @@ function Reveal({ card, size, delay }: { card: Card; size?: 'sm' | 'lg'; delay: 
     a single new card (turn, river) flips alone. Reduced motion shows every card face up at once. */
 export function VCards({ cards, size, reveal }: { cards: Card[]; size?: 'sm' | 'lg'; reveal?: boolean }) {
   const seen = useContext(RevealCtx);
-  // a card flips only when it first shows in this hand while the viewer watches; the choice is made on mount
+  // a card flips only when it first shows in this hand while the viewer watches. Checked on every render, so a card
+  // that arrives on a band already on screen (turn after flop, or a flop card added one by one) flips too
   const fresh = useRef<Set<Card> | null>(null);
-  if (!fresh.current) fresh.current = new Set(reveal && seen && !calm() ? cards.filter((c) => !seen.has(c)) : []);
+  if (!fresh.current) fresh.current = new Set();
+  if (reveal && seen && !calm()) for (const c of cards) if (!seen.has(c)) fresh.current.add(c);
   useEffect(() => { cards.forEach((c) => seen?.add(c)); });
   let k = 0;
   return (

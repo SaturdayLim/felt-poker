@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game, Hand } from '../types';
-import { bustedPlayers, estimateStacks, rebuyDefault, rebuyOffered } from './stacks';
+import { bustedAfterSave, bustedPlayers, estimateStacks, rebuyDefault, rebuyOffered } from './stacks';
 
 const bustHand = (bWins = 400): Hand => ({
   id: 'h1', n: 1, at: 10, endedAt: 20, pot: 400, winners: [{ playerId: 'B', amount: bWins }], board: [], shown: [],
@@ -50,5 +50,17 @@ describe('bust and rebuy', () => {
     expect(rebuyOffered(g, g.hands[0], 'B')).toBe(false);
     const rebought = game({ buyIns: [...g.buyIns, { id: 'r', playerId: 'A', amount: 400, at: 25 }] });
     expect(rebuyOffered(rebought, rebought.hands[0], 'A')).toBe(false);
+  });
+  it('bustedAfterSave offers only when no later hand exists', () => {
+    const g = game();
+    expect(bustedAfterSave(g, g.hands[0])).toEqual(['A']);
+    const later = { ...bustHand(), id: 'h2', n: 2, at: 40, endedAt: 50 } as Hand;
+    const edited = { ...g, hands: [g.hands[0], later] };
+    expect(bustedAfterSave(edited, edited.hands[0])).toEqual([]);
+    // the latest hand still offers
+    expect(bustedAfterSave({ ...g, hands: [g.hands[0]] }, g.hands[0])).toEqual(['A']);
+    // a rebuy already taken ends the offer
+    const rebought = game({ buyIns: [...g.buyIns, { id: 'r', playerId: 'A', amount: 400, at: 25 }] });
+    expect(bustedAfterSave(rebought, rebought.hands[0])).toEqual([]);
   });
 });

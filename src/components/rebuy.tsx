@@ -8,9 +8,11 @@
      ...
      return <>{...}{rebuy.sheet}</>;   // render once, anywhere in the screen
 
-   `offer(hand)` finds the players who busted in `hand` (bustedPlayers), keeps those that `rebuyOffered` still allows
-   (no buy-in after the hand closed) and that were not skipped in this session, and opens the sheet when any are left.
-   Tournaments and games with nobody busted do nothing. The sheet never blocks: Skip, a swipe down or a tap outside
+   `offer(hand)` uses `bustedAfterSave(g, hand)` from lib/stacks: players who busted in `hand`, `rebuyOffered` still
+   allows (no buy-in after the hand closed) and NO LATER HAND exists (re-editing hand 5 after hands 6 to 9 offers
+   nothing). Players skipped in this session are dropped; the sheet opens when any are left.
+   The recorder can call `bustedAfterSave(g, hand).length` to decide whether to wait for the sheet before the next hand.
+   Tournaments, games with nobody busted and games whose `defaultBuyIn` is not above 0 do nothing (the sheet renders null). The sheet never blocks: Skip, a swipe down or a tap outside
    leaves it, and a skipped player is not offered again for that hand until the page reloads.
 
    `RebuySheet({ g, pids, onClose })` is the sheet itself. Per player: "Rebuy for N chips?", a stepper in whole buy-ins
@@ -18,8 +20,8 @@
    and Skip. A rebuy calls `addBuyIn(g.id, pid, chips)`; the player stays active. */
 import { useState, type ReactNode } from 'react';
 import { useStore, usePlayerName } from '../store';
-import { Icon, Sheet, num, toast } from './ui';
-import { bustedPlayers, estimateStacks, rebuyDefault, rebuyOffered } from '../lib/stacks';
+import { Help, Icon, Sheet, num, toast } from './ui';
+import { bustedAfterSave, estimateStacks, rebuyDefault, rebuyOffered } from '../lib/stacks';
 import { playerStatus } from '../lib/calc';
 import { units } from '../lib/format';
 import type { Game, Hand, ID } from '../types';
@@ -42,7 +44,7 @@ function RebuyRow({ g, pid, name, onDone }: { g: Game; pid: ID; name: string; on
   const step = (d: number) => setV(String(Math.max(buyIn, (ok ? chips : buyIn) + d * buyIn)));
   return (
     <div className="felt-rebuy-row sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-      <div className="felt-rebuy-q"><b>{name}</b> <span>Rebuy for how many chips?</span></div>
+      <div className="felt-rebuy-q"><b>{name}</b> <span>Rebuy for {ok ? units(chips) : 0} chips?</span><Help k="rebuy" /></div>
       <div className="felt-rebuy-ctl">
         <div className="felt-rebuy-step" role="group" aria-label={`Rebuy amount for ${name}`}>
           <button type="button" className="sat-btn sat-iconbtn" aria-label="One buy-in less" onClick={() => step(-1)}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg></button>
@@ -52,7 +54,6 @@ function RebuyRow({ g, pid, name, onDone }: { g: Game; pid: ID; name: string; on
         <button type="button" className="sat-btn sat-btn--primary" aria-disabled={!ok} onClick={() => { if (!ok) return; st.addBuyIn(g.id, pid, chips); toast(`${name} rebuys ${units(chips)} chips.`); onDone(); }}>Rebuy</button>
         <button type="button" className="sat-btn sat-btn--ghost" onClick={onDone}>Skip</button>
       </div>
-      <span className="sat-small sat-muted">{units(buyIn)} chips is one buy-in. The biggest stack allows {max} {max === 1 ? 'buy-in' : 'buy-ins'}. Any amount works.</span>
     </div>
   );
 }
@@ -61,6 +62,8 @@ export function RebuySheet({ g, pids, onClose }: { g: Game; pids: ID[]; onClose:
   const name = usePlayerName();
   const [done, setDone] = useState<ID[]>([]);
   const left = pids.filter((p) => !done.includes(p));
+  // no buy-in size: nothing to step by, nothing to default to
+  if (!(g.defaultBuyIn > 0)) return null;
   const finish = (p: ID) => { const next = [...done, p]; setDone(next); if (pids.every((x) => next.includes(x))) onClose(); };
   return (
     <Sheet open onClose={onClose} title="Rebuy" sub={left.length > 1 ? 'These players have no chips.' : 'This player has no chips.'}>
@@ -78,8 +81,8 @@ export function useRebuyOffer(gameId: ID): { offer: (hand: Hand) => void; sheet:
   const game = useStore((s) => s.games.find((x) => x.id === gameId));
   const offer = (h: Hand) => {
     const g = useStore.getState().games.find((x) => x.id === gameId);
-    if (!g || g.type !== 'cash') return;
-    const list = bustedPlayers(g, h).filter((p) => rebuyOffered(g, h, p) && !skipped.has(`${h.id}:${p}`));
+    if (!g || g.type !== 'cash' || !(g.defaultBuyIn > 0)) return;
+    const list = bustedAfterSave(g, h).filter((p) => !skipped.has(`${h.id}:${p}`));
     if (!list.length) return;
     setHand(h);
     setPids(list);

@@ -1,8 +1,9 @@
 // @ts-expect-error node types are not in the app tsconfig; vitest runs in node
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { AWARD_LIST, awardsFor, buildModel, handClass, kingCaption, positionNames, type TrialPlayer } from './model';
+import { AWARD_LIST, awardsFor, buildModel, handClass, kingCaption, positionNames, resultStreet, type TrialPlayer } from './model';
 import { AWARD_ICONS } from './awardIcons';
+import type { HandLog } from '../types';
 
 const zeros = { wtsd: 0, wsd: 0, handsWon: 0, logged: 10, vpip: 5, style: { betsRaises: 0, cbet: 0, cbetOpp: 0, bbDefend: 0, bbDefendOpp: 0 } };
 function fake(over: Partial<TrialPlayer> & { id: string }): TrialPlayer {
@@ -44,6 +45,29 @@ describe('award marks', () => {
     const marks = AWARD_LIST.map((a) => (AWARD_ICONS[a.title] ?? []).join('|'));
     expect(marks.every((m) => m.length > 0)).toBe(true);
     expect(new Set(marks).size).toBe(AWARD_LIST.length);
+  });
+});
+
+describe('Your Cards street', () => {
+  const st = (folded: string[] = []) => ({ bets: {}, prev: {}, typed: {}, folded, raisers: [] });
+  // three players, all reach the river: a and b go to showdown, so the hand's end is Showdown
+  const hand = (streets: Record<string, string[]>) => ({
+    mode: 'bets', dealt: ['a', 'b', 'c'], button: 'c',
+    streets: { preflop: st(streets.preflop), flop: st(streets.flop), turn: st(streets.turn), river: st(streets.river) },
+  }) as unknown as HandLog;
+  it('a loser shows the street they folded on, even when the hand went to showdown', () => {
+    const L = hand({ preflop: ['a'], flop: [], turn: [], river: [] });
+    expect(resultStreet(L, 'a', -3)).toBe('Pre-flop');
+    expect(resultStreet(L, 'b', 5)).toBe('Showdown');
+  });
+  it('a loser who folded later shows that street', () => {
+    const L = hand({ preflop: [], flop: ['b'], turn: [], river: [] });
+    expect(resultStreet(L, 'b', -5)).toBe('Flop');
+    expect(resultStreet(L, 'a', -5)).toBe('Showdown');
+  });
+  it('a loser who did not fold keeps the hand end', () => {
+    const L = hand({ preflop: [], flop: [], turn: [], river: [] });
+    expect(resultStreet(L, 'b', -5)).toBe('Showdown');
   });
 });
 

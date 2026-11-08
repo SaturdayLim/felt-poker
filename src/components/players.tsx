@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePlayerName, useStore } from '../store';
-import { Delta, Help, HoldButton, Icon, Sheet, toast, WordButton } from './ui';
-import { showCode } from '../lib/codes';
+import { Delta, Help, HoldFill, Icon, Sheet, toast, WordButton } from './ui';
+import { newCode, showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary, summaryFigure } from '../lib/stats';
 import { gameFigure, gameResults } from '../lib/calc';
@@ -210,21 +210,11 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
 export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
   const p = useStore((s) => s.players.find((x) => x.id === pid));
   const inGame = useStore((s) => s.games.some((g) => g.playerIds.includes(pid)));
-  const issueCode = useStore((s) => s.issueCode);
   const revealCode = useStore((s) => s.revealCode);
   const [shown, setShown] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
   if (!p) return null;
   const ready = !!p.code && inGame;
-  // the thumb covers the icon, so the hold says what it does: a message while the code is made, then a pulse and the name
-  const replace = () => {
-    toast('Making a new code…');
-    window.setTimeout(() => {
-      const c = issueCode(pid);
-      setShown(c);
-      haptic([30, 60, 30]);
-      toast(`New code for ${p.name}.`);
-    }, 600);
-  };
   const tap = () => {
     if (!ready) { toast('A code starts when this player joins a game.'); return; }
     if (shown) { setShown(null); return; }
@@ -243,8 +233,9 @@ export function CodeControl({ pid, label }: { pid: ID; label?: boolean }) {
       {label && <span className="felt-codectl-label">Player code<Help k="playerCode" /></span>}
       {shown && <b className="felt-codectl-shown sat-num felt-selectable" aria-label={`Code ${shown}`}>{showCode(shown)}</b>}
       {label && shown && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label={`Copy a message with the code for ${p.name}`} onClick={copy}><Icon name="file" /></button>}
+      {asking && <ReplaceCodeSheet pid={pid} name={p.name} onClose={() => setAsking(false)} onNew={(c) => setShown(c)} />}
       {ready && !shown && p.codeIssued
-        ? <HoldButton label={`${what}: ${p.name}`} hint="Tap and hold to replace code" onDone={replace}><Icon name={icon} /></HoldButton>
+        ? <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} onClick={() => setAsking(true)}><Icon name={icon} /></button>
         : <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-codectl-btn" aria-label={`${what}: ${p.name}`} aria-pressed={!!shown} onClick={tap}><Icon name={icon} /></button>}
     </span>
   );
@@ -382,4 +373,28 @@ export function PlayerName({ id }: { id: ID }) {
   // the name lets go of the focus once tapped: no ring stays over it after the card opens
   const open = (e: { stopPropagation: () => void; preventDefault: () => void; currentTarget: EventTarget }) => { e.stopPropagation(); e.preventDefault(); (e.currentTarget as HTMLElement).blur?.(); openPlayer(id); };
   return <span role="button" tabIndex={0} className="felt-name" data-player={id} data-press="name" aria-label={`Open the player card of ${name(id)}`} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter') open(e); }}>{name(id)}</span>;
+}
+
+
+/** Replace a player code: a sheet from the bottom with a hold-to-confirm button. While the button fills, the new code loads
+    in, one box for each sixth of the hold. Letting go early keeps the old code. At full the old code stops working. */
+function ReplaceCodeSheet({ pid, name, onClose, onNew }: { pid: ID; name: string; onClose: () => void; onNew: (code: string) => void }) {
+  const issueCode = useStore((s) => s.issueCode);
+  const next = useRef(newCode());
+  const [left, setLeft] = useState(0);
+  const [code, setCode] = useState<string | null>(null);
+  const copy = () => navigator.clipboard?.writeText(`${name}, your Felt player code is ${showCode(code ?? next.current)}. Keep it private.`)
+    .then(() => toast(`Message for ${name} copied.`), () => toast('Copy was blocked.'));
+  return (
+    <Sheet open onClose={onClose} title={`Replace code for ${name}`} sub="The old code stops working when the button is full.">
+      <div className="felt-boxes is-idle felt-boxes--static" role="img" aria-label={code ? `New code ${code}` : 'New code loading'}>
+        {Array.from({ length: 6 }, (_, i) => (
+          <span key={`${i}${i < left ? 'on' : 'off'}`} className={`felt-boxes-cell ${i < left ? 'is-in' : ''}`} aria-hidden="true">{i < left ? next.current[i] : ''}</span>
+        ))}
+      </div>
+      <HoldFill label="Hold to replace code" doneLabel="Code replaced" onProgress={(v) => setLeft(Math.floor(v * 6 + 0.001))}
+        onDone={() => { const c = issueCode(pid, next.current); setCode(c); setLeft(6); onNew(c); }} />
+      {code && <button type="button" className="sat-btn sat-btn--block" onClick={copy}><Icon name="file" /> Copy message with the code</button>}
+    </Sheet>
+  );
 }

@@ -74,7 +74,7 @@ interface State {
 
   addPlayer: (name: string) => Player;
   /** Makes a new code for a player (the old one stops working) and marks it as issued. The caller shows or copies it once. */
-  issueCode: (id: ID) => string;
+  issueCode: (id: ID, code?: string) => string;
   revealCode: (id: ID) => void;
   renamePlayer: (id: ID, name: string) => void;
   setPlayerArchived: (id: ID, archived: boolean) => void;
@@ -171,8 +171,8 @@ export const useStore = create<State>()(
           set((s) => ({ players: [...s.players, p] }));
           return p;
         },
-        issueCode: (id) => {
-          const code = newCode();
+        issueCode: (id, chosen) => {
+          const code = chosen ?? newCode();
           set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, code, codeIssued: true } : p)) }));
           return code;
         },

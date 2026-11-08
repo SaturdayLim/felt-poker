@@ -89,7 +89,7 @@ export function useDragList<T>(ids: T[], onDrop: (order: T[]) => void) {
   /** Style and class for one row. */
   const row = (id: T): { style?: CSSProperties; className: string; 'data-drag-row': true } => {
     if (!d) return { className: '', 'data-drag-row': true };
-    if (id === d.id) return { className: `is-dragging ${d.settling ? 'is-settling' : ''}`, style: { transform: `translateY(${d.dy}px)${d.settling ? '' : ' scale(1.05)'}` }, 'data-drag-row': true };
+    if (id === d.id) return { className: `is-dragging ${d.settling ? 'is-settling' : ''}`, style: { transform: `translateY(${d.dy}px)${d.settling ? '' : ' scale(1.02)'}` }, 'data-drag-row': true };
     const i = ids.indexOf(id);
     const gap = rows.current.length > 1 ? rows.current[1].top - rows.current[0].top - rows.current[0].h : 0;
     const step = rows.current[d.from].h + gap;

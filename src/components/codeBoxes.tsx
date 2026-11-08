@@ -27,7 +27,7 @@ export function CodeBoxes({ onSubmit, autoFocus = true }: { onSubmit: (code: str
     <div className="felt-boxes-wrap">
       <div className={`felt-boxes is-${state}`}>
         {Array.from({ length: LEN }, (_, i) => (
-          <span key={i} className={`felt-boxes-cell ${i === v.length && state === 'idle' ? 'is-next' : ''}`} aria-hidden="true">{v[i] ?? ''}</span>
+          <span key={`${i}${v[i] ?? ''}`} className={`felt-boxes-cell ${v[i] ? 'is-in' : ''} ${i === v.length && state === 'idle' ? 'is-next' : ''}`} aria-hidden="true">{v[i] ?? ''}</span>
         ))}
         <input ref={input} className="felt-boxes-input" aria-label="Player code" aria-invalid={state === 'bad'} autoFocus={autoFocus}
           autoComplete="one-time-code" autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text" value={v} readOnly={state !== 'idle'}

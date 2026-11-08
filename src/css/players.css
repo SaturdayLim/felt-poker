@@ -26,3 +26,20 @@ html[data-calm] .felt-fold-wrap, html[data-calm] .felt-fold-inner > *, html[data
 .felt-bars-head { color: var(--sat-muted); font-size: var(--sat-fs-caption); font-weight: 600; letter-spacing: var(--sat-track-caption); }
 .felt-bars-head > :last-child { text-align: right; }
 .felt-chart { width: 100%; }
+
+/* Player search: one icon button that opens out into a field across the row. The shell is anchored right; its icon stays at its left edge. */
+.felt-searchrow { position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); min-height: 40px; }
+.felt-searchrow-title { color: var(--sat-muted); }
+.felt-search { position: absolute; inset: 0; pointer-events: none; }
+.felt-search-shell { position: absolute; right: 0; top: 0; height: 40px; width: 40px; box-sizing: border-box; overflow: hidden; pointer-events: auto; border-radius: 10px; border: 2px solid var(--sat-line-strong); background: var(--sat-solid-2); transition: border-color 150ms var(--sat-ease); }
+.felt-search-shell:focus-within { border-color: var(--sat-accent); }
+.felt-search-trigger { position: absolute; left: 0; top: 0; width: 36px; height: 36px; display: grid; place-items: center; color: var(--sat-text); }
+.felt-search-shell[data-open="true"] .felt-search-trigger { pointer-events: none; }
+.felt-search-input { position: absolute; left: 34px; right: 70px; top: 0; bottom: 0; width: auto; border: 0; background: transparent; color: var(--sat-text); font-size: 16px; font-weight: 600; outline: none; padding: 0; opacity: 0;
+  transition: opacity var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out) 60ms; }
+.felt-search-shell[data-open="true"] .felt-search-input { opacity: 1; }
+.felt-search-count { position: absolute; right: 36px; top: 0; bottom: 0; display: flex; align-items: center; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+.felt-search-clear { position: absolute; right: 6px; top: 6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--sat-well); color: var(--sat-muted); opacity: 0; scale: 0.86; pointer-events: none;
+  transition: opacity var(--felt-cell-ms, 160ms) var(--felt-cell, ease-out), scale var(--felt-cell-ms, 160ms) var(--felt-cell, ease-out); }
+.felt-search-clear[data-on="true"] { opacity: 1; scale: 1; pointer-events: auto; }
+html[data-calm] .felt-search-input, html[data-calm] .felt-search-clear { transition: none; }

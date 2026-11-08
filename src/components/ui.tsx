@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { DRAWER, NAV_MS, SPRING, calm, spring, springCurve } from '../lib/motion';
+import { DISCLOSE, DRAWER, NAV_MS, SPRING, calm, physSpring, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
@@ -25,6 +25,7 @@ const paths: Record<string, ReactNode> = {
   eyedrop: <><path d="m14.5 6.5 3 3" /><path d="M16 5l1.6-1.6a2 2 0 0 1 2.9 2.9L19 8l.8.8-1.6 1.6L13.6 5.8 15.2 4.2z" /><path d="M14.5 7.5 5.6 16.4 5 19l2.6-.6 8.9-8.9" /></>,
   plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
   close: <><path d="M6 6l12 12" /><path d="M18 6 6 18" /></>,
+  search: <><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></>,
   check: <path d="M5 12.5 10 17.5 19 7" />,
   share: <><circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="12" r="2.6" /><circle cx="18" cy="19" r="2.6" /><path d="m8.3 10.8 7.4-4.3" /><path d="m8.3 13.2 7.4 4.3" /></>,
   shuffle: <><path d="M16 3h5v5" /><path d="M4 20 21 3" /><path d="M21 16v5h-5" /><path d="M15 15l6 6" /><path d="M4 4l5 5" /></>,
@@ -428,6 +429,117 @@ export function HoldButton({ ms = 1200, label, hint, onDone, children }: { ms?: 
       onClick={(e) => { if (e.detail === 0) onDone(); }}>
       {children}
     </button>
+  );
+}
+
+/** Hold to confirm, built like the Hold to Confirm of interior.dev: one button fills left to right while it is held
+    (`ms`, 1800 by default). Letting go early drains the fill in about 720 ms. At full, `onDone` runs once, the label
+    changes to `doneLabel` and the fill stays. `onProgress` reports 0 to 1 so something else can follow the fill (a code
+    loading in). Space and Enter hold too. A click with no press (a screen reader) confirms at once. */
+export function HoldFill({ ms = 1800, label, doneLabel, onProgress, onDone }: { ms?: number; label: string; doneLabel: string; onProgress?: (v: number) => void; onDone: () => void }) {
+  const fill = useRef<HTMLSpanElement>(null);
+  const raf = useRef(0);
+  const prog = useRef(0);
+  const down = useRef(false);
+  const done = useRef(false);
+  const [finished, setFinished] = useState(false);
+  const pulses = useRef<number[]>([]);
+  const set = (v: number) => {
+    prog.current = v;
+    if (fill.current) fill.current.style.clipPath = `inset(0 ${(1 - v) * 100}% 0 0)`;
+    onProgress?.(v);
+  };
+  const finish = () => {
+    if (done.current) return;
+    done.current = true; down.current = false; cancelAnimationFrame(raf.current);
+    pulses.current.forEach(window.clearTimeout);
+    set(1); setFinished(true); haptic(40); onDone();
+  };
+  const start = () => {
+    if (done.current || down.current) return;
+    down.current = true;
+    if (fill.current) fill.current.style.transition = 'none';
+    pulses.current = HOLD_PULSES.map((t) => window.setTimeout(() => haptic(8), t));
+    const t0 = performance.now() - prog.current * ms;
+    const step = (now: number) => {
+      if (!down.current) return;
+      const v = Math.min(1, (now - t0) / ms);
+      set(v);
+      if (v >= 1) finish(); else raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+  };
+  const stop = () => {
+    if (!down.current || done.current) return;
+    down.current = false; cancelAnimationFrame(raf.current);
+    pulses.current.forEach(window.clearTimeout);
+    // the fill drains faster than it filled
+    if (fill.current) fill.current.style.transition = `clip-path ${Math.round(prog.current * 720)}ms cubic-bezier(0.23, 1, 0.32, 1)`;
+    set(0);
+  };
+  useEffect(() => () => { cancelAnimationFrame(raf.current); pulses.current.forEach(window.clearTimeout); }, []);
+  return (
+    <button type="button" className="felt-holdfill" data-press="none" aria-disabled={finished}
+      onPointerDown={start} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop} onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); start(); } }}
+      onKeyUp={(e) => { if (e.key === ' ' || e.key === 'Enter') stop(); }} onBlur={stop}
+      onClick={(e) => { if (e.detail === 0 && !down.current) finish(); }}>
+      <span className="felt-holdfill-face" data-on={!finished}>{label}</span>
+      <span ref={fill} className="felt-holdfill-over" aria-hidden="true">
+        <span className="felt-holdfill-face" data-on={!finished}>{label}</span>
+        <span className="felt-holdfill-face" data-on={finished}><Icon name="check" size={14} stroke={2.4} /> {doneLabel}</span>
+      </span>
+    </button>
+  );
+}
+
+/** A search that opens out of its icon, built like the Expanding Search of interior.dev. At rest it is one 40 px icon button
+    on the right. A tap grows it into a field across the row on the disclose spring (stiffness 380, damping 38, mass 0.7);
+    the field fades in 60 ms late. With text in it, a count and a clear button show. It folds back when it loses focus
+    while empty. `count` is the number of matches. */
+export function ExpandingSearch({ value, onChange, count, label }: { value: string; onChange: (v: string) => void; count?: number; label: string }) {
+  const root = useRef<HTMLDivElement>(null);
+  const shell = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const wide = useRef(40);
+  const width = useRef(40);
+  const grow = (to: number) => {
+    const el = shell.current;
+    if (!el) return;
+    const from = width.current;
+    width.current = to;
+    if (calm() || !el.animate) { el.style.width = `${to}px`; return; }
+    physSpring(el, (p) => ({ width: `${from + (to - from) * p}px` }), DISCLOSE, { fill: 'forwards' });
+    el.style.width = `${to}px`;
+  };
+  const expand = () => {
+    if (open) return;
+    wide.current = Math.max(40, root.current?.clientWidth ?? 240);
+    setOpen(true);
+    grow(wide.current);
+    window.setTimeout(() => input.current?.focus(), 60);
+  };
+  const fold = () => { if (!open) return; setOpen(false); grow(40); };
+  useEffect(() => {
+    const el = root.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => { if (open && shell.current) { wide.current = el.clientWidth; width.current = wide.current; shell.current.style.width = `${wide.current}px`; } });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open]);
+  return (
+    <div ref={root} className="felt-search" role="search">
+      <div ref={shell} className="felt-search-shell" data-open={open}>
+        <button type="button" className="felt-search-trigger" aria-label={label} aria-expanded={open} data-press="none" onClick={expand} tabIndex={open ? -1 : 0}><Icon name="search" size={20} /></button>
+        <input ref={input} className="felt-search-input" aria-label={label} placeholder="Search" value={value} onChange={(e) => onChange(e.target.value)}
+          onBlur={() => { if (!value) fold(); }} onKeyDown={(e) => { if (e.key === 'Escape') { onChange(''); fold(); input.current?.blur(); } }} tabIndex={open ? 0 : -1}
+          autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" />
+        {open && value && count !== undefined && <span className="felt-search-count sat-mono" aria-live="polite">{count}</span>}
+        <button type="button" className="felt-search-clear" aria-label="Clear search" data-press="none" data-on={!!value}
+          onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(''); input.current?.focus(); }}><Icon name="close" size={12} stroke={2.6} /></button>
+      </div>
+    </div>
   );
 }
 

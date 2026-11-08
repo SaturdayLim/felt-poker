@@ -67,6 +67,14 @@ export function bounceBack() {
   spring(page, (p) => ({ transform: `translateX(${28 * (1 - p)}px)` }), SPRING.settle, { fill: 'none' });
 }
 
+/** Like `spring`, from stiffness, damping and mass (the numbers of the interior.dev components). */
+export function physSpring(el: Element, frame: (p: number) => Keyframe, s: readonly [number, number, number], opts: { delay?: number; fill?: FillMode } = {}): Animation | null {
+  if (!el.animate) return null;
+  const { p, ms } = physCurve(s);
+  return el.animate(p.map(frame), { duration: ms, easing: 'linear', delay: opts.delay, fill: opts.fill ?? 'both' });
+}
+export const DISCLOSE = [380, 38, 0.7] as const;
+
 /** Sets the curves that CSS transitions and the Log hand morph read. Phones without linear() keep the CSS fallback. */
 export function installMotion() {
   if (typeof CSS === 'undefined' || !CSS.supports?.('transition-timing-function', 'linear(0, 1)')) return;
@@ -83,10 +91,15 @@ export function installMotion() {
   const { p, ms } = physCurve(CROSSFADE);
   root.setProperty('--felt-cross', `linear(${p.map((x) => +x.toFixed(4)).join(', ')})`);
   root.setProperty('--felt-cross-ms', `${ms}ms`);
+  // the cell spring (stiffness 520, damping 34, mass 0.45): reorder, small moves
+  const cell = physCurve(CELL);
+  root.setProperty('--felt-cell', `linear(${cell.p.map((x) => +x.toFixed(4)).join(', ')})`);
+  root.setProperty('--felt-cell-ms', `${cell.ms}ms`);
 }
 
 /** A spring from stiffness, damping and mass, sampled every 16 ms (the form the Motion library uses). */
 export const CROSSFADE = [260, 34, 0.8] as const;
+export const CELL = [520, 34, 0.45] as const;
 export function physCurve([k, c, m]: readonly [number, number, number]): { p: number[]; ms: number } {
   const dt = 1 / 480;
   let x = 0, v = 0;

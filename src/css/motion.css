@@ -28,3 +28,25 @@ html[data-calm] .felt-lb-spin { animation: none; }
 .felt-flip-in { display: grid; transform-style: preserve-3d; }
 .felt-flip-f, .felt-flip-b { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: inline-flex; }
 .felt-flip-b { transform: rotateY(180deg); }
+
+/* Hold to confirm (HoldFill): the button fills left to right while held; the fill drains when let go early. */
+.felt-holdfill { position: relative; display: grid; place-items: center; width: 100%; min-height: 44px; border-radius: var(--sat-radius-sm); overflow: hidden;
+  background: var(--sat-well); color: var(--sat-text); font-weight: 600; touch-action: none; -webkit-user-select: none; user-select: none; }
+.felt-holdfill-face { grid-area: 1 / 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+  opacity: 0; transform: translateY(3px); filter: blur(3px);
+  transition: opacity var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out), transform var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out), filter var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out); }
+.felt-holdfill-face[data-on="true"] { opacity: 1; transform: none; filter: none; }
+.felt-holdfill-over { position: absolute; inset: 0; display: grid; place-items: center; background: var(--sat-text); color: var(--sat-bg); clip-path: inset(0 100% 0 0); pointer-events: none; }
+.felt-holdfill:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 2px; }
+html[data-calm] .felt-holdfill-face { transition: none; }
+
+/* A code loading in: each box takes its character with a small blur-in. */
+.felt-boxes--static { justify-content: center; }
+.felt-boxes-cell.is-in { animation: felt-char-in 220ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+@keyframes felt-char-in { from { opacity: 0; transform: translateY(10px) scale(0.97); filter: blur(6px); } }
+html[data-calm] .felt-boxes-cell.is-in { animation: none; }
+
+/* Player code entry: a wrong code shakes the boxes once (5, 4, 3 px, 320 ms). */
+.felt-boxes.is-bad { animation: felt-shake 320ms cubic-bezier(0.23, 1, 0.32, 1); }
+@keyframes felt-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-3px); } }
+html[data-calm] .felt-boxes.is-bad { animation: none; }

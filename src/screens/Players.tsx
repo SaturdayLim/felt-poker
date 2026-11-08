@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Header, Icon, SlidePane, toast } from '../components/ui';
+import { Avatar, Caption, Delta, ExpandingSearch, Header, Icon, SlidePane, toast } from '../components/ui';
 import Insights from './Insights';
 import { PlayerSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary } from '../lib/stats';
@@ -52,6 +52,7 @@ function PlayerList() {
   const [nm, setNm] = useState('');
   const [edit, setEdit] = useState<Player | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [q, setQ] = useState('');
   const saveGroup = useStore((s) => s.saveGroup);
   // which lists are open: one tap opens or closes a list. Kept on this phone
   const [opened, setOpened] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('felt-players-open') ?? '[]'); } catch { return []; } });
@@ -62,7 +63,7 @@ function PlayerList() {
     return next;
   });
   const closed = filterGames(games, 'all', 'all');
-  const list = players.filter((p) => showArchived || !p.archived).sort((a, b) => a.name.localeCompare(b.name));
+  const list = players.filter((p) => (showArchived || !p.archived) && p.name.toLowerCase().includes(q.trim().toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
 
   const add = () => {
     const n = titleCase(nm);
@@ -86,6 +87,7 @@ function PlayerList() {
             <button className="sat-switch" role="switch" aria-checked={showArchived} aria-label="Show hidden players" onClick={() => setShowArchived(!showArchived)} />
           </div>
         )}
+        <div className="felt-searchrow"><span className="felt-searchrow-title sat-caption">Find a player</span><ExpandingSearch value={q} onChange={setQ} count={list.length} label="Search players" /></div>
         <section className="felt-section">
           <div className="sat-split">
             <Caption tip="groups">Groups</Caption>
@@ -123,12 +125,12 @@ function PlayerList() {
         </section>
 
         <div className="sat-glass-2 felt-fold">
-          <button type="button" className="felt-row felt-fold-head" aria-expanded={isOpen('all')} onClick={() => toggle('all')}>
+          <button type="button" className="felt-row felt-fold-head" aria-expanded={isOpen('all') || !!q} onClick={() => toggle('all')}>
             <span className="felt-row-main"><span className="felt-row-title">Everyone</span><span className="felt-row-sub">{list.length} players</span></span>
             <span className="felt-fold-chev" aria-hidden="true"><Icon name="chevron" size={18} /></span>
           </button>
-          <FoldBody open={isOpen('all')}>{list.length === 0
-            ? <div className="felt-fold-body sat-small sat-muted">Add the people you play with. They are saved for every game.</div>
+          <FoldBody open={isOpen('all') || !!q}>{list.length === 0
+            ? <div className="felt-fold-body sat-small sat-muted">{q ? 'No player has that name.' : 'Add the people you play with. They are saved for every game.'}</div>
             : list.map((p) => {
               const s = playerSummary(closed, p.id);
               return (

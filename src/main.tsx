@@ -11,6 +11,9 @@ import './css/motion.css';
 import './css/players.css';
 import './css/chrome.css';
 import './css/review.css';
+import './css/recorder.css';
+import './css/viewer.css';
+import './css/report.css';
 import { installMotion, installPresses } from './lib/motion';
 
 installMotion();

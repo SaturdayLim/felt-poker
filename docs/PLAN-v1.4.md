@@ -61,3 +61,32 @@ Work is split into packages. Each package owns its files. Agents do not commit; 
 2. Rebuy default: "multiple of buy-ins up to the big stack, rounded down": confirm the big stack is the largest current stack at the table.
 3. Playing light: which screen shows the dark green?
 4. Heatmap: percent of hands played means "dealt in and put chips in voluntarily", correct?
+
+## Amendments after the Opus review (9 Nov 2026)
+
+**Ownership (replaces the package headers where they differ)**
+- **A-logic** owns `src/lib/*` (hand.ts, stacks.ts, clash.ts, format.ts, stats.ts, style.ts), `src/store.ts`, `src/live/*` (snapshot.ts, host.ts) and CLAUDE.md edits.
+- **A-ui** owns `src/screens/GameLive.tsx`, `Home.tsx`, `Games.tsx`, `Players.tsx`, `Settings.tsx`, `src/components/players.tsx`, `live.tsx`, new `src/components/rebuy.tsx`, `src/lib/help.ts`.
+- **B** owns `HandRecorder.tsx`, `HandEditorClassic.tsx`, `src/css/recorder.css`.
+- **C** owns `Join.tsx`, `JoinScan.tsx`, `src/css/viewer.css`.
+- **D** owns `src/report/*`, `scripts/*`, `public/report-template.html`, `Report.tsx`, `Insights.tsx`, `src/css/report.css`.
+- **E** owns CSS-only polish in `src/styles.css`, `src/css/chrome.css`.
+- Phase order: Phase 1 = A-logic and C in parallel. Phase 2 = A-ui, B and D in parallel (after A-logic). Phase 3 = E, then review.
+
+**Corrections**
+- A2 (running time): `playMs` already measures close of first hand to close of last hand (format.ts). Only check the "Running" display in GameLive (freezes between hands, 0m after one hand): the running figure for a live game counts to now. Tests are in `logic.test.ts`.
+- A1: removing the `own` reason is not enough. `differsFromShown` also feeds `clashingPlayers`. Define the effective pair: the shown cards, else the entry. Entries that differ from shown cards are dropped (no flag, no message). A blue clash compares against the shown cards. Readers to update: `clashingPlayers`, `clashHands`, `clashWhy`, `clashLevel`, `countedPairs`, host.ts `logged`/`why`, model.ts, style.ts `myHands`, help.ts. Update CLAUDE.md: the "each entry counts as entered" rule now says shown cards override.
+- A4 (muck): `resolve` in hand.ts returns no winner when everyone else mucked and one player is not shown. Fix it: the last player to muck in showdown order (use `showdownOrder`, per pot, every run) leaves the remaining not-shown player as the winner (a takedown). `log.mucked` is in tap order, so do not rely on it. Add one helper `wentToShowdown(log)` and use it in stats.ts, style.ts, model.ts, snapshot.ts so a takedown is not counted as a showdown. Label: "Not shown" everywhere (also HandRecorder labels, owned by B, and snapshot text `mucks`).
+- A5 (rebuy): only exact stacks qualify. Default = the largest whole multiple of the buy-in up to the biggest other stack (leave the busted player out), at least 1 buy-in. Skippable. Do not offer again when a buy-in after `endedAt` exists. Cash games only for now.
+- A6 (zero stacks): there is no remove-from-game path; "remove" means Clock out or deleting a buy-in. Suspects: the count written on Back in (GameLive.tsx:63); the + on an out player (GameLive.tsx:125) keeps the old cash-out; `deleteBuyIn`. Write a reproducing test first.
+- B2: the double pot caption is in the viewer, not the recorder (Join.tsx:271 live frame and :337 play-by-play). C fixes it. B drops it.
+- B3 (two open columns): the rule lives in hand.ts:568-571 (keeps one column while column 1 is open). A-logic changes that rule; B only renders it.
+- B4: a tip button stays a circle at the top-right of its element (CLAUDE.md). Shrink the visible circle and keep a 44 px target that does not overlap Backspace; do not move the tip to the label.
+- A9 and C5 are the same line (live.tsx:93). A-ui owns it. Reopening a room asks for the password on the game page, not in a pop-up.
+- D1: `p.low <= -20 * bb` next to the existing 50 BB climb (open question 1).
+- D6: the `Pos` type has 4 positions (model.ts:15, :82-86; trial-report.tsx:347 has 4 colour slots). Widen to every seat.
+- D7: model.ts:101 uses `countedPairs`, which drops red entries. Use `fullPairs` plus `clashLevel` for the Your cards list.
+- D11: also edit `scripts/report-template.ts` and `public/report-template.html`.
+- E1: the notebook tabs are in Players, Games and the header (see CLAUDE.md "Tab bar" and "Design"). Use that style on the game page.
+- E3/E4: Players.tsx, Games.tsx, Home.tsx belong to A-ui. E edits CSS only; A-ui writes "Cash" in GameLive.tsx:31 and Games.tsx:58.
+- New CLAUDE.md rule from the owner: Mucked and Not shown are one thing. Revealed cards override entries.

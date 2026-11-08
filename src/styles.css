@@ -133,7 +133,7 @@ button.felt-row { color: inherit; }
 .sat-switch::after { box-shadow: var(--felt-elev-1); }
 dialog.sat-sheet, .sat-tip-body, .felt-toast { box-shadow: var(--felt-elev-3); }
 .felt-fab.felt-fab { --felt-fab-bg: var(--felt-coral); color: var(--felt-on-coral); }
-.felt-keypad .felt-keypad-ok:not(:disabled), .felt-keypad .felt-keypad-err-acts .is-primary, .felt-rec-dock .sat-btn--primary { background: var(--felt-coral); color: var(--felt-on-coral); border-color: transparent; }
+.felt-keypad .felt-keypad-ok.is-ready:not(:disabled), .felt-keypad .felt-keypad-err-acts .is-primary, .felt-rec-dock .sat-btn--primary { background: var(--felt-coral); color: var(--felt-on-coral); border-color: transparent; }
 .felt-acts .felt-box.is-next { border-color: var(--felt-coral); }
 
 @supports (corner-shape: squircle) {
@@ -589,7 +589,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad-val { flex: 1; font-size: 1.25rem; font-weight: 600; text-align: right; }
 .felt-keypad .felt-keypad-bs { width: 48px; min-height: 40px; color: var(--sat-text); background: transparent; }
 .felt-keypad .felt-keypad-bs:disabled { opacity: 0.3; }
-.felt-keypad .felt-keypad-ok { background: var(--sat-accent-fill); color: var(--sat-on-accent); }
+.felt-keypad .felt-keypad-ok { background: var(--sat-glass); color: var(--sat-text); border: 1px solid var(--sat-line-strong); }
 .felt-keypad .felt-keypad-ok[aria-disabled="true"] { opacity: 0.4; }
 .felt-keypad-digits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .felt-keypad-digits button { font-size: 1.25rem; background: var(--sat-glass-2); border: 1px solid var(--sat-line); font-variant-numeric: tabular-nums; }

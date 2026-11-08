@@ -129,3 +129,23 @@ export function backTo(path: string) {
   if (p !== undefined && screenOf(p) === screenOf(path.replace(/^\/+/, ''))) window.history.back();
   else go(path, true);
 }
+
+/** Nothing behind the first screen: a swipe back from it must not leave Felt for a blank page. Felt keeps one spare history
+    entry under the first screen. Back onto it puts the spare entry back and tells the page to bounce, as a rubber band does. */
+export function guardHistory(onBounce: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  try {
+    if (!history.state?.feltBase) {
+      history.replaceState({ ...(history.state ?? {}), feltBase: true }, '');
+      history.pushState({ ...(history.state ?? {}), feltTop: true }, '');
+    }
+  } catch { return () => undefined; }
+  const on = (e: PopStateEvent) => {
+    if (e.state?.feltBase && !e.state?.feltTop) {
+      try { history.pushState({ feltTop: true }, ''); } catch { return; }
+      onBounce();
+    }
+  };
+  window.addEventListener('popstate', on);
+  return () => window.removeEventListener('popstate', on);
+}

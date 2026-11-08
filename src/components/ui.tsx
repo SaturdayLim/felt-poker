@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { DRAWER, SPRING, calm, spring, springCurve } from '../lib/motion';
+import { DRAWER, NAV_MS, SPRING, calm, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
@@ -78,16 +78,20 @@ export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; 
     The opening screen draws the full mark: src/brand/felt-mark.svg. */
 export function FeltMark({ height = 32, full = false }: { height?: number; full?: boolean }) {
   if (full) {
-    // The full mark, the same as the load screen (index.html): the S, both chip rings and three thick edge marks per
-    // chip, so the load screen hands over to it with no change of shape
-    const edge = { strokeWidth: 'calc(var(--sat-mark-stroke, 1.75px) * 2.2)', strokeLinecap: 'butt' as const };
+    // The full mark, the same as the load screen (index.html): two grey chips with six bands each, faded back, and the gold S
+    // over them, so the load screen hands over to it with no change of shape
+    const chip = (cy: number, d: string) => (
+      <g opacity={0.22}>
+        <circle cx={32} cy={cy} r={22.5} fill="var(--sat-muted)" stroke="none" />
+        <circle cx={32} cy={cy} r={15} stroke="var(--sat-bg)" strokeWidth={1.4} opacity={0.85} vectorEffect="none" />
+        <path d={d} style={{ stroke: 'var(--sat-bg)', strokeWidth: 5, strokeLinecap: 'butt', vectorEffect: 'none' }} />
+      </g>
+    );
     return (
       <svg className="sat-mark" style={{ ['--sat-mark-h' as string]: `${height}px` }} viewBox="-2 -2 68 104" aria-hidden="true">
+        {chip(26, 'M46.72 34.50 L51.49 37.25 M32.00 43.00 L32.00 48.50 M17.28 34.50 L12.51 37.25 M17.28 17.50 L12.51 14.75 M32.00 9.00 L32.00 3.50 M46.72 17.50 L51.49 14.75')}
+        {chip(74, 'M46.72 82.50 L51.49 85.25 M32.00 91.00 L32.00 96.50 M17.28 82.50 L12.51 85.25 M17.28 65.50 L12.51 62.75 M32.00 57.00 L32.00 51.50 M46.72 65.50 L51.49 62.75')}
         <path d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-        <path d="M38.58 39.48 A15 15 0 1 0 25.42 12.52 A15 15 0 1 0 38.58 39.48" />
-        <path d="M32 59 A15 15 0 1 1 32 89 A15 15 0 1 1 32 59" />
-        <path style={edge} d="M32 9 L32 4 M46.722 34.5 L51.053 37 M17.278 34.5 L12.947 37" />
-        <path style={edge} d="M32 91 L32 96 M17.278 65.5 L12.947 63 M46.722 65.5 L51.053 63" />
       </svg>
     );
   }
@@ -226,7 +230,7 @@ export function TabPill() {
   return <span ref={ref} className="felt-pill" aria-hidden="true" />;
 }
 
-const SLIDE_MS = 320;
+const SLIDE_MS = NAV_MS;
 
 /** An iOS push when `k` changes: the new screen slides in while a copy of the old one drifts 28% the other way and fades out. `i` gives the direction; a negative `i` means no slide.
     This needs no browser feature, so it runs the same on every phone Felt supports. */
@@ -249,17 +253,27 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     // a sticky header in the copy stays where it was on screen
     copy.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => { if (r.top < 0) h.style.transform = `translateY(${-r.top}px)`; });
     (el.closest('dialog') ?? document.body).append(copy);
-    const t = { duration: SLIDE_MS, easing: DRAWER };
+    // the same ease-in-out as the chip roll, so the swipe and the roll move as one
+    const t = { duration: SLIDE_MS, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
+    // the bars stay: only the content under the header swipes, and the header text cross-fades
+    const body = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>(':scope > .felt-page > :not(.felt-header)')];
+    const outItems = body(copy), inItems = body(el);
+    const whole = !outItems.length || !inItems.length;
     // the screens are see-through, so the old one fades out before the new one reaches it
-    copy.animate({ opacity: [1, 0] }, { duration: SLIDE_MS * 0.4, easing: 'ease-out', fill: 'forwards' });
-    const out = copy.animate({ translate: ['0 0', `${-by * 0.28}px 0`] }, t);
-    out.onfinish = out.oncancel = () => copy.remove();
+    const fadeOut = copy.animate({ opacity: [1, 0] }, { duration: whole ? SLIDE_MS * 0.4 : SLIDE_MS * 0.5, easing: 'ease-out', fill: 'forwards' });
+    const outs = (whole ? [copy] : outItems).map((n) => n.animate({ translate: ['0 0', `${-by * 0.28}px 0`] }, t));
+    outs[0].onfinish = outs[0].oncancel = () => copy.remove();
+    void fadeOut;
     // a hidden tab holds back the finish event
     window.setTimeout(() => copy.remove(), SLIDE_MS + 100);
     el.classList.add('felt-slide-in');
     const over = () => el.classList.remove('felt-slide-in');
     window.setTimeout(over, SLIDE_MS);
-    el.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t);
+    if (whole) el.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t);
+    else {
+      inItems.forEach((n) => n.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t));
+      el.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => h.animate({ opacity: [0, 1] }, { duration: SLIDE_MS * 0.5, easing: 'ease-out', delay: SLIDE_MS * 0.2, fill: 'backwards' }));
+    }
   }
   render() { return <div ref={this.el} className="felt-slide">{this.props.children}</div>; }
 }
@@ -347,24 +361,36 @@ export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, o
   }, [ref, on]);
 }
 
-/** A button whose word changes for a moment to confirm the press: Saved, Copied, Sent. A commit runs just after the
-    word shows, so it can be read before the page moves on. With `instant` it runs first. If not `ready`, it runs at
-    once with no word: `run` then says what is missing. */
-export function WordButton({ word, run, ready = true, instant, children, ...rest }: { word: string; run: () => void; ready?: boolean; instant?: boolean } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'>) {
-  const [said, setSaid] = useState(false);
+/** A button for a commit, built like the Loading Button of interior.dev: three faces share one cell, so the width never
+    changes. Press: the face turns to a spinner ("Saving") for a short wait, then a check and the word (Saved, Copied,
+    Sent), then the label returns. The faces cross-fade on a spring with a 3 px lift and a little blur. `run` fires as the
+    check shows, so the word is read before the page moves on. With `instant` it runs first and the spinner is skipped
+    (copy, share and download need the press itself). If not `ready`, it runs at once with no faces: `run` then says what
+    is missing. */
+const PENDING_MS = 520, WORD_MS = 700, RUN_AFTER = 240;
+export function WordButton({ word, run, ready = true, instant, pending = 'Saving', children, className, ...rest }: { word: string; run: () => void; ready?: boolean; instant?: boolean; pending?: string } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'>) {
+  const [phase, setPhase] = useState<'idle' | 'pending' | 'done'>('idle');
   const busy = useRef(false);
-  const ref = useRef<HTMLButtonElement>(null);
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
   const click = () => {
     if (!ready || calm()) { run(); return; }
     if (busy.current) return;
     busy.current = true;
-    if (instant) run();
-    setSaid(true);
-    if (ref.current) spring(ref.current, (p) => ({ opacity: String(0.2 + 0.8 * Math.min(p, 1)), scale: String(0.94 + 0.06 * p) }), SPRING.log);
-    if (!instant) window.setTimeout(run, 360);
-    window.setTimeout(() => { busy.current = false; setSaid(false); }, 900);
+    if (instant) { run(); setPhase('done'); later(() => { busy.current = false; setPhase('idle'); }, 900); return; }
+    setPhase('pending');
+    later(() => setPhase('done'), PENDING_MS);
+    later(run, PENDING_MS + RUN_AFTER);
+    later(() => { busy.current = false; setPhase('idle'); }, PENDING_MS + WORD_MS + RUN_AFTER);
   };
-  return <button type="button" data-press="commit" {...rest} ref={ref} onClick={click}>{said ? word : children}</button>;
+  return (
+    <button type="button" data-press="commit" {...rest} className={`felt-lb ${className ?? ''}`} aria-busy={phase === 'pending'} onClick={click}>
+      <span className="felt-lb-face" data-on={phase === 'idle'}>{children}</span>
+      <span className="felt-lb-face" data-on={phase === 'pending'} aria-hidden={phase !== 'pending'}><svg className="felt-lb-spin" width="12" height="12" viewBox="0 0 12 12"><path d="M6 1.5A4.5 4.5 0 1 1 1.5 6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>{pending}</span>
+      <span className="felt-lb-face" data-on={phase === 'done'} aria-hidden={phase !== 'done'}><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.5 5 9l4.5-5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>{word}</span>
+    </button>
+  );
 }
 
 /** When the pulses come during a hold: closer and closer, so the finish can be felt coming. */
@@ -692,6 +718,25 @@ export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
 export function CardPair({ filled, size = 'sm' }: { filled: boolean; size?: 'sm' | 'lg' }) {
   if (!filled) return <span className={`felt-cardsnil ${size}`} role="img" aria-label="Nil" />;
   return <span className="felt-cards" role="img" aria-label="Filled"><CardBack size={size} /><CardBack size={size} /></span>;
+}
+
+/** Cards just saved: they show face up as the page returns to the list, then each turns face down, one after the other. */
+export function FlipDown({ cards, size = 'sm' }: { cards: Card[]; size?: 'sm' | 'lg' }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (calm()) return;
+    ref.current?.querySelectorAll<HTMLElement>('.felt-flip-in').forEach((el, i) => {
+      el.animate({ transform: ['rotateY(0deg)', 'rotateY(180deg)'] }, { duration: 420, delay: 160 + i * 70, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' });
+    });
+  }, []);
+  if (calm()) return <CardPair filled size={size} />;
+  return (
+    <span className="felt-cards" ref={ref} role="img" aria-label="Filled">
+      {cards.map((c) => (
+        <span key={c} className="felt-flip"><span className="felt-flip-in"><span className="felt-flip-f"><PlayingCard card={c} size={size} /></span><span className="felt-flip-b"><CardBack size={size} /></span></span></span>
+      ))}
+    </span>
+  );
 }
 
 export function Cards({ cards, size }: { cards: Card[]; size?: 'sm' | 'lg' }) {

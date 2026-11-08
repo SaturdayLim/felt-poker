@@ -3,7 +3,8 @@ import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
 import { applyPalette, cleanPalette } from './lib/palette';
-import { NAV_TABS, go, useRoute } from './router';
+import { NAV_TABS, go, guardHistory, useRoute } from './router';
+import { bounceBack } from './lib/motion';
 import { SlidePane, ToastHost } from './components/ui';
 import { PlayerHost } from './components/players';
 import { NavRail } from './components/navRail';
@@ -42,6 +43,8 @@ export default function App() {
   const face = useStore((s) => lookBg(cleanLook(s.settings.cards)));
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
+  // a swipe back from the first screen bounces instead of leaving Felt for a blank page
+  useEffect(() => guardHistory(bounceBack), []);
   useEffect(() => { document.documentElement.style.setProperty('--felt-card-face', face); }, [face]);
   const palette = useStore((s) => s.settings.palette);
   useEffect(() => { applyPalette(cleanPalette(palette)); }, [palette, theme]);

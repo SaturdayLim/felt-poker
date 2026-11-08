@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './ui';
-import { calm } from '../lib/motion';
+import { NAV_MS, calm } from '../lib/motion';
 
 /* The main tab bar, made like a chip tray: one straight rail with a pocket cut under it for each tab. The icon of
    each tab rests in its pocket. A poker chip in the Main colour marks the open tab: it rolls along the rail to the
@@ -12,7 +12,7 @@ export interface NavTab { path: string; label: string; icon: string }
 
 const CHIP = 44, R = CHIP / 2, RAIL_Y = 24, POCKET = 50, PR = POCKET / 2;
 // the soft trough under a rolling chip: a raised cosine, wide and gentle, deeper than the chip, flat where it meets the rail
-const TROUGH_W = 64, TROUGH_D = 32;
+const TROUGH_W = 78, TROUGH_D = 36;
 // the fallback distance (px) from a pocket centre over which the trough takes over from the pocket shape
 const SETTLE = 16;
 // where two dips meet, the line rounds the join downwards (away from the chip), never up
@@ -22,7 +22,7 @@ const SOFTEN = 10, SOFTEN_NEAR = 34;
 // the home indicator inset is 34 px on every iPhone: a larger value is the browser's error, not room to leave
 const SAFE_MAX = 34;
 // the roll: one ease-in-out curve with no overshoot, so the chip never passes its pocket and comes back
-const ROLL_MS = 460;
+const ROLL_MS = NAV_MS;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));

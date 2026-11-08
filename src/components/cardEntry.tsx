@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cardText } from '../lib/cards';
 import { normalCode } from '../lib/codes';
 import type { Card, ID } from '../types';
-import { CardBack, CardPair, CardPickerGrid, Caption, Cards, Icon, PlayingCard, Sheet, SlidePane, toast, WordButton } from './ui';
+import { CardBack, CardPair, CardPickerGrid, Caption, Cards, FlipDown, Icon, PlayingCard, Sheet, SlidePane, toast, WordButton } from './ui';
 import { CodeBoxes } from './codeBoxes';
 
 /** The phone owner opened their own hidden cards with their player code. It stays open on this phone until they
@@ -37,6 +37,10 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
   const [unlock, setUnlock] = useState(false);
   /** Cards saved while this sheet is open stay face up until it closes. */
   const [fresh, setFresh] = useState<Record<ID, Card[]>>({});
+  /** The player whose cards were just saved: back on the list, their two cards turn face down. */
+  const [flipNow, setFlipNow] = useState<ID | null>(null);
+  const flipTimer = useRef<number>();
+  useEffect(() => () => window.clearTimeout(flipTimer.current), []);
   const locked = (p: ID) => !!revealed?.[p]?.length;
   const [pid, setPid] = useState<ID | null>(initial && !locked(initial) ? initial : null);
   const choose = (p: ID) => { if (locked(p)) toast(SHOWDOWN_LOCK); else setPid(p); };
@@ -53,17 +57,21 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
     if (!pid || cards.length !== 2) return;
     onSave(pid, cards);
     setFresh((f) => ({ ...f, [pid]: cards }));
+    // hidden at once: the list shows the two cards for a moment as it returns, then they turn face down
+    setFlipNow(pid);
+    window.clearTimeout(flipTimer.current);
+    flipTimer.current = window.setTimeout(() => setFlipNow(null), 1400);
     toast(`Saved for ${name(pid)}. Nobody else can see these cards.`);
     if (closeOnSave) onClose(); else reset();
   };
   const shownNow = pid ? revealed?.[pid] ?? [] : [];
   const step = unlock ? 3 : !pid ? 0 : ask ? 2 : 1;
   const mineOpen = (p: ID) => !!own && own.id === p && open;
-  /** Face up in the list: shown at the table, just saved here, or the owner's own cards once opened. */
-  const faceUp = (p: ID): Card[] => (locked(p) ? revealed![p] : fresh[p] ?? (mineOpen(p) && own!.cards?.length === 2 ? own!.cards : []));
+  /** Face up in the list: shown at the table, or the owner's own cards once opened. Cards just saved turn face down (FlipDown). */
+  const faceUp = (p: ID): Card[] => (locked(p) ? revealed![p] : mineOpen(p) && own!.cards?.length === 2 ? own!.cards : []);
 
   return (
-    <Sheet open onClose={onClose} edge={edge} title={unlock ? 'My cards' : pid ? name(pid) : 'Player cards'} sub={unlock ? 'Enter your player code to show your own cards on this phone.' : !pid ? 'Write only. Saved cards turn face down when this sheet closes.' : ask ? 'Check the cards before saving.' : undefined}>
+    <Sheet open onClose={onClose} edge={edge} title={unlock ? 'My cards' : pid ? name(pid) : 'Player cards'} sub={unlock ? 'Enter your player code to show your own cards on this phone.' : !pid ? 'Write only. Saved cards turn face down at once.' : ask ? 'Check the cards before saving.' : undefined}>
       <SlidePane k={String(step)} i={step}>
         {unlock ? (
           <div className="sat-stack">
@@ -81,7 +89,7 @@ export function CardEntrySheet({ players, name, entered, revealed, blocked, onSa
               {players.map((p) => (
                 <button key={p} className="felt-row" onClick={() => choose(p)}>
                   <span className="felt-row-main"><span className="felt-row-title">{name(p)}</span></span>
-                  {faceUp(p).length ? <Cards cards={faceUp(p)} size="sm" /> : <CardPair filled={entered.includes(p) || !!fresh[p]} />}
+                  {flipNow === p && fresh[p] ? <FlipDown cards={fresh[p]} size="sm" /> : faceUp(p).length ? <Cards cards={faceUp(p)} size="sm" /> : <CardPair filled={entered.includes(p) || !!fresh[p]} />}
                   {/* only the owner's own cards carry an eye: open = shown at the table, shut = hidden */}
                   {mineOpen(p) && (locked(p) || entered.includes(p)) && <span className="felt-eye" aria-hidden="true"><Icon name={locked(p) ? 'eye' : 'dark'} size={18} /></span>}
                 </button>

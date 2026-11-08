@@ -5,6 +5,8 @@
 import { haptic } from './haptics';
 
 export const DRAWER = 'cubic-bezier(0.32, 0.72, 0, 1)';
+/** A tab change: the content swipe and the chip roll start and end together, so they share this one length. */
+export const NAV_MS = 600;
 /** Reduced motion, decided before the first paint by the script at the top of index.html and app/index.html. */
 export const calm = () => document.documentElement.hasAttribute('data-calm');
 
@@ -58,6 +60,13 @@ export function spring(el: Element, frame: (p: number) => Keyframe, s: Spring, o
   return el.animate(p.map(frame), { duration: ms, easing: 'linear', delay: opts.delay, fill: opts.fill ?? 'backwards' });
 }
 
+/** The page pushes 28 px towards the swipe and springs back, like a rubber band: there is no page behind it. */
+export function bounceBack() {
+  const page = document.querySelector<HTMLElement>('.felt-slide');
+  if (!page || calm()) return;
+  spring(page, (p) => ({ transform: `translateX(${28 * (1 - p)}px)` }), SPRING.settle, { fill: 'none' });
+}
+
 /** Sets the curves that CSS transitions and the Log hand morph read. Phones without linear() keep the CSS fallback. */
 export function installMotion() {
   if (typeof CSS === 'undefined' || !CSS.supports?.('transition-timing-function', 'linear(0, 1)')) return;
@@ -70,6 +79,25 @@ export function installMotion() {
   set('pill', SPRING.pill);
   set('grow', SPRING.grow);
   set('settle', SPRING.settle);
+  // the cross-fade of a button's faces (Save, Saving, Saved) uses the interior.dev spring: stiffness 260, damping 34, mass 0.8
+  const { p, ms } = physCurve(CROSSFADE);
+  root.setProperty('--felt-cross', `linear(${p.map((x) => +x.toFixed(4)).join(', ')})`);
+  root.setProperty('--felt-cross-ms', `${ms}ms`);
+}
+
+/** A spring from stiffness, damping and mass, sampled every 16 ms (the form the Motion library uses). */
+export const CROSSFADE = [260, 34, 0.8] as const;
+export function physCurve([k, c, m]: readonly [number, number, number]): { p: number[]; ms: number } {
+  const dt = 1 / 480;
+  let x = 0, v = 0;
+  const p: number[] = [0];
+  for (let i = 1; i < 1920; i++) {
+    v += ((-k * (x - 1) - c * v) / m) * dt;
+    x += v * dt;
+    if (i % 8 === 0) { p.push(x); if (Math.abs(x - 1) < 0.002 && Math.abs(v) < 0.02) break; }
+  }
+  p[p.length - 1] = 1;
+  return { p, ms: (p.length - 1) * 16 };
 }
 
 /* ------------------------------- button presses ------------------------------- */

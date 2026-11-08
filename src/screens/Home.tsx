@@ -24,7 +24,7 @@ export default function Home() {
 
   return (
     <div className="felt-page">
-      <Header brand banner="Felt" right={<ThemeCycle />} />
+      <Header brand banner="Felt" right={<><button type="button" className="felt-joinbtn" data-press="select" onClick={() => go('join')} aria-label="Join a game with the camera"><Icon name="qr" /></button><ThemeCycle /></>} />
       <div className="sat-stack">
         {live.map((g) => {
           const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
@@ -38,11 +38,9 @@ export default function Home() {
         })}
 
         <div className="felt-start">
-          <button className={`sat-btn ${live.length ? '' : 'sat-btn--primary'}${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
+          <button className={`sat-btn ${live.length ? '' : 'sat-btn--primary'}${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> New Game</button>
           {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
         </div>
-
-        <button className="sat-btn sat-btn--block" onClick={() => go('join')}><Icon name="qr" /> Join a game</button>
 
         {board.length > 0 && (
           <section className="felt-section">

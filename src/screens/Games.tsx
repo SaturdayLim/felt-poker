@@ -42,7 +42,7 @@ export default function Games({ player: arg }: { player?: string }) {
         <SlidePane k={stats ? 'stats' : 'list'} i={stats ? 1 : 0}>
         {stats ? <GameStats games={closed} /> : <div className="sat-stack">
         <div className="felt-start">
-          <button className={`sat-btn sat-btn--primary${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> Cash game</button>
+          <button className={`sat-btn sat-btn--primary${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> New Game</button>
           {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
         </div>
         {list.length === 0 && <Empty title="No games">Games you start appear here.</Empty>}

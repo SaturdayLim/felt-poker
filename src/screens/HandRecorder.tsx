@@ -1064,6 +1064,11 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
   onCall: () => void; onFold: () => void; onAllIn: () => void; onClear: () => void; onOk: () => void; onMin: () => void;
 }) {
   const press = (k: string) => setTyped((typed + k).replace(/^0+(?=\d)/, '').slice(0, 6));
+  // a tap on the amount box brings no keyboard: the number pad lights up, an orange trail runs round it, so the eye goes there
+  const [nudge, setNudge] = useState(0);
+  const nudged = useRef<number>();
+  const pointAtPad = () => { window.clearTimeout(nudged.current); setNudge((n) => n + 1); nudged.current = window.setTimeout(() => setNudge(0), 1100); };
+  useEffect(() => () => window.clearTimeout(nudged.current), []);
   // asking for an all-in amount: the digits stay on even when nobody is left to raise
   const canRaise = canRaiseIn || allInAsk;
   const verb = allInAsk ? 'All-in' : isRaise ? 'Raise' : 'Bet';
@@ -1072,7 +1077,7 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
     <div className="felt-keypad" role="group" aria-label={`Action for ${who}`}>
       {filled && <div className="felt-keypad-head"><button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button></div>}
       <div className="felt-keypad-quick">
-        <button type="button" onClick={onCall}>{callLabel}</button>
+        <button type="button" className={!typed && !filled ? 'is-default' : undefined} onClick={onCall}>{callLabel}</button>
         <button type="button" onClick={onFold}>Fold</button>
         <button type="button" onClick={onAllIn} disabled={!canRaise && !toCall}>All-in</button>
       </div>
@@ -1086,7 +1091,7 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
         </div>
       ) : (
         <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
-          <div className={`felt-keypad-field felt-tipped ${typed ? 'has-value' : ''}`} aria-live="polite">
+          <div className={`felt-keypad-field felt-tipped ${typed ? 'has-value' : ''}`} aria-live="polite" onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) pointAtPad(); }}>
             <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || (allInAsk ? <span className="felt-keypad-min">Type the all-in amount</span> : <span className="felt-keypad-ghost">{units(minTo)}</span>)}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
             <Help k="raiseBox" />
@@ -1095,11 +1100,12 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
             <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
             <Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} />
           </span>
-          <button type="button" className="felt-keypad-ok" aria-disabled={!canRaise || (allInAsk && !typed)} disabled={!canRaise} onClick={onOk}>{verb}</button>
+          <button type="button" className={`felt-keypad-ok ${typed ? 'is-ready' : ''}`} aria-disabled={!canRaise || (allInAsk && !typed)} disabled={!canRaise} onClick={onOk}>{verb}</button>
         </div>
       )}
-      <div className="felt-keypad-digits">
+      <div className="felt-keypad-digits" data-nudge={nudge || undefined} key={nudge ? `n${nudge}` : 'pad'}>
         {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((k) => <button key={k} type="button" disabled={!canRaise} onClick={() => press(k)}>{k}</button>)}
+        {nudge > 0 && <svg className="felt-trail" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="10" pathLength="1" /></svg>}
       </div>
     </div>
   );

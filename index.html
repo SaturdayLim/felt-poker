@@ -20,23 +20,18 @@
     <title>Felt</title>
   </head>
   <body class="sat">
-    <!-- Splash: the S draws in one stroke, then both chip rings fade in, then six edge marks (three per chip) wipe in, so the mark reads as two stacked chips. The name settles, then the page fades and hands over to the app.
+    <!-- Splash: two grey chips (six bands each) drop one after the other and fade back, then the gold S draws around them and glows. The name settles, then the page fades and hands over to the app.
          Tap or press a key to skip. Length comes from FELT_SPLASH_MS above (default 3s). -->
     <main class="felt-splash" aria-label="Felt is loading">
       <div class="felt-splash-lockup">
         <svg class="sat-mark felt-splash-mark" viewBox="-2 -2 68 104" aria-hidden="true">
+          <defs><filter id="felt-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4" /></filter></defs>
+          <!-- two whole chips drop in grey, bottom one first, then fade back so the S carries the frame -->
+          <g class="chip chip-b"><g class="face"><circle class="disc" cx="32" cy="74" r="22.5" /><circle class="ring" cx="32" cy="74" r="15" /><g class="band"><path d="M46.72 82.50 L51.49 85.25" /><path d="M32.00 91.00 L32.00 96.50" /><path d="M17.28 82.50 L12.51 85.25" /><path d="M17.28 65.50 L12.51 62.75" /><path d="M32.00 57.00 L32.00 51.50" /><path d="M46.72 65.50 L51.49 62.75" /></g></g></g>
+          <g class="chip chip-t"><g class="face"><circle class="disc" cx="32" cy="26" r="22.5" /><circle class="ring" cx="32" cy="26" r="15" /><g class="band"><path d="M46.72 34.50 L51.49 37.25" /><path d="M32.00 43.00 L32.00 48.50" /><path d="M17.28 34.50 L12.51 37.25" /><path d="M17.28 17.50 L12.51 14.75" /><path d="M32.00 9.00 L32.00 3.50" /><path d="M46.72 17.50 L51.49 14.75" /></g></g></g>
+          <!-- the gold S draws around the chips and glows (the blurred copy draws with it) -->
+          <path class="s-glow" pathLength="1" filter="url(#felt-glow)" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
           <path class="s" pathLength="1" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-          <!-- chip rings: both fade in together once the S is drawn -->
-          <path class="inner" d="M38.58 39.48 A15 15 0 1 0 25.42 12.52 A15 15 0 1 0 38.58 39.48" />
-          <path class="inner" d="M32 59 A15 15 0 1 1 32 89 A15 15 0 1 1 32 59" />
-          <!-- edge marks: three per chip, 120 degrees apart, from radius 17 to 22 (top chip centre 32,26; bottom 32,74).
-               Each wipes in from its inner end to its outer end (--d, ms), one after another after the rings -->
-          <path class="edge" pathLength="1" style="--d:1950" d="M32 9 L32 4" />
-          <path class="edge" pathLength="1" style="--d:2010" d="M46.722 34.5 L51.053 37" />
-          <path class="edge" pathLength="1" style="--d:2070" d="M17.278 34.5 L12.947 37" />
-          <path class="edge" pathLength="1" style="--d:2130" d="M32 91 L32 96" />
-          <path class="edge" pathLength="1" style="--d:2190" d="M17.278 65.5 L12.947 63" />
-          <path class="edge" pathLength="1" style="--d:2250" d="M46.722 65.5 L51.053 63" />
         </svg>
         <h1 class="sat-wordmark felt-splash-name">Felt</h1>
       </div>

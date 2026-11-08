@@ -10,14 +10,15 @@ export const NAV_MS = 600;
 /** Reduced motion, decided before the first paint by the script at the top of index.html and app/index.html. */
 export const calm = () => document.documentElement.hasAttribute('data-calm');
 
-export type MotionPref = 'phone' | 'full';
+/** Reduced: no motion. Phone: follow the phone's Reduce Motion. Full: always play it. */
+export type MotionPref = 'calm' | 'phone' | 'full';
 const MOTION_KEY = 'felt-motion';
 export const phoneAsksCalm = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-export const motionPref = (): MotionPref => { try { return localStorage.getItem(MOTION_KEY) === 'full' ? 'full' : 'phone'; } catch { return 'phone'; } };
+export const motionPref = (): MotionPref => { try { const v = localStorage.getItem(MOTION_KEY); return v === 'full' || v === 'calm' ? v : 'phone'; } catch { return 'phone'; } };
 /** Belongs to the phone, like the theme: a backup restore does not touch it. */
 export function setMotionPref(p: MotionPref) {
-  try { if (p === 'full') localStorage.setItem(MOTION_KEY, 'full'); else localStorage.removeItem(MOTION_KEY); } catch { /* private mode */ }
-  document.documentElement.toggleAttribute('data-calm', p !== 'full' && phoneAsksCalm());
+  try { if (p === 'phone') localStorage.removeItem(MOTION_KEY); else localStorage.setItem(MOTION_KEY, p); } catch { /* private mode */ }
+  document.documentElement.toggleAttribute('data-calm', p === 'calm' || (p === 'phone' && phoneAsksCalm()));
 }
 
 /** The picked springs: visual duration in seconds, then bounce. Each sits in the band of its kind
@@ -74,6 +75,8 @@ export function physSpring(el: Element, frame: (p: number) => Keyframe, s: reado
   return el.animate(p.map(frame), { duration: ms, easing: 'linear', delay: opts.delay, fill: opts.fill ?? 'both' });
 }
 export const DISCLOSE = [380, 38, 0.7] as const;
+export const ARRIVE = [540, 34, 0.5] as const;
+export const ACCORDION = [480, 40, 0.6] as const;
 
 /** Sets the curves that CSS transitions and the Log hand morph read. Phones without linear() keep the CSS fallback. */
 export function installMotion() {

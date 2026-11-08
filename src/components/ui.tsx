@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { DISCLOSE, DRAWER, NAV_MS, SPRING, calm, physSpring, spring, springCurve } from '../lib/motion';
+import { ACCORDION, ARRIVE, DISCLOSE, DRAWER, NAV_MS, SPRING, calm, physSpring, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
@@ -539,6 +539,66 @@ export function ExpandingSearch({ value, onChange, count, label }: { value: stri
         <button type="button" className="felt-search-clear" aria-label="Clear search" data-press="none" data-on={!!value}
           onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(''); input.current?.focus(); }}><Icon name="close" size={12} stroke={2.6} /></button>
       </div>
+    </div>
+  );
+}
+
+/** A pill that says new items arrived out of view, built like the New Items Pill of interior.dev. It rises in from 10 px
+    below (top anchor: above) at 94% size on a spring (stiffness 540, damping 34, mass 0.5) while it fades in over 160 ms,
+    and it leaves in 160 ms. It shows only while `count` is above 0. A tap runs `onJump`. */
+export function NewItemsPill({ count, noun, onJump, anchor = 'top' }: { count: number; noun: string; onJump: () => void; anchor?: 'top' | 'bottom' }) {
+  const [mounted, setMounted] = useState(count > 0);
+  const el = useRef<HTMLButtonElement>(null);
+  const seen = useRef(false);
+  const off = anchor === 'bottom' ? 10 : -10;
+  useEffect(() => {
+    if (count > 0 && !mounted) setMounted(true);
+    if (count > 0 && mounted && !seen.current && el.current && !calm()) {
+      seen.current = true;
+      physSpring(el.current, (p) => ({ transform: `translateY(${off * (1 - p)}px) scale(${0.94 + 0.06 * p})` }), ARRIVE, { fill: 'backwards' });
+      el.current.animate({ opacity: [0, 1] }, { duration: 160, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'backwards' });
+    }
+    if (count === 0 && mounted) {
+      seen.current = false;
+      const a = el.current?.animate?.({ opacity: [1, 0], transform: ['none', `translateY(${off * 0.5}px) scale(0.96)`] }, { duration: calm() ? 0 : 160, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' });
+      const done = () => setMounted(false);
+      if (a) { a.onfinish = done; window.setTimeout(done, 220); } else done();
+    }
+  }, [count, mounted, off]);
+  if (!mounted) return null;
+  return (
+    <div className={`felt-newpill felt-newpill--${anchor}`}>
+      <button ref={el} type="button" data-press="none" onClick={onJump}>
+        <Icon name="back" size={14} stroke={2.2} />
+        <span className="sat-num">{count || ''} new {noun}</span>
+      </button>
+      <span className="sat-sr-only" role="status">{count > 0 ? `${count} new ${noun}` : ''}</span>
+    </div>
+  );
+}
+
+/** The body of an accordion row, built like the Accordion of interior.dev: the height springs between 0 and the measured
+    height (stiffness 480, damping 40, mass 0.6) while the text fades in over 180 ms (out over 140 ms). A closed body is
+    inert, so nothing in it takes focus. With Reduced motion it jumps. */
+export function Disclose({ open, children }: { open: boolean; children: ReactNode }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
+  useLayoutEffect(() => {
+    const w = wrap.current, i = inner.current;
+    if (!w || !i) return;
+    if (first.current) { first.current = false; w.style.height = open ? 'auto' : '0px'; i.style.opacity = open ? '1' : '0'; return; }
+    const from = w.getBoundingClientRect().height, to = open ? i.scrollHeight : 0;
+    w.getAnimations().forEach((a) => a.cancel());
+    if (calm() || !w.animate) { w.style.height = open ? 'auto' : '0px'; i.style.opacity = open ? '1' : '0'; return; }
+    w.style.height = `${to}px`;
+    const a = physSpring(w, (p) => ({ height: `${from + (to - from) * p}px` }), ACCORDION, { fill: 'none' });
+    if (a) a.onfinish = () => { if (open) w.style.height = 'auto'; };
+    i.animate({ opacity: open ? [0, 1] : [1, 0] }, { duration: open ? 180 : 140, easing: open ? 'cubic-bezier(0.23, 1, 0.32, 1)' : 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' });
+  }, [open]);
+  return (
+    <div ref={wrap} className="felt-disclose" aria-hidden={!open} {...(open ? {} : { inert: '' })}>
+      <div ref={inner} className="felt-disclose-in">{children}</div>
     </div>
   );
 }

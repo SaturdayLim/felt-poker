@@ -50,3 +50,19 @@ html[data-calm] .felt-boxes-cell.is-in { animation: none; }
 .felt-boxes.is-bad { animation: felt-shake 320ms cubic-bezier(0.23, 1, 0.32, 1); }
 @keyframes felt-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-3px); } }
 html[data-calm] .felt-boxes.is-bad { animation: none; }
+
+/* Animation speed slider: three detents. The thumb and fill ride the cell spring, so a snap settles without a bounce. */
+.felt-detents { position: relative; height: 36px; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; margin-inline: 10px; }
+.felt-detents[data-grab="true"] { cursor: grabbing; }
+.felt-detents:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 4px; border-radius: 8px; }
+.felt-detents-rail { position: absolute; left: 0; right: 0; top: 9px; height: 10px; border-radius: 5px; background: var(--sat-well); overflow: hidden; }
+.felt-detents-fill { height: 100%; background: var(--sat-text); transition: width var(--felt-cell-ms, 200ms) var(--felt-cell, ease-out); }
+.felt-detents[data-grab="true"] .felt-detents-fill, .felt-detents[data-grab="true"] .felt-detents-thumb { transition-duration: 60ms; }
+.felt-detents-thumb { position: absolute; top: 4px; width: 18px; height: 20px; margin-left: -9px; border-radius: 6px; background: var(--sat-solid-2); border: 2px solid var(--sat-text); box-sizing: border-box; box-shadow: var(--felt-elev-1);
+  transition: left var(--felt-cell-ms, 200ms) var(--felt-cell, ease-out), scale var(--felt-cell-ms, 200ms) var(--felt-cell, ease-out); }
+.felt-detents[data-grab="true"] .felt-detents-thumb { scale: 1.08; }
+.felt-detents-tick { position: absolute; top: 26px; width: 2px; height: 5px; margin-left: -1px; border-radius: 1px; background: var(--sat-line-strong); transition: scale 200ms var(--sat-ease), background-color 200ms var(--sat-ease); }
+.felt-detents-tick[data-hit="true"] { background: var(--sat-text); scale: 1 1.8; }
+.felt-detents-labels { display: flex; justify-content: space-between; margin-inline: 2px; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+.felt-detents-labels [data-on="true"] { color: var(--sat-text); font-weight: 600; transition: color var(--felt-cross-ms, 200ms) var(--felt-cross, ease-out); }
+html[data-calm] .felt-detents-fill, html[data-calm] .felt-detents-thumb, html[data-calm] .felt-detents-tick { transition: none; }

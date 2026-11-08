@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { motionPref, phoneAsksCalm, setMotionPref, type MotionPref } from '../lib/motion';
+import { haptic } from '../lib/haptics';
 import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { DEFAULT_PALETTE, PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
@@ -25,18 +26,33 @@ const SPLASH: { ms: number; label: string }[] = [
   { ms: SPLASH_DEFAULT, label: 'Standard' },
   { ms: 4500, label: 'Long' },
 ];
-/** Reduce Motion on the phone turns off the motion in Felt. This field shows that and can overrule it, on this phone only. */
+/** Animation speed: a slider with three detents, built like the Slider Detents of interior.dev. The thumb grows while held
+    and snaps to Reduced, Follow phone or Full on a spring. Reduce Motion on the phone turns off the motion in Felt; this
+    field shows that and can overrule it, on this phone only. */
+const SPEEDS: { v: MotionPref; label: string }[] = [{ v: 'calm', label: 'Reduced' }, { v: 'phone', label: 'Follow phone' }, { v: 'full', label: 'Full' }];
 function MotionField() {
   const [pref, setPref] = useState(motionPref);
-  const pick = (p: MotionPref) => { setMotionPref(p); setPref(p); };
+  const track = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<number | null>(null);
+  const idx = SPEEDS.findIndex((x) => x.v === pref);
+  const pos = drag ?? idx / 2;
+  const pick = (i: number) => { const p = SPEEDS[Math.max(0, Math.min(2, i))].v; if (p !== pref) { setMotionPref(p); setPref(p); haptic(6); } };
+  const at = (e: React.PointerEvent) => { const r = track.current!.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+  const end = (f: number) => { pick(Math.round(f * 2)); setDrag(null); };
   return (
     <section className="sat-stack" style={gap(2)}>
-      <Caption tip="motion">Motion</Caption>
-      <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Motion">
-        <TabPill />
-        <button role="radio" aria-checked={pref === 'phone'} onClick={() => pick('phone')}>Follow phone</button>
-        <button role="radio" aria-checked={pref === 'full'} onClick={() => pick('full')}>Full</button>
+      <Caption tip="motion">Animation speed</Caption>
+      <div className="felt-detents" ref={track} role="slider" tabIndex={0} aria-label="Animation speed" aria-valuemin={0} aria-valuemax={2} aria-valuenow={idx} aria-valuetext={SPEEDS[idx].label}
+        data-grab={drag !== null}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDrag(at(e)); }}
+        onPointerMove={(e) => { if (drag !== null) { const f = at(e); setDrag(f); pick(Math.round(f * 2)); } }}
+        onPointerUp={(e) => end(at(e))} onPointerCancel={() => setDrag(null)}
+        onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); pick(idx + 1); } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); pick(idx - 1); } else if (e.key === 'Home') pick(0); else if (e.key === 'End') pick(2); }}>
+        <div className="felt-detents-rail"><div className="felt-detents-fill" style={{ width: `${pos * 100}%` }} /></div>
+        {SPEEDS.map((x, i) => <span key={x.v} className="felt-detents-tick" data-hit={i === idx} style={{ left: `${(i / 2) * 100}%` }} aria-hidden="true" />)}
+        <div className="felt-detents-thumb" style={{ left: `${pos * 100}%` }} aria-hidden="true" />
       </div>
+      <div className="felt-detents-labels" aria-hidden="true">{SPEEDS.map((x, i) => <span key={x.v} data-on={i === idx}>{x.label}</span>)}</div>
       <p className="sat-small sat-muted">{phoneAsksCalm() ? 'Reduce Motion is on for this phone.' : 'Reduce Motion is off for this phone.'}</p>
     </section>
   );

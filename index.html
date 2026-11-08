@@ -6,7 +6,7 @@
     <!-- Saturday Signature: theme before paint (stops a light flash on dark devices). Keep before the stylesheets. -->
     <script>try{var t=localStorage.getItem('sat-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
     <!-- Motion: full unless the phone asks for less. Settings, Motion can overrule the phone. -->
-    <script>try{if(localStorage.getItem('felt-motion')!=='full'&&matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.setAttribute('data-calm','')}catch(e){}</script>
+    <script>try{var fm=localStorage.getItem('felt-motion');if(fm==='calm'||(fm!=='full'&&matchMedia('(prefers-reduced-motion: reduce)').matches))document.documentElement.setAttribute('data-calm','')}catch(e){}</script>
     <!-- Opening screen length, set in the app (Settings, Opening screen). 0 = skip straight to the app. -->
     <script>try{sessionStorage.setItem('felt-splashed','1')}catch(e){}var FELT_SPLASH_MS=3000;try{var m=localStorage.getItem('felt-splash-ms');if(m!==null&&!isNaN(+m))FELT_SPLASH_MS=+m}catch(e){}document.documentElement.style.setProperty('--k',FELT_SPLASH_MS/3000);if(FELT_SPLASH_MS<=0){document.documentElement.style.visibility='hidden';location.replace('./app/'+location.hash)}</script>
     <meta name="theme-color" content="#1C1E21" />

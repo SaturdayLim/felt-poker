@@ -43,3 +43,21 @@ html[data-calm] .felt-fold-wrap, html[data-calm] .felt-fold-inner > *, html[data
   transition: opacity var(--felt-cell-ms, 160ms) var(--felt-cell, ease-out), scale var(--felt-cell-ms, 160ms) var(--felt-cell, ease-out); }
 .felt-search-clear[data-on="true"] { opacity: 1; scale: 1; pointer-events: auto; }
 html[data-calm] .felt-search-input, html[data-calm] .felt-search-clear { transition: none; }
+
+/* New items pill: fixed under the sticky band, centred; only the button takes touches. */
+.felt-newpill { position: fixed; left: 0; right: 0; z-index: 30; display: flex; justify-content: center; pointer-events: none; }
+.felt-newpill--top { top: calc(var(--felt-safe-top, 0px) + 116px); }
+.felt-newpill--bottom { bottom: calc(var(--felt-safe-bottom, 0px) + 84px); }
+.felt-newpill button { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--sat-line-strong); background: var(--sat-solid-2); color: var(--sat-text);
+  box-shadow: var(--felt-elev-2); font-size: var(--sat-fs-small); font-weight: 600; }
+.felt-newpill--top button svg { transform: rotate(90deg); }
+.felt-newpill--bottom button svg { transform: rotate(-90deg); }
+.felt-newpill button:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 2px; }
+
+/* Accordion body (Disclose): height is set by script; the body clips while it moves. */
+.felt-disclose { overflow: hidden; }
+.felt-disclose-in { padding-block: 2px; }
+.felt-fig { position: relative; }
+.felt-fig-chev { position: absolute; right: 8px; top: 8px; color: var(--sat-muted); transition: rotate var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out); rotate: 0deg; }
+.felt-fig-chev[data-open="true"] { rotate: 180deg; }
+html[data-calm] .felt-fig-chev { transition: none; }

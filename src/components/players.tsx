@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePlayerName, useStore } from '../store';
-import { Delta, Help, HoldFill, Icon, Sheet, toast, WordButton } from './ui';
+import { Delta, Disclose, Help, HoldFill, Icon, Sheet, toast, WordButton } from './ui';
 import { newCode, showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary, summaryFigure } from '../lib/stats';
@@ -287,6 +287,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
   const currency = useStore((s) => s.settings.currency);
   const showMoney = useStore((s) => s.settings.showMoney);
   const [view, setView] = useState<'card' | 'net' | 'rate'>('card');
+  const [gamesOpen, setGamesOpen] = useState(false);
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
   const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
   const closed = played.filter((g) => g.status === 'closed');
@@ -347,8 +348,22 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
       <div className="felt-tiles">
         <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('net')}><span className="sat-caption">Net ({figureUnit(summaryFigure(s, currency), showMoney)})</span><b className="sat-num">{s.games ? figureNumber(summaryFigure(s, currency), showMoney, { sign: true }) : '-'}</b></button>
         <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('rate')}><span className="sat-caption">Win rate</span><b className="sat-num">{s.games ? `${Math.round(s.winRate * 100)}%` : '-'}</b></button>
-        <button type="button" className="sat-flat sat-card felt-fig" onClick={() => { onClose(); go(`games/${p.id}`); }}><span className="sat-caption">Games</span><b className="sat-num">{played.length}</b></button>
+        <button type="button" className="sat-flat sat-card felt-fig" aria-expanded={gamesOpen} onClick={() => setGamesOpen((o) => !o)}><span className="sat-caption">Games</span><b className="sat-num">{played.length}</b><span className="felt-fig-chev" data-open={gamesOpen} aria-hidden="true"><Icon name="chevron" size={14} stroke={2.2} /></span></button>
       </div>
+      <Disclose open={gamesOpen}>
+        <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+          {played.length === 0 ? <p className="sat-small sat-muted">Not in any games yet.</p> : (
+            <div className="sat-flat felt-list">
+              {played.slice(0, 5).map((g) => (
+                <button key={g.id} className="felt-row" onClick={() => open(g)}>
+                  <span className="felt-row-main"><span className="felt-row-title felt-ellipsis">{g.name}</span><span className="felt-row-sub">{g.status === 'live' ? 'Live' : shortDate(g.startedAt)}</span></span>
+                </button>
+              ))}
+            </div>
+          )}
+          {played.length > 0 && <button className="sat-btn sat-btn--block sat-btn--ghost" onClick={() => { onClose(); go(`games/${p.id}`); }}>Show all {played.length} games</button>}
+        </div>
+      </Disclose>
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={stats}>Full stats</button>
     </Sheet>
   );

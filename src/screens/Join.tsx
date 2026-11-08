@@ -2,7 +2,8 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardBack, CardPair, Cards, Empty, Header, Help, Icon, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
+import { CardBack, CardPair, Cards, Empty, Header, Help, Icon, NewItemsPill, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
+import { calm } from '../lib/motion';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
 import { StandingChart } from '../components/candle';
@@ -277,8 +278,23 @@ function ActionLog({ now: sent, hands, blinds, onFlag }: { now: NowSnapshot | nu
   // a new hand shows only after real action: blinds and card entry alone do not count
   const now = sent && sent.acted !== false ? sent : null;
   const closed = now ? hands.filter((h) => h.n !== now.n) : hands;
+  // a hand that arrives while the page is scrolled away from the newest raises a pill; a tap jumps up to it
+  const latest = Math.max(now?.n ?? 0, ...hands.map((h) => h.n));
+  const lastSeen = useRef(latest);
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    const added = latest - lastSeen.current;
+    lastSeen.current = latest;
+    if (added > 0 && window.scrollY > 160) setUnread((u) => u + added);
+  }, [latest]);
+  useEffect(() => {
+    const on = () => { if (window.scrollY < 80) setUnread(0); };
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, []);
   return (
     <>
+      <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />
       {!now && !hands.length && <div className="sat-flat sat-card sat-small">No hands yet.</div>}
       {now && <HandFrame n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}
       {closed.map((h) => <HandFrame key={h.n} n={h.n} view={h.view} blinds={blinds} />)}

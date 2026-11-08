@@ -4,7 +4,7 @@
 import type { Card, Game, ID, Player, Settings, StreetName } from '../types';
 import { estimateStacks, exactStacks } from '../lib/stacks';
 import { bestHand } from '../lib/cards';
-import { finalists, hasActs, potTotal, replayStreet, rowOrder, STREETS } from '../lib/hand';
+import { finalists, hasActs, NOT_SHOWN, potTotal, replayStreet, rowOrder, STREETS, wentToShowdown } from '../lib/hand';
 import { units } from '../lib/format';
 import { rulesList } from '../report/model';
 import type { HandLog } from '../types';
@@ -74,7 +74,7 @@ export function buildPub(g: Game, players: Player[], settings?: Settings, at = D
       // with more than one run a hand has no single rank
       const shown = h.shown.map((s) => ({ name: name(s.playerId), cards: s.cards, rank: h.board.length === 5 && (h.log!.runs ?? 1) <= 1 ? bestHand([...s.cards, ...h.board])?.name ?? '' : '' }));
       const fin = finalists(h.log!);
-      const mucked = fin.length > 1 ? fin.filter((p) => !h.shown.some((s) => s.playerId === p) && !h.winners.some((w) => w.playerId === p)).map(name) : [];
+      const mucked = wentToShowdown(h.log!) ? fin.filter((p) => !h.shown.some((s) => s.playerId === p) && !h.winners.some((w) => w.playerId === p)).map(name) : [];
       return {
         n: h.n, pot: h.pot, winners, board: h.board, shown, mucked,
         dealt: (h.log?.dealt ?? []).map(name),
@@ -173,7 +173,7 @@ export function viewText(n: number, sb: number, bb: number, v: HandView): string
     if (s.key === 'showdown') {
       out.push(s.label);
       for (const x of s.shown ?? []) out.push(`${x.name} shows ${x.cards.join(' ')}`);
-      for (const m of s.mucked ?? []) out.push(`${m} mucks`);
+      for (const m of s.mucked ?? []) out.push(`${m}: ${NOT_SHOWN}`);
       (v.runs ?? []).forEach((r, i) => out.push(`Run ${i + 1}: ${[...r.common, ...r.cards].join(' ')}`));
     } else out.push(s.fresh.length ? `${s.label}: ${s.fresh.join(' ')}` : s.label);
     out.push(...s.lines);

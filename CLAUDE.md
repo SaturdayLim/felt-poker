@@ -72,7 +72,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Cards shown at the table cannot be replaced by hidden cards (host or player): "Cards in showdown. Remove from showdown to overwrite."
 - Player cards, player's phone: their own cards face up, with an open eye (shown at the table) or a shut eye (hidden). Every hand the host or the player logged shows, whenever they signed in.
 - Player cards, host phone: other players carry no eye. Their hidden cards show face down; cards just saved stay face up until the sheet closes. The host's own row (Settings, You) opens with their player code (Show my cards, kept on this phone) and then shows face up with an eye.
-- Hidden cards that cannot be right get a small ! on the player's own list, only after a later hand is under way. Red = contradicts a card shown at the table; the hand is left out of stats and reports. Blue = matches another hidden entry; it still counts. A tap shows the reason. Settings, Check hidden cards (default on) turns this off. No pop-up.
+- Hidden cards that cannot be right get a small ! on the player's own list, only after a later hand is under way. Red = contradicts a card shown at the table; the hand is left out of stats and reports. Blue = matches another hidden entry; it still counts. A tap shows the reason. Cards shown at the table override a player's own entry: a difference from the player's own shown pair is dropped silently, with no flag and no reason. Settings, Check hidden cards (default on) turns this off. No pop-up.
 - Viewer play-by-play: names stay still; each action box sits one step right of the action before it (time order), not in pass columns. The step fits two passes round the table in view (small for 9 players); a box never covers the one before it in its row.
 - Copy hand: plain text, no dashes or bullets, a blank line between streets.
 - A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
@@ -91,7 +91,9 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - The game page keeps its tab in the address (game/<id> or game/<id>/hands), so Back from a hand returns to the same tab and scroll position.
 - Morphs clip, never stretch: anything that grows or shrinks keeps its content at its own size while the frame changes shape, and the colour and text change overlaps the move (no pause, then a flip).
 - Motion is set in `docs/MOTION-LIST.md`, and `src/lib/motion.ts` plays it. Springs use visual duration and bounce. Every button press follows its class.
-- Private cards that match another entry or the table are flagged to that player alone (the ! above, and a line on their report page for blue). Half a pair is left out of all analysis.
+- Private cards that match another entry or the table are flagged to that player alone (the ! above, and a line on their report page for blue). The effective pair is the shown cards, else the entry (`effectivePairs`, `src/lib/clash.ts`). A blue clash against a dropped entry compares to the shown cards. Every other entry counts as entered, even if impossible. Half a pair is left out of all analysis.
+- Mucked and Not shown are one thing: the label is Not shown (`NOT_SHOWN`, `src/lib/hand.ts`). A Not shown hand cannot win a showdown. If every other player is Not shown, the last one left wins without cards (a takedown) and it is not a showdown (`wentToShowdown`, `takedown`). If every player is Not shown, the last to muck in showdown order wins, not the last one tapped.
+- Preflop with blinds posted, the action table opens with two columns: the SB and BB act again after the button.
 - Player view: the card button signs in. Sign out sits in its sheet.
 - Partly recorded follows the log: filling in every skipped box makes the hand whole again.
 - Keypad open: everything else is greyed out; a tap outside only closes the keypad. Scrolling leaves it open.

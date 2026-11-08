@@ -100,7 +100,7 @@ describe('timePlayed', () => {
   });
 });
 
-import { gameLength, playMs } from './format';
+import { gameLength, playMs, runningLabel, runningMs } from './format';
 
 describe('game length', () => {
   const hand = (at: number, endedAt: number, missed = false) => ({ at, endedAt, missed }) as Game['hands'][number];
@@ -113,5 +113,27 @@ describe('game length', () => {
   });
   it('leaves out missed hands', () => {
     expect(playMs({ hands: [hand(0, 600000), hand(900000000, 900000000, true)] })).toBe(0);
+  });
+});
+
+describe('running time', () => {
+  const hand = (at: number, endedAt: number, missed = false) => ({ at, endedAt, missed }) as Game['hands'][number];
+  const min = 60000;
+  it('is null before one hand has closed', () => {
+    expect(runningMs({ hands: [], status: 'live' }, 5 * min)).toBeNull();
+    expect(runningLabel({ hands: [], status: 'live' }, 5 * min)).toBe('-');
+    expect(runningMs({ hands: [hand(0, 0, true)], status: 'live' }, 5 * min)).toBeNull();
+  });
+  it('is 0 right after the first hand closes and keeps counting between hands while live', () => {
+    const hands = [hand(0, 10 * min)];
+    expect(runningMs({ hands, status: 'live' }, 10 * min)).toBe(0);
+    expect(runningMs({ hands, status: 'live' }, 25 * min)).toBe(15 * min);
+    expect(runningLabel({ hands, status: 'live' }, 70 * min)).toBe('1h 0m');
+    // playMs froze at 0 with one hand: the live figure does not
+    expect(playMs({ hands })).toBe(0);
+  });
+  it('stops at the close of the last hand when the game is closed', () => {
+    const hands = [hand(0, 10 * min), hand(10 * min, 40 * min)];
+    expect(runningMs({ hands, status: 'closed' }, 999 * min)).toBe(30 * min);
   });
 });

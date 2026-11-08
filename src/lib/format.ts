@@ -64,6 +64,20 @@ export function playMs(g: Pick<Game, 'hands'>): number | null {
   return closes.length ? Math.max(...closes) - Math.min(...closes) : null;
 }
 
+/** The Running figure of a game page. Live: from the close of hand 1 to now, so it keeps counting between hands.
+    Closed: the same as `playMs`. Null until hand 1 closes. */
+export function runningMs(g: Pick<Game, 'hands' | 'status'>, now = Date.now()): number | null {
+  if (g.status === 'closed') return playMs(g);
+  const closes = g.hands.filter((h) => !h.missed).map((h) => h.endedAt ?? h.at);
+  return closes.length ? Math.max(0, now - Math.min(...closes)) : null;
+}
+
+/** Text for the Running figure and the closed Length figure: "-" until hand 1 closes. */
+export function runningLabel(g: Pick<Game, 'hands' | 'status'>, now = Date.now()): string {
+  const ms = runningMs(g, now);
+  return ms === null ? '-' : duration(ms);
+}
+
 export function gameLength(g: Pick<Game, 'hands'>): string {
   const ms = playMs(g);
   return ms === null ? '-' : duration(ms);

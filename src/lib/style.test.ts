@@ -165,3 +165,14 @@ describe('stack estimate anchors', () => {
     expect(est.stack.Ev).toBe(196);
   });
 });
+
+describe('takedown by Not shown', () => {
+  it('is not counted as a showdown win or a showdown chip flow', () => {
+    const g = game();
+    const three = six.slice(0, 3);
+    const log: HandLog = { ...setAct(g, newBoxLog(g, three, 'Bel', stacks), 'preflop', 'Bel', 0, { k: 'call' }, stacks), mucked: ['Gab', 'Clar'] };
+    expect(wonAt(log)).toBe('preflop');
+    const withShowdown: HandLog = { ...log, mucked: ['Clar'], shown: { Bel: ['As', 'Ad'], Gab: ['Kh', '2d'] } };
+    expect(wonAt(withShowdown)).toBe('showdown');
+  });
+});

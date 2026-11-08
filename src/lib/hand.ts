@@ -286,6 +286,42 @@ export interface Resolution {
   missing: boolean;
 }
 
+/** Mucked and Not shown are one thing. The label every screen uses. */
+export const NOT_SHOWN = 'Not shown';
+
+/** A pot with nobody left to answer: every other player is Not shown, so the last one standing wins without cards.
+    If every eligible player is marked Not shown, the last to muck in showdown order (the one nobody is left to answer) wins.
+    `log.mucked` is in tap order, so it is never used for the order. Null when the pot still needs cards or a pick. */
+export function takedownWinner(g: Game, log: HandLog, eligible: ID[]): ID | null {
+  const out = new Set(log.mucked ?? []);
+  const muckers = eligible.filter((p) => out.has(p));
+  if (!muckers.length || eligible.length < 2) return null;
+  const left = eligible.filter((p) => !out.has(p));
+  if (left.length === 1) return left[0];
+  if (left.length === 0) { const order = showdownOrder(g, log, eligible); return order[order.length - 1] ?? null; }
+  return null;
+}
+
+/** The hand was decided with nobody left to answer: the pot went to one player without cards being compared. That is
+    every other player folding, or every other player left Not shown. Two or more finalists with at most one of them
+    not mucked also counts. */
+export function isTakedown(log: HandLog): boolean {
+  const fin = finalists(log);
+  if (fin.length <= 1) return true;
+  const out = new Set(log.mucked ?? []);
+  return fin.filter((p) => !out.has(p)).length <= 1 && fin.some((p) => out.has(p));
+}
+
+/** Two or more players reached a real showdown. A takedown is not a showdown. */
+export function wentToShowdown(log: HandLog): boolean {
+  return finalists(log).length > 1 && !isTakedown(log);
+}
+
+/** A hand won without a showdown: everyone folded, or everyone else was Not shown. Only hands with a log can be one. */
+export function takedown(h: { log?: HandLog; missed?: boolean }): boolean {
+  return !!h.log && !h.missed && !wentToShowdown(h.log);
+}
+
 /** Decide every pot on every run from the shown cards, then apply manual picks (they win every run of that pot). */
 /** `extra`: chips in the pot that were not recorded as wagers (a partly recorded hand); added to the main pot. */
 export function resolve(g: Game, log: HandLog, board: Card[], button: ID | undefined, manual: Record<number, ID[]>, extra = 0): Resolution {
@@ -305,13 +341,17 @@ export function resolve(g: Game, log: HandLog, board: Card[], button: ID | undef
       let winners: ID[] = [];
       if (manual[i]?.length) winners = manual[i].filter((p) => pot.eligible.includes(p));
       else if (pot.eligible.length === 1) winners = [...pot.eligible];
-      else if (b.length === 5) {
-        const scored = pot.eligible.map((p) => ({ p, v: log.shown?.[p]?.length === 2 ? bestHand([...log.shown[p], ...b]) : null })).filter((x) => x.v);
-        // a pot is decided by the shown hands only if everyone who could win it showed or mucked
-        const undecided = pot.eligible.some((p) => !(log.shown?.[p]?.length === 2) && !log.mucked?.includes(p));
-        if (scored.length && !undecided) {
-          const top = Math.max(...scored.map((x) => x.v!.score));
-          winners = scored.filter((x) => x.v!.score === top).map((x) => x.p);
+      else {
+        const takedown = takedownWinner(g, log, pot.eligible);
+        if (takedown) winners = [takedown];
+        else if (b.length === 5) {
+          const scored = pot.eligible.map((p) => ({ p, v: log.shown?.[p]?.length === 2 ? bestHand([...log.shown[p], ...b]) : null })).filter((x) => x.v);
+          // a pot is decided by the shown hands only if everyone who could win it showed or did not show on purpose
+          const undecided = pot.eligible.some((p) => !(log.shown?.[p]?.length === 2) && !log.mucked?.includes(p));
+          if (scored.length && !undecided) {
+            const top = Math.max(...scored.map((x) => x.v!.score));
+            winners = scored.filter((x) => x.v!.score === top).map((x) => x.p);
+          }
         }
       }
       if (!winners.length) missing = true;
@@ -565,10 +605,9 @@ export function replayStreet(g: Game, log: HandLog, street: StreetName, stacks?:
     }
     if (!any && r >= maxStored - 1 && r > 0) break;
   }
-  // Column 2 holds only the blinds' (and straddlers') next decisions while column 1 is still going: keep it hidden
-  // until column 1 is done, so the table grows one column at a time.
-  let cols = Math.max(1, lastCol + 1);
-  if (cols === 2 && waiting.some((w) => w.r === 0) && order.every((p) => !cells[p][1]?.needed || ((p in blindPosts || straddles.includes(p)) && !cells[p][1].act))) cols = 1;
+  // Preflop with blinds posted: the table opens with two columns, because the small blind and the big blind act
+  // again after the button. Other streets grow one column at a time.
+  const cols = Math.max(1, lastCol + 1);
   for (const p of order) {
     cells[p].length = Math.min(cells[p].length, cols);
     for (let r = 0; r < cols; r++) cells[p][r] ??= blankCell(bets[p] ?? 0);

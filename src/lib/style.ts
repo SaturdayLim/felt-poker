@@ -13,7 +13,7 @@ import { countedPairs } from './clash';
 import type { Card, Game, Hand, HandLog, ID, StreetName } from '../types';
 import { bestHand } from './cards';
 import { round2 } from './calc';
-import { STREETS, actingOrder, bountyPay, contributions, defaultAct, finalists, inAtEnd, lastStreet, pfr, replayStreet, streetOrder, vpip } from './hand';
+import { STREETS, actingOrder, bountyPay, contributions, defaultAct, inAtEnd, lastStreet, pfr, replayStreet, streetOrder, vpip, wentToShowdown, finalists } from './hand';
 
 export interface StyleCounts {
   threeBet: number; threeBetOpp: number;
@@ -103,7 +103,7 @@ export function addStyle(s: StyleCounts, g: Game, log: HandLog, p: ID) {
 
 /** Where a hand the player won (all or part of) was decided: the street everyone else folded on, or showdown. */
 export function wonAt(log: HandLog): WonAt {
-  return finalists(log).length > 1 ? 'showdown' : lastStreet(log);
+  return wentToShowdown(log) ? 'showdown' : lastStreet(log);
 }
 
 /** Adds one hand's chips for `p` to `f`. Fold and showdown are the hand's net (pots won + chips returned -
@@ -118,7 +118,7 @@ export function addFlow(f: ChipFlow, g: Game, h: Hand, p: ID) {
   const put = contributions(g, L, L.button)[p] ?? 0;
   const got = (h.winners.find((w) => w.playerId === p)?.amount ?? 0) + (h.returned?.[p] ?? 0);
   const net = round2(got - put);
-  const showdown = finalists(L).length > 1;
+  const showdown = wentToShowdown(L);
   if (net > 0) { if (showdown) f.winShowdown = round2(f.winShowdown + net); else f.winFold = round2(f.winFold + net); }
   else if (net < 0) {
     if (showdown && finalists(L).includes(p)) f.lossShowdown = round2(f.lossShowdown - net);
@@ -182,7 +182,7 @@ export function myHands(games: Game[], me: ID, check = true): MyHand[] {
       out.push({
         gameId: g.id, handId: h.id, n: h.n, at: h.at, cards,
         vpip: vpip(g, L, me, L.button), pfr: pfr(L, me), sawFlop: !!L.streets.flop && inAtEnd(L, 'preflop').includes(me),
-        showdown: fin.length > 1 && fin.includes(me), won: h.winners.some((w) => w.playerId === me),
+        showdown: wentToShowdown(L) && fin.includes(me), won: h.winners.some((w) => w.playerId === me),
         net: round2(got - put), aggressive, bluff,
       });
     }

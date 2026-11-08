@@ -2,10 +2,11 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardBack, CardPair, Cards, Empty, Header, Help, Icon, NewItemsPill, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
+import { CardPair, Empty, Header, Help, Icon, NewItemsPill, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { calm } from '../lib/motion';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
+import { RevealProvider, useBigPips, useSeenCards, VCards, ViewerLookSettings } from '../components/viewerLook';
 import { StandingChart } from '../components/candle';
 import { lock, unlock, type LockBox } from '../report/lock';
 import { CHECK_TEXT, keyFromPassphrase, open, seal } from '../live/crypto';
@@ -26,8 +27,8 @@ interface Me { id: string; name: string; clash?: number[];
 /** The hidden cards of each hand that this player can see: theirs only. A number with no cards means cards are logged but unknown here. */
 const loggedOf = (me: Me): Record<number, Card[]> => Array.isArray(me.logged) ? Object.fromEntries(me.logged.map((n) => [n, []])) : Object.fromEntries(Object.entries(me.logged ?? {}).map(([n, c]) => [Number(n), c]));
 /** Red: a card contradicts the table, and the hand is left out of stats. Blue: it only matches another hidden entry. */
-const WHY: Record<string, string> = { board: 'A card is also on the board.', shown: 'Another player showed a card you logged.', own: 'You showed other cards than you logged.', entry: 'Another player logged a card you logged.' };
-const levelOf = (why: string[] = []) => (why.includes('board') || why.includes('shown') || why.includes('own') ? 'red' : why.length ? 'blue' : null);
+const WHY: Record<string, string> = { board: 'A card is also on the board.', shown: 'Another player showed a card you logged.', entry: 'Another player logged a card you logged.' };
+const levelOf = (why: string[] = []) => (why.includes('board') || why.includes('shown') ? 'red' : why.length ? 'blue' : null);
 type Tab = 'action' | 'settings' | 'hands' | 'players';
 const TABS: { k: Tab; label: string }[] = [{ k: 'action', label: 'Action' }, { k: 'hands', label: 'Hands' }, { k: 'players', label: 'Players' }, { k: 'settings', label: 'Settings' }];
 
@@ -50,20 +51,22 @@ const deviceId = () => {
   return id;
 };
 const PotLine = ({ h }: { h: PubSnapshot['hands'][number] }) => (
-  <span className="sat-small sat-muted felt-frame-cap"><span className="sat-num">Pot: {money(h.pot)}</span> - {h.winners.map((w) => `${w.name} (${money(w.amount)})`).join(', ') || 'No winner recorded'}</span>
+  <span className="sat-small sat-muted felt-frame-cap"><span className="sat-num">Pot: {money(h.pot)}</span> - {/* one winner with the whole pot: the amount would repeat the pot, so only the name shows */}{h.winners.length === 1 && Math.round(h.winners[0].amount) === Math.round(h.pot) ? h.winners[0].name : h.winners.map((w) => `${w.name} (${money(w.amount)})`).join(', ') || 'No winner recorded'}</span>
 );
 /** Every run of the board, when the rest of the board ran more than once. */
 const RunBoards = ({ runs, size }: { runs: NonNullable<HandView['runs']>; size?: 'sm' }) => (
   <div className="felt-runs">
     {runs.map((r, i) => (
-      <div key={i} className="felt-run"><span className="sat-caption">Run {i + 1}</span>{r.common.length > 0 && <span className="felt-cards-old"><Cards cards={r.common} size={size} /></span>}<Cards cards={r.cards} size={size} /></div>
+      <div key={i} className="felt-run"><span className="sat-caption">Run {i + 1}</span>{r.common.length > 0 && <span className="felt-cards-old"><VCards cards={r.common} size={size} /></span>}<VCards cards={r.cards} size={size} /></div>
     ))}
   </div>
 );
-const MuckedRows = ({ names }: { names?: string[] }) => <>{(names ?? []).map((m) => <div key={m} className="felt-band-shown"><span>{m}</span><span className="felt-cards"><CardBack size="sm" /><CardBack size="sm" /></span><span className="sat-small sat-muted">Mucked</span></div>)}</>;
+/** A player who did not show: the name and "Not shown". No face-down pair, because this phone cannot know if cards were entered. */
+const NotShownRows = ({ names }: { names?: string[] }) => <>{(names ?? []).map((m) => <div key={m} className="felt-band-shown"><span>{m}</span><span className="sat-small sat-muted">Not shown</span></div>)}</>;
 
 export default function Join({ room, keyFromLink }: { room: string; keyFromLink?: string }) {
   const driver = useMemo(() => pickDriver(), []);
+  const big = useBigPips();
   const [meta, setMeta] = useState<Meta | null | undefined>(undefined);
   const [key, setKey] = useState<string | null>(keyFromLink ?? ss.get(`felt-join-key:${room}`));
   const [pub, setPub] = useState<PubSnapshot | null>(null);
@@ -170,7 +173,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
   if (shownHand) {
     return (
-      <div className="felt-page">
+      <div className={`felt-page ${big}`}>
         <Header back={() => setOpenHand(null)} title={`Hand ${shownHand.n}`} sub={pub.game.name} />
         <PlayByPlay view={shownHand.view} board={shownHand.board} />
       </div>
@@ -178,7 +181,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   }
 
   return (
-    <div className="felt-page">
+    <div className={`felt-page ${big}`}>
       <Header title={pub.game.name} sub={me ? me.name : `Live, ${pub.hands.length} ${pub.hands.length === 1 ? 'hand' : 'hands'}`}>
         <div className="felt-tabs sat-glass felt-join-tabs" role="tablist" aria-label="Live game">
           <TabPill />
@@ -192,7 +195,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
           onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
-        {tab === 'settings' && <Rules pub={pub} />}
+        {tab === 'settings' && <><Rules pub={pub} /><ViewerLookSettings /></>}
       </div>
       </SlidePane>
 
@@ -249,28 +252,32 @@ function Band({ s, runs }: { s: ViewStreet; runs?: HandView['runs'] }) {
       <div className="felt-band-title">{s.label}</div>
       {(s.old.length > 0 || s.fresh.length > 0) && (
         <div className="felt-band-cards">
-          {s.old.length > 0 && <span className="felt-cards-old"><Cards cards={s.old} size="sm" /></span>}
-          <Cards cards={s.fresh} size="sm" />
+          {s.old.length > 0 && <span className="felt-cards-old"><VCards cards={s.old} size="sm" /></span>}
+          <VCards cards={s.fresh} size="sm" reveal />
         </div>
       )}
       {s.key === 'showdown' && runs && <RunBoards runs={runs} size="sm" />}
       {(s.shown ?? []).map((x) => (
-        <div key={x.name} className="felt-band-shown"><span>{x.name}</span><Cards cards={x.cards} size="sm" />{x.rank && <span className="sat-small sat-muted">{x.rank}</span>}</div>
+        <div key={x.name} className="felt-band-shown"><span>{x.name}</span><VCards cards={x.cards} size="sm" />{x.rank && <span className="sat-small sat-muted">{x.rank}</span>}</div>
       ))}
-      <MuckedRows names={s.mucked} />
+      <NotShownRows names={s.mucked} />
       {[...s.lines].reverse().map((l, i) => <div key={i} className="felt-band-line">{l}</div>)}
     </div>
   );
 }
 
 function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blinds: { sb: number; bb: number }; live?: { toAct: string | null; pot: number } }) {
+  // cards on screen when this frame first shows never flip: only a card that arrives later does
+  const seen = useSeenCards(() => view.streets.flatMap((s) => [...s.old, ...s.fresh]));
   return (
+    <RevealProvider value={seen}>
     <section className="sat-glass-2 felt-frame" aria-label={`Hand ${n}`}>
       <div className="felt-frame-sum"><h2 className="felt-frame-title">Hand {n}</h2></div>
       <CopyHand n={n} blinds={blinds} view={view} />
       {live && <div className="felt-frame-live"><span>{live.toAct ? <><b>{live.toAct}</b> to act</> : ''}</span><span>Pot <b className="sat-num">{money(live.pot)}</b></span></div>}
       {[...view.streets].reverse().map((s) => <Band key={s.key} s={s} runs={view.runs} />)}
     </section>
+    </RevealProvider>
   );
 }
 
@@ -314,9 +321,9 @@ function HandsList({ hands, blinds, onOpen }: { hands: PubSnapshot['hands']; bli
             <PotLine h={h} />
           </div>
           <CopyHand n={h.n} blinds={blinds} view={h.view} />
-          {h.view.runs ? <RunBoards runs={h.view.runs} size="sm" /> : h.board.length > 0 && <Cards cards={h.board} size="sm" />}
-          {h.shown.map((s) => <div key={s.name} className="felt-band-shown"><span>{s.name}</span><Cards cards={s.cards} size="sm" /><span className="sat-small sat-muted">{s.rank}</span></div>)}
-          <MuckedRows names={h.mucked} />
+          {h.view.runs ? <RunBoards runs={h.view.runs} size="sm" /> : h.board.length > 0 && <VCards cards={h.board} size="sm" />}
+          {h.shown.map((s) => <div key={s.name} className="felt-band-shown"><span>{s.name}</span><VCards cards={s.cards} size="sm" /><span className="sat-small sat-muted">{s.rank}</span></div>)}
+          <NotShownRows names={h.mucked} />
         </div>
       ))}
     </div>
@@ -338,12 +345,12 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
       <SlidePane k={at} i={view.streets.findIndex((x) => x.key === at)}>
       {s?.key === 'showdown' ? (
         <section className="sat-glass-2 felt-frame">
-          {!view.runs && board.length > 0 && <Cards cards={board} />}
+          {!view.runs && board.length > 0 && <VCards cards={board} />}
           <Band s={s} runs={view.runs} />
         </section>
       ) : (
         <>
-          {reach.length > 0 && <Cards cards={reach} />}
+          {reach.length > 0 && <VCards cards={reach} />}
           {s && <StepTable s={s} />}
         </>
       )}
@@ -523,7 +530,7 @@ function HandPick({ hands, now, entered, me, toCheck, start, onSave, onClose, on
             <button type="button" className="felt-row-hit" onClick={() => pick(x)} aria-label={`Hand ${x.n}${x.shown.length ? ', shown at the table' : hidden(x.n) ? ', hidden cards logged' : ''}`}>
               <span className="felt-row-main"><span className="felt-row-title">Hand {x.n}</span></span>
               {/* the player's own cards show face up: shown at the table, or hidden and known on this phone */}
-              {x.shown.length ? <Cards cards={x.shown} size="sm" /> : known(x.n).length === 2 ? <Cards cards={known(x.n)} size="sm" /> : <CardPair filled={hidden(x.n)} />}
+              {x.shown.length ? <VCards cards={x.shown} size="sm" /> : known(x.n).length === 2 ? <VCards cards={known(x.n)} size="sm" /> : <CardPair filled={hidden(x.n)} />}
               {/* open eye: shown at the table. Shut eye: hidden cards logged */}
               {(x.shown.length > 0 || hidden(x.n)) && <span className="felt-eye" aria-hidden="true"><Icon name={x.shown.length ? 'eye' : 'dark'} size={18} /></span>}
             </button>

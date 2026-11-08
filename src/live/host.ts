@@ -1,6 +1,6 @@
 /* The host side of the live link: opens a room for a game, keeps it up to date, takes in the cards that players
    enter and the flags they send, and deletes the room when sharing stops. Runs on the host phone only. */
-import { clashHands, clashWhy, fullPairs } from '../lib/clash';
+import { clashHands, clashWhy, effectivePairs } from '../lib/clash';
 import type { NowSnapshot as Now } from './snapshot';
 import type { Card, Game, ID } from '../types';
 import { useStore } from '../store';
@@ -84,8 +84,8 @@ async function syncIdent(s: Session, g: Game) {
     const check = useStore.getState().settings.checkCards !== false;
     const later = (n: number) => g.hands.some((h) => h.n > n) || (s.nowN !== undefined && s.nowN > n && !!s.nowActed);
     const clash = check ? clashHands(g, p.id).filter(later) : [];
-    // the player's own hidden cards, by hand: only their code opens this box
-    const logged: Record<number, Card[]> = Object.fromEntries(g.hands.filter((h) => !h.missed && fullPairs(h)[p.id]).map((h) => [h.n, fullPairs(h)[p.id]]));
+    // the player's own cards that count, by hand (shown cards override an entry): only their code opens this box
+    const logged: Record<number, Card[]> = Object.fromEntries(g.hands.filter((h) => !h.missed && effectivePairs(h)[p.id]).map((h) => [h.n, effectivePairs(h)[p.id]]));
     const why: Record<number, string[]> = Object.fromEntries(clash.map((n) => [n, clashWhy(g.hands.find((h) => h.n === n)!, p.id)]));
     const stamp = JSON.stringify([p.code, p.name, clash, logged, why]);
     if (!p.code || s.identCodes[p.id] === stamp) continue;
@@ -224,7 +224,8 @@ export async function startSharing(gameId: ID, passphrase?: string): Promise<str
     pub: await seal(buildPub(g, st.players, st.settings), key),
   });
   sessions.set(gameId, s);
-  try { localStorage.setItem(KEEP(gameId), JSON.stringify({ room, key, locked })); } catch { /* private mode */ }
+  // a locked room keeps no key (it comes from the password): reopening asks for the password again, and only the room id is reused
+  try { localStorage.setItem(KEEP(gameId), JSON.stringify({ room, key: locked ? '' : key, locked })); } catch { /* private mode */ }
   await syncIdent(s, g);
   save(s);
   attach(s);

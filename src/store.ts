@@ -4,7 +4,7 @@ import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 import type { Game, GameRules, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
 import { uid } from './lib/ids';
 import { newCode } from './lib/codes';
-import { defaultPayoutPercents, playerStatus, rebuildTransfers, round2, totalPotMoney } from './lib/calc';
+import { cashOutUnits, defaultPayoutPercents, hasCashedOut, playerStatus, rebuildTransfers, round2, totalPotMoney } from './lib/calc';
 
 const idbStorage: StateStorage = {
   getItem: async (name) => (await idbGet<string>(name)) ?? null,
@@ -92,6 +92,10 @@ interface State {
   setCashOut: (gameId: ID, playerId: ID, chips: number | null) => void;
   bust: (gameId: ID, playerId: ID) => void;
   unbust: (gameId: ID, playerId: ID) => void;
+  /** Takes a player who is out back into the game. Cash game with chips left at clock-out: the old cash-out goes and the
+      stack resumes at those chips (a count). Cash-out of 0 or none: a default buy-in, never a silent 0 stack.
+      Tournament: re-entry. Returns what happened, for the toast. */
+  backIn: (gameId: ID, playerId: ID) => { kind: 'resumed' | 'rebuy' | 'reentry' | 'none'; chips: number };
 
   saveHand: (gameId: ID, hand: Hand) => void;
   deleteHand: (gameId: ID, handId: ID) => void;
@@ -113,6 +117,18 @@ const now = () => Date.now();
 function withCodes(players: Player[], games: Pick<Game, 'playerIds'>[]): Player[] {
   const seated = new Set(games.flatMap((g) => g.playerIds));
   return players.some((p) => !p.code && seated.has(p.id)) ? players.map((p) => (p.code || !seated.has(p.id) ? p : { ...p, code: newCode() })) : players;
+}
+
+/** A clocked-out cash player comes back with the chips they left with: the cash-out goes (a playing player must not
+    keep one, or the stack reads 0 when a later buy-in is deleted), the status turns to playing and a count at `t`
+    makes the stack exact. A cash-out of 0 chips changes nothing and needs a buy-in instead. Returns the chips left. */
+function resumeFromCashOut(g: Game, playerId: ID, t: number): number {
+  const left = cashOutUnits(g, playerId);
+  if (left <= 0) return 0;
+  g.cashOuts = g.cashOuts.filter((c) => c.playerId !== playerId);
+  g.statusEvents.push({ playerId, status: 'playing', at: t });
+  (g.counts ??= []).push({ id: uid(), playerId, chips: left, at: t });
+  return left;
 }
 
 /** Hands saved with `mine` (the phone owner's cards) move into `private`. */
@@ -254,8 +270,14 @@ export const useStore = create<State>()(
         addBuyIn: (gameId, playerId, amount) =>
           mutateGame(gameId, (g) => {
             const t = now();
-            g.buyIns.push({ id: uid(), playerId, amount, at: t });
-            if (playerStatus(g, playerId) === 'out') g.statusEvents.push({ playerId, status: 'playing', at: t });
+            let at = t;
+            if (playerStatus(g, playerId) === 'out') {
+              // the + on a player who is out: the seat wakes up with the chips left at clock-out, then the buy-in adds to them.
+              // The buy-in comes 1 ms after the count so that deleting it later leaves the count.
+              if (g.type === 'cash' && resumeFromCashOut(g, playerId, t) > 0) at = t + 1;
+              else g.statusEvents.push({ playerId, status: 'playing', at: t });
+            }
+            g.buyIns.push({ id: uid(), playerId, amount, at });
             if (g.tournament) {
               g.tournament.bustOrder = g.tournament.bustOrder.filter((p) => p !== playerId);
               if (!g.tournament.customPayouts) g.tournament.payouts = suggestPayouts(g);
@@ -295,6 +317,19 @@ export const useStore = create<State>()(
             t.bustOrder = t.bustOrder.filter((p) => p !== playerId);
             g.statusEvents.push({ playerId, status: 'playing', at: now() });
           }),
+
+        backIn: (gameId, playerId) => {
+          const g = get().games.find((x) => x.id === gameId);
+          if (!g) return { kind: 'none', chips: 0 };
+          if (g.type !== 'cash') { get().unbust(gameId, playerId); return { kind: 'reentry', chips: 0 }; }
+          const left = hasCashedOut(g, playerId) ? cashOutUnits(g, playerId) : 0;
+          if (left > 0) {
+            mutateGame(gameId, (x) => { resumeFromCashOut(x, playerId, now()); });
+            return { kind: 'resumed', chips: left };
+          }
+          get().addBuyIn(gameId, playerId, g.defaultBuyIn);
+          return { kind: 'rebuy', chips: g.defaultBuyIn };
+        },
 
         saveHand: (gameId, hand) =>
           mutateGame(gameId, (g) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game, HandLog } from '../types';
-import { bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, tapPlayer, typeBet, vpip } from './hand';
+import { bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, takedown, tapPlayer, typeBet, vpip, wentToShowdown } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -132,6 +132,12 @@ describe('action boxes', () => {
   const g6 = () => ({ ...game(), playerIds: six, seats: Object.fromEntries(six.map((p, i) => [p, i + 1])) }) as unknown as Game;
   const stacks = Object.fromEntries(six.map((p) => [p, 200]));
 
+  const setAllCall = (g: Game, l: HandLog): HandLog => {
+    let out = l;
+    for (const p of ['Nat', 'Ev', 'Nic', 'Bel', 'Gab', 'Clar']) out = setAct(g, out, 'preflop', p, ['Gab', 'Clar'].includes(p) ? 1 : 0, { k: 'call' }, stacks);
+    return out;
+  };
+
   it('rows run from the small blind to the button; blinds post in column 1 and act from column 2', () => {
     const g = g6();
     const log = newBoxLog(g, six, 'Bel', stacks);
@@ -139,8 +145,14 @@ describe('action boxes', () => {
     const rp = replayStreet(g, log, 'preflop', stacks);
     expect(rp.cells.Gab[0]).toMatchObject({ post: true, amount: 1 });
     expect(rp.cells.Clar[0]).toMatchObject({ post: true, amount: 2 });
-    expect(rp.cols).toBe(1);
+    // blinds posted: two open columns from the start, because the SB and BB act again after the button
+    expect(rp.cols).toBe(2);
+    expect(rp.cells.Gab[1]).toMatchObject({ needed: true });
+    expect(rp.cells.Clar[1]).toMatchObject({ needed: true });
     expect(rp.next).toEqual({ p: 'Nat', r: 0 });
+    // no blinds on the flop: one column until a bet reopens the action
+    const flop = replayStreet(g, openStreetBoxes(g, closeStreet(g, setAllCall(g, log), 'preflop', 1, stacks), 'flop', stacks), 'flop', stacks);
+    expect(flop.cols).toBe(1);
     expect(potTotal(g, log)).toBe(3);
   });
 
@@ -149,7 +161,7 @@ describe('action boxes', () => {
     let log = newBoxLog(g, six, 'Bel', stacks);
     log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'call' }, stacks);
     log = setAct(g, log, 'preflop', 'Ev', 0, { k: 'call' }, stacks);
-    expect(replayStreet(g, log, 'preflop', stacks).cols).toBe(1);
+    expect(replayStreet(g, log, 'preflop', stacks).cols).toBe(2);
     log = setAct(g, log, 'preflop', 'Nic', 0, { k: 'bet', to: 4 }, stacks);
     let rp = replayStreet(g, log, 'preflop', stacks);
     expect(rp.cols).toBe(2); // action reopens
@@ -413,5 +425,58 @@ describe('run-out needs no further action', () => {
     expect(actionClosed(l, 'preflop')).toBe(false);
     expect(actionClosed(l, 'flop')).toBe(false);
     expect(actionClosed(l, 'turn')).toBe(true);
+  });
+});
+
+describe('Not shown and takedowns', () => {
+  const three = ['CY', 'Edwin', 'Mike'];
+  const g3 = () => ({ ...game(), playerIds: three, seats: { CY: 1, Edwin: 2, Mike: 3 } }) as unknown as Game;
+  const board = ['Qd', '7s', '6h', 'Th', '5c'];
+  const base = (over: Partial<HandLog>): HandLog => ({ ...newLog(g3(), three, 'bets', 'CY'), ...over });
+
+  it('everyone else Not shown: the one player left wins without a showdown', () => {
+    const log = base({ mucked: ['Edwin', 'Mike'] });
+    const res = resolve(g3(), log, board, 'CY', {});
+    expect(res.missing).toBe(false);
+    expect(res.winners).toEqual([{ playerId: 'CY', amount: 6 }]);
+    expect(wentToShowdown(log)).toBe(false);
+    expect(takedown({ log })).toBe(true);
+  });
+
+  it('a hand where everyone folded is a takedown too', () => {
+    let log = newLog(g3(), three, 'bets', 'CY');
+    log = tapPlayer(log, 'preflop', 'Edwin');
+    log = tapPlayer(log, 'preflop', 'Mike');
+    expect(wentToShowdown(log)).toBe(false);
+    expect(takedown({ log })).toBe(true);
+  });
+
+  it('everyone Not shown: the last to muck in showdown order wins, not the last one tapped', () => {
+    const g = g3();
+    // showdown order from the small blind (Edwin), button CY: Edwin, Mike, CY
+    for (const mucked of [['CY', 'Edwin', 'Mike'], ['Mike', 'CY', 'Edwin'], ['Edwin', 'Mike', 'CY']]) {
+      const res = resolve(g, base({ mucked }), board, 'CY', {});
+      expect(res.winners.map((w) => w.playerId)).toEqual(['CY']);
+      expect(res.missing).toBe(false);
+    }
+  });
+
+  it('a Not shown player still waiting beside a shown hand leaves the pot undecided', () => {
+    const log = base({ shown: { CY: ['As', 'Ad'] }, mucked: ['Mike'] });
+    const res = resolve(g3(), log, board, 'CY', {});
+    expect(res.missing).toBe(true);
+  });
+
+  it('two hands compared is a showdown; the Not shown player cannot win it', () => {
+    const log = base({ shown: { CY: ['As', 'Ad'], Edwin: ['Kh', '2d'] }, mucked: ['Mike'] });
+    const res = resolve(g3(), log, board, 'CY', {});
+    expect(wentToShowdown(log)).toBe(true);
+    expect(takedown({ log })).toBe(false);
+    expect(res.winners.map((w) => w.playerId)).toEqual(['CY']);
+  });
+
+  it('takedown needs the pot to have a log and a saved hand', () => {
+    expect(takedown({})).toBe(false);
+    expect(takedown({ log: newLog(g3(), three, 'bets', 'CY'), missed: true })).toBe(false);
   });
 });

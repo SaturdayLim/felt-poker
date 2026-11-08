@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clashHands, clashingPlayers, clashWhy, fullPairs } from './clash';
+import { clashHands, clashingPlayers, clashWhy, effectivePairs, fullPairs } from './clash';
 import type { Game, Hand } from '../types';
 
 const hand = (over: Partial<Hand>): Hand => ({ id: 'h', n: 1, at: 0, pot: 0, winners: [], board: [], shown: [], ...over } as Hand);
@@ -31,13 +31,26 @@ describe('clashingPlayers', () => {
   });
   it('flags a private card another player showed, but not the same player', () => {
     const h = hand({ private: { a: ['As', 'Kd'], b: ['2c', '3h'] }, shown: [{ playerId: 'b', cards: ['As', 'Kh'] }] });
-    // a holds a card b showed. b's own hidden pair also differs from the pair b showed, so b is flagged as well
+    // a holds a card b showed. b's effective pair is the shown pair, which a's entry contradicts: b is flagged as well
     expect(clashingPlayers(h).sort()).toEqual(['a', 'b']);
     expect(clashingPlayers(hand({ private: { b: ['As', 'Kh'] }, shown: [{ playerId: 'b', cards: ['As', 'Kh'] }] }))).toEqual([]);
   });
-  it('flags a player whose hidden pair differs from the pair they showed', () => {
-    expect(clashingPlayers(hand({ private: { a: ['As', 'Kd'] }, shown: [{ playerId: 'a', cards: ['2c', '3h'] }] }))).toEqual(['a']);
+  it('shown cards override the own entry: a difference is no clash and no reason', () => {
+    const h = hand({ private: { a: ['As', 'Kd'] }, shown: [{ playerId: 'a', cards: ['2c', '3h'] }] });
+    expect(clashingPlayers(h)).toEqual([]);
+    expect(clashWhy(h, 'a')).toEqual([]);
+    expect(effectivePairs(h)).toEqual({ a: ['2c', '3h'] });
     expect(clashingPlayers(hand({ private: { a: ['Kd', 'As'] }, shown: [{ playerId: 'a', cards: ['As', 'Kd'] }] }))).toEqual([]);
+  });
+  it('a dropped entry is read as the shown cards: another entry that holds one of them clashes', () => {
+    // a entered As Kd but showed 2c 3h. b entered 2c 9d: that card is a shown card, so b is red and a is blue.
+    const h = hand({ private: { a: ['As', 'Kd'], b: ['2c', '9d'] }, shown: [{ playerId: 'a', cards: ['2c', '3h'] }] });
+    expect(clashingPlayers(h).sort()).toEqual(['a', 'b']);
+    expect(clashWhy(h, 'b')).toEqual(['shown']);
+    expect(clashWhy(h, 'a')).toEqual(['entry']);
+    // the dropped entry (As Kd) clashes with nothing: c holding As is fine
+    const h2 = hand({ private: { a: ['As', 'Kd'], c: ['As', 'Qd'] }, shown: [{ playerId: 'a', cards: ['2c', '3h'] }] });
+    expect(clashingPlayers(h2)).toEqual([]);
   });
   it('reads the older single-owner form', () => {
     expect(clashingPlayers(hand({ mine: { playerId: 'a', cards: ['As', 'Kd'] }, board: ['Kd'] }))).toEqual(['a']);
@@ -63,5 +76,10 @@ describe('clash levels', () => {
     expect(clashLevel(h, 'c')).toBeNull();
     expect(Object.keys(countedPairs(h)).sort()).toEqual(['b', 'c']);
     expect(Object.keys(countedPairs(h, false)).sort()).toEqual(['a', 'b', 'c']);
+  });
+  it('counted pairs use the shown cards over the entry', async () => {
+    const { countedPairs } = await import('./clash');
+    const h = hand({ private: { a: ['As', 'Kd'] }, shown: [{ playerId: 'a', cards: ['2c', '3h'] }] });
+    expect(countedPairs(h)).toEqual({ a: ['2c', '3h'] });
   });
 });

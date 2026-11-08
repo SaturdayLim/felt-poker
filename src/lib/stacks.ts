@@ -13,7 +13,7 @@
    - a count typed in mid-game
    - an all-in with the amount typed in: that amount was the whole stack
    - clocking out: the stack resets to 0 (the count is real) */
-import type { Game, ID } from '../types';
+import type { Game, Hand, ID } from '../types';
 import { playerStatus, round2 } from './calc';
 import { bountyPay, bountyTotal, contributions, finalists, typedAllIn } from './hand';
 
@@ -130,4 +130,35 @@ export function stackLabel(g: Game, est: StackEstimate, p: ID): string | null {
 export function exactStacks(g: Game, n: number): Record<ID, number> {
   const est = estimateStacks(g, n);
   return Object.fromEntries(Object.entries(est.stack).filter(([p, v]) => v !== undefined && !(est.spread[p] > 0))) as Record<ID, number>;
+}
+
+/** The hand's close: when a rebuy for it counts as "after the hand". */
+const handClose = (h: Pick<Hand, 'at' | 'endedAt'>) => h.endedAt ?? h.at;
+
+/** Players dealt into a cash-game hand whose stack after it is exactly 0. Exact stacks only: a range or an estimate
+    never counts. A player clocked out is not busted. These players are offered a rebuy before the next hand. */
+export function bustedPlayers(g: Game, hand: Hand): ID[] {
+  if (g.type !== 'cash' || hand.missed || !hand.log) return [];
+  const est = estimateStacks(g, hand.n + 1);
+  return hand.log.dealt.filter((p) => {
+    const v = est.stack[p];
+    return v !== undefined && Math.abs(v) < 0.005 && !(est.spread[p] > 0) && playerStatus(g, p) !== 'out';
+  });
+}
+
+/** Chips to offer for a rebuy: the largest whole multiple of the buy-in up to the biggest other stack at the table
+    (the busted player left out), at least 1 buy-in. Others still playing count; a stack range counts as its best guess. */
+export function rebuyDefault(g: Game, pid: ID): number {
+  const buyIn = g.defaultBuyIn;
+  if (!(buyIn > 0)) return 0;
+  const est = estimateStacks(g);
+  const biggest = Math.max(0, ...g.playerIds.filter((p) => p !== pid && playerStatus(g, p) !== 'out').map((p) => est.stack[p] ?? 0));
+  return Math.max(1, Math.floor(biggest / buyIn + 1e-9)) * buyIn;
+}
+
+/** A rebuy is offered for this hand: the player busted in it, and no buy-in came after the hand closed.
+    Skipping or taking the rebuy both end the offer. A rebuy is stored as a buy-in with `at` after the hand ended. */
+export function rebuyOffered(g: Game, hand: Hand, pid: ID): boolean {
+  if (g.buyIns.some((b) => b.playerId === pid && b.at > handClose(hand))) return false;
+  return bustedPlayers(g, hand).includes(pid);
 }

@@ -159,3 +159,31 @@ describe('QR scan', () => {
     expect(jsQR(data, size, size)?.data).toBe(link);
   });
 });
+
+describe('Not shown in the viewer', () => {
+  const three = (): Game => {
+    const g = game();
+    g.playerIds = ['a', 'b', 'c']; g.seats = { a: 1, b: 2, c: 3 };
+    return g;
+  };
+  const names: Player[] = [...players, { id: 'c', name: 'Cy', createdAt: 0 }];
+  const withMucks = (mucked: string[], shown: Record<string, string[]>) => {
+    const g = three();
+    const h = g.hands[0];
+    h.log = { v: 1, mode: 'bets', dealt: ['a', 'b', 'c'], button: 'a', streets: { preflop: { bets: { a: 2, b: 2, c: 2 }, prev: {}, typed: {}, folded: [], raisers: [] } }, allInAt: {}, runs: 1, runCards: [], shown, mucked, startedAt: 10 } as never;
+    h.winners = [{ playerId: 'a', amount: 6 }];
+    h.shown = Object.entries(shown).map(([playerId, cards]) => ({ playerId, cards })) as never;
+    return g;
+  };
+  it('a takedown lists nobody as Not shown; a showdown lists those who did not show', () => {
+    const take = buildPub(withMucks(['b', 'c'], {}), names).hands[0];
+    expect(take.mucked).toEqual([]);
+    const show = buildPub(withMucks(['c'], { a: ['As', 'Ad'], b: ['Kh', '2d'] }), names).hands[0];
+    expect(show.mucked).toEqual(['Cy']);
+    expect(viewText(1, 1, 2, show.view)).toContain('Cy: Not shown');
+    expect(viewText(1, 1, 2, show.view)).not.toContain('mucks');
+  });
+  it('the public snapshot carries no password field', () => {
+    expect(JSON.stringify(buildPub(game(), players))).not.toMatch(/passphrase|password/i);
+  });
+});

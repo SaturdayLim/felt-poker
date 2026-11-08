@@ -1,7 +1,7 @@
 import type { Game, GameType, ID } from '../types';
 import { handStats, playerResult, round2 } from './calc';
 import type { Figure } from './format';
-import { finalists, inAtEnd, pfr, vpip } from './hand';
+import { finalists, inAtEnd, pfr, vpip, wentToShowdown } from './hand';
 import { addFlow, addMoves, addStyle, emptyFlow, emptyStyle, wonAt, type ChipFlow, type StyleCounts, type WonAt } from './style';
 
 export type TypeFilter = 'all' | GameType;
@@ -96,7 +96,7 @@ export function playerSummary(games: Game[], pid: ID): PlayerSummary {
         if (h.winners.some((x) => x.playerId === pid)) s.wonAt[wonAt(L)]++;
         if (L.streets.flop && inAtEnd(L, 'preflop').includes(pid)) s.sawFlop++;
         const fin = finalists(L);
-        if (fin.length > 1 && fin.includes(pid)) {
+        if (wentToShowdown(L) && fin.includes(pid)) {
           s.wtsd++;
           if (h.winners.some((x) => x.playerId === pid)) s.wsd++;
         }

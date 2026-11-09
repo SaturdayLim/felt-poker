@@ -150,7 +150,7 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
     const turn = (from?.turn ?? 0) + (from ? ((x - from.x) / R) * (180 / Math.PI) : 0);
     at.current = { x, turn };
     const n = nav.current;
-    if (!from || calm() || from.x === x) { if (n) delete n.dataset.rolling; draw(x, 0, turn); return; }
+    if (!from || calm() || from.x === x || navMs() === 0) { if (n) delete n.dataset.rolling; draw(x, 0, turn); return; }
     // the icon of the new tab turns to the chip colours only when the chip is there (nav.css)
     if (n) n.dataset.rolling = '';
     // it lifts out of the old pocket onto the rail, rolls, and drops into the new one; the rail gives way under it all the way

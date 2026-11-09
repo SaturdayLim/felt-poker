@@ -203,7 +203,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
               { label: 'Showdown', win: f.winShowdown, loss: f.lossShowdown },
               { label: 'Others', win: f.winOther, loss: f.lossOther },
             ]} />
-            <p className="sat-small"><b>Net = {net > 0 ? '+' : ''}{units(net)} chips</b> (logged hands, 2-7 bounties, chip moves).</p>
+            <p className="sat-small"><b>Net = {net > 0 ? '+' : ''}{units(net)} chips</b> (logged hands, 7-2 bounties, chip moves).</p>
           </section>
         );
       })()}

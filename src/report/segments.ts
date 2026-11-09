@@ -20,7 +20,7 @@ export const SEGMENTS: { k: SegmentKey; label: string; desc: string; on: boolean
   { k: 'progress', label: 'Hand progression', desc: 'Hands that reached each stage.', on: false },
   { k: 'pots', label: 'Pot sizes', desc: 'The pot of every hand.', on: false },
   { k: 'biggest', label: 'Biggest pots', desc: 'The three biggest pots, with the cards shown.', on: false },
-  { k: 'side', label: 'Side action', desc: '2-7 bounties and chip moves.', on: false },
+  { k: 'side', label: 'Side action', desc: '7-2 bounties and chip moves.', on: false },
   { k: 'rules', label: 'House rules', desc: 'The rules this game used.', on: false },
   { k: 'settle', label: 'Settle up', desc: 'Who pays whom.', on: true },
 ];
@@ -242,7 +242,7 @@ function listBlocks(title: string, rows: { left: string; sub?: string; right: st
 }
 
 const side = (m: TrialModel) => listBlocks('Side action', [
-  ...m.bounties.map((b) => ({ left: `2-7 bounty: ${b.to}`, sub: `Hand #${b.n}`, right: `+${b.total}`, tone: C.pos })),
+  ...m.bounties.map((b) => ({ left: `7-2 bounty: ${b.to}`, sub: `Hand #${b.n}`, right: `+${b.total}`, tone: C.pos })),
   ...m.moves.map((x) => ({ left: `${x.from} to ${x.to}`, sub: `After hand #${x.afterN}${x.note ? `, ${x.note}` : ''}`, right: String(x.amount) })),
 ], 'No side action.');
 const rules = (m: TrialModel) => listBlocks('House rules', m.rules.map((r) => ({ left: r.label, right: r.value })), 'No rules recorded.').map((b, i) => (i ? { ...b, h: 88 } : b));

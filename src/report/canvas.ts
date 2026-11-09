@@ -1,5 +1,5 @@
 import { rankLabel, SUIT_COLOR, SUIT_SYMBOL } from '../lib/cards';
-import { ICON_GRID, ICON_STROKE, awardPaths } from './awardIcons';
+import { ICON_DETAIL, ICON_GRID, ICON_STROKE, awardPaths } from './awardIcons';
 
 /* Canvas drawing for the shareable report images, in the Saturday Signature style:
    mesh background, glass-2 panels, Instrument Serif titles and KPIs (never bold), Geist text,
@@ -235,10 +235,13 @@ export function awardIcon(ctx: Ctx, title: string, x: number, y: number, size: n
   ctx.translate(x, y);
   ctx.scale(s, s);
   ctx.strokeStyle = color;
-  ctx.lineWidth = ICON_STROKE;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  for (const d of awardPaths(title)) ctx.stroke(new Path2D(d));
+  const mark = awardPaths(title);
+  ctx.lineWidth = ICON_STROKE;
+  for (const d of mark.main) ctx.stroke(new Path2D(d));
+  ctx.lineWidth = ICON_DETAIL;
+  for (const d of mark.detail) ctx.stroke(new Path2D(d));
   ctx.restore();
 }
 

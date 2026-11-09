@@ -7,11 +7,11 @@ import { haptic } from './haptics';
 export const DRAWER = 'cubic-bezier(0.32, 0.72, 0, 1)';
 /** A tab change: the content swipe and the chip roll start and end together, so they share this one length. */
 export const NAV_MS = 600;
-/** Navigation speed, set in Settings, Animation speed: Quick, Standard or Relaxed scale the tab change and the chip roll. */
-export type NavSpeed = 'quick' | 'standard' | 'relaxed';
+/** Navigation speed, set in Settings, Animation speed: Off, Quick, Standard or Relaxed scale the tab change and the chip roll. Off takes 0 ms. */
+export type NavSpeed = 'off' | 'quick' | 'standard' | 'relaxed';
 const NAV_KEY = 'felt-nav-speed';
-const NAV_SCALE: Record<NavSpeed, number> = { quick: 0.65, standard: 1, relaxed: 1.5 };
-export const navSpeed = (): NavSpeed => { try { const v = localStorage.getItem(NAV_KEY); return v === 'quick' || v === 'relaxed' ? v : 'standard'; } catch { return 'standard'; } };
+const NAV_SCALE: Record<NavSpeed, number> = { off: 0, quick: 0.65, standard: 1, relaxed: 1.5 };
+export const navSpeed = (): NavSpeed => { try { const v = localStorage.getItem(NAV_KEY); return v === 'off' || v === 'quick' || v === 'relaxed' ? v : 'standard'; } catch { return 'standard'; } };
 export const setNavSpeed = (v: NavSpeed) => { try { if (v === 'standard') localStorage.removeItem(NAV_KEY); else localStorage.setItem(NAV_KEY, v); } catch { /* private mode */ } window.dispatchEvent(new Event('felt-nav-speed')); };
 export const navMs = () => Math.round(NAV_MS * NAV_SCALE[navSpeed()]);
 /** Reduced motion on this phone: the phone's setting unless the toggle in Settings overrules it. */

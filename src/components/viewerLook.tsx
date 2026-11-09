@@ -21,6 +21,11 @@ const clean = (v: Partial<ViewerLook> | null | undefined): ViewerLook => ({
 let memory = '';
 const read = (): string => { try { return localStorage.getItem(KEY) ?? ''; } catch { return ''; } };
 const listeners = new Set<() => void>();
+/* The look before Default was pressed, kept so a mistaken tap is no loss. It clears on the next edit. */
+const PREV = 'felt-viewer-look-prev';
+let prevMemory = '';
+const readPrev = (): string => { try { return localStorage.getItem(PREV) ?? ''; } catch { return prevMemory; } };
+const writePrev = (v: string) => { prevMemory = v; try { if (v) localStorage.setItem(PREV, v); else localStorage.removeItem(PREV); } catch { /* kept in memory */ } };
 const write = (v: ViewerLook) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* private mode: kept until the page closes */ memory = JSON.stringify(v); } listeners.forEach((l) => l()); };
 const snap = () => read() || memory;
 const subscribe = (l: () => void) => { listeners.add(l); window.addEventListener('storage', l); return () => { listeners.delete(l); window.removeEventListener('storage', l); }; };
@@ -30,8 +35,16 @@ export function useViewerLook(): [ViewerLook, (patch: Partial<ViewerLook>) => vo
   let parsed: Partial<ViewerLook> | null = null;
   try { parsed = raw ? JSON.parse(raw) : null; } catch { /* a broken value reads as the default */ }
   const look = clean(parsed);
-  return [look, (patch) => write(clean({ ...look, ...patch })), () => write(VIEWER_DEFAULT)];
+  return [look, (patch) => { writePrev(''); write(clean({ ...look, ...patch })); }, () => { if (look.big || look.custom) writePrev(JSON.stringify(look)); write(VIEWER_DEFAULT); }];
 }
+
+/** The look the viewer had before pressing Default, while no new edit has happened. */
+function useBackLook(): ViewerLook | null {
+  const raw = useSyncExternalStore(subscribe, readPrev, () => '');
+  if (!raw) return null;
+  try { return clean(JSON.parse(raw)); } catch { return null; }
+}
+const restoreLook = (v: ViewerLook) => { writePrev(''); write(v); };
 
 /** The look cards use in the viewer: the phone's own look, until the viewer turns custom colours on. */
 function useEffectiveLook(): { look: CardLook; bg?: string; big: boolean } {
@@ -106,6 +119,7 @@ export function ViewerLookSettings() {
   const [v, set, reset] = useViewerLook();
   const phone = useCardLook();
   const isDefault = !v.big && !v.custom;
+  const back = useBackLook();
   // the first custom edit starts from what the cards show now
   const pick = (patch: Partial<ViewerLook>) => set(v.custom ? patch : { colors: Object.fromEntries(SUITS.map((s) => [s, lookColor(phone, s)])) as Record<SuitKey, string>, ...patch, custom: true });
   const shownColors = (s: SuitKey) => (v.custom ? v.colors[s] : lookColor(phone, s));
@@ -121,7 +135,7 @@ export function ViewerLookSettings() {
       </div>
       <div className="felt-row">
         <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Card picker order
-          <Info title="Card picker order">High to Low puts the ace on the left. Low to High puts the 2 on the left. This applies on this phone only.</Info></span>
+          <Info title="Card picker order">{'A > 2'} puts the ace on the left. {'2 > A'} puts the 2 on the left. Press the arrows to flip the order. This applies on this phone only.</Info></span>
         <RankOrderSeg />
       </div>
       <div className="felt-row felt-vlook-colors">
@@ -146,6 +160,11 @@ export function ViewerLookSettings() {
       <div className="felt-row felt-row--end">
         <button type="button" className="sat-btn sat-btn--block" disabled={isDefault} aria-disabled={isDefault} onClick={reset}>Default</button>
       </div>
+      {back && isDefault && (
+        <div className="felt-row felt-row--end felt-vlook-undo">
+          <button type="button" className="sat-btn sat-btn--primary sat-btn--block" onClick={() => restoreLook(back)}>Back to my colours</button>
+        </div>
+      )}
     </section>
   );
 }

@@ -1,1 +1,21 @@
 /* Settings page area styles (owned by one package at a time) */
+
+/* Liquid toggle: a 60 x 30 track inside a 44 px high target. */
+.felt-liquid { display: grid; place-items: center; height: 44px; min-width: 60px; padding: 7px 0; margin: 0; border: 0; background: none; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; overflow: visible; }
+.felt-liquid svg { display: block; overflow: visible; }
+.felt-liquid:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 2px; border-radius: 22px; }
+
+/* Animation speed: the stop labels sit under their stops; the first aligns left and the last right. */
+.felt-stops { position: relative; height: 20px; margin-inline: 10px; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
+.felt-stops > span { position: absolute; top: 0; white-space: nowrap; }
+.felt-stops > [data-on="true"] { color: var(--sat-text); font-weight: 600; transition: color var(--felt-cross-ms, 200ms) var(--felt-cross, ease-out); }
+html[data-calm] .felt-stops > [data-on="true"] { transition: none; }
+
+/* Install steps */
+.felt-install-steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.felt-install-btn { width: 100%; min-height: 44px; }
+
+/* Four notebook tabs (Settings) fit a 375 px phone: less padding, no shrinking to an ellipsis. */
+.felt-notebook:has(> .felt-ntab--view:nth-child(4)) { gap: 0; }
+.felt-notebook:has(> .felt-ntab--view:nth-child(4)) > .felt-ntab--view { flex: 0 0 auto; padding-inline: var(--sat-space-2); }
+.felt-notebook:has(> .felt-ntab--view:nth-child(4)) .felt-header-title { font-size: 0.9375rem; }

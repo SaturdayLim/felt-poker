@@ -304,7 +304,7 @@ function HandList({ g, closed }: { g: Game; closed: boolean }) {
               {h.dealerId && <span className="sat-small sat-muted"><span className="felt-dealer" style={{ width: 15, height: 15, fontSize: 8 }} aria-label="Button">D</span> <PlayerName id={h.dealerId} /></span>}
               {(h.pots?.length ?? 1) > 1 && <span className="sat-badge sat-badge--muted">{h.pots!.length} pots</span>}
               {h.shown.length > 0 && <span className="sat-badge">{h.shown.length} shown</span>}
-              {h.bounty && <span className="sat-badge">2-7 <PlayerName id={h.bounty.playerId} /></span>}
+              {h.bounty && <span className="sat-badge">7-2 <PlayerName id={h.bounty.playerId} /></span>}
             </div>
           </div>
         </button>

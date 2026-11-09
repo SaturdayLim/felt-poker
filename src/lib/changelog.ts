@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.5.0', date: '9 Nov 2026', notes: [
+    'Settings has four tabs: General, Game Defaults, Cards and Data. Cards has a test spot where two face-down cards flip up as you pick, to see the picker order, colours and suits.',
+    'One Animation speed slider (Off, Quick, Standard, Relaxed) sets the opening screen and navigation together. The Reduced motion switch sits beside it.',
+    'The light and dark control is one two-state switch with a liquid knob. It starts as your phone setting.',
+    'Felt offers to install itself when it opens in a browser on a phone that can run it.',
+    'Awards: new marks (a fist, a sun, a shield with the Saturday logo), two line weights, and captions that read "Eve: 11 pots won". Ice Cold needs under 20 percent won.',
+    'Card picker order shows "A > 2" or "2 > A" with a flip button. Player view: the minimum raise tip shows only your game rule, Default keeps your last custom colours, and the code boxes celebrate a right code.',
+    'The 7-2 bounty is written 7-2 everywhere. The live game card has balanced padding, and the home screen lays out right at launch.',
+  ] },
   { version: '1.4.2', date: '9 Nov 2026', notes: [
     'Settings, Animation speed: one section with a navigation speed slider (Quick, Standard, Relaxed), the Opening screen length and a Reduced motion switch that starts as your phone setting.',
     'Rebuy after a bust starts at one buy-in. Type any amount, but not none.',

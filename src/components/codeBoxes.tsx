@@ -7,7 +7,7 @@ const LEN = 6;
     A wrong code shows the error for 1 second, the boxes clear, and typing starts again. */
 export function CodeBoxes({ onSubmit, autoFocus = true }: { onSubmit: (code: string) => Promise<boolean>; autoFocus?: boolean }) {
   const [v, setV] = useState('');
-  const [state, setState] = useState<'idle' | 'busy' | 'bad'>('idle');
+  const [state, setState] = useState<'idle' | 'busy' | 'bad' | 'ok'>('idle');
   const input = useRef<HTMLInputElement>(null);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -18,7 +18,7 @@ export function CodeBoxes({ onSubmit, autoFocus = true }: { onSubmit: (code: str
     setV(code);
     if (code.length < LEN) return;
     setState('busy');
-    if (await onSubmit(code)) return;
+    if (await onSubmit(code)) { setState('ok'); return; }
     setState('bad');
     timer.current = window.setTimeout(() => { setV(''); setState('idle'); input.current?.focus(); }, 1000);
   };
@@ -27,7 +27,7 @@ export function CodeBoxes({ onSubmit, autoFocus = true }: { onSubmit: (code: str
     <div className="felt-boxes-wrap">
       <div className={`felt-boxes is-${state}`}>
         {Array.from({ length: LEN }, (_, i) => (
-          <span key={`${i}${v[i] ?? ''}`} className={`felt-boxes-cell ${v[i] ? 'is-in' : ''} ${i === v.length && state === 'idle' ? 'is-next' : ''}`} aria-hidden="true">{v[i] ?? ''}</span>
+          <span key={`${i}${v[i] ?? ''}`} className={`felt-boxes-cell ${v[i] ? 'is-in' : ''} ${i === v.length && state === 'idle' ? 'is-next' : ''}`} style={{ ['--i' as string]: i }} aria-hidden="true">{v[i] ?? ''}</span>
         ))}
         <input ref={input} className="felt-boxes-input" aria-label="Player code" aria-invalid={state === 'bad'} autoFocus={autoFocus}
           autoComplete="one-time-code" autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text" value={v} readOnly={state !== 'idle'}

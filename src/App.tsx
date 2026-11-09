@@ -20,7 +20,8 @@ import CountChips from './screens/CountChips';
 import CloseTable from './screens/CloseTable';
 import Report from './screens/Report';
 import Players from './screens/Players';
-import Settings from './screens/Settings';
+import Settings, { settingsView } from './screens/Settings';
+import { InstallPopup } from './components/install';
 import Start from './screens/Start';
 import Group from './screens/Group';
 import Join from './screens/Join';
@@ -143,7 +144,7 @@ export default function App() {
   else if (a === 'insights') screen = <Players view={b === 'standings' ? 'board' : 'stats'} pid={b === 'standings' ? undefined : b} />;
   else if (a === 'players') screen = <Players view={b === 'board' ? 'board' : b === 'stats' ? 'stats' : 'list'} pid={c} />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;
-  else if (a === 'settings') screen = <Settings />;
+  else if (a === 'settings') screen = <Settings view={settingsView(b)} />;
   // each time Felt opens: Host or Player first; a link to a game skips it
   else if (!role) { screen = <Start onHost={() => pickRole('host')} onPlayer={() => pickRole('player')} />; nav = false; }
   else screen = <Home />;
@@ -154,6 +155,7 @@ export default function App() {
       <SlidePane k={a === 'insights' ? 'players' : a ?? ''} i={NAV_TABS.indexOf(a === 'insights' ? 'players' : a ?? '')}>{screen}</SlidePane>
       {nav && <NavRail tabs={NAV} active={active} />}
       <PlayerHost />
+      {role && <InstallPopup />}
       <ToastHost />
     </div>
   );

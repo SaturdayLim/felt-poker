@@ -22,7 +22,7 @@ import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
 import { RANKS } from '../src/lib/cards';
 import { AWARD_LIST, buildModel, type Award, type HandView, type TrialModel, type TrialPlayer } from '../src/report/model';
-import { ICON_GRID, ICON_STROKE, awardPaths } from '../src/report/awardIcons';
+import { ICON_DETAIL, ICON_GRID, ICON_STROKE, awardPaths } from '../src/report/awardIcons';
 import { unlock, type LockBox } from '../src/report/lock';
 
 type View = 'summary' | 'players' | 'compare' | 'settings' | 'log';
@@ -97,11 +97,14 @@ const Dot = ({ m, id }: { m: TrialModel; id: string }) => <i className="trial-do
 
 /** The mark of one award (see src/report/awardIcons.ts): strokes in the colour of the text around it. */
 export function AwardIcon({ title, size = 20 }: { title: string; size?: number }) {
-  const paths = awardPaths(title);
-  if (!paths.length) return <Icon name="trophy" size={size} />;
+  const mark = awardPaths(title);
+  if (!mark.main.length) return <Icon name="trophy" size={size} />;
   return (
     <svg viewBox={`0 0 ${ICON_GRID} ${ICON_GRID}`} width={size} height={size} fill="none" stroke="currentColor" strokeWidth={ICON_STROKE}
-      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths.map((d, i) => <path key={i} d={d} />)}</svg>
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {mark.main.map((d, i) => <path key={`m${i}`} d={d} />)}
+      {mark.detail.map((d, i) => <path key={`d${i}`} d={d} strokeWidth={ICON_DETAIL} />)}
+    </svg>
   );
 }
 
@@ -213,9 +216,9 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
         </div>
       </Section>
 
-      <Section title="Side Action" tip={['Chips that moved outside the pots.', '2-7 = 2-7 bounty.', 'Move = chip move (side bet, tip).']}>
+      <Section title="Side Action" tip={['Chips that moved outside the pots.', '7-2 = 7-2 bounty.', 'Move = chip move (side bet, tip).']}>
         <div className="sat-glass-2 felt-list">
-          {m.bounties.map((b) => <div key={`b${b.n}`} className="felt-row"><span className="trial-tag">2-7</span><span className="felt-row-main">{b.to}, hand #{b.n}</span><b className="felt-up">+{b.total}</b></div>)}
+          {m.bounties.map((b) => <div key={`b${b.n}`} className="felt-row"><span className="trial-tag">7-2</span><span className="felt-row-main">{b.to}, hand #{b.n}</span><b className="felt-up">+{b.total}</b></div>)}
           {m.moves.map((x, i) => <div key={`m${i}`} className="felt-row"><span className="trial-tag">Move</span><span className="felt-row-main">{x.from} to {x.to}, after hand #{x.afterN}{x.note ? <span className="felt-row-sub">{x.note}</span> : null}</span><b>{x.amount}</b></div>)}
         </div>
       </Section>
@@ -395,7 +398,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         ]} />
       </Section>
 
-      <Section title="Chips Won and Lost" tip={['Folds = won when all others folded, or lost before folding.', 'Showdown = hands that went to showdown.', 'Others = 2-7 bounties and chip moves.']}>
+      <Section title="Chips Won and Lost" tip={['Folds = won when all others folded, or lost before folding.', 'Showdown = hands that went to showdown.', 'Others = 7-2 bounties and chip moves.']}>
         <BackToBack format={(v) => units(v)} rows={[
           { label: 'Folds', win: s.flow.winFold, loss: s.flow.lossFold },
           { label: 'Showdown', win: s.flow.winShowdown, loss: s.flow.lossShowdown },

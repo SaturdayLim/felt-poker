@@ -6,6 +6,7 @@ import { CardPair, Empty, Header, Help, Icon, Info, NewItemsPill, Sheet, SlidePa
 import { calm } from '../lib/motion';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
+import { MinRaiseTip } from '../components/rules';
 import { BirdsEye } from '../components/birdsEye';
 import { RevealProvider, useBigPips, useSeenCards, VCards, ViewerLookSettings } from '../components/viewerLook';
 import { StandingChart } from '../components/candle';
@@ -488,15 +489,15 @@ function SendCount({ onCount }: { onCount: (chips: number) => Promise<void> }) {
 }
 
 function Rules({ pub }: { pub: PubSnapshot }) {
-  const row = (r: PubSnapshot['rules'][number], label = r.label) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{label}{r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>;
-  const is27 = (r: PubSnapshot['rules'][number]) => /^2-7 (win|hand|amount)$/.test(r.label);
+  const row = (r: PubSnapshot['rules'][number], label = r.label.replace('2-7', '7-2')) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{label}{r.tip === 'minRaise' ? <MinRaiseTip value={r.value} /> : r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>;
+  const is27 = (r: PubSnapshot['rules'][number]) => /^[27]-[27] (win|hand|amount)$/.test(r.label);
   const b27 = pub.rules.filter(is27);
   return (
     <>
       <div className="sat-glass-2 felt-list">{pub.rules.filter((r) => !is27(r)).map((r) => row(r))}</div>
       {b27.length > 0 && (
-        <section className="sat-glass-2 felt-list felt-rule-group" aria-label="2-7 bounty">
-          <span className="sat-caption felt-rule-cap">2-7 bounty <Help k="bounty27" /></span>
+        <section className="sat-glass-2 felt-list felt-rule-group" aria-label="7-2 bounty">
+          <span className="sat-caption felt-rule-cap">7-2 bounty <Help k="bounty27" /></span>
           {b27.map((r) => row(r, r.label[4].toUpperCase() + r.label.slice(5)))}
         </section>
       )}

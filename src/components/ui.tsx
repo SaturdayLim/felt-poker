@@ -6,6 +6,7 @@ import { haptic } from '../lib/haptics';
 import { ACCORDION, ARRIVE, DISCLOSE, DRAWER, SPRING, navMs, calm, physSpring, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
+import { ThemeToggle } from './liquidToggle';
 import { useStore } from '../store';
 
 /* ------------------------------- icons ------------------------------- */
@@ -185,21 +186,9 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs 
   );
 }
 
-/** Theme: a 3-part toggle of icons only (phone, sun, moon). Each part keeps its name as an aria-label. */
+/** Theme: a two-state liquid toggle (light or dark). It starts as the phone setting. */
 export function ThemeCycle() {
-  const pref = useStore((s) => s.settings.theme);
-  const update = useStore((s) => s.updateSettings);
-  const opts: { k: typeof pref; icon: string; label: string }[] = [{ k: 'auto', icon: 'phone', label: 'Phone' }, { k: 'light', icon: 'sun', label: 'Light' }, { k: 'dark', icon: 'moon', label: 'Dark' }];
-  return (
-    <div className="sat-seg felt-theme3" role="radiogroup" aria-label="Theme">
-      <TabPill />
-      {opts.map((o) => (
-        <button key={o.k} type="button" role="radio" aria-checked={pref === o.k} onClick={() => update({ theme: o.k })} aria-label={`Theme: ${o.label}`}>
-          <Icon name={o.icon} size={16} />
-        </button>
-      ))}
-    </div>
-  );
+  return <ThemeToggle />;
 }
 
 /* ------------------------------- sheet ------------------------------- */
@@ -241,7 +230,7 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
   el = createRef<HTMLDivElement>();
   getSnapshotBeforeUpdate(prev: { k: string; i: number }) {
     const el = this.el.current;
-    if (!el || prev.k === this.props.k || prev.i < 0 || this.props.i < 0 || calm()) return null;
+    if (!el || prev.k === this.props.k || prev.i < 0 || this.props.i < 0 || calm() || navMs() === 0) return null;
     return { copy: el.cloneNode(true) as HTMLElement, r: el.getBoundingClientRect() };
   }
   componentDidUpdate(prev: { k: string; i: number }, _s: unknown, snap: { copy: HTMLElement; r: DOMRect } | null) {
@@ -851,15 +840,19 @@ export function useRankOrder(): [RankOrder, (o: RankOrder) => void] {
   return [o, setRankOrder];
 }
 
-/** Two options: High to Low (A on the left) or Low to High (2 on the left). Same control on the host's Settings and the player's. */
+/** Caption "A > 2" or "2 > A" and a swap button that flips the order. Same control on the host's Settings and the player's. */
 export function RankOrderSeg() {
   const [o, set] = useRankOrder();
+  const text = o === 'high' ? 'A > 2' : '2 > A';
   return (
-    <div className="sat-seg" role="radiogroup" aria-label="Card picker order">
-      <TabPill />
-      <button role="radio" aria-checked={o === 'high'} onClick={() => set('high')}>High to Low</button>
-      <button role="radio" aria-checked={o === 'low'} onClick={() => set('low')}>Low to High</button>
-    </div>
+    <span className="felt-rankflip">
+      <span className="felt-rankflip-cap sat-num" aria-live="polite">{text}</span>
+      <button type="button" className="felt-rankflip-btn" aria-label={`Card picker order ${text}. Flip the order`} onClick={() => set(o === 'high' ? 'low' : 'high')}>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />
+        </svg>
+      </button>
+    </span>
   );
 }
 

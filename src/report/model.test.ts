@@ -37,21 +37,74 @@ describe('Comeback', () => {
 });
 
 describe('King Of The Hill caption', () => {
-  const p = (name: string, won: number, td: number) => ({ name, takedowns: td, s: { handsWon: won } }) as Pick<TrialPlayer, 'name' | 'takedowns' | 's'>;
-  it('counts takedowns', () => {
-    expect(kingCaption([p('Ann', 11, 4)] as never)).toBe('Won 11 pots, including 4 takedowns.');
-    expect(kingCaption([p('Ann', 7, 1)] as never)).toBe('Won 7 pots, including 1 takedown.');
+  const p = (name: string, won: number) => ({ name, s: { handsWon: won } }) as Pick<TrialPlayer, 'name' | 's'>;
+  it('names the player first', () => {
+    expect(kingCaption([p('Eve', 11)] as never)).toBe('Eve: 11 pots won');
+    expect(kingCaption([p('Eve', 1)] as never)).toBe('Eve: 1 pot won');
   });
   it('lists each name on a tie', () => {
-    expect(kingCaption([p('Ann', 9, 2), p('Bo', 9, 0)] as never)).toBe('Ann: won 9 pots, including 2 takedowns. Bo: won 9 pots, including 0 takedowns.');
+    expect(kingCaption([p('Ann', 9), p('Bo', 9)] as never)).toBe('Ann: 9 pots won. Bo: 9 pots won');
+  });
+});
+
+describe('award thresholds and captions', () => {
+  const bb = 2;
+  const st = (over: object = {}) => ({ betsRaises: 0, cbet: 0, cbetOpp: 0, bbDefend: 0, bbDefendOpp: 0, ...over });
+  const mk = (id: string, s: object, style: object = {}, extra: Partial<TrialPlayer> = {}) =>
+    fake({ id, s: { ...zeros, ...s, style: st(style) } as never, ...extra });
+  const get = (ps: TrialPlayer[], title: string, streaks: Record<string, number> = {}, big?: never, bounties: never[] = []) =>
+    awardsFor(ps, big, bounties, bb, streaks).find((a) => a.title === title);
+  it('Diamond Hands needs at least 5 showdowns', () => {
+    expect(get([mk('Mike', { wtsd: 4 })], 'Diamond Hands')).toBeUndefined();
+    expect(get([mk('Mike', { wtsd: 5 })], 'Diamond Hands')?.detail).toBe('Mike: 5 showdowns participated');
+  });
+  it('King Of The Hill needs at least 5 pots', () => {
+    expect(get([mk('Eve', { handsWon: 4 })], 'King Of The Hill')).toBeUndefined();
+    expect(get([mk('Eve', { handsWon: 5 })], 'King Of The Hill')?.detail).toBe('Eve: 5 pots won');
+  });
+  it('Leprechaun needs a pot of at least 50 BB', () => {
+    const big = (pot: number) => ({ pot, n: 15, winners: ['Mike'], shown: [] }) as never;
+    const ps = [mk('Mike', {})];
+    expect(get(ps, 'Leprechaun', {}, big(99))).toBeUndefined();
+    expect(get(ps, 'Leprechaun', {}, big(100))?.detail).toBe('Mike: 100 chips won on hand #15');
+  });
+  it('Apollo needs at least 3 pots in a row', () => {
+    const ps = [mk('Eve', {})];
+    expect(get(ps, 'Apollo', { Eve: 2 })).toBeUndefined();
+    expect(get(ps, 'Apollo', { Eve: 4 })?.detail).toBe('Eve: 4 consecutive wins');
+  });
+  it('Ice Cold needs under 20 percent won', () => {
+    expect(get([mk('Ben', { handsWon: 2 }, { betsRaises: 10 })], 'Ice Cold')).toBeUndefined();
+    expect(get([mk('Ben', { handsWon: 1 }, { betsRaises: 12 })], 'Ice Cold')?.detail).toBe('Ben: 1/12 successful aggressive pots won');
+  });
+  it('Comeback caption', () => {
+    const p = fake({ id: 'Des', low: -260, net: 150, lowAt: 27, dev: new Array(40).fill(0) });
+    expect(get([p], 'Comeback')?.detail).toBe('Des: Climbed 410 from -260 (hand #27) to finish +150');
+  });
+  it('Unrelenting caption', () => {
+    expect(get([mk('Clar', {}, { cbet: 6, cbetOpp: 7 })], 'Unrelenting')?.detail).toBe('Clar: 6/7 C-bet after pre-flop aggression');
+  });
+  it('The Rock caption', () => {
+    expect(get([mk('JR', { vpip: 14, logged: 42 }, {}, { vpip: 33 })], 'The Rock')?.detail).toBe('JR: Participated in 14/42 hands');
+  });
+  it('Bounty Hunter caption', () => {
+    const bounties = [{ to: 'Candia', n: 12, total: 21 }, { to: 'Candia', n: 31, total: 14 }] as never[];
+    expect(get([mk('Candia', {})], 'Bounty Hunter', {}, undefined, bounties)?.detail).toBe('Candia: 2 bounties collected (#12, 31)');
+  });
+  it('Iron Defender needs more than 60 percent of 5 raises', () => {
+    expect(get([mk('Clar', {}, { bbDefend: 3, bbDefendOpp: 5 })], 'Iron Defender')).toBeUndefined();
+    expect(get([mk('Clar', {}, { bbDefend: 7, bbDefendOpp: 9 })], 'Iron Defender')?.detail).toBe('Clar: 7/9 BB defended against a raise');
   });
 });
 
 describe('award marks', () => {
   it('every award has its own mark', () => {
-    const marks = AWARD_LIST.map((a) => (AWARD_ICONS[a.title] ?? []).join('|'));
-    expect(marks.every((m) => m.length > 0)).toBe(true);
+    const marks = AWARD_LIST.map((a) => { const m = AWARD_ICONS[a.title]; return m ? `${m.main.join('|')}#${m.detail.join('|')}` : ''; });
+    expect(marks.every((m) => m.length > 1)).toBe(true);
     expect(new Set(marks).size).toBe(AWARD_LIST.length);
+  });
+  it('every mark has a main stroke and carries detail strokes', () => {
+    for (const a of AWARD_LIST) expect(AWARD_ICONS[a.title].main.length).toBeGreaterThan(0);
   });
 });
 

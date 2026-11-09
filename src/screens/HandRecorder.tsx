@@ -54,7 +54,7 @@ interface RState {
   finalPot: string;
   /** Leave the hand out of stats; undefined = follow `partial`. */
   exclude?: boolean;
-  /** 2-7 bounty paid to this player; undefined = follow the shown cards, null = none. */
+  /** 7-2 bounty paid to this player; undefined = follow the shown cards, null = none. */
   bounty?: ID | null;
   /** Players dealt in who did not pay the bounty. */
   bountyOff?: ID[];
@@ -345,7 +345,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const extra = partial && finalPotN !== null && finalPotN > recordedPot ? round2(finalPotN - recordedPot) : 0;
   const res = st.ended ? resolve(g, fullLog(), boardForResolve(), log.button, st.manual, extra) : null;
   const exclude = st.exclude ?? partial;
-  // 2-7 bounty: filled in from the shown cards under the house rule, or picked by hand
+  // 7-2 bounty: filled in from the shown cards under the house rule, or picked by hand
   const bountyOn = bountyRule.on || !!existing?.bounty;
   const bountyAmt = existing?.bounty?.amount ?? bountyRule.amount;
   const bountyAuto = res && bountyOn ? bountyWinner(res, live, fullLog().shown, bountyRule) : null;
@@ -364,7 +364,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const bountyPayers = bountyTo ? log.dealt.filter((p) => p !== bountyTo && !busted.includes(p) && !(st.bountyOff ?? []).includes(p)) : [];
   const bountyShort: Record<ID, number> = Object.fromEntries(bountyPayers.map((p) => [p, leftAfter(p)]).filter(([, l]) => l !== undefined && (l as number) < bountyAmt));
   const payOf = (p: ID) => bountyShort[p] ?? bountyAmt;
-  // A shown 2-7 gets a Pay bounty tag: pressed when the bounty is paid to it. Felt presses it when the
+  // A shown 7-2 gets a Pay bounty tag: pressed when the bounty is paid to it. Felt presses it when the
   // game's rule is met; the table can press it anyway, or clear it.
   const shown27 = (p: ID) => bountyOn && is27((st.shown[p] ?? []).filter(Boolean) as Card[], bountyRule.suited);
   const payTag = (p: ID) => (
@@ -1237,7 +1237,7 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
       {/* Not shown (the old Muck) is one rule for every screen: a Not shown player is out of the card comparison, but can still
           win when every other player is Not shown too (a takedown). `takedownWinner` in hand.ts picks that winner and
           `resolve` puts it in `res.winners`, so the Result card below names it. */}
-      {/* with the 2-7 bounty on, a player who wins uncontested can still show their cards */}
+      {/* with the 7-2 bounty on, a player who wins uncontested can still show their cards */}
       {(live.length > 1 || (bountyOn && live.length === 1)) && (
         <section className="felt-section">
           {/* one bar: open it says Cards shown, closed it says No cards */}
@@ -1353,7 +1353,7 @@ function Result({ res, log, live, runs, name, manual, onManual }: {
   );
 }
 
-/** 2-7 bounty at the result: who collects, and who paid. Filled in when shown cards qualify under the
+/** 7-2 bounty at the result: who collects, and who paid. Filled in when shown cards qualify under the
     house rule; otherwise tap the player who was paid. Every other player dealt in pays; tap a name to
     leave them out. */
 function BountyBlock({ live, dealt, to, auto, amount, off, name, busted, payOf, onPick, onOff }: {
@@ -1367,12 +1367,12 @@ function BountyBlock({ live, dealt, to, auto, amount, off, name, busted, payOf, 
   return (
     <section className={`felt-section felt-bounty ${to ? 'is-paid' : ''}`} aria-live="polite">
       <div className="sat-split">
-        <h2 className="sat-caption felt-section-cap">2-7 bounty <Help k="bounty27" /></h2>
+        <h2 className="sat-caption felt-section-cap">7-2 bounty <Help k="bounty27" /></h2>
         {to && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => onPick(null)}>Clear</button>}
       </div>
       {to ? (
         <>
-          <p className="felt-bounty-head"><b>{name(to)}</b> collects <b className="sat-num">{units(total)}</b> chips{auto ? ' for the shown 2-7' : ''}.</p>
+          <p className="felt-bounty-head"><b>{name(to)}</b> collects <b className="sat-num">{units(total)}</b> chips{auto ? ' for the shown 7-2' : ''}.</p>
           <span className="sat-small sat-muted">{short ? `${payers.length} players pay ${units(amount)} chips each, or the chips they have left.` : `${payers.length} players pay ${units(amount)} chips each.`} Tap a name to leave that player out.</span>
           <div className="sat-cluster" style={gap(2)}>
             {others.map((p) => (busted.includes(p)

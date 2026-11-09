@@ -79,6 +79,8 @@ export function useRoute(): string[] {
         // review of a closed game has no Log hand button to close into: the hand list shows at once
         const t = document.startViewTransition(() => { apply(); if (way === 'close' && !document.querySelector('.felt-logbtn')) root.dataset.vt = 'none'; });
         t.ready.catch(() => undefined);
+        // a transition that never ends leaves a faded copy of the old page over the new one (seen on iOS): end it
+        window.setTimeout(() => { try { t.skipTransition(); } catch { /* already done */ } }, 1200);
         t.updateCallbackDone.catch(() => undefined);
         t.finished.finally(() => { if (root.dataset.vt === way || root.dataset.vt === 'none') delete root.dataset.vt; }).catch(() => undefined);
       } else apply();

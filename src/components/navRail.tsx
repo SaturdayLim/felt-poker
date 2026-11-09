@@ -109,7 +109,8 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
   useEffect(() => {
     const n = nav.current;
     if (!n) return;
-    const again = () => { if (!document.documentElement.classList.contains('felt-typing')) measureSafe(n); };
+    // at launch iOS can place a fixed bar above the real bottom edge until something resizes: a half-pixel nudge makes it lay out again
+    const again = () => { if (document.documentElement.classList.contains('felt-typing')) return; measureSafe(n); n.style.bottom = '0.5px'; requestAnimationFrame(() => { n.style.bottom = ''; }); };
     again();
     const f = requestAnimationFrame(() => requestAnimationFrame(again));
     const t = [250, 800, 2000].map((ms) => window.setTimeout(again, ms));

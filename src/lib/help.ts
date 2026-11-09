@@ -78,6 +78,7 @@ export const HELP = {
   bountyHand: { title: 'Hand', text: ['Offsuit only: 7 and 2 of different suits.', 'Suited allowed: 7 and 2 of the same suit also count.'] },
   bountyAmount: { title: 'Bounty', text: ['Chips that each other player dealt in pays the 2-7.', 'A player who busts in the hand pays nothing.', 'A player with fewer chips pays the chips left.'] },
   payBounty: { title: 'Pay bounty', text: ['On: Felt records the bounty. Felt turns it on when the 2-7 meets the game rule.', 'Off: the 2-7 does not meet the game rule. Turn it on if the table pays anyway.', 'Felt records what the table agrees. It does not decide who pays.'] },
+  rankOrder: { title: 'Card Picker Order', text: ['High to Low: the ace is on the left.', 'Low to High: the 2 is on the left.', 'This applies on this phone only.'] },
   motion: { title: 'Animation Speed', text: ['Reduce Motion is a setting of this phone. Follow phone reads it.', 'Reduced: Felt plays no slides or bounces.', 'Follow phone: Felt stops its slides and bounces when Reduce Motion is on in the phone settings.', 'Full: Felt plays them on this phone at all times.'] },
   splash: { title: 'Opening screen', text: ['The Felt logo shows while the app loads. Tap it to skip.', 'Off: the app opens at once on later launches.'] },
   groups: { title: 'Groups', text: 'A group is a set of players who play together. Their games settle together in the fewest payments.' },

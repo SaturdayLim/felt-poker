@@ -2,7 +2,7 @@
    card look (settings.cards). With nothing custom, the viewer reads the phone's normal look. Board cards that the
    host selects while the viewer watches flip face up (the same flip as FlipDown in ui.tsx, turned the other way). */
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
-import { CardBack, Info, Toggle, useCardLook } from './ui';
+import { CardBack, Info, RankOrderSeg, Toggle, useCardLook } from './ui';
 import { DEFAULT_FACE, DEFAULT_LOOK, SUIT_NAME, SUIT_SYMBOL, cardText, cleanLook, lookColor, rankLabel } from '../lib/cards';
 import { calm } from '../lib/motion';
 import type { Card, CardLook, SuitKey } from '../types';
@@ -118,6 +118,11 @@ export function ViewerLookSettings() {
         <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Big pips
           <Info title="Big pips">Card ranks and suit marks grow, so clubs and spades are easy to tell apart. This applies on this phone only.</Info></span>
         <Toggle on={v.big} onChange={(big) => set({ big })} label="Big pips" />
+      </div>
+      <div className="felt-row">
+        <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Card picker order
+          <Info title="Card picker order">High to Low puts the ace on the left. Low to High puts the 2 on the left. This applies on this phone only.</Info></span>
+        <RankOrderSeg />
       </div>
       <div className="felt-row felt-vlook-colors">
         <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Pip colours

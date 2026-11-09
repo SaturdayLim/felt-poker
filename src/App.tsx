@@ -5,6 +5,7 @@ import { cleanLook, lookBg } from './lib/cards';
 import { applyPalette, cleanPalette } from './lib/palette';
 import { NAV_TABS, go, guardHistory, useRoute } from './router';
 import { bounceBack } from './lib/motion';
+import { FEATURES } from './lib/features';
 import { SlidePane, ToastHost } from './components/ui';
 import { PlayerHost } from './components/players';
 import { NavRail } from './components/navRail';
@@ -118,7 +119,7 @@ export default function App() {
   let nav = true;
   const [a, b, c, d] = r;
   if (a === 'games') screen = <Games player={b} />;
-  else if (a === 'new') { screen = <NewGame type={b === 'tournament' ? 'tournament' : 'cash'} />; nav = false; }
+  else if (a === 'new') { screen = <NewGame type={b === 'tournament' && FEATURES.tournaments ? 'tournament' : 'cash'} />; nav = false; }
   else if (a === 'game' && b) {
     nav = false;
     if (c === 'hand') screen = <HandRoute gameId={b} handId={d} />;

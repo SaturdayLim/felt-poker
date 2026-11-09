@@ -2,6 +2,16 @@ import type { Card, CardLook, SuitKey } from '../types';
 
 export const RANKS = 'AKQJT98765432'.split('');
 export const SUITS = ['s', 'h', 'd', 'c'] as const;
+
+/** Order of ranks in the card picker: High to Low (ace first) or Low to High (2 on the left). Belongs to the phone. */
+export type RankOrder = 'high' | 'low';
+const ORDER_KEY = 'felt-rank-order';
+export const rankOrder = (): RankOrder => { try { return localStorage.getItem(ORDER_KEY) === 'low' ? 'low' : 'high'; } catch { return 'high'; } };
+export const setRankOrder = (o: RankOrder) => {
+  try { if (o === 'low') localStorage.setItem(ORDER_KEY, 'low'); else localStorage.removeItem(ORDER_KEY); } catch { /* private mode */ }
+  window.dispatchEvent(new Event('felt-rank-order'));
+};
+export const orderedRanks = (o: RankOrder = rankOrder()): string[] => (o === 'low' ? [...RANKS].reverse() : RANKS);
 export const SUIT_SYMBOL: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
 /** Two colours: hearts and diamonds red, spades and clubs black. */
 export const SUIT_COLOR: Record<string, string> = { s: '#111', h: '#d62839', d: '#d62839', c: '#111' };

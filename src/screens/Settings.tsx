@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { motionPref, setMotionPref, type MotionPref } from '../lib/motion';
 import { haptic } from '../lib/haptics';
-import { Caption, Header, Help, Icon, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
+import { Caption, Header, Help, Icon, RankOrderSeg, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { DEFAULT_PALETTE, PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
 import { CodeBoxes } from '../components/codeBoxes';
@@ -159,6 +159,11 @@ export default function Settings() {
         </section>
 
         <MotionField />
+
+        <section className="sat-stack" style={gap(2)}>
+          <Caption tip="rankOrder">Card picker order</Caption>
+          <RankOrderSeg />
+        </section>
 
         <section className="sat-glass sat-card sat-stack">
           <div className="sat-split"><h2 className="sat-h2">New games</h2><Help k="units" /></div>

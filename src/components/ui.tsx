@@ -1,6 +1,6 @@
-import { Component, createRef, useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from 'react';
+import { Component, createRef, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { cardText, cleanLook, lookColor, rankLabel, RANKS, SUIT_SYMBOL } from '../lib/cards';
+import { cardText, cleanLook, lookColor, orderedRanks, rankLabel, rankOrder, setRankOrder, SUIT_SYMBOL, type RankOrder } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
 import { ACCORDION, ARRIVE, DISCLOSE, DRAWER, NAV_MS, SPRING, calm, physSpring, spring, springCurve } from '../lib/motion';
@@ -846,11 +846,30 @@ export function useCardLook(): CardLook {
 }
 
 /** The card picker: 13 ranks by 4 suits, rows in the order this phone chose. */
+/** The preferred rank order of the card picker, kept on this phone and read live. */
+export function useRankOrder(): [RankOrder, (o: RankOrder) => void] {
+  const o = useSyncExternalStore((cb) => { window.addEventListener('felt-rank-order', cb); return () => window.removeEventListener('felt-rank-order', cb); }, rankOrder);
+  return [o, setRankOrder];
+}
+
+/** Two options: High to Low (A on the left) or Low to High (2 on the left). Same control on the host's Settings and the player's. */
+export function RankOrderSeg() {
+  const [o, set] = useRankOrder();
+  return (
+    <div className="sat-seg" role="radiogroup" aria-label="Card picker order">
+      <TabPill />
+      <button role="radio" aria-checked={o === 'high'} onClick={() => set('high')}>High to Low</button>
+      <button role="radio" aria-checked={o === 'low'} onClick={() => set('low')}>Low to High</button>
+    </div>
+  );
+}
+
 export function CardPickerGrid({ disabled, onPick }: { disabled: (c: Card) => boolean; onPick: (c: Card) => void }) {
   const look = useCardLook();
+  const [order] = useRankOrder();
   return (
     <div className="felt-picker">
-      {look.order.flatMap((su) => RANKS.map((r) => {
+      {look.order.flatMap((su) => orderedRanks(order).map((r) => {
         const c = r + su;
         return (
           <button key={c} disabled={disabled(c)} onClick={() => onPick(c)} aria-label={c}>

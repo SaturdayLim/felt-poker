@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.4.1', date: '9 Nov 2026', notes: [
+    'Player view: a Table view shows the seats from above. The player to act is lit, chips in front of each player show, and folded players fade.',
+    'Card picker order: High to Low or Low to High, in Settings and in the player view.',
+    'Stack graph: each rebuy circle shows its own size in buy-ins. The starting-hand map counts self-reported hands too.',
+    'Tournaments stay paused. Info tips may sit outside their box so they never cover a button.',
+  ] },
   { version: '1.4.0', date: '9 Nov 2026', notes: [
     'Shown cards always win over what a player logged. No flag, no message.',
     'Not shown and muck are one thing. The last player left with hidden cards wins the pot as a takedown.',

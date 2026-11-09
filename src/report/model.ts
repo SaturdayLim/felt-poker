@@ -9,7 +9,7 @@ import { RANKS, bestHand } from '../lib/cards';
 import { playMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
-import { clashLevel, countedPairs, effectivePairs } from '../lib/clash';
+import { clashLevel, countedPairs, effectivePairs, privateOf, shownPair } from '../lib/clash';
 import { wonAt } from '../lib/style';
 import { playerResult, suggestTransfers } from '../lib/calc';
 
@@ -40,8 +40,9 @@ export interface TrialPlayer {
   /** Starting-hand record (locked): for each hand type like "AKs", the pre-flop actions taken with it: folds, calls
       (a free check counts as a call) and raises. */
   range: Record<string, { fold: number; call: number; raise: number }>;
-  /** Hands dealt in with the cards known (entered or shown). */
-  known: number;
+  /** Hands dealt in with the cards known (shown at the table, or entered and not red), and the hands left out for
+      no known cards (none entered, or a red entry). `known` + `unknown` = hands dealt in. */
+  known: number; unknown: number;
   /** Short list of ways a hand could have been played differently, from the logged action and position. A guide. */
   advice: { n: number; text: string }[];
   /** The action log of every hand the player was dealt into (locked). */
@@ -52,7 +53,7 @@ export interface TrialPlayer {
       final count, so it matches the result. A rebuy does not move the line. */
   dev: number[];
   /** Buy-ins after the start: the hand they came after, and the chips. */
-  rebuys: { after: number; amount: number }[];
+  rebuys: { after: number; amount: number; buyins: number }[];
   /** Highest and lowest point against par, and the hand after which each came. */
   high: number; highAt: number; low: number; lowAt: number;
   notes: Note[];
@@ -90,6 +91,13 @@ export interface TrialModel {
   /** Who pays whom, in chips, to close the accounts. */
   settle: { from: string; to: string; amount: number }[];
   players: TrialPlayer[];
+}
+
+/** A rebuy in buy-ins: its own amount over the game's buy-in, one decimal only when not a whole number (400 in a 200 game = 2). */
+export function buyinsOf(amount: number, buyIn: number): number {
+  if (!buyIn) return 1;
+  const v = amount / buyIn;
+  return Number.isInteger(v) ? v : Math.round(v * 10) / 10;
 }
 
 const ratio = (a: number, b: number) => (b ? a / b : 0);
@@ -214,7 +222,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
     const range: TrialPlayer['range'] = {};
     const advice: TrialPlayer['advice'] = [];
     const logs: HandView[] = [];
-    let known = 0, takedowns = 0;
+    let known = 0, unknown = 0, takedowns = 0;
     const checkCards = backup.settings?.checkCards !== false;
     for (const h of hands) {
       const L = h.log!;
@@ -233,8 +241,10 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
         shownAtTable: h.shown.some((x) => x.playerId === p), won: h.winners.some((w) => w.playerId === p),
         got: h.winners.find((w) => w.playerId === p)?.amount ?? 0, net: Math.round(net), street: resultStreet(L, p, net),
       });
-      const cards = countedPairs(h, checkCards)[p];
+      // known cards: a pair entered by the player (a red one is left out), else the pair shown at the table
+      const cards = countedPairs(h, checkCards)[p] ?? (privateOf(h)[p] ? undefined : shownPair(h, p));
       const pre = L.streets.preflop;
+      if (dealt && !cards) unknown++;
       if (dealt && cards) {
         known++;
         const cl = handClass(cards);
@@ -265,7 +275,10 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
     const buys = g.buyIns.filter((b) => b.playerId === p).sort((a, b) => a.at - b.at);
     const start = buys.length ? buys[0].at : g.startedAt;
     const boughtBy = (t: number) => buys.filter((b) => b.at <= t).reduce((a, b) => a + b.amount, 0);
-    const rebuys = buys.filter((b) => b.at > start + 60000).map((b) => ({ after: hands.filter((h) => (h.endedAt ?? h.at) <= b.at).length, amount: b.amount }));
+    const rebuys = buys.filter((b) => b.at > start + 60000).map((b) => ({
+      after: hands.filter((h) => (h.endedAt ?? h.at) <= b.at).length, amount: b.amount,
+      buyins: buyinsOf(b.amount, g.buyIns[0]?.amount ?? 0),
+    }));
     const dev = [0, ...hands.map((h, i) => (i === hands.length - 1
       ? r.outUnits - r.inUnits
       : Math.round((estimateStacks(noOut, h.n + 1).stack[p] ?? 0) - boughtBy(h.endedAt ?? h.at))))];
@@ -279,7 +292,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
       estimate, off: r.outUnits - estimate, moves, bounty, s,
       vpip: ratio(s.vpip, s.logged) * 100, pfr: ratio(s.pfr, s.logged) * 100, af: st.calls ? st.betsRaises / st.calls : st.betsRaises,
       sdNet: f.winShowdown - f.lossShowdown, foldNet: f.winFold - f.lossFold,
-      byPos, byPosN, shown, mine, takedowns, range, known, advice: advice.slice(0, 8), logs, dev, rebuys, high, highAt: dev.indexOf(high), low, lowAt: dev.indexOf(low), notes: [],
+      byPos, byPosN, shown, mine, takedowns, range, known, unknown, advice: advice.slice(0, 8), logs, dev, rebuys, high, highAt: dev.indexOf(high), low, lowAt: dev.indexOf(low), notes: [],
     };
   });
   const dealtN = Math.round(hands.reduce((a, h) => a + h.log!.dealt.length, 0) / (hands.length || 1));
@@ -454,7 +467,7 @@ export function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] 
     Strengths, weaknesses, seats, cards shown and chip sources stay in the player's locked box. */
 export function publicPlayer(p: TrialPlayer): TrialPlayer {
   return {
-    ...p, notes: [], shown: [], mine: [], range: {}, known: 0, advice: [], logs: [], byPos: {}, byPosN: {}, sdNet: 0, foldNet: 0, locked: true,
+    ...p, notes: [], shown: [], mine: [], range: {}, known: 0, unknown: 0, advice: [], logs: [], byPos: {}, byPosN: {}, sdNet: 0, foldNet: 0, locked: true,
     s: {
       ...p.s, history: [],
       flow: { winFold: 0, winShowdown: 0, winOther: 0, lossFold: 0, lossShowdown: 0, lossOther: 0 },

@@ -2,10 +2,11 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardPair, Empty, Header, Help, Icon, NewItemsPill, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
+import { CardPair, Empty, Header, Help, Icon, Info, NewItemsPill, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { calm } from '../lib/motion';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
+import { BirdsEye } from '../components/birdsEye';
 import { RevealProvider, useBigPips, useSeenCards, VCards, ViewerLookSettings } from '../components/viewerLook';
 import { StandingChart } from '../components/candle';
 import { lock, unlock, type LockBox } from '../report/lock';
@@ -191,7 +192,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
       <SlidePane k={tab} i={TABS.findIndex((t) => t.k === tab)}>
       <div className="sat-stack" style={gap(3)}>
-        {tab === 'action' && <ActionLog now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')} />}
+        {tab === 'action' && <ActionLog pub={pub} stacks={stacks} now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')} />}
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
           onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
@@ -281,7 +282,7 @@ function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blind
   );
 }
 
-function ActionLog({ now: sent, hands, blinds, onFlag }: { now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void }) {
+function ActionLog({ pub, stacks, now: sent, hands, blinds, onFlag }: { pub: PubSnapshot; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void }) {
   // a new hand shows only after real action: blinds and card entry alone do not count
   const now = sent && sent.acted !== false ? sent : null;
   const closed = now ? hands.filter((h) => h.n !== now.n) : hands;
@@ -299,12 +300,28 @@ function ActionLog({ now: sent, hands, blinds, onFlag }: { now: NowSnapshot | nu
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
+  // List (the action log) or Table (the bird's-eye view); the choice stays on this phone
+  const [table, setTable] = useState(() => ls.get('felt-viewer-table') === '1');
+  const pick = (v: boolean) => { setTable(v); ls.set('felt-viewer-table', v ? '1' : '0'); };
   return (
     <>
-      <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />
-      {!now && !hands.length && <div className="sat-flat sat-card sat-small">No hands yet.</div>}
-      {now && <HandFrame key={now.n} n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}
-      {closed.map((h) => <HandFrame key={h.n} n={h.n} view={h.view} blinds={blinds} />)}
+      <div className="felt-viewer-switch">
+        <div className="sat-seg" role="radiogroup" aria-label="Action view">
+          <TabPill />
+          <button type="button" role="radio" aria-checked={!table} onClick={() => pick(false)}>List</button>
+          <button type="button" role="radio" aria-checked={table} onClick={() => pick(true)}>Table</button>
+        </div>
+        <Info title="Table view">
+          <span style={{ display: 'block' }}>List shows the action as text.</span>
+          <span style={{ display: 'block' }}>Table shows the seats from above. The button is at the bottom.</span>
+          <span style={{ display: 'block' }}>A ring marks the player to act. Red chips show what a player put in this hand.</span>
+        </Info>
+      </div>
+      {table && <BirdsEye pub={pub} now={sent} stacks={stacks} />}
+      {!table && <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />}
+      {!table && !now && !hands.length && <div className="sat-flat sat-card sat-small">No hands yet.</div>}
+      {!table && now && <HandFrame key={now.n} n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}
+      {!table && closed.map((h) => <HandFrame key={h.n} n={h.n} view={h.view} blinds={blinds} />)}
       <button className="sat-btn sat-btn--ghost" onClick={onFlag}><Icon name="flag" size={18} /> Flag a wrong update</button>
     </>
   );

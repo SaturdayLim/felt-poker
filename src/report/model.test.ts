@@ -1,7 +1,7 @@
 // @ts-expect-error node types are not in the app tsconfig; vitest runs in node
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { AWARD_LIST, awardsFor, buildModel, handClass, kingCaption, positionNames, resultStreet, type TrialPlayer } from './model';
+import { AWARD_LIST, awardsFor, buildModel, buyinsOf, handClass, kingCaption, positionNames, resultStreet, type TrialPlayer } from './model';
 import { AWARD_ICONS } from './awardIcons';
 import type { HandLog } from '../types';
 
@@ -89,6 +89,16 @@ describe('starting hand type', () => {
   });
 });
 
+describe('rebuy size in buy-ins', () => {
+  it('is the rebuy own amount over the buy-in, not a running count', () => {
+    expect(buyinsOf(400, 200)).toBe(2);
+    expect(buyinsOf(200, 200)).toBe(1);
+    expect(buyinsOf(300, 200)).toBe(1.5);
+    expect(buyinsOf(100, 300)).toBe(0.3);
+    expect(buyinsOf(50, 0)).toBe(1);
+  });
+});
+
 // With the owner's backup present (git-ignored) the whole model is built and checked without printing any of it.
 const BACKUP = 'trial/potato-backup.json';
 describe.skipIf(!existsSync(BACKUP))('model from a real backup', () => {
@@ -102,6 +112,10 @@ describe.skipIf(!existsSync(BACKUP))('model from a real backup', () => {
       expect(Object.values(p.range).reduce((a, c) => a + c.fold + c.call + c.raise, 0)).toBeLessThanOrEqual(x.hands);
       for (const h of p.mine) expect(h.street.length).toBeGreaterThan(0);
       expect(p.takedowns).toBeLessThanOrEqual(p.s.handsWon);
+      // every hand dealt in is counted in the grid or left out, and each square adds up
+      expect(p.known + p.unknown).toBe(p.logs.length);
+      expect(Object.values(p.range).reduce((a, c) => a + c.fold + c.call + c.raise, 0)).toBe(p.known);
+      for (const r of p.rebuys) expect(r.buyins).toBeGreaterThan(0);
     }
   });
 });

@@ -29,3 +29,25 @@
 /* the four swatches sit on their own line under the label, so a tip never wraps */
 .felt-vlook-colors { flex-wrap: wrap; row-gap: var(--sat-space-2); }
 .felt-vlook-swatches { flex: 1 0 100%; gap: var(--sat-space-3); }
+
+/* Bird's-eye table (src/components/birdsEye.tsx). Drawn in a 343 by 330 box, placed in percentages. */
+.felt-viewer-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-2); }
+.felt-bird { position: relative; width: 100%; max-width: 420px; margin-inline: auto; }
+.felt-bird-rail { position: absolute; inset: 7% 5%; border-radius: 22%/24%; background: #5c3a24; padding: 8px; box-shadow: inset 0 2px 8px rgba(0,0,0,.45); }
+.felt-bird-felt { width: 100%; height: 100%; border-radius: 20%/22%; background: #1c6a4b; }
+.felt-bird-mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; pointer-events: none; color: #ddefe6; font-size: .8125rem; }
+.felt-bird-pot b { font-size: 1rem; }
+.felt-bird-board { display: inline-flex; }
+.felt-bird-board .felt-cards, .felt-bird-board > * { gap: 2px; }
+.felt-bird .felt-card.sm:not(.felt-cardback) { width: 21px; height: 29px; border-radius: 4px; }
+.felt-bird .felt-card.sm:not(.felt-cardback) .r { font-size: 12px; }
+.felt-bird .felt-card.sm:not(.felt-cardback) .s { font-size: 12px; margin-top: 0; }
+.felt-bird-seat, .felt-bird-turn, .felt-bird-bet { position: absolute; transform: translate(-50%, -50%); }
+.felt-bird-seat { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 70px; height: 48px; padding: 3px 6px; border-radius: 12px; background: var(--sat-solid-2); border: 1px solid var(--sat-line-strong); color: var(--sat-text); font-size: .75rem; line-height: 1.2; text-align: center; transition: opacity .25s var(--sat-ease); }
+.felt-bird-seat > b { max-width: 100%; }
+.felt-bird-stack { color: var(--sat-muted); font-size: .6875rem; }
+.felt-bird-seat.is-folded { opacity: .4; }
+.felt-bird-turn { width: 78px; height: 56px; border-radius: 16px; border: 3px solid var(--felt-coral, #ff5722); box-shadow: 0 0 0 4px rgba(255,87,34,.22); }
+.felt-bird-btn { position: absolute; top: -8px; left: -8px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .6875rem; font-weight: 700; background: #fbfcfc; color: #1c1e21; box-shadow: var(--felt-elev-1); }
+.felt-bird-bet { min-width: 34px; padding: 2px 8px; border-radius: 12px; background: var(--felt-coral, #ff5722); color: #fff; font-size: .75rem; font-weight: 700; text-align: center; transition: opacity .25s var(--sat-ease); }
+.felt-bird-bet.is-folded { opacity: .4; }

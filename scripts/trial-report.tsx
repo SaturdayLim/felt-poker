@@ -175,7 +175,7 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
         <div className="trial-awards">{m.awards.map((a) => <AwardCard key={a.title} m={m} a={a} />)}</div>
       </Section>
 
-      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips a player bought so far.', 'Circle on a line = a rebuy by that player. The number counts the extra buy-ins so far, each the size of the first buy-in (2 = 400 chips in a 200 game).', 'Par rises with a rebuy, so the line stays level.', 'The last point uses the final count.']}>
+      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips a player bought so far.', 'Circle on a line = a rebuy by that player. The number is the size of that rebuy in buy-ins (2 = a 400 rebuy in a 200 game).', 'Par rises with a rebuy, so the line stays level.', 'The last point uses the final count.']}>
         <StackChart m={m} />
       </Section>
 
@@ -384,7 +384,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         </div>
       </Section>
 
-      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips bought so far.', 'Circle on your line = your rebuy. The number counts your extra buy-ins so far, each the size of your first buy-in (2 = 400 chips in a 200 game).', 'Other players in grey.']}>
+      <Section title="Stack Size" tip={['Result against par after each hand.', 'Par (0) = the chips bought so far.', 'Circle on your line = your rebuy. The number is the size of that rebuy in buy-ins (2 = a 400 rebuy in a 200 game).', 'Other players in grey.']}>
         <StackChart m={m} focus={p} />
       </Section>
 
@@ -462,8 +462,7 @@ function HandRecord({ p }: { p: TrialPlayer }) {
   const cur = sel ? range[sel] : undefined;
   if (!logs.length) return null;
   return (
-    <Section title="Hand Record" tip={['A guide, not a verdict. It uses only what was logged: your cards, your actions and your position.', 'Each square is a starting hand, ace down to two on both sides. Pairs run down the middle, suited hands above it, offsuit hands below it.', 'Each square shows your pre-flop actions with that hand: red = fold, orange = call or check, green = raise. The mix fills the square.', 'Grey = never dealt. Only hands with your cards entered or shown count.', 'Tap a square for the counts.']}>
-      <p className="sat-small sat-muted">Cards known for {p.known} of {logs.length} hands.</p>
+    <Section title="Hand Record" tip={['A guide, not a verdict. It uses only what was logged: your cards, your actions and your position.', 'Each square is a starting hand, ace down to two on both sides. Pairs run down the middle, suited hands above it, offsuit hands below it.', 'Each square shows your pre-flop actions with that hand: red = fold, orange = call or check, green = raise. The mix fills the square.', 'Grey = never dealt. A hand counts when your cards are known: shown at the table, or entered by you (an entry with a red ! stays out).', `${p.known} ${p.known === 1 ? 'hand' : 'hands'} counted. ${p.unknown} left out for no known cards.`, 'Tap a square for the counts.']}>
       <div className="trial-legend"><span><i style={{ background: 'var(--sat-neg)' }} />Fold</span><span><i style={{ background: 'var(--trial-s2)' }} />Call or check</span><span><i style={{ background: 'var(--sat-pos)' }} />Raise</span><span><i style={{ background: 'var(--sat-well)' }} />Never dealt</span></div>
       <div className="trial-range-scroll"><div className="trial-range" role="grid" aria-label="Pre-flop actions for each starting hand">
         <div className="trial-range-row"><span />{RANKS.map((r) => <span key={r} className="trial-range-axis">{r}</span>)}</div>
@@ -588,15 +587,13 @@ function StackChart({ m, focus }: { m: TrialModel; focus?: TrialPlayer }) {
     setHover(Math.max(0, Math.min(n - 1, i)));
   };
   const dim = (p: TrialPlayer) => !!focus && p !== focus;
-  // a rebuy is a circle on the player's line with the number of rebuys so far (each = the first buy-in);
+  // a rebuy is a circle on the player's line with that rebuy's own size in buy-ins;
   // circles at the same spot are pushed apart sideways so every one stays visible
   const rebuyMarks: { p: TrialPlayer; after: number; amount: number; count: number; cx: number; cy: number }[] = [];
   // with a player in focus, only that player's own rebuys show
   for (const p of focus ? [focus] : m.players) {
-    const first = p.bought - p.rebuys.reduce((a, r) => a + r.amount, 0);
-    let count = 0;
     for (const r of p.rebuys) {
-      count += Math.max(1, Math.round(r.amount / (first || r.amount)));
+      const count = r.buyins;
       let cx = x(r.after);
       const cy = y(p.dev[r.after]);
       while (rebuyMarks.some((o) => Math.abs(o.cx - cx) < 16 && Math.abs(o.cy - cy) < 16)) cx += 17;
@@ -621,7 +618,7 @@ function StackChart({ m, focus }: { m: TrialModel; focus?: TrialPlayer }) {
           <g key={i}>
             <circle cx={r.cx} cy={r.cy} r={8} className="trial-rebuy" style={{ stroke: dim(r.p) ? 'var(--sat-line-strong)' : colorOf(m, r.p.id) }} />
             <text x={r.cx} y={r.cy + 3.5} textAnchor="middle" className="trial-rebuy-n">{r.count}</text>
-            <title>{`${r.p.name}: ${r.count} extra ${r.count === 1 ? 'buy-in' : 'buy-ins'} so far, ${r.amount} chips after hand #${r.after}`}</title>
+            <title>{`${r.p.name}: rebuy of ${r.count} ${r.count === 1 ? 'buy-in' : 'buy-ins'}, ${r.amount} chips after hand #${r.after}`}</title>
           </g>
         ))}
         {ends.map(({ p, y: ly }) => (

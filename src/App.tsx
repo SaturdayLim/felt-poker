@@ -112,6 +112,13 @@ export default function App() {
       document.removeEventListener('focusout', onOut); window.clearTimeout(t); window.clearTimeout(back); html.classList.remove('felt-typing');
     };
   }, []);
+  // at launch iOS can lay the page out short of the screen (a grey strip under the tab bar) until something scrolls: a tiny scroll lays it out again, as a tab change does
+  useEffect(() => {
+    if (!hydrated) return;
+    const fix = () => { window.scrollTo(0, 1); window.scrollTo(0, 0); };
+    const t = [0, 150, 500, 1200].map((ms) => window.setTimeout(fix, ms));
+    return () => t.forEach((x) => window.clearTimeout(x));
+  }, [hydrated]);
   if (!hydrated) return <div className="felt-app" />;
   const pickRole = (k: 'host' | 'player') => { try { sessionStorage.setItem('felt-role', k); } catch { /* private mode */ } setRole(k); if (k === 'player') go('join'); };
 

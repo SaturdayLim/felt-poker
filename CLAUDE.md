@@ -152,3 +152,5 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Stack graph rebuy circle: each rebuy shows its own size in buy-ins (a 400 rebuy in a 200 game reads 2), only for the player being viewed.
 - Starting-hand map: counts hands with known cards, shown at the table or self-reported (a hard-conflicting entry is left out).
 - Player view has a Table view (bird's-eye): the player to act highlighted, chips in front of each player, folded players greyed, seat 1 at the dealer on a long side.
+- A text box inside a field is never highlighted: only the exterior field border changes on focus. Boxes with uneven padding (more on one side) are balanced: equal padding on all sides, with extra only where a control sits (a chevron).
+- The 7-2 bounty is always written "7-2" (never "2-7"): host, player view, tips, reports and exports.

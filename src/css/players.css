@@ -70,3 +70,7 @@ html[data-calm] .felt-fig-chev { transition: none; }
 .felt-rebuy-ctl { display: flex; align-items: center; gap: var(--sat-space-2); flex-wrap: wrap; }
 .felt-rebuy-step { display: inline-flex; align-items: center; gap: var(--sat-space-1); margin-right: auto; }
 .felt-rebuy-n { min-width: 5.5em; text-align: center; font-weight: 600; }
+
+/* A text box inside a field is never highlighted: only the outer field border reacts (CLAUDE.md, Design). */
+.felt-search-input, .felt-search-input:focus, .felt-search-input:focus-visible { outline: none; box-shadow: none; -webkit-appearance: none; appearance: none; -webkit-tap-highlight-color: transparent; background: transparent; }
+.felt-search-input::selection { background: color-mix(in oklab, var(--sat-accent) 25%, transparent); }

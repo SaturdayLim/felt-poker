@@ -146,14 +146,9 @@ export function bustedPlayers(g: Game, hand: Hand): ID[] {
   });
 }
 
-/** Chips to offer for a rebuy: the largest whole multiple of the buy-in up to the biggest other stack at the table
-    (the busted player left out), at least 1 buy-in. Others still playing count; a stack range counts as its best guess. */
-export function rebuyDefault(g: Game, pid: ID): number {
-  const buyIn = g.defaultBuyIn;
-  if (!(buyIn > 0)) return 0;
-  const est = estimateStacks(g);
-  const biggest = Math.max(0, ...g.playerIds.filter((p) => p !== pid && playerStatus(g, p) !== 'out').map((p) => est.stack[p] ?? 0));
-  return Math.max(1, Math.floor(biggest / buyIn + 1e-9)) * buyIn;
+/** Chips to offer for a rebuy: one buy-in. The host can type any other amount, but never none. */
+export function rebuyDefault(g: Game, _pid?: ID): number {
+  return g.defaultBuyIn > 0 ? g.defaultBuyIn : 0;
 }
 
 /** A rebuy is offered for this hand: the player busted in it, and no buy-in came after the hand closed.

@@ -16,29 +16,20 @@
    leaves it, and a skipped player is not offered again for that hand until the page reloads.
 
    `RebuySheet({ g, pids, onClose })` is the sheet itself. Per player: "Rebuy for N chips?", a stepper in whole buy-ins
-   (starts at rebuyDefault, minimum 1 buy-in, maximum the biggest other stack rounded down to whole buy-ins, at least 1)
+   (starts at one buy-in; the amount can be typed freely, but never empty or 0)
    and Skip. A rebuy calls `addBuyIn(g.id, pid, chips)`; the player stays active. */
 import { useState, type ReactNode } from 'react';
 import { useStore, usePlayerName } from '../store';
 import { Help, Icon, Sheet, num, toast } from './ui';
-import { bustedAfterSave, estimateStacks, rebuyDefault, rebuyOffered } from '../lib/stacks';
-import { playerStatus } from '../lib/calc';
+import { bustedAfterSave, rebuyDefault, rebuyOffered } from '../lib/stacks';
 import { units } from '../lib/format';
 import type { Game, Hand, ID } from '../types';
-
-/** Whole buy-ins in the biggest stack of the other players still in (at least 1). */
-function maxBuyIns(g: Game, pid: ID): number {
-  const est = estimateStacks(g);
-  const biggest = Math.max(0, ...g.playerIds.filter((p) => p !== pid && playerStatus(g, p) !== 'out').map((p) => est.stack[p] ?? 0));
-  return Math.max(1, Math.floor(biggest / g.defaultBuyIn + 1e-9));
-}
 
 function RebuyRow({ g, pid, name, onDone }: { g: Game; pid: ID; name: string; onDone: () => void }) {
   const st = useStore();
   const buyIn = g.defaultBuyIn;
-  const max = maxBuyIns(g, pid);
-  // the amount starts at the default (whole buy-ins up to the biggest stack) and can be typed freely: nothing blocks it
-  const [v, setV] = useState(() => String(Math.min(max, Math.max(1, Math.round(rebuyDefault(g, pid) / buyIn))) * buyIn));
+  // the amount starts at one buy-in and can be typed freely; it cannot be empty or 0
+  const [v, setV] = useState(() => String(rebuyDefault(g, pid)));
   const chips = Math.max(0, Math.round((num(v) ?? 0) * 100) / 100);
   const ok = chips > 0;
   const step = (d: number) => setV(String(Math.max(buyIn, (ok ? chips : buyIn) + d * buyIn)));

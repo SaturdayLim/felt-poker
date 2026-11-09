@@ -82,7 +82,11 @@ export function BirdsEye({ pub, now: sent, stacks }: { pub: PubSnapshot; now: No
   const now = sent && sent.acted !== false ? sent : null;
   const dealt = now?.view.dealt ?? [];
   const button = now?.view.button ?? pub.button;
-  const all = [...pub.players].sort((a, b) => a.seat - b.seat).filter((p) => !dealt.length || dealt.includes(p.name));
+  // everyone seated in the game sits at the table; players not dealt into this hand are greyed out
+  const all = [...pub.players].sort((a, b) => a.seat - b.seat);
+  const inHand = (name: string) => !dealt.length || dealt.includes(name);
+  // an older snapshot has no status: dealt players count as playing, the others as out
+  const lamp = (p: PubSnapshot['players'][number]): 'playing' | 'away' | 'out' => p.status ?? (dealt.length && !dealt.includes(p.name) ? 'out' : 'playing');
   // the button player is seat 1, at the bottom centre
   const at = Math.max(0, all.findIndex((p) => p.name === button));
   const ring = all.map((_, i) => all[(at + i) % all.length]);
@@ -114,16 +118,18 @@ export function BirdsEye({ pub, now: sent, stacks }: { pub: PubSnapshot; now: No
       </div>
       {spot && <span ref={mark} className="felt-bird-turn" style={pct(spot.x, spot.y)} aria-hidden="true" />}
       {ring.map((p, i) => {
-        const s = spots[i], fold = folded.has(p.name), chips = put[p.name] ?? 0;
-        const inward = s.side === 'bottom' ? { x: 0, y: -38 } : s.side === 'top' ? { x: 0, y: 38 } : s.side === 'left' ? { x: 52, y: 0 } : { x: -52, y: 0 };
+        const s = spots[i], idle = !inHand(p.name), fold = !idle && folded.has(p.name), chips = idle ? 0 : put[p.name] ?? 0, light = lamp(p);
+        const inward = s.side === 'bottom' ? { x: 0, y: -44 } : s.side === 'top' ? { x: 0, y: 44 } : s.side === 'left' ? { x: 52, y: 0 } : { x: -52, y: 0 };
+        const word = light === 'playing' ? 'playing' : light === 'away' ? 'away' : 'out of the game';
         return (
           <div key={p.id}>
-            <div className={`felt-bird-seat ${fold ? 'is-folded' : ''} ${i === turn ? 'is-turn' : ''}`} style={pct(s.x, s.y)}
-              aria-label={`Seat ${i + 1}, ${p.name}${fold ? ', folded' : ''}${i === turn ? ', to act' : ''}`}>
+            <div className={`felt-bird-seat ${fold ? 'is-folded' : ''} ${idle ? 'is-idle' : ''} ${i === turn ? 'is-turn' : ''}`} style={pct(s.x, s.y)}
+              aria-label={`Seat ${i + 1}, ${p.name}, ${word}${idle ? ', not in this hand' : ''}${fold ? ', folded' : ''}${i === turn ? ', to act' : ''}`}>
               <b className="felt-ellipsis">{p.name}</b>
               <span className="felt-bird-stack sat-num">{stackText(stacks.find((x) => x.name === p.name))}</span>
               {button === p.name && <span className="felt-bird-btn" aria-label="Button">D</span>}
             </div>
+            <span className={`felt-bird-lamp felt-lamp--${light}`} style={pct(s.x, s.y - 24)} aria-hidden="true" />
             {chips > 0 && <span className={`felt-bird-bet ${fold ? 'is-folded' : ''}`} style={pct(s.x + inward.x, s.y + inward.y)}><Count value={chips} /></span>}
           </div>
         );

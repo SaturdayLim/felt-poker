@@ -145,7 +145,10 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Interior.dev behaviours in use: loading button, hold to confirm, expanding search, new items pill, accordion, slider detents, tabs spring, icon morph, inline validation, OTP input, reorder list (docs/MOTION-LIST.md).
 - Card picker order: Settings, Card picker order (also in the player's own settings): High to Low (ace left, default) or Low to High (2 left). Kept on the phone.
 - Tournaments are paused until the next tournament night (owner, 9 Nov 2026): no tournament route, button, chip or default shows. The code stays.
-- Settings shows no Reduce Motion line; the Animation speed slider and its tip cover it.
+- Settings, Animation speed is one section: a three-stop navigation speed slider (Quick, Standard, Relaxed), the Opening screen length, and a Reduced motion switch with an icon and tip. The switch starts as the phone setting; there is no Follow phone option.
+- Rebuy after a bust: the amount starts at one buy-in, can be typed freely, and cannot be empty or 0.
+- Comeback award: the biggest climb, from a low point at least 100 BB under par, to a finish above par.
+- A 2-7 shown before the showdown in a takedown is a revealed takedown, not a showdown.
 - Stack graph rebuy circle: each rebuy shows its own size in buy-ins (a 400 rebuy in a 200 game reads 2), only for the player being viewed.
 - Starting-hand map: counts hands with known cards, shown at the table or self-reported (a hard-conflicting entry is left out).
 - Player view has a Table view (bird's-eye): the player to act highlighted, chips in front of each player, folded players greyed, seat 1 at the dealer on a long side.

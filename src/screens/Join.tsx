@@ -315,6 +315,8 @@ function ActionLog({ pub, stacks, now: sent, hands, blinds, onFlag }: { pub: Pub
           <span style={{ display: 'block' }}>List shows the action as text.</span>
           <span style={{ display: 'block' }}>Table shows the seats from above. The button is at the bottom.</span>
           <span style={{ display: 'block' }}>A ring marks the player to act. Red chips show what a player put in this hand.</span>
+          <span style={{ display: 'block' }}>The light above a name: green is playing, amber is away, red is out of the game.</span>
+          <span style={{ display: 'block' }}>A faded seat with a dashed outline is not in this hand.</span>
         </Info>
       </div>
       {table && <BirdsEye pub={pub} now={sent} stacks={stacks} />}

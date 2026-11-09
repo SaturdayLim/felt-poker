@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
-import { motionPref, setMotionPref, type MotionPref } from '../lib/motion';
+import { navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
 import { haptic } from '../lib/haptics';
 import { Caption, Header, Help, Icon, RankOrderSeg, Toggle, num, toast, useCardLook, TabPill } from '../components/ui';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
@@ -26,23 +26,30 @@ const SPLASH: { ms: number; label: string }[] = [
   { ms: SPLASH_DEFAULT, label: 'Standard' },
   { ms: 4500, label: 'Long' },
 ];
-/** Animation speed: a slider with three detents, built like the Slider Detents of interior.dev. The thumb grows while held
-    and snaps to Reduced, Follow phone or Full on a spring. Reduce Motion on the phone turns off the motion in Felt; this
-    field shows that and can overrule it, on this phone only. */
-const SPEEDS: { v: MotionPref; label: string }[] = [{ v: 'calm', label: 'Reduced' }, { v: 'phone', label: 'Follow phone' }, { v: 'full', label: 'Full' }];
-function MotionField() {
-  const [pref, setPref] = useState(motionPref);
+/** Animation speed: one section for how fast things move. A slider with three stops (Quick, Standard, Relaxed) sets the tab
+    change and the chip roll; the opening screen length sits under it; Reduced motion is a switch that follows the phone
+    until it is touched. The slider is built like the Slider Detents of interior.dev: the thumb grows while held and snaps. */
+const SPEEDS: { v: NavSpeed; label: string }[] = [{ v: 'quick', label: 'Quick' }, { v: 'standard', label: 'Standard' }, { v: 'relaxed', label: 'Relaxed' }];
+function MotionIcon() {
+  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8c3-3 5-3 8 0s5 3 8 0" /><path d="M4 15c3-3 5-3 8 0s5 3 8 0" /></svg>;
+}
+function AnimationSpeed() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [speed, setSpeed] = useState(navSpeed);
+  const [reduced, setReduced] = useState(reducedNow);
   const track = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<number | null>(null);
-  const idx = SPEEDS.findIndex((x) => x.v === pref);
+  const idx = SPEEDS.findIndex((x) => x.v === speed);
   const pos = drag ?? idx / 2;
-  const pick = (i: number) => { const p = SPEEDS[Math.max(0, Math.min(2, i))].v; if (p !== pref) { setMotionPref(p); setPref(p); haptic(6); } };
+  const pick = (i: number) => { const v = SPEEDS[Math.max(0, Math.min(2, i))].v; if (v !== speed) { setNavSpeed(v); setSpeed(v); haptic(6); } };
   const at = (e: React.PointerEvent) => { const r = track.current!.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
   const end = (f: number) => { pick(Math.round(f * 2)); setDrag(null); };
+  const toggle = (on: boolean) => { setMotionPref(on ? 'calm' : 'full'); setReduced(on); };
   return (
-    <section className="sat-stack" style={gap(2)}>
+    <section className="sat-stack" style={gap(3)}>
       <Caption tip="motion">Animation speed</Caption>
-      <div className="felt-detents" ref={track} role="slider" tabIndex={0} aria-label="Animation speed" aria-valuemin={0} aria-valuemax={2} aria-valuenow={idx} aria-valuetext={SPEEDS[idx].label}
+      <div className="felt-detents" ref={track} role="slider" tabIndex={0} aria-label="Navigation speed" aria-valuemin={0} aria-valuemax={2} aria-valuenow={idx} aria-valuetext={SPEEDS[idx].label}
         data-grab={drag !== null}
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDrag(at(e)); }}
         onPointerMove={(e) => { if (drag !== null) { const f = at(e); setDrag(f); pick(Math.round(f * 2)); } }}
@@ -53,6 +60,19 @@ function MotionField() {
         <div className="felt-detents-thumb" style={{ left: `${pos * 100}%` }} aria-hidden="true" />
       </div>
       <div className="felt-detents-labels" aria-hidden="true">{SPEEDS.map((x, i) => <span key={x.v} data-on={i === idx}>{x.label}</span>)}</div>
+      <div className="sat-stack" style={gap(2)}>
+        <Caption tip="splash">Opening screen</Caption>
+        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Opening screen">
+          <TabPill />
+          {SPLASH.map((o) => (
+            <button key={o.ms} role="radio" aria-checked={settings.splashMs === o.ms} onClick={() => update({ splashMs: o.ms })}>{o.label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="sat-switch-row">
+        <span className="sat-cluster" style={gap(2)}><MotionIcon /> Reduced motion <Help k="reducedMotion" /></span>
+        <Toggle on={reduced} onChange={toggle} label="Reduced motion" />
+      </div>
     </section>
   );
 }
@@ -147,18 +167,7 @@ export default function Settings() {
           </div>
         </section>
 
-        <section className="sat-stack" style={gap(2)}>
-          <Caption tip="splash">Opening screen</Caption>
-          <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Opening screen">
-            <TabPill />
-            {SPLASH.map((o) => (
-              <button key={o.ms} role="radio" aria-checked={settings.splashMs === o.ms} onClick={() => update({ splashMs: o.ms })}>{o.label}</button>
-            ))}
-          </div>
-          <p className="sat-small sat-muted">{settings.splashMs ? `${(settings.splashMs / 1000).toFixed(1)} seconds` : 'Off'}</p>
-        </section>
-
-        <MotionField />
+        <AnimationSpeed />
 
         <section className="sat-stack" style={gap(2)}>
           <Caption tip="rankOrder">Card picker order</Caption>

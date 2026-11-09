@@ -414,7 +414,7 @@ export const AWARD_LIST: { title: string; best: string; min: string }[] = [
   { title: 'Leprechaun', best: 'Biggest single pot won', min: 'A pot of more than 50 BB' },
   { title: 'Apollo', best: 'Most pots won in a row', min: 'More than 3 in a row' },
   { title: 'Ice Cold', best: 'Lowest pots won against bets and raises made', min: 'Fewer than 10% won' },
-  { title: 'Comeback', best: 'Largest climb from the lowest point to the final result', min: 'A low point at least 20 BB under par, then a final result at least 50 BB over par' },
+  { title: 'Comeback', best: 'Largest climb from the lowest point to the final result', min: 'A low point at least 100 BB under par, then a final result above par' },
   { title: 'Unrelenting', best: 'Highest c-bet rate', min: '5 c-bet chances' },
   { title: 'The Rock', best: 'Lowest VPIP', min: 'VPIP under 40%' },
   { title: 'Bounty Hunter', best: 'Most 2-7 bounties won', min: '1 bounty' },
@@ -449,7 +449,7 @@ export function awardsFor(ps: TrialPlayer[], big: TrialModel['biggest'][number] 
   if (hot.length) out.push({ title: 'Apollo', to: ids(hot), detail: `Won ${streaks[hot[0].id]} pots in a row.` });
   const cold = top((p) => -ratio(p.s.handsWon, p.s.style.betsRaises), (p) => p.s.style.betsRaises > 0 && p.s.handsWon / p.s.style.betsRaises < 0.1);
   if (cold.length) out.push({ title: 'Ice Cold', to: ids(cold), detail: `Won ${cold[0].s.handsWon} pots after ${cold[0].s.style.betsRaises} bets or raises.` });
-  const back = top((p) => p.net - p.low, (p) => p.net >= 50 * bb && p.low <= -20 * bb && p.lowAt < p.dev.length - 1);
+  const back = top((p) => p.net - p.low, (p) => p.net > 0 && p.low <= -100 * bb && p.lowAt < p.dev.length - 1);
   if (back.length) out.push({ title: 'Comeback', to: ids(back), detail: `Climbed ${back[0].net - back[0].low} from ${back[0].low} after hand #${back[0].lowAt} to finish ${back[0].net > 0 ? '+' : ''}${back[0].net}.` });
   const cb = top((p) => ratio(p.s.style.cbet, p.s.style.cbetOpp), (p) => p.s.style.cbetOpp >= 5);
   if (cb.length) out.push({ title: 'Unrelenting', to: ids(cb), detail: `Bet the flop after raising ${cb[0].s.style.cbet} of ${cb[0].s.style.cbetOpp} times.` });

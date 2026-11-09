@@ -13,19 +13,26 @@ function fake(over: Partial<TrialPlayer> & { id: string }): TrialPlayer {
 describe('Comeback', () => {
   const bb = 2;
   const comeback = (p: TrialPlayer) => awardsFor([p], undefined, [], bb, {}).some((a) => a.title === 'Comeback');
-  it('needs a low point at least 20 BB under par', () => {
-    expect(comeback(fake({ id: 'a', low: -10 * bb, net: 50 * bb }))).toBe(false);
-    expect(comeback(fake({ id: 'b', low: -20 * bb, net: 50 * bb }))).toBe(true);
+  it('needs a low point at least 100 BB under par', () => {
+    expect(comeback(fake({ id: 'a', low: -99 * bb, net: 10 * bb }))).toBe(false);
+    expect(comeback(fake({ id: 'b', low: -100 * bb, net: 10 * bb }))).toBe(true);
   });
-  it('needs a final result at least 50 BB over par', () => {
-    expect(comeback(fake({ id: 'c', low: -30 * bb, net: 49 * bb }))).toBe(false);
-    expect(comeback(fake({ id: 'd', low: -30 * bb, net: 50 * bb }))).toBe(true);
+  it('needs the player to finish above par', () => {
+    expect(comeback(fake({ id: 'c', low: -120 * bb, net: 0 }))).toBe(false);
+    expect(comeback(fake({ id: 'd', low: -120 * bb, net: -5 * bb }))).toBe(false);
+    expect(comeback(fake({ id: 'e', low: -120 * bb, net: 1 }))).toBe(true);
   });
   it('needs the low point before the end', () => {
-    expect(comeback(fake({ id: 'e', low: -30 * bb, net: 50 * bb, lowAt: 2 }))).toBe(false);
+    expect(comeback(fake({ id: 'f', low: -120 * bb, net: 30 * bb, lowAt: 2 }))).toBe(false);
+  });
+  it('goes to the biggest climb', () => {
+    const a = fake({ id: 'a', low: -100 * bb, net: 10 * bb });
+    const b = fake({ id: 'b', low: -150 * bb, net: 5 * bb });
+    const win = awardsFor([a, b], undefined, [], bb, {}).find((x) => x.title === 'Comeback');
+    expect(win?.to).toEqual(['b']);
   });
   it('AWARD_LIST says so', () => {
-    expect(AWARD_LIST.find((a) => a.title === 'Comeback')!.min).toMatch(/20 BB/);
+    expect(AWARD_LIST.find((a) => a.title === 'Comeback')!.min).toMatch(/100 BB/);
   });
 });
 

@@ -1,7 +1,8 @@
 /* What the host publishes for viewers. Only what is already public at the table:
    settings, closed hands with the cards shown, and the hand in progress (board, actions, pot, who acts next,
    approximate stacks). Private cards are never in here. */
-import type { Card, Game, ID, Player, Settings, StreetName } from '../types';
+import type { Card, Game, ID, Player, PlayerStatus, Settings, StreetName } from '../types';
+import { playerStatus } from '../lib/calc';
 import { estimateStacks, exactStacks } from '../lib/stacks';
 import { bestHand } from '../lib/cards';
 import { finalists, hasActs, NOT_SHOWN, potTotal, replayStreet, rowOrder, STREETS, wentToShowdown } from '../lib/hand';
@@ -32,7 +33,8 @@ export interface PubSnapshot {
   v: 1;
   game: { name: string; type: string; sb: number; bb: number; status: string; startedAt: number };
   rules: { label: string; value: string; tip?: string }[];
-  players: { id: ID; name: string; seat: number }[];
+  /** `status` is the host's status light: playing, away or out. Older snapshots lack it. */
+  players: { id: ID; name: string; seat: number; status?: PlayerStatus }[];
   standings: Standing[];
   button: string | null;
   hands: PubHand[];
@@ -66,7 +68,7 @@ export function buildPub(g: Game, players: Player[], settings?: Settings, at = D
     v: 1,
     game: { name: g.name, type: g.type, sb: g.sb, bb: g.bb, status: g.status, startedAt: g.startedAt },
     rules: rulesList(g, settings),
-    players: g.playerIds.map((id) => ({ id, name: name(id), seat: g.seats[id] ?? 99 })),
+    players: g.playerIds.map((id) => ({ id, name: name(id), seat: g.seats[id] ?? 99, status: playerStatus(g, id) })),
     standings: standings(g),
     button: (() => { const last = [...g.hands].reverse().find((h) => h.log?.button)?.log?.button; return last ? name(last) : null; })(),
     hands: g.hands.filter((h) => !h.missed && h.log).map((h) => {

@@ -51,6 +51,16 @@ describe('public snapshot', () => {
     expect(text).not.toContain('Qd');
     expect(text).not.toContain('Jd');
   });
+  it('carries each player seat and status light', () => {
+    const g = game();
+    g.statusEvents = [{ playerId: 'a', status: 'playing', at: 1 }, { playerId: 'b', status: 'playing', at: 1 }, { playerId: 'b', status: 'away', at: 2 }];
+    const pub = buildPub(g, players);
+    expect(pub.players).toEqual([
+      { id: 'a', name: 'Everett', seat: 1, status: 'playing' },
+      { id: 'b', name: 'Bel', seat: 2, status: 'away' },
+    ]);
+    expect(buildPub(game(), players).players[0].status).toBe('out');
+  });
 });
 
 describe('mock driver', () => {

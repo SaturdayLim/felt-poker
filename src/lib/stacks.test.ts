@@ -32,17 +32,11 @@ describe('bust and rebuy', () => {
     const out = game({ statusEvents: [...game().statusEvents, { playerId: 'A', status: 'out', at: 30 }] });
     expect(bustedPlayers(out, out.hands[0])).toEqual([]);
   });
-  it('defaults to the largest whole multiple of the buy-in up to the biggest other stack, at least 1', () => {
-    expect(rebuyDefault(game(), 'A')).toBe(400);
-    // the others count 150 and 90: less than 1 buy-in, so the default is 1 buy-in
-    const small = game({ counts: [{ id: 'k1', playerId: 'B', chips: 150, at: 25 }, { id: 'k2', playerId: 'C', chips: 90, at: 25 }] });
-    expect(rebuyDefault(small, 'A')).toBe(200);
-    // 590 chips: 2 whole buy-ins, rounded down
+  it('defaults to one buy-in, whatever the biggest stack is', () => {
+    expect(rebuyDefault(game(), 'A')).toBe(200);
     const mid = game({ counts: [{ id: 'k1', playerId: 'B', chips: 590, at: 25 }] });
-    expect(rebuyDefault(mid, 'A')).toBe(400);
-    // the busted player's own stack and players who are out are left out
-    const lone = game({ statusEvents: [...game().statusEvents, { playerId: 'B', status: 'out', at: 30 }] });
-    expect(rebuyDefault(lone, 'A')).toBe(200);
+    expect(rebuyDefault(mid, 'A')).toBe(200);
+    expect(rebuyDefault({ ...game(), defaultBuyIn: 0 }, 'A')).toBe(0);
   });
   it('is not offered again once a buy-in came after the hand closed', () => {
     const g = game();

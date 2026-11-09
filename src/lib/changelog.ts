@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.4.2', date: '9 Nov 2026', notes: [
+    'Settings, Animation speed: one section with a navigation speed slider (Quick, Standard, Relaxed), the Opening screen length and a Reduced motion switch that starts as your phone setting.',
+    'Rebuy after a bust starts at one buy-in. Type any amount, but not none.',
+    'Comeback award: the biggest climb, from at least 100 BB down, to a finish above par.',
+    'Table view: players who are not dealt in sit greyed out, and every seat has a light that shows playing, away or out.',
+  ] },
   { version: '1.4.1', date: '9 Nov 2026', notes: [
     'Player view: a Table view shows the seats from above. The player to act is lit, chips in front of each player show, and folded players fade.',
     'Card picker order: High to Low or Low to High, in Settings and in the player view.',

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { cardText, cleanLook, lookColor, orderedRanks, rankLabel, rankOrder, setRankOrder, SUIT_SYMBOL, type RankOrder } from '../lib/cards';
 import { initials } from '../lib/format';
 import { haptic } from '../lib/haptics';
-import { ACCORDION, ARRIVE, DISCLOSE, DRAWER, NAV_MS, SPRING, calm, physSpring, spring, springCurve } from '../lib/motion';
+import { ACCORDION, ARRIVE, DISCLOSE, DRAWER, SPRING, navMs, calm, physSpring, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { useStore } from '../store';
@@ -234,7 +234,6 @@ export function TabPill() {
   return <span ref={ref} className="felt-pill" aria-hidden="true" />;
 }
 
-const SLIDE_MS = NAV_MS;
 
 /** An iOS push when `k` changes: the new screen slides in while a copy of the old one drifts 28% the other way and fades out. `i` gives the direction; a negative `i` means no slide.
     This needs no browser feature, so it runs the same on every phone Felt supports. */
@@ -258,25 +257,25 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     copy.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => { if (r.top < 0) h.style.transform = `translateY(${-r.top}px)`; });
     (el.closest('dialog') ?? document.body).append(copy);
     // the same ease-in-out as the chip roll, so the swipe and the roll move as one
-    const t = { duration: SLIDE_MS, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
+    const t = { duration: navMs(), easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
     // the bars stay: only the content under the header swipes, and the header text cross-fades
     const body = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>(':scope > .felt-page > :not(.felt-header)')];
     const outItems = body(copy), inItems = body(el);
     const whole = !outItems.length || !inItems.length;
     // the screens are see-through, so the old one fades out before the new one reaches it
-    const fadeOut = copy.animate({ opacity: [1, 0] }, { duration: whole ? SLIDE_MS * 0.4 : SLIDE_MS * 0.5, easing: 'ease-out', fill: 'forwards' });
+    const fadeOut = copy.animate({ opacity: [1, 0] }, { duration: whole ? navMs() * 0.4 : navMs() * 0.5, easing: 'ease-out', fill: 'forwards' });
     const outs = (whole ? [copy] : outItems).map((n) => n.animate({ translate: ['0 0', `${-by * 0.28}px 0`] }, t));
     outs[0].onfinish = outs[0].oncancel = () => copy.remove();
     void fadeOut;
     // a hidden tab holds back the finish event
-    window.setTimeout(() => copy.remove(), SLIDE_MS + 100);
+    window.setTimeout(() => copy.remove(), navMs() + 100);
     el.classList.add('felt-slide-in');
     const over = () => el.classList.remove('felt-slide-in');
-    window.setTimeout(over, SLIDE_MS);
+    window.setTimeout(over, navMs());
     if (whole) el.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t);
     else {
       inItems.forEach((n) => n.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t));
-      el.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => h.animate({ opacity: [0, 1] }, { duration: SLIDE_MS * 0.5, easing: 'ease-out', delay: SLIDE_MS * 0.2, fill: 'backwards' }));
+      el.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => h.animate({ opacity: [0, 1] }, { duration: navMs() * 0.5, easing: 'ease-out', delay: navMs() * 0.2, fill: 'backwards' }));
     }
   }
   render() { return <div ref={this.el} className="felt-slide">{this.props.children}</div>; }

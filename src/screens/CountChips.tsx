@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useGame, useStore, usePlayerName } from '../store';
+import { useEffect, useRef, useState } from 'react';
+import { useGame, useStore, usePlayerName, rememberCountOpen, forgetCountOpen, undoCountOpen } from '../store';
 import { back, go } from '../router';
 import { Caption, Delta, Empty, Header, Help, Icon, num, toast } from '../components/ui';
 import { buyInUnits, cashOutUnits, hasCashedOut, totalBuyInUnits } from '../lib/calc';
@@ -23,6 +23,23 @@ export default function CountChips({ gameId }: { gameId: string }) {
   const [text, setText] = useState<Record<ID, string>>(() =>
     Object.fromEntries((g?.playerIds ?? []).filter((p) => hasCashedOut(g!, p)).map((p) => [p, String(cashOutUnits(g!, p))])),
   );
+
+  // The count writes its figures to the game as it goes, so leaving without closing puts the cash-outs back to what they
+  // were when the page opened (none for a live game; the first close's for a reopened one). Close game and the hand
+  // pages keep them. The saved list sits on the phone (store.ts, rememberCountOpen), so it outlives a trip to a hand page
+  // and an app closed on this page; the game page puts it back too.
+  if (g && g.status !== 'closed') rememberCountOpen(g);
+  const keep = useRef(false);
+  const toHand = useRef(false);
+  useEffect(() => {
+    // dev-mode remount: the cleanup below already put the list back, so take it again before the fill writes
+    const cur = useStore.getState().games.find((x) => x.id === gameId);
+    if (cur && cur.status !== 'closed') rememberCountOpen(cur);
+    return () => {
+    if (keep.current) { forgetCountOpen(gameId); return; }
+    if (!toHand.current) undoCountOpen(gameId);
+    };
+  }, [gameId]);
 
   // the count starts filled: each player's own count if they sent one, else an exact estimate. The host edits any of them
   useEffect(() => {
@@ -81,6 +98,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
   const finish = () => {
     if (!allIn) { toast(`${ordered.length - entered} players not counted. Enter a count for each player.`); return; }
     if (diff !== 0 && !confirm) { setConfirm(true); toast(`Counts differ from buy-ins by ${units(diff)} chips. Tap Close game again to close anyway.`); return; }
+    keep.current = true;
     finishGame(g.id);
     go(`game/${g.id}/close`, true);
   };
@@ -92,7 +110,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
       <Header back={() => back(`game/${g.id}`)} title="End Game" sub={`Final chip count: ${entered} of ${ordered.length} players`} />
 
       {leaks.map((x) => (
-        <button key={x.id} className="sat-flat sat-card sat-split felt-leak" onClick={() => go(`game/${g.id}/hand/${x.id}`)}>
+        <button key={x.id} className="sat-flat sat-card sat-split felt-leak" onClick={() => { toHand.current = true; go(`game/${g.id}/hand/${x.id}`); }}>
           <span className="felt-warn-text">Hand {x.n}: {units(x.lost)} chips went to nobody.</span>
           <span className="sat-small" style={{ color: 'var(--sat-accent-text)', fontWeight: 600 }}>Open and save</span>
         </button>

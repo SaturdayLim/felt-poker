@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.6.3', date: '10 Nov 2026', notes: [
+    'End game, then Back to game: every stack keeps its value. The count gives back what it filled in, also when the app closed on the count.',
+    'The rebuy button on a player card has Undo on its message. Undo takes back that one buy-in.',
+  ] },
   { version: '1.6.2', date: '10 Nov 2026', notes: [
     'Game page: each player card shows the buy-in count and the rebuy button again. A tap on the count lists the buy-ins, and a wrong one can be deleted.',
     'Live link: the row says Live link off when it is off, and No password when it is on with no password.',

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
-import type { Game, GameRules, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
+import type { CashOut, Game, GameRules, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
 import { uid } from './lib/ids';
 import { newCode } from './lib/codes';
 import { cashOutUnits, defaultPayoutPercents, hasCashedOut, playerStatus, rebuildTransfers, round2, totalPotMoney } from './lib/calc';
@@ -91,6 +91,8 @@ interface State {
   setStatus: (gameId: ID, playerId: ID, status: PlayerStatus) => void;
   clockOut: (gameId: ID, playerId: ID, chips: number) => void;
   setCashOut: (gameId: ID, playerId: ID, chips: number | null) => void;
+  /** Puts the cash-outs back to a saved list. The count screen uses it to leave without keeping what it filled in. */
+  restoreCashOuts: (gameId: ID, cashOuts: CashOut[]) => void;
   bust: (gameId: ID, playerId: ID) => void;
   unbust: (gameId: ID, playerId: ID) => void;
   /** Takes a player who is out back into the game. Cash game with chips left at clock-out: the old cash-out goes and the
@@ -308,6 +310,10 @@ export const useStore = create<State>()(
             if (chips !== null)
               g.cashOuts.push({ id: uid(), playerId, amount: chips, at: prev[prev.length - 1]?.at ?? now() });
           }),
+        restoreCashOuts: (gameId, cashOuts) =>
+          mutateGame(gameId, (g) => {
+            g.cashOuts = cashOuts.map((c) => ({ ...c }));
+          }),
         bust: (gameId, playerId) =>
           mutateGame(gameId, (g) => {
             const t = g.tournament!;
@@ -429,6 +435,27 @@ export function suggestPayouts(g: Game): number[] {
   const rest = round2(pool - pays.reduce((a, b) => a + b, 0));
   pays[0] = round2(pays[0] + rest);
   return pays;
+}
+
+/* The End game count writes its figures to the game as it goes. The cash-outs the game held when the count opened are
+   kept on this phone, so leaving without Close game puts them back, even after the app was closed on the count page. */
+const COUNT_OPEN = (id: ID) => `felt-count-open:${id}`;
+/** Saves the cash-outs at the count's first open. A record already saved (a trip to a hand page, a reload) stays. */
+export function rememberCountOpen(g: Game) {
+  try { if (localStorage.getItem(COUNT_OPEN(g.id)) === null) localStorage.setItem(COUNT_OPEN(g.id), JSON.stringify(g.cashOuts)); } catch { /* ignore */ }
+}
+/** Close game keeps the counts: the record goes. */
+export function forgetCountOpen(id: ID) {
+  try { localStorage.removeItem(COUNT_OPEN(id)); } catch { /* ignore */ }
+}
+/** Leaving the count without closing: the cash-outs go back to the saved list, if the game is still live. */
+export function undoCountOpen(id: ID) {
+  let saved: CashOut[] | null = null;
+  try { const t = localStorage.getItem(COUNT_OPEN(id)); saved = t === null ? null : JSON.parse(t); } catch { /* ignore */ }
+  const g = useStore.getState().games.find((x) => x.id === id);
+  if (saved === null || !g) return; // no game yet (data still loading): keep the record for the next try
+  forgetCountOpen(id);
+  if (g.status !== 'closed') useStore.getState().restoreCashOuts(id, saved);
 }
 
 export const useGame = (id: ID | undefined) => useStore((s) => s.games.find((g) => g.id === id));

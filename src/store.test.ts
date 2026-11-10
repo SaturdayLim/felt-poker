@@ -76,6 +76,21 @@ describe('stacks before the game starts', () => {
     expect(stack(a)).toBe(90);
   });
 
+  it('count page: leaving without closing puts back the cash-outs it filled, and keeps older ones', () => {
+    const { a, b, id, game, stack, tick } = setup();
+    tick(); st().clockOut(id, a, 120);
+    const opened = game().cashOuts.map((c) => ({ ...c }));
+    // the count fills every player, then Back to game restores the list from before it opened
+    tick(); st().setCashOut(id, a, 130); st().setCashOut(id, b, 280);
+    expect(stack(b)).toBe(0);
+    st().restoreCashOuts(id, opened);
+    expect(game().status).toBe('live');
+    expect(game().cashOuts).toEqual(opened);
+    expect(hasCashedOut(game(), b)).toBe(false);
+    expect(stack(b)).toBe(200);
+    expect(game().cashOuts.filter((x) => x.playerId === a).map((x) => x.amount)).toEqual([120]);
+  });
+
   it('a player with no cash-out who is out comes back with a default buy-in', () => {
     const { a, id, stack, tick } = setup();
     tick(); st().setStatus(id, a, 'out');

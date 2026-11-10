@@ -65,6 +65,8 @@ Ask these before the revision that needs them. Each has a default so the work ca
 | Q9 | F14 | May the four image choices become one choice with tick boxes for its parts? | No change until the owner says so. |
 | Q10 | F22a | Is the buy-in count with "+" one control (0 px between its halves is correct)? | Yes. Add the exception to CLAUDE.md. |
 
+Owner answers, 10 Nov 2026: Q1, Q3, Q5, Q7, Q8 take the default. Q2: Results show chips (they follow Show money); Settle Up is the only screen that stays in money. Q4: the closed room says "Room closed. Please ask Host to share new link or report." Q6: Off stays a stop (4 stops); Off turns all animation into instant cuts; the Reduced motion switch takes out the extra motion, such as bounce, and gets a visible label. Q9 and Q10: the owner asked for an explanation; still open.
+
 Six questions from the last handover are still open (`.handover/2026-11-10-09-59.md`, "Open owner questions"). F21 answers its question 2.
 
 ## 4. Revisions
@@ -88,7 +90,7 @@ Review: Opus reads the diff of A1 for the case where a player sent a count from 
 |---|---|---|---|---|
 | B1 | F2, F3 | Sonnet | `src/screens/GameLive.tsx` | A closed record has no live link row. Its tab says "Players 4". Its list has one caption that fits a closed game. A live game is unchanged. The row leaves with a fade or a close, not a cut. |
 | B2 | F4 (Q1), F5 (Q2) | Sonnet | `src/lib/format.ts`, `src/lib/format.test.ts`, `src/screens/CloseTable.tsx` | Game time and player time use one clock. The time on Results has a label. Results follows Show money through the figure helpers in `format.ts`. Tests cover the time with 0 hands, 1 hand and a closed game. |
-| B3 | F12 (Q6), F13 | Haiku | `src/screens/Settings.tsx`, `src/css/settings.css` | The slider matches CLAUDE.md. The Reduced motion switch has a visible label. Dark theme shows once on Settings. |
+| B3 | F12 (Q6), F13 | Haiku | `src/screens/Settings.tsx`, `src/css/settings.css` | The slider keeps 4 stops (Off, Quick, Standard, Relaxed). Off makes every animation an instant cut. The Reduced motion switch has a visible label. Dark theme shows once on Settings. |
 | B4 | F17 | Haiku | `src/components/ui.tsx` (`ToastHost` only) | With Messages on Replace, one toast shows at a time when names are typed fast. Stack mode still shows up to 3. |
 | B5 | F22 b, c, d | Haiku | `src/styles.css`, `src/css/report.css`, `src/components/live.tsx` | The live row words fade out as well as in. The two dead CSS blocks are gone, after a search proves no user. |
 

@@ -47,11 +47,12 @@ const kept = (g: ID): { room: string; key: string; locked: boolean } | null => {
   try { const t = localStorage.getItem(KEEP(g)); return t ? JSON.parse(t) : null; } catch { return null; }
 };
 
-/** The driver in use: the test driver when asked ("?live=mock" or the felt-live-mock flag), else Firebase when set up. */
+/** The driver in use: the test driver when asked ("?live=mock", the felt-live-mock flag, or the `mock` Vite mode
+    that the felt-test server runs in), else Firebase when set up. */
 export function pickDriver(): LiveDriver | null {
   if (getDriver()) return getDriver();
-  let wantMock = false;
-  try { wantMock = location.href.includes('live=mock') || localStorage.getItem('felt-live-mock') === '1'; } catch { /* ignore */ }
+  let wantMock = import.meta.env.MODE === 'mock';
+  try { wantMock = wantMock || location.href.includes('live=mock') || localStorage.getItem('felt-live-mock') === '1'; } catch { /* ignore */ }
   if (wantMock) setDriver(mockDriver({ shared: true }));
   else if (isLiveConfigured()) setDriver(firebaseDriver());
   return getDriver();

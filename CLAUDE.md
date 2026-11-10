@@ -11,7 +11,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 ## UI copy
 
 - **Chips, not units.** Amounts at the table are "chips" (1 chip = 1 small blind). Code names such as `units()` and `inUnits` stay as they are.
-- **Chips first.** Every result and statistic shows in chips by default. Settings, Show money switches results to money at the game multiplier. Settle Up, payments, the share image and exports stay in money (settling is about money). Use the figure helpers in src/lib/format.ts.
+- **Chips first.** Every result and statistic shows in chips by default. Settings, Show money switches results to money at the game multiplier. Results show chips too. Settle Up (with its payments) is the only screen that stays in money (owner, 10 Nov 2026). Use the figure helpers in src/lib/format.ts.
 - **Tips explain, never log.** A tip holds a definition, a calculation or a rule. A tip that only says where a figure came from ("Felt game log, 3 closed games") adds nothing: leave it out. A player who knows the game must be able to use every screen with no tip open: every screen has a header and a body, and install steps, updates and lists sit on the page, never in a tip. `SourceTip` stays for a source that says something specific.
 - **One line per field in a tip.** When an info tip covers two or more separate fields or options (for example Bet entry and Pot count), give each its own line: write `text` as an array in `src/lib/help.ts`; `Help` renders each entry as its own paragraph.
 - Saturday WRITING.md still applies: no contractions, no middle-dot chains, Title Case page titles.
@@ -76,7 +76,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Viewer play-by-play: names stay still; each action box sits one step right of the action before it (time order), not in pass columns. The step fits two passes round the table in view (small for 9 players); a box never covers the one before it in its row.
 - Copy hand: plain text, no dashes or bullets, a blank line between streets.
 - A device with the game open tells the host through the flags path: a pop-up on join, and again with the player name after sign-in.
-- Live link off: toast "Room closed." with Undo and a 5-second countdown. Viewers of a closed room see "Room has been closed" and a Home button.
+- Live link off: toast "Room closed." with Undo and a 5-second countdown. Viewers of a closed room see "Room closed. Please ask Host to share new link or report." and a Home button (owner, 10 Nov 2026).
 - Join a game with the camera off or blocked: the page background, never black, and a Turn on camera button that asks again.
 - Viewers type a Password (not passphrase) for a locked game.
 - A tapped name keeps no focus ring.
@@ -145,12 +145,11 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Home: New Game is the one start button. Join a game is the camera button in the banner. A swipe back from the first screen bounces.
 - A player back in: the red light seats them with the chips they left with. No question about how they buy back.
 - Generate a new player code: tap the icon, then hold Generate New Code in the sheet (1800 ms fill). Each box rolls through random characters as the fill crosses it, then settles. Letting go early keeps the old code and the next hold draws a new one. Sub-caption: "Old code will stop working when a new code is generated."
-- Settings, Animation speed: a three-stop slider (Reduced, Follow phone, Full).
 - Hands in a live game swipe left to delete, with Undo.
 - Interior.dev behaviours in use: loading button, hold to confirm, expanding search, new items pill, accordion, slider detents, tabs spring, icon morph, inline validation, OTP input, reorder list (docs/MOTION-LIST.md).
 - Card picker order: Settings, Card picker order (also in the player's own settings): High to Low (ace left, default) or Low to High (2 left). Kept on the phone.
 - Tournaments are paused until the next tournament night (owner, 9 Nov 2026): no tournament route, button, chip or default shows. The code stays.
-- Settings, Animation speed is one section: a three-stop navigation speed slider (Quick, Standard, Relaxed), the Opening screen length, and a Reduced motion switch with an icon and tip. The switch starts as the phone setting; there is no Follow phone option.
+- Settings, Animation speed is one section: a four-stop navigation speed slider (Off, Quick, Standard, Relaxed), the Opening screen length, and a Reduced motion switch with an icon, a visible label and a tip. Off turns all animation into instant cuts (the owner's opt-out from No sharp cut). Reduced motion takes out the extra motion, such as bounce (owner, 10 Nov 2026). The switch starts as the phone setting; there is no Follow phone option.
 - Rebuy after a bust: the amount starts at one buy-in, can be typed freely, and cannot be empty or 0.
 - Comeback award: the biggest climb, from a low point at least 100 BB under par, to a finish above par.
 - A 2-7 shown before the showdown in a takedown is a revealed takedown, not a showdown.
@@ -176,7 +175,7 @@ Run these on every screen change, and again in any UI review. An Opus agent runs
 - **Game record, then results, then settle.** A tap on a closed game opens its record (Hands, no money). The record links to Results, and Results links to Settle Up. The game's name is one element in the list and on the record: it glides between them (`data-game-title`, `data-share="game"`).
 - **Game caption:** "9 Nov'26 - Churchies (7pax, 10 buy-in)": date, group when there is one, then players and buy-ins in brackets (`gameCaption`). Unpaid shows at the right.
 - **Swipes:** the phone's back swipe and a drag to the right go to the next tab; the forward swipe and a drag to the left go to the previous tab. Home and Settings bounce. Felt keeps one spare history entry on each side of the screen, so a swipe never reaches a blank page or an old page.
-- **Reduced motion reduces:** screens and sheets cross-fade in 150 ms with no travel. Nothing cuts.
+- **Reduced motion reduces:** screens and sheets cross-fade in 150 ms with no travel, and springs have no bounce. Nothing cuts. Only Animation speed Off cuts.
 - **Every switch moves like the theme switch** (`Toggle`, `LiquidToggle plain`). The live link switch keeps its glow colours.
 - **Messages (Settings):** a new message replaces the one on screen (default) or stacks above it (3 at most). Kept on this phone.
 - **Player card:** Net, Win rate and Games each open out under the three figures, one at a time. Games lists each night's net.

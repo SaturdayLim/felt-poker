@@ -1,5 +1,5 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
-import { useGame, useStore, usePlayerName } from '../store';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useGame, useStore, usePlayerName, undoCountOpen } from '../store';
 import { back, backTo, go, setPath } from '../router';
 import { useDragList } from '../components/dragList';
 import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton, NumericText } from '../components/ui';
@@ -37,6 +37,8 @@ export function gameSubtitle(g: Game) {
    Hands: newest first, with the button to log the next hand on top. */
 export default function GameLive({ gameId, initialTab = 'players' }: { gameId: string; initialTab?: 'players' | 'hands' }) {
   useTick(20000);
+  // an End game count left without Close game (also when the app was closed on it) gives back the cash-outs it filled
+  useEffect(() => { undoCountOpen(gameId); }, [gameId]);
   const g = useGame(gameId);
   const name = usePlayerName();
   const st = useStore();
@@ -71,8 +73,15 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   };
   const rebuy = (pid: ID) => {
     const amt = isCash ? g.defaultBuyIn : g.tournament!.buyIn;
+    // the store adds the buy-in without returning its id, so find the new one by diffing the ids
+    const before = new Set(g.buyIns.map((b) => b.id));
     st.addBuyIn(g.id, pid, amt);
-    toast(isCash ? `${name(pid)} rebuys ${units(amt)} chips.` : `${name(pid)} re-enters.`);
+    const added = useStore.getState().games.find((x) => x.id === g.id)?.buyIns.find((b) => !before.has(b.id));
+    // Undo removes this one buy-in (withUndo would restore the whole game list, which would also undo other edits)
+    toast(isCash ? `${name(pid)} rebuys ${units(amt)} chips.` : `${name(pid)} re-enters.`, {
+      label: 'Undo',
+      run: () => { if (added) st.removeBuyIn(g.id, added.id); },
+    });
   };
 
   return (

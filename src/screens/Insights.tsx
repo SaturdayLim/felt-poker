@@ -240,7 +240,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
           {[...played].reverse().map((g) => {
             const r = playerResult(g, selected);
             return (
-              <button key={g.id} className="felt-row" onClick={() => go(`game/${g.id}/close`)}>
+              <button key={g.id} className="felt-row" onClick={() => go(`game/${g.id}/hands`)}>
                 <div className="felt-row-main"><div className="felt-row-title">{g.name}</div><div className="felt-row-sub">{dateLabel(g.startedAt)}, {r.buyIns} buy-in{r.buyIns === 1 ? '' : 's'}{r.place ? `, place ${r.place}` : ''}</div></div>
                 <Delta {...figureDelta(gameFigure(g, selected), showMoney)} />
               </button>

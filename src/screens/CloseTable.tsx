@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PlayerName } from '../components/players';
 import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
-import { back, go } from '../router';
+import { back, backTo, go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, withUndo } from '../components/ui';
 import { gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
 import { gameLength, money, units } from '../lib/format';
@@ -11,7 +11,8 @@ import { gameSubtitle } from './GameLive';
 
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
-export default function CloseTable({ gameId }: { gameId: string }) {
+/** `results`: how a closed game ended (results, then a way to Settle up). `settle`: payments and expenses, reached from the results. */
+export default function CloseTable({ gameId, view = 'results' }: { gameId: string; view?: 'results' | 'settle' }) {
   const g = useGame(gameId);
   const name = usePlayerName();
   const st = useStore();
@@ -20,6 +21,7 @@ export default function CloseTable({ gameId }: { gameId: string }) {
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Settle Up" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
   const closed = g.status === 'closed';
+  const settle = !closed || view === 'settle';
   const results = gameResults(g);
   const paid = g.transfers.filter((t) => t.resolved);
   const open = g.transfers.filter((t) => !t.resolved);
@@ -36,9 +38,9 @@ export default function CloseTable({ gameId }: { gameId: string }) {
 
   return (
     <div className="felt-page">
-      <Header back={() => back(closed ? 'games' : `game/${g.id}`)} title={closed ? 'Settle Up' : g.type === 'cash' ? 'End Game' : 'End Tournament'}
+      <Header back={() => (closed ? backTo(view === 'settle' ? `game/${g.id}/close` : `game/${g.id}/hands`) : back(`game/${g.id}`))} title={closed ? (view === 'settle' ? 'Settle Up' : 'Results') : g.type === 'cash' ? 'End Game' : 'End Tournament'}
         sub={`${g.name}, ${gameSubtitle(g)}`}
-        right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => go(`game/${g.id}`)} aria-label="Open the game"><Icon name="cards" /></button>} />
+        right={closed ? undefined : <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => go(`game/${g.id}`)} aria-label="Open the game"><Icon name="cards" /></button>} />
 
       <div className="sat-stack" style={gap(5)}>
         {!closed && g.type === 'cash' && (
@@ -51,7 +53,7 @@ export default function CloseTable({ gameId }: { gameId: string }) {
 
         {g.type === 'tournament' && <TournamentFinish g={g} />}
 
-        {closed && (
+        {closed && settle && (
           <>
             <section className="sat-grid" style={{ ['--sat-min' as string]: '140px', ...gap(3) }} aria-label="Payments">
               <div className="sat-glass sat-stat">
@@ -66,7 +68,11 @@ export default function CloseTable({ gameId }: { gameId: string }) {
               </div>
             </section>
             <div className="felt-track" aria-hidden="true"><span style={{ width: `${g.transfers.length ? (paid.length / g.transfers.length) * 100 : 100}%` }} /></div>
+          </>
+        )}
 
+        {closed && !settle && (
+          <>
             <section className="sat-stack" style={gap(3)}>
               <div className="sat-split"><h2 className="sat-h2">Results</h2><span className="sat-small sat-muted">{gameLength(g)}</span></div>
               <div className="sat-glass-2 felt-list">
@@ -86,10 +92,17 @@ export default function CloseTable({ gameId }: { gameId: string }) {
                 ))}
               </div>
             </section>
+            <button className="sat-glass sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => go(`game/${g.id}/settle`)}>
+              <span><b>Settle up</b><br /><span className="sat-small sat-muted">{open.length ? `${open.length} payment${open.length === 1 ? '' : 's'}, ${fmt(openSum)} still owed` : g.transfers.length ? 'All paid' : 'Nobody owes anything'}</span></span>
+              <span style={{ transform: 'rotate(-90deg)', display: 'inline-flex' }}><Icon name="chevron" size={18} /></span>
+            </button>
+            <button className="sat-btn sat-btn--ghost" onClick={() => { st.reopenGame(g.id); go(`game/${g.id}`, true); toast('Game reopened for changes'); }}>
+              <Icon name="undo" /> Reopen game
+            </button>
           </>
         )}
 
-        <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+        {settle && <section className="sat-glass sat-card sat-stack" style={gap(3)}>
           <div className="sat-split">
             <button className="sat-cluster" style={{ ...gap(2), minHeight: 44, textAlign: 'left' }} onClick={() => setExpOpen(!expOpen)} aria-expanded={expOpen}>
               <span style={{ transform: expOpen ? 'none' : 'rotate(-90deg)', transition: 'transform var(--sat-dur-fast)', display: 'inline-flex' }}><Icon name="chevron" size={16} /></span>
@@ -111,9 +124,9 @@ export default function CloseTable({ gameId }: { gameId: string }) {
               <button className="sat-btn" onClick={() => setEditExp('new')}><Icon name="plus" /> Add expense</button>
             </>
           )}
-        </section>
+        </section>}
 
-        {closed && (
+        {closed && settle && (
           <section className="sat-stack" style={gap(3)}>
             <div className="sat-split">
               <h2 className="sat-h2">Payments</h2>
@@ -143,16 +156,13 @@ export default function CloseTable({ gameId }: { gameId: string }) {
                 </div>
               );
             })}
-            <button className="sat-btn sat-btn--ghost" onClick={() => { st.reopenGame(g.id); go(`game/${g.id}`, true); toast('Game reopened for changes'); }}>
-              <Icon name="undo" /> Reopen game
-            </button>
           </section>
         )}
       </div>
 
-      {closed && (
+      {closed && !settle && (
         <div className="sat-bottombar sat-glass-2">
-          <button className="sat-btn sat-btn--lg" onClick={() => go(`game/${g.id}/hands`)}><Icon name="cards" /> Hands ({g.hands.filter((h) => !h.missed).length})</button>
+          <button className="sat-btn sat-btn--lg" onClick={() => backTo(`game/${g.id}/hands`)}><Icon name="cards" /> Hands ({g.hands.filter((h) => !h.missed).length})</button>
           <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => go(`game/${g.id}/report`)}><Icon name="share" /> Download or share</button>
         </div>
       )}

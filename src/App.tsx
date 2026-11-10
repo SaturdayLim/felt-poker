@@ -49,11 +49,12 @@ export default function App() {
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
   // the static start shell (app/index.html) gives way to the real first screen in the same frame: same mark, same place
   useLayoutEffect(() => { if (hydrated) document.getElementById('felt-boot')?.remove(); }, [hydrated]);
-  // a swipe back from the first screen never leaves Felt for a blank page: from the edge it moves to the tab on the left, or bounces
-  useEffect(() => guardHistory(() => {
+  // the phone's back swipe moves to the next tab and the forward swipe to the previous one (like a drag across the page); at Settings and Home they bounce
+  useEffect(() => guardHistory((way) => {
     const top = window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? '';
     const i = NAV_TABS.indexOf(top === 'insights' ? 'players' : top);
-    if (i > 0 && document.querySelector('.felt-nav')) goTab(NAV_TABS[i - 1]); else bounceBack();
+    const to = NAV_TABS[i + (way === 'back' ? 1 : -1)];
+    if (i >= 0 && to !== undefined && document.querySelector('.felt-nav')) goTab(to); else bounceBack(way === 'back' ? 1 : -1);
   }), []);
   // a drag across the page moves to the neighbouring tab, or bounces at Home and Settings
   useEffect(() => installTabSwipe(), []);
@@ -156,6 +157,7 @@ export default function App() {
     if (c === 'hand') screen = <HandRoute gameId={b} handId={d} />;
     else if (c === 'count') screen = <CountChips gameId={b} />;
     else if (c === 'close') screen = <CloseTable gameId={b} />;
+    else if (c === 'settle') screen = <CloseTable gameId={b} view="settle" />;
     else if (c === 'report') screen = <Report gameId={b} />;
     else if (c === 'hands') screen = <GameLive gameId={b} initialTab="hands" />;
     else screen = <GameLive gameId={b} />;

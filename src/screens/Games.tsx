@@ -5,8 +5,8 @@ import { PlayerName } from '../components/players';
 import { Delta, Empty, Header, Icon, SlidePane, withUndo } from '../components/ui';
 import { Headline, StatRows } from '../components/statRows';
 import { TypeChips } from './Insights';
-import { gameFigure, gameResults, handStats, openTransfers, playerStatus, totalBuyInUnits, totalPotMoney } from '../lib/calc';
-import { dateLabel, figureDelta, figureNumber, figureText, figureUnit, gameLength, playMs } from '../lib/format';
+import { gameFigure, gameResults, handStats, openTransfers, playerStatus } from '../lib/calc';
+import { gameCaption, figureDelta, gameLength, playMs } from '../lib/format';
 import { groupTotals, handPace, type TypeFilter } from '../lib/stats';
 import { shrinkAway } from '../lib/motion';
 import { haptic } from '../lib/haptics';
@@ -73,18 +73,16 @@ export default function Games({ player: arg }: { player?: string }) {
                 const open = openTransfers(g).length;
                 return (
                   <SwipeDelete key={g.id} label={`Delete ${g.name}`} onDelete={(row) => shrinkAway(row, () => withUndo(`${g.name} deleted.`, () => useStore.getState().deleteGame(g.id)))}>
-                  <button className="felt-row" onClick={() => go(`game/${g.id}/close`)}>
+                  <button className="felt-row" onClick={() => go(`game/${g.id}/hands`)}>
                     <div className="felt-row-main">
-                      <div className="felt-row-title felt-ellipsis">{g.name}</div>
-                      <div className="felt-row-sub">
-                        {dateLabel(g.startedAt)}, {g.playerIds.length} players, {figureText({ money: totalPotMoney(g), chips: g.type === 'cash' ? totalBuyInUnits(g) : null, currency: g.currency }, showMoney)}{groupName(g) ? `, ${groupName(g)}` : ''}
-                        {open > 0 ? `, ${open} unpaid` : ''}
-                      </div>
+                      <div className="felt-row-title felt-ellipsis" data-game-title={g.id}>{g.name}</div>
+                      <div className="felt-row-sub">{gameCaption(g, groupName(g))}</div>
                     </div>
                     {res[0] && (
                       <div className="felt-right">
                         <div className="sat-small felt-ellipsis" style={{ maxWidth: 96 }}><PlayerName id={res[0].playerId} /></div>
                         <Delta {...figureDelta(gameFigure(g, res[0].playerId), showMoney)} />
+                        {open > 0 && <div className="sat-small sat-muted">{open} unpaid</div>}
                       </div>
                     )}
                   </button>
@@ -136,12 +134,9 @@ export function SwipeDelete({ children, label, onDelete }: { children: ReactNode
 
 /** Figures for the whole table across the closed games of this type: game-level, not per player. */
 function GameStats({ games }: { games: Game[] }) {
-  const currency = useStore((s) => s.settings.currency);
-  const showMoney = useStore((s) => s.settings.showMoney);
   if (!games.length) return <Empty title="No closed games">Close a game to see table stats here.</Empty>;
   const t = groupTotals(games);
   const pace = handPace(games);
-  const won = { money: t.moneyMoved, chips: t.hasTournament ? null : t.chipsMoved, currency: games[0]?.currency ?? currency };
   const hs = games.map((g) => handStats(g));
   const pots = hs.reduce((a, h) => a + h.totalPot, 0);
   const showdowns = hs.reduce((a, h) => a + h.showdowns, 0);
@@ -158,7 +153,7 @@ function GameStats({ games }: { games: Game[] }) {
       <Headline label="Table totals" items={[
         { label: 'Games', value: t.games, note: `${(seats / games.length).toFixed(1)} players each` },
         { label: 'Hands', value: t.hands, note: `${(t.hands / games.length).toFixed(0)} per game` },
-        { label: 'Won in total', q: figureUnit(won, showMoney), value: figureNumber(won, showMoney), note: 'All winning results added up' },
+        { label: 'Average pot', q: 'chips', value: t.hands ? Math.round(pots / t.hands) : '-', note: `Top pot ${t.biggestPot}` },
       ]} />
       <StatRows title="Pace" rows={[
         { label: 'Game length', value: len, note: 'Average' },
@@ -166,8 +161,6 @@ function GameStats({ games }: { games: Game[] }) {
         { label: 'Buy-ins per game', value: (buyIns / games.length).toFixed(1), note: `${buyIns} in total` },
       ]} />
       <StatRows title="Pots" rows={[
-        { label: 'Average pot', value: t.hands ? `${Math.round(pots / t.hands)} chips` : '-' },
-        { label: 'Top pot', value: `${t.biggestPot} chips` },
         { label: 'Showdowns', value: pct(showdowns, t.hands), share: share(showdowns, t.hands), note: `${showdowns} of ${t.hands} hands` },
         { label: 'All-ins', value: pct(allIns, t.hands), share: share(allIns, t.hands), note: `${allIns} hands` },
       ]} />

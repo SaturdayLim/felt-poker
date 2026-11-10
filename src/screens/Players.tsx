@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Disclose, Header, Icon, SlidePane, toast } from '../components/ui';
+import { Avatar, Caption, Delta, Disclose, Header, Icon, Toggle, SlidePane, toast } from '../components/ui';
 import Insights, { FilterBar } from './Insights';
 import { PlayerSheet, titleCase } from '../components/players';
 import { filterGames, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
@@ -137,7 +137,7 @@ function PlayerList() {
         {players.some((p) => p.archived) && (
           <div className="sat-switch-row">
             <span>Show hidden players ({players.filter((p) => p.archived).length})</span>
-            <button className="sat-switch" role="switch" aria-checked={showArchived} aria-label="Show hidden players" onClick={() => setShowArchived(!showArchived)} />
+            <Toggle on={showArchived} onChange={setShowArchived} label="Show hidden players" />
           </div>
         )}
 

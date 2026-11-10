@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { go } from '../router';
-import { navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
+import { calm, navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
 import { haptic } from '../lib/haptics';
-import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, Toggle, num, toast, useCardLook, useRankOrder } from '../components/ui';
-import { ThemeToggle } from '../components/liquidToggle';
+import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, TabPill, Toggle, num, toast, useCardLook, useRankOrder } from '../components/ui';
+import { LiquidToggle, ThemeToggle } from '../components/liquidToggle';
 import { InstallButton, InstallGuide } from '../components/install';
 import { CardPlayground } from '../components/cardTest';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor, orderedRanks } from '../lib/cards';
@@ -90,6 +90,27 @@ function AnimationSpeed() {
   );
 }
 
+/** How messages at the bottom behave when a new one arrives while another shows: replace it, or stack above it. The example
+    sends two messages one after the other, so the choice can be seen. Kept on this phone. */
+function MessageMode() {
+  const mode = useStore((s) => s.settings.toastMode ?? 'replace');
+  const update = useStore((s) => s.updateSettings);
+  const example = () => { toast('First message'); window.setTimeout(() => toast('Second message'), 700); };
+  return (
+    <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+      <div className="sat-split">
+        <Caption>Messages</Caption>
+        <button type="button" className="sat-btn sat-btn--sm" onClick={example}>Show example</button>
+      </div>
+      <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="New message">
+        <TabPill />
+        {(['replace', 'stack'] as const).map((k) => <button key={k} role="radio" aria-checked={mode === k} onClick={() => update({ toastMode: k })}>{k === 'replace' ? 'Replace' : 'Stack'}</button>)}
+      </div>
+      <p className="sat-small sat-muted">{mode === 'replace' ? 'A new message takes the place of the one on screen.' : 'A new message sits above the one on screen. Up to 3 show at once.'}</p>
+    </section>
+  );
+}
+
 const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
@@ -128,6 +149,8 @@ function General() {
       </section>
 
       <AnimationSpeed />
+
+      <MessageMode />
 
       <section className="sat-glass sat-card sat-stack">
         <PaletteEditor />
@@ -339,9 +362,7 @@ function PaletteEditor() {
         <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Colours</h2><Help k="palette" /></span>
         <label className="felt-look-toggle">
           <span className="sat-small">{isDefault ? 'Default' : 'Custom'}</span>
-          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default colours" className="felt-look-switch" onClick={() => update({ palette: { ...saved, custom: isDefault } })}>
-            <span className="felt-look-thumb is-blank"><i className="is-rainbow" /><i className="is-default" /></span>
-          </button>
+          <LiquidToggle plain on={!isDefault} onChange={(v) => update({ palette: { ...saved, custom: v } })} label="Custom colours" width={52} />
         </label>
       </div>
       <div className="felt-suit-list">
@@ -388,9 +409,7 @@ function CardLookEditor() {
         <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Suits</h2><Help k="cardLook" /></span>
         <label className="felt-look-toggle">
           <span className="sat-small">{isDefault ? 'Default' : 'Custom'}</span>
-          <button type="button" role="switch" aria-checked={isDefault} aria-label="Default card colours" className="felt-look-switch" onClick={() => save({ ...look, custom: isDefault })}>
-            <span className="felt-look-thumb"><i className="is-rainbow" /><i className="is-default" /></span>
-          </button>
+          <LiquidToggle plain on={!isDefault} onChange={(v) => save({ ...look, custom: v })} label="Custom card colours" width={52} />
         </label>
       </div>
       <div ref={list.wrap} className={`felt-suit-list ${list.listClass}`}>
@@ -428,16 +447,30 @@ function SuitBoard({ order }: { order: SuitKey[] }) {
   const look = useCardLook();
   const [rank] = useRankOrder();
   const ranks = orderedRanks(rank);
+  const box = useRef<HTMLDivElement>(null);
+  const lefts = useRef<Record<string, number>>({});
+  // flipping the order: each rank glides to its new column (measured before and after), instead of all 13 jumping
+  useLayoutEffect(() => {
+    const cells = [...(box.current?.querySelectorAll<HTMLElement>('.felt-miniboard-row:first-child [data-rank]') ?? [])];
+    const prev = lefts.current, next: Record<string, number> = {};
+    for (const c of cells) next[c.dataset.rank!] = c.getBoundingClientRect().left;
+    lefts.current = next;
+    if (calm() || !Object.keys(prev).length) return;
+    box.current?.querySelectorAll<HTMLElement>('[data-rank]').forEach((c) => {
+      const dx = (prev[c.dataset.rank!] ?? 0) - (next[c.dataset.rank!] ?? 0);
+      if (dx && c.animate) c.animate({ transform: [`translateX(${dx}px)`, 'translateX(0)'] }, { duration: 420, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
+    });
+  }, [rank]);
   return (
     <section className="sat-glass sat-card sat-stack felt-miniboard-card">
       <RankOrderSeg />
-      <div className="felt-miniboard" role="img" aria-label={`Picker rows from the top: ${order.map((x) => SUIT_NAME[x]).join(', ')}`}>
+      <div ref={box} className="felt-miniboard" role="img" aria-label={`Picker rows from the top: ${order.map((x) => SUIT_NAME[x]).join(', ')}`}>
         {(['s', 'h', 'c', 'd'] as SuitKey[]).map((su) => {
           const c = lookColor(look, su);
           return (
             <div key={su} className="felt-miniboard-row" style={{ ['--row' as string]: order.indexOf(su), ['--suit' as string]: c }}>
               <span className="felt-miniboard-suit">{SUIT_SYMBOL[su]}</span>
-              {ranks.map((r) => <span key={r} className="felt-miniboard-cell">{r === 'T' ? '10' : r}</span>)}
+              {ranks.map((r) => <span key={r} data-rank={r} className="felt-miniboard-cell">{r === 'T' ? '10' : r}</span>)}
             </div>
           );
         })}

@@ -77,7 +77,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
   return (
     <div className="felt-page">
-      <Header back={() => back(closed ? `game/${g.id}/close` : '')} banner={g.name} sub={gameSubtitle(g)}
+      <Header back={() => back(closed ? 'games' : '')} share="game" banner={g.name} sub={gameSubtitle(g)}
         tabs={[{ label: `Players ${inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }]}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>} />
 
@@ -85,7 +85,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
       <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
         {closed && (
           <button className="sat-flat sat-card sat-split" style={{ textAlign: 'left' }} onClick={() => backTo(`game/${g.id}/close`)}>
-            <span>This game is closed.</span><span className="sat-small" style={{ color: 'var(--sat-accent-text)', fontWeight: 600 }}>Show results</span>
+            <span>Game record. This game is closed.</span><span className="sat-small" style={{ color: 'var(--sat-accent-text)', fontWeight: 600 }}>Results and settle up</span>
           </button>
         )}
 

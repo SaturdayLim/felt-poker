@@ -6,7 +6,7 @@ import { haptic } from '../lib/haptics';
 import { ACCORDION, ARRIVE, DISCLOSE, DRAWER, SPRING, navMs, calm, physSpring, spring, springCurve } from '../lib/motion';
 import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
-import { ThemeToggle } from './liquidToggle';
+import { LiquidToggle, ThemeToggle } from './liquidToggle';
 import { useStore } from '../store';
 
 /* ------------------------------- icons ------------------------------- */
@@ -117,12 +117,14 @@ export function FeltMark({ height = 32, full = false }: { height?: number; full?
 
 /** Sticky header, drawn as the tab of a notebook page: the title (and Back) sit in a tab that stands up from the
     page edge, a line across the screen. Actions sit on the edge to the right of the tab. */
-export function Header({ title, sub, back, right, brand, banner, children, tabs }: {
+export function Header({ title, sub, back, right, brand, banner, children, tabs, share }: {
   title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean; children?: ReactNode;
   /** Views of the page as a row of notebook tabs (for example Players, Leaderboard, Stats). They take the place of the title tab. */
   tabs?: { label: string; on: boolean; go: () => void; icon?: string }[];
   /** A main tab: a banner row above the page. It holds the page name (or the brand with `brand`) left and the theme toggle right. */
   banner?: string;
+  /** The title is shared with the page it came from (a game's name in a list): the two morph on a page change. */
+  share?: 'game';
 }) {
   const tabRow = tabs && (
     <div className="sat-header-bar felt-notebook" role="tablist" aria-label={banner ?? title}>
@@ -145,8 +147,8 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs 
           {brand
             ? <div className="sat-brand felt-banner-brand"><FeltMark full height={34} /><span className="sat-wordmark">{banner}</span></div>
             : sub
-              ? <div className="felt-banner-stack"><h1 className="felt-banner-title">{banner}</h1><small className="felt-banner-sub">{sub}</small></div>
-              : <h1 className="felt-banner-title">{banner}</h1>}
+              ? <div className="felt-banner-stack"><h1 className="felt-banner-title" data-share={share}>{banner}</h1><small className="felt-banner-sub">{sub}</small></div>
+              : <h1 className="felt-banner-title" data-share={share}>{banner}</h1>}
           <div className="felt-banner-right">{right ?? <ThemeCycle />}</div>
         </div>
         {tabRow}
@@ -240,13 +242,25 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
   el = createRef<HTMLDivElement>();
   getSnapshotBeforeUpdate(prev: { k: string; i: number }) {
     const el = this.el.current;
-    if (!el || prev.k === this.props.k || prev.i < 0 || this.props.i < 0 || calm() || navMs() === 0) return null;
+    if (!el || prev.k === this.props.k || prev.i < 0 || this.props.i < 0 || navMs() === 0) return null;
     return { copy: el.cloneNode(true) as HTMLElement, r: el.getBoundingClientRect() };
   }
   componentDidUpdate(prev: { k: string; i: number }, _s: unknown, snap: { copy: HTMLElement; r: DOMRect } | null) {
     const el = this.el.current;
     if (!snap || !el) return;
     const { copy, r } = snap;
+    // Reduced motion reduces the motion: the old screen fades out and the new one fades in, with no slide
+    if (calm()) {
+      copy.setAttribute('aria-hidden', 'true');
+      copy.inert = true;
+      copy.style.cssText = `position:fixed;top:${r.top}px;left:${r.left}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:5;pointer-events:none`;
+      copy.classList.add('felt-slide-out');
+      (el.closest('dialog') ?? document.body).append(copy);
+      copy.animate({ opacity: [1, 0] }, { duration: 150, easing: 'linear', fill: 'forwards' }).onfinish = () => copy.remove();
+      window.setTimeout(() => copy.remove(), 300);
+      el.animate({ opacity: [0, 1] }, { duration: 150, easing: 'linear' });
+      return;
+    }
     const by = (this.props.i > prev.i ? 1 : -1) * r.width;
     copy.classList.add('felt-slide-out');
     copy.setAttribute('aria-hidden', 'true');
@@ -655,7 +669,12 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
   const dismiss = (after?: () => void) => {
     const d = ref.current;
     if (leaving.current) return;
-    if (!d?.animate || calm()) { closing.current(); after?.(); return; }
+    if (!d?.animate) { closing.current(); after?.(); return; }
+    if (calm()) {
+      leaving.current = true;
+      d.animate({ opacity: [1, 0] }, { duration: 150, easing: 'linear', fill: 'forwards' }).onfinish = () => { leaving.current = false; closing.current(); after?.(); };
+      return;
+    }
     leaving.current = true;
     fadeBackdrop(d, 1, 0, SPRING.sheetDown[0] * 1000);
     const done = () => { leaving.current = false; closing.current(); after?.(); };
@@ -680,6 +699,7 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
       if (act?.matches('.felt-name-edit')) act.blur();
       // the page behind stays still while the sheet is open
       document.documentElement.classList.add('felt-sheet-open');
+      if (d.animate && calm()) d.animate({ opacity: [0, 1] }, { duration: 150, easing: 'linear' });
       if (d.animate && !calm()) {
         fadeBackdrop(d, 0, 1, SPRING.sheetUp[0] * 1000);
         // on a phone a sheet always slides up from the bottom, the way it leaves, whatever opened it
@@ -840,6 +860,22 @@ export function NumericText({ value, className }: { value: string | number; clas
     const dir = Number.isNaN(a) || Number.isNaN(b) || b >= a ? 1 : -1;
     const was = [...old];
     const ease = 'cubic-bezier(0.23, 1, 0.32, 1)';
+    // digits that are gone (100 to 99): each rolls out where it stood, left of the first digit
+    const gone = was.length - chars.length;
+    const first = el.querySelector<HTMLElement>('.felt-num-c');
+    if (gone > 0 && first) {
+      const w = first.getBoundingClientRect().width;
+      for (let k = 0; k < gone; k++) {
+        const ghost = document.createElement('span');
+        ghost.className = 'felt-num-ghost';
+        ghost.setAttribute('aria-hidden', 'true');
+        ghost.textContent = was[k];
+        ghost.style.left = `${(k - gone) * w}px`;
+        el.appendChild(ghost);
+        const out = ghost.animate({ transform: ['translateY(0)', `translateY(${-dir * 75}%)`], opacity: [1, 0], filter: ['blur(0)', 'blur(3px)'] }, { duration: 300, easing: ease, fill: 'both' });
+        out.onfinish = out.oncancel = () => ghost.remove();
+      }
+    }
     el.querySelectorAll<HTMLElement>('.felt-num-c').forEach((cell, i) => {
       const right = chars.length - 1 - i;
       const o = was[was.length - 1 - right];
@@ -997,7 +1033,7 @@ export function Avatar({ name, size }: { name: string; size?: 'sm' }) {
 
 /** Kit switch: an on/off setting that applies at once. */
 export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
-  return <button type="button" className="sat-switch" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} />;
+  return <LiquidToggle plain on={on} onChange={onChange} label={label} width={52} />;
 }
 
 /** Empty state: heading, one line of body, optional button. */
@@ -1033,42 +1069,68 @@ export function withUndo(msg: string, run: () => void) {
   toast(msg, { label: 'Undo', run: () => useStore.setState({ games, groups }) });
 }
 
+let toastSeq = 0;
+interface ToastItem { id: number; msg: string; action?: ToastAction; until?: number }
+
+/** Messages at the bottom. Settings, Messages: a new message replaces the one showing (the old one slides away as the new one
+    rises), or stacks above it (up to 3). Each message keeps its own timer and its own way out. */
 export function ToastHost() {
-  const [t, setT] = useState<{ msg: string; action?: ToastAction; until?: number } | null>(null);
-  const el2 = useRef<HTMLDivElement | null>(null);
+  const mode = useStore((s) => s.settings.toastMode ?? 'replace');
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const [list, setList] = useState<ToastItem[]>([]);
+  const timers = useRef(new Map<number, number>());
   const [, tick] = useState(0);
   useEffect(() => {
-    if (!t?.until) return;
+    if (!list.some((t) => t.until)) return;
     const i = window.setInterval(() => tick((x) => x + 1), 250);
     return () => window.clearInterval(i);
-  }, [t]);
-  // rises with a spring, falls the same way out
-  const leave = () => {
-    const e = el2.current;
-    if (!e?.animate || calm()) { setT(null); return; }
-    e.animate({ translate: ['0 0', '0 60px'], opacity: [1, 0] }, { duration: 220, easing: DRAWER, fill: 'forwards' }).onfinish = () => setT(null);
+  }, [list]);
+  const drop = (id: number) => { window.clearTimeout(timers.current.get(id)); timers.current.delete(id); setList((l) => l.filter((t) => t.id !== id)); };
+  /** Slides down and fades; only this message is removed when it has gone. */
+  const leave = (id: number) => {
+    window.clearTimeout(timers.current.get(id));
+    const e = document.querySelector<HTMLElement>(`[data-toast="${id}"]`);
+    if (!e?.animate || calm()) { drop(id); return; }
+    e.getAnimations().forEach((a) => a.cancel());
+    e.animate({ translate: ['0 0', '0 60px'], opacity: [1, 0] }, { duration: 220, easing: DRAWER, fill: 'forwards' }).onfinish = () => drop(id);
+    // a hidden page holds back the finish event
+    timers.current.set(id, window.setTimeout(() => drop(id), 320));
   };
+  const leaveRef = useRef(leave);
+  leaveRef.current = leave;
   useEffect(() => {
-    let timer: number | undefined;
     toastListener = (msg, action) => {
+      const id = ++toastSeq;
       const ms = action?.countdown ? action.countdown * 1000 : action ? 5000 : 2600;
-      setT({ msg, action, until: action?.countdown ? Date.now() + ms : undefined });
-      window.clearTimeout(timer);
-      timer = window.setTimeout(leave, ms);
+      if (modeRef.current === 'replace') timers.current.forEach((_, old) => leaveRef.current(old));
+      setList((l) => [...(modeRef.current === 'stack' ? l.slice(-2) : l), { id, msg, action, until: action?.countdown ? Date.now() + ms : undefined }]);
+      timers.current.set(id, window.setTimeout(() => leaveRef.current(id), ms));
     };
     return () => { toastListener = null; };
   }, []);
+  // each new message rises with a spring
+  const seen = useRef(new Set<number>());
   useLayoutEffect(() => {
-    if (t && el2.current && !calm()) spring(el2.current, (p) => ({ translate: `0 ${40 * (1 - p)}px`, opacity: String(Math.min(1, p * 2)) }), SPRING.toast);
-  }, [t]);
-  if (!t) return null;
+    for (const t of list) {
+      if (seen.current.has(t.id)) continue;
+      seen.current.add(t.id);
+      const e = document.querySelector<HTMLElement>(`[data-toast="${t.id}"]`);
+      if (e && !calm()) spring(e, (p) => ({ translate: `0 ${40 * (1 - p)}px`, opacity: String(Math.min(1, p * 2)) }), SPRING.toast);
+    }
+  }, [list]);
+  if (!list.length) return null;
   // An open sheet sits in the top layer and covers everything else. A popover goes in the top layer after it.
   const sheet = hasPopover ? null : [...document.querySelectorAll('dialog[open]')].pop();
   const el = (
-    <div className={`felt-toast sat-glass-2 sat-small${sheet ? ' felt-toast--sheet' : ''}`} role="status" {...(hasPopover ? { popover: 'manual' } : {})}
-      ref={(e) => { el2.current = e; if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }}>
-      {t.msg}
-      {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); leave(); }}>{t.action.label}{t.until ? <span className="sat-num"> {Math.max(1, Math.ceil((t.until - Date.now()) / 1000))}</span> : null}</button>}
+    <div className={`felt-toasts${sheet ? ' felt-toasts--sheet' : ''}`} {...(hasPopover ? { popover: 'manual' } : {})}
+      ref={(e) => { if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }}>
+      {list.map((t) => (
+        <div key={t.id} data-toast={t.id} className="felt-toast sat-glass-2 sat-small" role="status">
+          {t.msg}
+          {t.action && <button type="button" className="felt-toast-act" onClick={() => { t.action!.run(); leave(t.id); }}>{t.action.label}{t.until ? <span className="sat-num"> {Math.max(1, Math.ceil((t.until - Date.now()) / 1000))}</span> : null}</button>}
+        </div>
+      ))}
     </div>
   );
   return sheet ? createPortal(el, sheet) : el;

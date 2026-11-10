@@ -3,7 +3,7 @@ import { go } from '../router';
 import { PlayerName, openPlayer } from '../components/players';
 import { Delta, Empty, Header, Icon, ThemeCycle, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
-import { figureDelta, gameLength, playMs, shortDate } from '../lib/format';
+import { figureDelta, gameCaption, gameLength, playMs } from '../lib/format';
 import { filterGames, leaderboard, summaryFigure } from '../lib/stats';
 import { gameFigure } from '../lib/calc';
 import { FEATURES } from '../lib/features';
@@ -72,12 +72,12 @@ export default function Home() {
               {closed.slice(0, 3).map((g) => {
                 const top = gameResults(g)[0];
                 return (
-                  <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(`game/${g.id}/close`)}>
+                  <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(`game/${g.id}/hands`)}>
                     <div className="felt-row-main">
-                      <div className="felt-row-title felt-ellipsis">{g.name}</div>
-                      <div className="felt-row-sub">{shortDate(g.startedAt)}{top ? <>, top: <PlayerName id={top.playerId} /></> : ''}</div>
+                      <div className="felt-row-title felt-ellipsis" data-game-title={g.id}>{g.name}</div>
+                      <div className="felt-row-sub">{gameCaption(g)}</div>
                     </div>
-                    {top && <Delta {...figureDelta(gameFigure(g, top.playerId), showMoney)} />}
+                    {top && <div className="felt-right"><div className="sat-small felt-ellipsis" style={{ maxWidth: 96 }}><PlayerName id={top.playerId} /></div><Delta {...figureDelta(gameFigure(g, top.playerId), showMoney)} /></div>}
                   </button>
                 );
               })}

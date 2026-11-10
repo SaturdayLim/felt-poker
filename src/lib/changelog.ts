@@ -1,5 +1,13 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.6.1', date: '10 Nov 2026', notes: [
+    'The player card opens Net, Win rate and Games in place, the same way, with each night’s net in the game list.',
+    'A tap on a closed game opens its record (Hands). Results and Settle Up are two steps after it, and the game name glides between the list and the record.',
+    'Game captions read “9 Nov’26 - Churchies (7pax, 10 buy-in)”.',
+    'Swipes: back goes to the next tab, forward to the previous, and the ends bounce. No blank or old page.',
+    'Every switch moves like the theme switch. Settings, Messages: replace or stack new messages, with an example.',
+    'Reduced motion cross-fades instead of cutting. Back keeps the scroll place. Digits that leave roll out. Flipping A > 2 slides each rank. Games Stats drops Won in total.',
+  ] },
   { version: '1.6.0', date: '10 Nov 2026', notes: [
     'Settings tabs are icons, and the open one opens out to its title. Players and Games tabs follow. A new Info tab holds App update and How to install, written out on the page.',
     'Cards: a miniature board under the suits follows a suit row as you drag it. Check hidden cards moved to Game Defaults.',

@@ -99,8 +99,8 @@ export default function Group({ groupId }: { groupId: string }) {
           {games.length === 0 ? <p className="sat-small sat-muted">{isOthers ? 'Every game belongs to a group.' : 'Pick this group when you start a game, or under Game settings.'}</p> : (
             <div className="sat-flat felt-list">
               {games.map((g) => (
-                <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/close`)}>
-                  <div className="felt-row-main"><div className="felt-row-title felt-ellipsis">{g.name}</div><div className="felt-row-sub">{dateLabel(g.startedAt)}</div></div>
+                <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/hands`)}>
+                  <div className="felt-row-main"><div className="felt-row-title felt-ellipsis" data-game-title={g.id}>{g.name}</div><div className="felt-row-sub">{dateLabel(g.startedAt)}</div></div>
                   {g.status === 'live' ? <span className="sat-badge"><span className="felt-dot" />Live</span> : openTransfers(g).length ? <span className="sat-badge sat-badge--muted">{openTransfers(g).length} unpaid</span> : <span className="sat-small sat-muted">{shortDate(g.endedAt ?? g.startedAt)}</span>}
                 </button>
               ))}

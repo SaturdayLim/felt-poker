@@ -173,3 +173,10 @@ Run these on every screen change, and again in any UI review. An Opus agent runs
 - **Stats read in tiers.** A page of equal tiles has no first thing to read. Use a `Headline` (two or three big figures), then `StatRows` (a titled list; a rate shows a share bar), then text.
 - **Tips are quiet.** The info button is a faint circle that gains strength on hover, focus and open. Its glyph is drawn, centred, never a typed italic i.
 - **Selected state is the knob.** On a toggle, the mark of the chosen state sits on the knob; the other mark rests faint on the track.
+- **Game record, then results, then settle.** A tap on a closed game opens its record (Hands, no money). The record links to Results, and Results links to Settle Up. The game's name is one element in the list and on the record: it glides between them (`data-game-title`, `data-share="game"`).
+- **Game caption:** "9 Nov'26 - Churchies (7pax, 10 buy-in)": date, group when there is one, then players and buy-ins in brackets (`gameCaption`). Unpaid shows at the right.
+- **Swipes:** the phone's back swipe and a drag to the right go to the next tab; the forward swipe and a drag to the left go to the previous tab. Home and Settings bounce. Felt keeps one spare history entry on each side of the screen, so a swipe never reaches a blank page or an old page.
+- **Reduced motion reduces:** screens and sheets cross-fade in 150 ms with no travel. Nothing cuts.
+- **Every switch moves like the theme switch** (`Toggle`, `LiquidToggle plain`). The live link switch keeps its glow colours.
+- **Messages (Settings):** a new message replaces the one on screen (default) or stacks above it (3 at most). Kept on this phone.
+- **Player card:** Net, Win rate and Games each open out under the three figures, one at a time. Games lists each night's net.

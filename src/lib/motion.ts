@@ -71,10 +71,10 @@ export function spring(el: Element, frame: (p: number) => Keyframe, s: Spring, o
 }
 
 /** The page pushes 28 px towards the swipe and springs back, like a rubber band: there is no page behind it. */
-export function bounceBack() {
+export function bounceBack(way: 1 | -1 = 1) {
   const page = document.querySelector<HTMLElement>('.felt-slide');
   if (!page || calm()) return;
-  spring(page, (p) => ({ transform: `translateX(${28 * (1 - p)}px)` }), SPRING.settle, { fill: 'none' });
+  spring(page, (p) => ({ transform: `translateX(${28 * way * (1 - p)}px)` }), SPRING.settle, { fill: 'none' });
 }
 
 /** Like `spring`, from stiffness, damping and mass (the numbers of the interior.dev components). */

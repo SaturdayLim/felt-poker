@@ -125,3 +125,12 @@ export function buyInsEquivalent(g: Game, totalUnits: number): string {
   const v = totalUnits / g.defaultBuyIn;
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
+
+/** The caption of a closed game: "9 Nov'26 - Churchies (7pax, 10 buy-in)". The group is left out when there is none. */
+export function gameCaption(g: Game, group?: string): string {
+  const d = new Date(g.startedAt);
+  const date = `${d.getDate()} ${d.toLocaleDateString('en-GB', { month: 'short' })}'${String(d.getFullYear()).slice(2)}`;
+  const n = g.type === 'cash' ? Number(buyInsEquivalent(g, g.buyIns.reduce((a, b) => a + b.amount, 0))) : g.buyIns.length;
+  const tail = `${g.playerIds.length}pax${g.type === 'cash' ? `, ${n} buy-in` : ''}`;
+  return group ? `${date} - ${group} (${tail})` : `${date} (${tail})`;
+}

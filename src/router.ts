@@ -80,25 +80,31 @@ export function useRoute(): string[] {
       const top = (u?: string) => hashPath(u ?? '').split('/')[0];
       const a = tabPos(top(e.oldURL)), b = tabPos(top(e.newURL));
       // between main tabs the screen slides (SlidePane in App.tsx)
-      if (a >= 0 && b >= 0 && a !== b) { plainNext = false; flushSync(() => setParts(read())); window.scrollTo(0, 0); return; }
+      if (a >= 0 && b >= 0 && a !== b) { plainNext = false; const y = scrollFor(); flushSync(() => setParts(read())); window.scrollTo(0, y); return; }
       // a view inside the same tab (Players, Leaderboard, Stats) slides inside the tab
-      if (a >= 0 && a === b) { plainNext = false; flushSync(() => setParts(read())); return; }
+      if (a >= 0 && a === b) { plainNext = false; const y = wentBack ? scrollFor() : -1; flushSync(() => setParts(read())); if (y >= 0) window.scrollTo(0, y); return; }
       const y = scrollFor();
       const apply = () => { flushSync(() => setParts(read())); window.scrollTo(0, y); };
       if (plainNext) { plainNext = false; apply(); return; }
-      if (document.startViewTransition && !calm()) {
+      if (document.startViewTransition) {
         // the Log hand morph runs in steps, and the order depends on the way: into the hand page, or back out of it
         const hand = (u?: string) => /(^|\/)hand(\/|$)/.test(hashPath(u ?? ''));
         const way = hand(e.newURL) && !hand(e.oldURL) ? 'open' : hand(e.oldURL) && !hand(e.newURL) ? 'close' : '';
         const root = document.documentElement;
+        // a game's name in a list and the title of its page are one element: the row carries the shared name while the page changes
+        const gid = (u?: string) => /^game\/([^/]+)/.exec(hashPath(u ?? ''))?.[1];
+        const shared = gid(e.newURL) ?? gid(e.oldURL);
+        const mark = () => { if (shared && !calm()) document.querySelectorAll<HTMLElement>(`[data-game-title="${shared}"]`).forEach((n) => { n.style.viewTransitionName = 'felt-game'; }); };
+        const unmark = () => document.querySelectorAll<HTMLElement>('[data-game-title]').forEach((n) => { n.style.viewTransitionName = ''; });
+        mark();
         if (way) root.dataset.vt = way; else delete root.dataset.vt;
         // review of a closed game has no Log hand button to close into: the hand list shows at once
-        const t = document.startViewTransition(() => { apply(); if (way === 'close' && !document.querySelector('.felt-logbtn')) root.dataset.vt = 'none'; });
+        const t = document.startViewTransition(() => { apply(); mark(); if (way === 'close' && !document.querySelector('.felt-logbtn')) root.dataset.vt = 'none'; });
         t.ready.catch(() => undefined);
         // a transition that never ends leaves a faded copy of the old page over the new one (seen on iOS): end it
         window.setTimeout(() => { try { t.skipTransition(); } catch { /* already done */ } }, 1200);
         t.updateCallbackDone.catch(() => undefined);
-        t.finished.finally(() => { if (root.dataset.vt === way || root.dataset.vt === 'none') delete root.dataset.vt; }).catch(() => undefined);
+        t.finished.finally(() => { unmark(); if (root.dataset.vt === way || root.dataset.vt === 'none') delete root.dataset.vt; }).catch(() => undefined);
       } else apply();
     };
     window.addEventListener('hashchange', on);
@@ -153,27 +159,44 @@ export function backTo(path: string) {
   else go(path, true);
 }
 
-/** Nothing behind the first screen: a swipe back from it must not leave Felt for a blank page. Felt keeps one spare history
-    entry under the first screen. Back onto it puts the spare entry back, keeps the address of the screen in view (the spare
-    entry carries the address Felt opened with, which would otherwise jump the page to Home) and calls `onBack`: a swipe
-    from the edge of the screen moves to the neighbouring tab, or bounces when there is none. */
-export function guardHistory(onBack: () => void): () => void {
+/** Nothing behind or ahead of the first screen: a swipe from either edge must not leave Felt for a blank page, and must not
+    walk to a page that was open before. Felt keeps one spare history entry under the screen in view and one above it.
+    A step onto either one puts the spares back, keeps the address of the screen in view (a spare carries the address it was
+    made with, which would otherwise jump the page) and calls `onSwipe`: 'back' is the phone's back swipe (a finger moving
+    right from the left edge), 'forward' the one from the right edge. */
+export function guardHistory(onSwipe: (way: 'back' | 'forward') => void): () => void {
   if (typeof window === 'undefined') return () => undefined;
+  const url = () => window.location.pathname + window.location.search + curHash;
   try {
-    if (!history.state?.feltBase) {
-      history.replaceState({ ...(history.state ?? {}), feltBase: true }, '');
-      history.pushState({ ...(history.state ?? {}), feltTop: true }, '');
+    const s = history.state;
+    if (!s?.feltBase && !s?.feltTop && !s?.feltFwd) {
+      history.replaceState({ feltBase: true }, '');
+      history.pushState({ feltTop: true }, '');
+      history.pushState({ feltFwd: true }, '');
+      history.go(-1);
     }
   } catch { return () => undefined; }
   const on = (e: PopStateEvent) => {
-    if (e.state?.feltBase && !e.state?.feltTop) {
-      // the step moved the address to the spare entry's own: that hash change is not navigation
-      if (window.location.hash !== curHash) guarding = curHash;
-      try { history.pushState({ feltTop: true }, '', window.location.pathname + window.location.search + curHash); } catch { return; }
-      window.setTimeout(() => { guarding = null; }, 400);
-      plainNext = false;
-      onBack();
-    }
+    const st = e.state;
+    if (!st?.feltBase && !st?.feltFwd) return;
+    // the step moved the address to the spare entry's own: that hash change is not navigation
+    if (window.location.hash !== curHash) guarding = curHash;
+    window.setTimeout(() => { guarding = null; }, 400);
+    plainNext = false;
+    try {
+      if (st.feltBase) {
+        history.replaceState({ feltBase: true }, '', url());
+        history.pushState({ feltTop: true }, '', url());
+        history.pushState({ feltFwd: true }, '', url());
+      } else history.replaceState({ feltFwd: true }, '', url());
+      // the step back onto the screen in view is asynchronous: the swipe acts once it has landed, or it would replace the wrong entry
+      const way = st.feltBase ? 'back' : 'forward';
+      let done = false;
+      const land = () => { if (done) return; done = true; window.removeEventListener('popstate', land); onSwipe(way); };
+      window.addEventListener('popstate', land);
+      window.setTimeout(land, 350);
+      history.go(-1);
+    } catch { return; }
   };
   window.addEventListener('popstate', on);
   return () => window.removeEventListener('popstate', on);

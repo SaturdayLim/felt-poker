@@ -380,7 +380,7 @@ export const useStore = create<State>()(
             players: withCodes(data.players, data.games),
             games: withPrivate(data.games),
             groups: data.groups ?? [],
-            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, palette: s.settings.palette, showMoney: s.settings.showMoney, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
+            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, palette: s.settings.palette, showMoney: s.settings.showMoney, toastMode: s.settings.toastMode, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
           })),
         exportBackup: () => {
           const s = get();

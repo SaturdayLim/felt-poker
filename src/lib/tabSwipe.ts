@@ -23,8 +23,8 @@ const scrollsSideways = (el: Element | null) => {
   return false;
 };
 
-/** The neighbouring tab for a drag of `dx` px (a drag to the right goes back to the tab on the left), or undefined at the ends. */
-export const neighbour = (tab: string, dx: number): string | undefined => NAV_TABS[NAV_TABS.indexOf(tab) + (dx > 0 ? -1 : 1)];
+/** The neighbouring tab for a drag of `dx` px (a drag to the right goes on to the next tab, as the phone's back swipe does), or undefined at the ends. */
+export const neighbour = (tab: string, dx: number): string | undefined => NAV_TABS[NAV_TABS.indexOf(tab) + (dx > 0 ? 1 : -1)];
 
 /** The way a drag lands, given its distance, speed (px per ms) and screen width. */
 export function swipeCommits(dx: number, v: number, width: number): boolean {

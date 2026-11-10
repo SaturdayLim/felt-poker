@@ -323,6 +323,8 @@ export interface Settings {
   me?: ID;
   /** Check hidden cards against the table and each other (default on). Off: no flags, and every entry counts. */
   checkCards?: boolean;
+  /** Messages at the bottom: a new one replaces the one showing (default), or stacks above it. Kept on this phone. */
+  toastMode?: 'replace' | 'stack';
   /** Results show in money (chips x multiplier) instead of chips. Undefined = chips. Kept on this phone: a restore never changes it. */
   showMoney?: boolean;
   /** Fallback rules for games created before rules were set per game (see Game.rules). */

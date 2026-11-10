@@ -1,6 +1,12 @@
 # Felt: progress
 
-## Latest (7 Nov 2026): 1.3.3
+## Latest (10 Nov 2026): 1.6.2 and the review plan
+- End-to-end review of the host flow and the viewer flow. Findings, owner questions, revisions 1.6.3 to 1.7.0 and agent roles: docs/PLAN-v1.7.md. Start there.
+- Fixed in 1.6.2: the buy-in pill on the game page shared the class .felt-pill with the tab highlight (invisible and dead since 1.2.3), now .felt-buyins. The live link row says Live link off, or No password.
+- Not fixed, first in the plan: End game writes cash-outs on open, and Back to game leaves every stack at 0 (F1). The rebuy + has no Undo (F21).
+- The felt-test server uses the real Firebase project unless localStorage felt-live-mock is 1.
+
+## Earlier (7 Nov 2026): 1.3.3
 - Five Haiku agents, one per set. Figure helpers (format.ts: figureText, figureNumber, figureUnit, figureDelta; calc.ts gameFigure; stats summaryFigure). Header `banner` prop; FeltMark `full` matches the splash. FEATURES.tournaments in src/lib/features.ts.
 - Motion catalogue for the owner to pick from: https://claude.ai/artifact/QJyKRx8wHqDoAUFj7nch1u (IDs match docs/MOTION-LIST.md; L1 and L2 are the two load-screen options).
 - Still money: Settle Up, payments, share image, report and CSV exports.

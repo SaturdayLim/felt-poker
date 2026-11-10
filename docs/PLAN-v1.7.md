@@ -145,6 +145,10 @@ Cannot be checked here: a real iPhone (Safari back swipe, haptics, keyboard and 
 
 ## 7. State at handover
 
+Update 10 Nov 2026 (evening): 1.6.3, 1.6.4 and 1.6.5 are built and committed on `main`, not pushed (Q9 and Q10 open). 151 tests pass. Section 4 tasks A1 to C3 are done; see PROGRESS.md for gaps. 1.7.0 is next.
+
+Earlier state:
+
 - `main` at v1.6.2 (`1d8736c`) plus this plan. 144 tests pass. `tsc` clean.
 - The test server data (port 5174) holds one closed game, "Tuesday cash", made by the review. Erase it or keep it: it is not owner data.
 - The review left the test server theme as it found it (dark).

@@ -1,6 +1,14 @@
 # Felt: progress
 
-## Latest (10 Nov 2026): 1.6.2 and the review plan
+## Latest (10 Nov 2026): 1.6.3 to 1.6.5 from docs/PLAN-v1.7.md
+- Done: revisions 1.6.3 (count gives back its cash-outs, also after an app close: rememberCountOpen/undoCountOpen in store.ts; rebuy Undo; felt-test runs vite --mode mock), 1.6.4 (closed record, one game clock from first buy-in, Results in chips, Off cuts all motion via html[data-motion-off] and a 0 ms Element.animate wrapper in motion.ts, calm springs have no bounce, toasts, live row fade), 1.6.5 (viewer Result label, closed room text, Sign in words, viewer Settings order, bar labels).
+- Commits are local, not pushed: Q9 and Q10 are open (CLAUDE.md: no push while a question is open).
+- Next: answers to Q9 and Q10, push, then 1.7.0 (second review R1 to R5, then D1, D2 if Q9 is yes, D3).
+- Not seen in a browser: the table bar with a non-zero range (C3), sign-in with a real player code (fold checked by flipping data-words), the takedown label in the viewer (unit tests only).
+- Edge: Undo on a rebuy for a player who was out leaves them seated with their old chips (addBuyIn resumes the seat; removeBuyIn does not undo that).
+- Tests share one origin: agents in separate tabs overwrite each other's store. Seed and check in one tab per run.
+
+## Earlier (10 Nov 2026): 1.6.2 and the review plan
 - End-to-end review of the host flow and the viewer flow. Findings, owner questions, revisions 1.6.3 to 1.7.0 and agent roles: docs/PLAN-v1.7.md. Start there.
 - Fixed in 1.6.2: the buy-in pill on the game page shared the class .felt-pill with the tab highlight (invisible and dead since 1.2.3), now .felt-buyins. The live link row says Live link off, or No password.
 - Not fixed, first in the plan: End game writes cash-outs on open, and Back to game leaves every stack at 0 (F1). The rebuy + has no Undo (F21).

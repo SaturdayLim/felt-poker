@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.6.5', date: '10 Nov 2026', notes: [
+    'Viewer: a hand won with no showdown shows under Result, also in Copy hand.',
+    'Viewer: a closed room says to ask the host for a new link or the report.',
+    'Viewer: the card button says Sign in until the first sign-in on the phone. Then the words fold away.',
+    'Viewer: card settings sit at the top of Settings, clear of the card button. The table bar shows its low and high on the page.',
+  ] },
   { version: '1.6.4', date: '10 Nov 2026', notes: [
     'A closed game record has no live link row. It says Players 4 and lists every player once.',
     'Game time runs from the first buy-in to the close, the same clock as the players. Results label it Length.',

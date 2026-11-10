@@ -81,6 +81,10 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   const [openHand, setOpenHand] = useState<number | null>(null);
   const [cardsHand, setCardsHand] = useState<number | null>(null);
   const [err, setErr] = useState('');
+  // the Sign in words stay on the card button until the first sign-in on this phone
+  const [signedOnce, setSignedOnce] = useState(() => ls.get('felt-viewer-signed-once') === '1');
+  useEffect(() => { if (me && !signedOnce) { ls.set('felt-viewer-signed-once', '1'); setSignedOnce(true); } }, [me, signedOnce]);
+  const words = !signedOnce && !me;
   // cards sent from this phone, by hand, until the host's copy arrives (older pages kept hand numbers only)
   const entered = useRef<Map<number, Card[]>>((() => {
     const v = JSON.parse(ss.get(`felt-join-entered:${room}`) ?? '[]');
@@ -155,7 +159,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   if (!driver) return blank(<Empty title="Live link not available">This phone cannot open live games. Ask the host for the report instead.</Empty>);
   if (err) return blank(<Empty title="Cannot open the game">{err}</Empty>);
   // the host closed the room: nothing is left to view here
-  if (meta === null) return blank(<Empty title="Room has been closed" action={<button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => go('')}>Home</button>} />);
+  if (meta === null) return blank(<Empty title="Room closed. Please ask Host to share new link or report." action={<button className="sat-btn sat-btn--primary sat-btn--block" onClick={() => go('')}>Home</button>} />);
   if (meta && !key) return <PassForm room={room} meta={meta} onKey={(k) => { setKey(k); ss.set(`felt-join-key:${room}`, k); }} />;
   if (!pub) return blank(<div className="sat-stack" aria-label="Loading the game"><div className="felt-skel" style={{ height: 44 }} /><div className="felt-skel" style={{ height: 220 }} /><div className="felt-skel" style={{ height: 120 }} /></div>);
 
@@ -197,11 +201,15 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
           onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
-        {tab === 'settings' && <><Rules pub={pub} /><ViewerLookSettings /></>}
+        {tab === 'settings' && <><ViewerLookSettings /><Rules pub={pub} /></>}
       </div>
       </SlidePane>
 
-      <button type="button" className="felt-fab felt-fab--page" aria-label={me ? 'Add my cards' : 'Sign in with your player code'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={30} stroke={1.8} /></button>
+      {/* first-time players read "Sign in" with the icon; after the first sign-in on this phone the words fold away */}
+      <button type="button" className="felt-fab felt-fab--page felt-fab--words" data-words={words} aria-label={me ? 'Add my cards' : 'Sign in with your player code'} onClick={() => setSheet(me ? 'cards' : 'code')}>
+        <Icon name="cardsadd" size={30} stroke={1.8} />
+        <span className="felt-fab-words" aria-hidden="true">Sign in</span>
+      </button>
 
       {sheet === 'code' && <CodeSheet onClose={() => setSheet(null)} onSubmit={async (c) => { const ok = await tryCode(c); if (ok) setSheet('cards'); return ok; }} />}
       {sheet === 'cards' && me && <HandPick hands={hands} now={now} entered={entered.current} me={me} toCheck={toCheck} start={cardsHand} onClose={() => { setSheet(null); setCardsHand(null); }} onSave={sendCards}

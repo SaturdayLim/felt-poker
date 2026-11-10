@@ -193,6 +193,15 @@ describe('Not shown in the viewer', () => {
     expect(viewText(1, 1, 2, show.view)).toContain('Cy: Not shown');
     expect(viewText(1, 1, 2, show.view)).not.toContain('mucks');
   });
+  it('a takedown is labelled Result in the viewer and Copy hand; a showdown keeps Showdown', () => {
+    const take = buildPub(withMucks(['b', 'c'], {}), names).hands[0];
+    expect(take.view.streets.find((s) => s.key === 'showdown')?.label).toBe('Result');
+    expect(viewText(1, 1, 2, take.view)).toContain('\n\nResult\n');
+    expect(viewText(1, 1, 2, take.view)).not.toContain('Showdown');
+    const show = buildPub(withMucks(['c'], { a: ['As', 'Ad'], b: ['Kh', '2d'] }), names).hands[0];
+    expect(show.view.streets.find((s) => s.key === 'showdown')?.label).toBe('Showdown');
+    expect(viewText(1, 1, 2, show.view)).toContain('\n\nShowdown\n');
+  });
   it('the public snapshot carries no password field', () => {
     expect(JSON.stringify(buildPub(game(), players))).not.toMatch(/passphrase|password/i);
   });

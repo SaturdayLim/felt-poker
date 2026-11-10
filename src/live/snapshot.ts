@@ -160,7 +160,8 @@ export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) =
   const shown = end?.shown ?? shownNow ?? [];
   if (end || shown.length) {
     const lines = (end?.winners ?? []).map((w) => `${w.name} wins ${units(w.amount)}`);
-    streets.push({ key: 'showdown', label: STAGE.showdown, old: [], fresh: [], lines, cols: 0, rows: [], pot: 0, shown, mucked: end?.mucked });
+    // a takedown (everyone else folded or Not shown) is not a showdown: viewers and Copy hand read "Result"
+    streets.push({ key: 'showdown', label: wentToShowdown(log) ? STAGE.showdown : 'Result', old: [], fresh: [], lines, cols: 0, rows: [], pot: 0, shown, mucked: end?.mucked });
   }
   const runs = multi ? (log.runCards ?? []).filter((r) => r.length).map((cards) => ({ common, cards })) : [];
   return { streets, dealt: log.dealt.map(name), button: log.button ? name(log.button) : null, runs: runs.length ? runs : undefined };

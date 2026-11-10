@@ -1,34 +1,77 @@
 import { publishReport, reportLinkOf } from '../live/reportLink';
 import { createPortal } from 'react-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
-import { Caption, Empty, Header, Help, Icon, toast, TabPill, WordButton } from '../components/ui';
-import { renderReport, type Tier } from '../report/reports';
+import { Caption, Empty, Header, Help, Icon, toast, TabPill } from '../components/ui';
 import { loadReportFonts, type ReportTheme } from '../report/canvas';
-import { handsCsv, ledgerCsv, outputName, playersCsv } from '../report/csv';
-import { buildModel } from '../report/model';
-import { SEGMENTS, renderSegment, type SegmentKey } from '../report/segments';
+import { handsCsv, ledgerCsv, outputName, playersCsv, type PotCoding } from '../report/csv';
+import { PNG_SETS, renderPngSetPages, type PngSet } from '../report/pngSets';
 import { canvasToFile, shareFiles, textFile } from '../report/share';
 import { MIN_REPORT_HANDS, makeHtmlReport, recordedHands, reportReady } from '../report/htmlReport';
 import { useResolvedTheme } from '../theme';
+import { haptic } from '../lib/haptics';
+import { calm, motionOff } from '../lib/motion';
 
-type Choice = Tier | 'data' | 'html' | 'segments';
+type Choice = 'html' | 'png' | 'csv';
 
-/** Ticks kept on this phone (not in the game, not in a backup). */
-const KEEP = { segments: 'felt-report-segments', gameLog: 'felt-report-gamelog' };
+/** Choices kept on this phone (not in the game, not in a backup). */
+const KEEP = { gameLog: 'felt-report-gamelog', set: 'felt-report-pngset', pot: 'felt-report-potcoding' };
 function readKept<T>(key: string, fallback: T): T { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; } }
-function keep(key: string, v: unknown) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode: the ticks last for this visit only */ } }
+function keep(key: string, v: unknown) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode: the choice lasts for this visit only */ } }
 
 /** Each option says what it contains and which files it gives, so nobody has to guess before sharing. */
 const TIERS: { k: Choice; label: string; file: string; desc: string }[] = [
-  { k: 'html', label: 'Game report', file: '1 HTML file', desc: 'Interactive page: awards, charts, stats and house rules. Each player opens their own page with a code.' },
-  { k: 'segments', label: 'Game summary', file: 'Images (PNG)', desc: 'One sharp image for each part you tick: results, awards, charts and more.' },
-  { k: 'summary', label: 'Results', file: '1 image (PNG)', desc: 'Buy-ins, results and who pays whom.' },
-  { k: 'detailed', label: 'Results and stats', file: 'Image (PNG)', desc: 'Adds game stats, the money chart and highlights.' },
-  { k: 'full', label: 'Full game record', file: 'Images (PNG)', desc: 'Adds the buy-in log and every hand with its cards.' },
-  { k: 'data', label: 'Spreadsheet data', file: '3 CSV files', desc: 'Players, hands and an event ledger, for Excel or Google Sheets.' },
+  { k: 'html', label: 'HTML', file: '1 HTML file', desc: 'Interactive game report: awards, charts, stats and house rules. Each player opens their own page with a code.' },
+  { k: 'png', label: 'PNG', file: 'Image (PNG)', desc: 'One sharp image of the set you pick.' },
+  { k: 'csv', label: 'CSV', file: '3 CSV files', desc: 'Full player list, hands and event ledger.' },
 ];
+
+/** Copies inside the press: the clipboard call starts now and the data arrives later, which iOS Safari allows.
+    Without a promise-aware ClipboardItem, text still falls back to writeText. */
+function copyLater(type: 'text/plain' | 'image/png', data: Promise<Blob>): Promise<void> {
+  if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+    try { return navigator.clipboard.write([new ClipboardItem({ [type]: data })]); } catch { /* fall through */ }
+  }
+  if (type === 'text/plain' && navigator.clipboard?.writeText) return data.then((b) => b.text()).then((t) => navigator.clipboard.writeText(t));
+  return Promise.reject(new Error('no clipboard'));
+}
+
+/** The Copy button: no spinner. The word Copied shows when the copy promise is done. */
+function CopyButton({ ready, onCopy, className, children }: { ready: boolean; onCopy: () => Promise<boolean>; className?: string; children: React.ReactNode }) {
+  const [phase, setPhase] = useState<'idle' | 'wait' | 'done'>('idle');
+  const timer = useRef(0);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const click = () => {
+    if (!ready || phase === 'wait') return;
+    setPhase('wait');
+    void onCopy().then((ok) => {
+      if (!ok) { setPhase('idle'); return; }
+      setPhase('done');
+      timer.current = window.setTimeout(() => setPhase('idle'), 1200);
+    });
+  };
+  return (
+    <button type="button" data-press="commit" className={`felt-lb ${className ?? ''}`} aria-disabled={!ready} aria-busy={phase === 'wait'} data-wait={phase === 'wait'} onClick={click}>
+      <span className="felt-lb-face" data-on={phase !== 'done'}>{children}</span>
+      <span className="felt-lb-face" data-on={phase === 'done'} aria-hidden={phase !== 'done'}><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.5 5 9l4.5-5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>Copied</span>
+    </button>
+  );
+}
+
+/** Like Fold, but the last content stays while the block closes, so what leaves shrinks and fades instead of cutting. */
+function FoldKeep({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const last = useRef<React.ReactNode>(null);
+  if (open) last.current = children;
+  return <Fold open={open}>{open ? children : last.current}</Fold>;
+}
+
+const PAD = { paddingTop: 'var(--sat-space-3)' };
+
+/** A block that opens by growing (the same fold as the Players lists). */
+function Fold({ open, children }: { open: boolean; children: React.ReactNode }) {
+  return <div className="felt-fold-wrap" data-open={open} {...(open ? {} : { inert: '' })}><div className="felt-fold-inner">{children}</div></div>;
+}
 
 export default function Report({ gameId }: { gameId: string }) {
   const g = useGame(gameId);
@@ -42,10 +85,16 @@ export default function Report({ gameId }: { gameId: string }) {
   const [files, setFiles] = useState<File[]>([]);
   const [urls, setUrls] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [segOn, setSegOn] = useState<Record<string, boolean>>(() => ({ ...Object.fromEntries(SEGMENTS.map((x) => [x.k, x.on])), ...readKept<Record<string, boolean>>(KEEP.segments, {}) }));
   const [gameLog, setGameLog] = useState<boolean>(() => readKept(KEEP.gameLog, false));
-  const picked = SEGMENTS.filter((x) => segOn[x.k]);
-  const pickKey = picked.map((x) => x.k).join(',');
+  const [setKey, setSetKey] = useState<PngSet>(() => { const v = readKept<PngSet>(KEEP.set, 'summary'); return PNG_SETS.some((x) => x.k === v) ? v : 'summary'; });
+  const [potCoding, setPotCoding] = useState<PotCoding>(() => (readKept<PotCoding>(KEEP.pot, 'street') === 'player' ? 'player' : 'street'));
+  const [setOpen, setSetOpen] = useState(false);
+  /** Hands left unticked in the Full Action Log; all are ticked by default. */
+  const [off, setOff] = useState<Record<string, true>>({});
+  const handIds = g ? g.hands.map((h) => h.id) : [];
+  const ticked = handIds.filter((id) => !off[id]);
+  const tickKey = ticked.join(',');
+  const set = PNG_SETS.find((x) => x.k === setKey) ?? PNG_SETS[0];
 
   useEffect(() => {
     if (!g) return;
@@ -58,36 +107,29 @@ export default function Report({ gameId }: { gameId: string }) {
           // a game too short for the report gets the card below that says why, not an error
           const made = reportReady(g) ? await makeHtmlReport(g, allPlayers, settings, { gameLog }) : undefined;
           out = made ? [made.file] : [];
-        } else if (tier === 'data') {
+        } else if (tier === 'csv') {
           const list = [g];
           out = [
             textFile(playersCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'players')),
-            textFile(handsCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'hands')),
+            textFile(handsCsv(list, name, potCoding), outputName(g, 'data (3 csv)', 'csv', 'hands')),
             textFile(ledgerCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'ledger')),
           ];
-        } else if (tier === 'segments') {
-          // each ticked part is its own render at 2x
+        } else if (!reportReady(g) || (setKey === 'log' && !ticked.length)) {
+          // a game too short for the report (or no hand ticked) is not rendered: the card below says why
           out = [];
-          if (reportReady(g) && picked.length) {
-            await loadReportFonts();
-            const model = buildModel({ players: allPlayers, games: [g], settings });
-            for (const sg of picked) {
-              const c = renderSegment(model, sg.k, look);
-              out.push(await canvasToFile(c, outputName(g, `game summary, ${sg.label.toLowerCase()}`, 'png')));
-              c.width = 0; c.height = 0; // free canvas memory on iOS
-              if (cancelled) return;
-            }
-          }
         } else {
           await loadReportFonts();
-          const canvases = renderReport(g, tier, name, look);
-          const what = tier === 'summary' ? 'results' : tier === 'detailed' ? 'results and stats' : 'full game record';
-          out = await Promise.all(canvases.map((c, i) => canvasToFile(c, outputName(g, what, 'png', canvases.length > 1 ? `(page ${i + 1} of ${canvases.length})` : undefined))));
-          canvases.forEach((c) => { c.width = 0; c.height = 0; }); // free canvas memory on iOS
+          const pages = await renderPngSetPages(g, setKey, { players: allPlayers, settings, name, theme: look, ...(setKey === 'log' ? { hands: ticked } : {}) });
+          out = [];
+          for (let i = 0; i < pages.length; i++) {
+            const c = pages[i];
+            out.push(await canvasToFile(c, outputName(g, set.label.toLowerCase(), 'png', pages.length > 1 ? `(page ${i + 1} of ${pages.length})` : undefined)));
+            c.width = 0; c.height = 0; // free canvas memory on iOS
+          }
         }
         if (cancelled) return;
         setFiles(out);
-        setUrls(tier === 'data' || tier === 'html' ? [] : out.map((f) => URL.createObjectURL(f)));
+        setUrls(tier === 'png' ? out.map((f) => URL.createObjectURL(f)) : []);
       } catch (e) {
         toast(`Report unable to build (${(e as Error).message}). Go back and try again.`);
       } finally {
@@ -96,125 +138,241 @@ export default function Report({ gameId }: { gameId: string }) {
     }, 30);
     return () => { cancelled = true; window.clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [g, tier, look, pickKey, gameLog]);
+  }, [g, tier, look, gameLog, setKey, potCoding, tickKey]);
 
-  useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
+  useEffect(() => () => { urls.forEach((u) => URL.revokeObjectURL(u)); }, [urls]);
 
   const [viewing, setViewing] = useState<string | null>(null);
-  const [linking, setLinking] = useState(false);
+  const [full, setFull] = useState(false);
+  const [fullClosing, setFullClosing] = useState(false);
+  const fullRef = useRef<HTMLDivElement>(null);
+  const fullFrom = useRef<Element | null>(null);
   const [linkMade, setLinkMade] = useState<string | null>(() => (gameId ? reportLinkOf(gameId)?.link ?? null : null));
   const st = useStore();
+  const hold = useRef<{ t: number; t0: number; x: number; y: number; done: boolean; i: number } | null>(null);
   const noCode = g ? allPlayers.filter((p) => g.playerIds.includes(p.id) && !p.codeIssued) : [];
-  if (!g) return <div className="felt-page"><Header back={() => go('')} title="Report" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
+  /** The bottom bar fades in and out with the tier; it keeps its last words while it leaves. */
+  const barTier = useRef<Choice>('png');
+  if (tier !== 'html') barTier.current = tier;
 
-  const toggleSeg = (k: SegmentKey) => { const next = { ...segOn, [k]: !segOn[k] }; setSegOn(next); keep(KEEP.segments, next); };
+  const openFull = () => { fullFrom.current = document.activeElement; setFullClosing(false); setFull(true); };
+  const closeFull = () => {
+    if (!full || fullClosing) return;
+    const done = () => { setFull(false); setFullClosing(false); (fullFrom.current as HTMLElement | null)?.focus?.({ preventScroll: true }); };
+    if (motionOff()) { done(); return; }
+    setFullClosing(true);
+    window.setTimeout(done, calm() ? 150 : 200);
+  };
+  useEffect(() => {
+    if (!full) return;
+    fullRef.current?.focus({ preventScroll: true });
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); closeFull(); } };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [full, fullClosing]);
+  if (!g) return <div className="felt-page"><Header back={() => go('')} title="Export" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
+
+  const ready = reportReady(g);
   const toggleLog = () => { setGameLog(!gameLog); keep(KEEP.gameLog, !gameLog); };
+  const pickSet = (k: PngSet) => { setSetKey(k); keep(KEEP.set, k); setSetOpen(false); };
+  const pickPot = (k: PotCoding) => { setPotCoding(k); keep(KEEP.pot, k); };
   const share = async () => {
     const r = await shareFiles(files, `${g.name} report`);
-    if (r === 'downloaded') toast(`${info.label} saved to Downloads`);
+    if (r === 'downloaded') toast(`${files.length > 1 ? `${files.length} files` : 'File'} saved to Downloads`);
   };
-  const info = TIERS.find((t) => t.k === tier)!;
-  const shareLink = async () => {
-    if (busy || linking || !files.length) return;
-    setLinking(true);
-    try {
-      const link = await publishReport(g, allPlayers, st.settings, { gameLog });
-      setLinkMade(link);
-      if (navigator.share) await navigator.share({ title: `${g.name} report`, url: link }).catch(() => undefined);
-      else await navigator.clipboard?.writeText(link).catch(() => undefined);
-      toast('Report link is ready. It works for 30 days.');
-    } catch (e) { toast(`Report link did not save: ${(e as Error).message}`); }
-    finally { setLinking(false); }
+  /** Makes the report link (30 days) and copies it. */
+  const copyLink = (): Promise<boolean> => {
+    // the clipboard call starts inside the press; the link arrives when the publish is done
+    let published = false;
+    const made = publishReport(g, allPlayers, st.settings, { gameLog }).then((link) => { published = true; setLinkMade(link); return link; });
+    return copyLater('text/plain', made.then((l) => new Blob([l], { type: 'text/plain' }))).then(
+      () => { toast('Report link copied. It works for 30 days.'); return true; },
+      (e: Error) => {
+        toast(published ? 'Report link is ready. Copy was blocked, so select the link and copy it.' : `Report link did not save: ${e.message}`);
+        return false;
+      },
+    );
   };
+  /** Copy the image once a press has held 550 ms. Runs in the pointer-up, so the phone still counts it as a press. */
+  const copyImage = (i: number) => {
+    const f = files[i];
+    if (!f) return;
+    copyLater('image/png', Promise.resolve(f)).then(
+      () => { toast('Image copied.'); },
+      () => { toast('Copy was blocked on this phone. Use Download or share instead.'); },
+    );
+  };
+  const press = (i: number) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      const h = { t: 0, t0: performance.now(), x: e.clientX, y: e.clientY, done: false, i };
+      h.t = window.setTimeout(() => { h.done = true; haptic(15); }, 550);
+      hold.current = h;
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const h = hold.current;
+      if (h && !h.done && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 10) { window.clearTimeout(h.t); hold.current = null; }
+    },
+    onPointerUp: () => {
+      const h = hold.current; hold.current = null;
+      if (!h) return;
+      window.clearTimeout(h.t);
+      if (h.done || performance.now() - h.t0 >= 550) copyImage(h.i);
+      else openFull();
+    },
+    onPointerCancel: () => { if (hold.current) window.clearTimeout(hold.current.t); hold.current = null; },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  });
+  const allOn = ticked.length === handIds.length;
+  const setAll = (on: boolean) => setOff(on ? {} : Object.fromEntries(handIds.map((id) => [id, true as const])));
+  const tickHand = (id: string) => setOff((o) => { const n = { ...o }; if (n[id]) delete n[id]; else n[id] = true; return n; });
 
   return (
     <div className="felt-page">
-      <Header back={() => back(`game/${g.id}/close`)} title="Download or Share" sub={g.name} />
+      <Header back={() => back(`game/${g.id}/close`)} title="Export" sub={g.name} />
       <div className="sat-stack">
-        <div className="sat-split"><Caption>What to download</Caption><Help k="tiers" /></div>
-        <div className="sat-glass-2 felt-list" role="radiogroup" aria-label="What to download">
+        <div className="sat-split"><Caption>Share</Caption><Help k="tiers" /></div>
+        <div className="sat-glass-2 felt-list" role="radiogroup" aria-label="Share">
           {TIERS.map((t) => (
-            <button key={t.k} role="radio" aria-checked={tier === t.k} className="felt-row felt-choice" onClick={() => setTier(t.k)}>
-              <span className="felt-choice-dot" aria-hidden="true" />
-              <span className="felt-row-main">
-                <span className="felt-row-title">{t.label}</span>
-                <span className="felt-row-sub">{t.desc}</span>
-              </span>
-              <span className="sat-small sat-muted felt-right">{t.file}</span>
-            </button>
+            <div key={t.k}>
+              <div className="felt-exp-row">
+                <button role="radio" aria-checked={tier === t.k} className="felt-row felt-choice" onClick={() => setTier(t.k)}>
+                  <span className="felt-choice-dot" aria-hidden="true" />
+                  <span className="felt-row-main">
+                    <span className="felt-row-title">{t.label}</span>
+                    <span className="felt-row-sub">{t.desc}</span>
+                  </span>
+                  {t.k !== 'html' && <span className="sat-small sat-muted felt-right">{t.file}</span>}
+                </button>
+                {t.k === 'html' && (
+                  <CopyButton className="sat-btn sat-btn--sm felt-exp-copy" ready={ready} onCopy={copyLink}><Icon name="copy" size={16} /> Copy</CopyButton>
+                )}
+              </div>
+
+              {t.k === 'html' && (
+                <Fold open={tier === 'html'}>
+                  <label className="felt-row felt-tick">
+                    <input type="checkbox" checked={gameLog} onChange={toggleLog} />
+                    <span className="felt-row-main"><span className="felt-row-title">Game Log tab</span><span className="felt-row-sub">Every hand with its actions, open to anyone with the report. It does not show hidden cards.</span></span>
+                  </label>
+                  <div className="felt-exp-actions">
+                    <button className="sat-btn sat-btn--sm" aria-disabled={busy || !files.length} onClick={async () => { if (!busy && files[0]) setViewing(await files[0].text()); }}><Icon name="eye" size={16} /> View</button>
+                    <button className="sat-btn sat-btn--sm" aria-disabled={busy || !files.length} onClick={() => !busy && files.length && share()}><Icon name="download" size={16} /> Save HTML file</button>
+                  </div>
+                </Fold>
+              )}
+
+              {t.k === 'png' && (
+                <Fold open={tier === 'png'}>
+                  <div className="felt-fold">
+                    <button className="felt-row felt-fold-head" aria-expanded={setOpen} aria-haspopup="listbox" onClick={() => setSetOpen(!setOpen)}>
+                      <span className="felt-row-main"><span className="felt-row-title">{set.label}</span><span className="felt-row-sub">{set.desc}</span></span>
+                      <span className="felt-fold-chev"><Icon name="chevron" size={18} /></span>
+                    </button>
+                    <Fold open={setOpen}>
+                      <div role="listbox" aria-label="Image set">
+                        {PNG_SETS.map((x) => (
+                          <button key={x.k} role="option" aria-selected={setKey === x.k} className="felt-row felt-choice" onClick={() => pickSet(x.k)}>
+                            <span className="felt-choice-dot" aria-hidden="true" />
+                            <span className="felt-row-main"><span className="felt-row-title">{x.label}</span><span className="felt-row-sub">{x.desc}</span></span>
+                          </button>
+                        ))}
+                      </div>
+                    </Fold>
+                  </div>
+                  <Fold open={setKey === 'log'}>
+                    <div role="group" aria-label="Hands to include">
+                      <label className="felt-row felt-tick">
+                        <input type="checkbox" checked={allOn} onChange={() => setAll(!allOn)} />
+                        <span className="felt-row-main"><span className="felt-row-title">Select all</span><span className="felt-row-sub">{ticked.length} of {handIds.length} hands</span></span>
+                      </label>
+                      <div className="felt-exp-hands">
+                        {g.hands.map((h) => (
+                          <label key={h.id} className="felt-row felt-tick">
+                            <input type="checkbox" checked={!off[h.id]} onChange={() => tickHand(h.id)} />
+                            <span className="felt-row-main"><span className="felt-row-title">Hand {h.n}</span></span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </Fold>
+                </Fold>
+              )}
+
+              {t.k === 'csv' && (
+                <Fold open={tier === 'csv'}>
+                  <div className="felt-exp-pot">
+                    <span className="sat-small sat-muted">Pot coding in the hands file</span>
+                    <div className="sat-seg" role="radiogroup" aria-label="Pot coding">
+                      <TabPill />
+                      <button role="radio" aria-checked={potCoding === 'street'} onClick={() => pickPot('street')}>Street won</button>
+                      <button role="radio" aria-checked={potCoding === 'player'} onClick={() => pickPot('player')}>Player won</button>
+                    </div>
+                  </div>
+                </Fold>
+              )}
+            </div>
           ))}
         </div>
-        <div className="sat-split">
-          <span className="sat-small sat-muted">{tier === 'data' ? 'Opens in any spreadsheet app.' : tier === 'html' ? 'Opens in any browser. Works offline.' : 'Image colours:'}</span>
-          {tier !== 'data' && tier !== 'html' && (
-            <div className="sat-seg" role="radiogroup" aria-label="Image theme">
-              <TabPill />
-              <button role="radio" aria-checked={look === 'light'} onClick={() => setLook('light')} aria-label="Light image"><Icon name="sun" /></button>
-              <button role="radio" aria-checked={look === 'dark'} onClick={() => setLook('dark')} aria-label="Dark image"><Icon name="moon" /></button>
-            </div>
-          )}
-        </div>
 
-        {tier === 'segments' && (
-          <div className="sat-glass-2 felt-list" role="group" aria-label="Parts to include">
-            {SEGMENTS.map((x) => (
-              <label key={x.k} className="felt-row felt-tick">
-                <input type="checkbox" checked={!!segOn[x.k]} onChange={() => toggleSeg(x.k)} />
-                <span className="felt-row-main"><span className="felt-row-title">{x.label}</span><span className="felt-row-sub">{x.desc}</span></span>
-              </label>
-            ))}
-          </div>
-        )}
-
-        {tier === 'html' && (
-          <div className="sat-glass-2 felt-list">
-            <label className="felt-row felt-tick">
-              <input type="checkbox" checked={gameLog} onChange={toggleLog} />
-              <span className="felt-row-main"><span className="felt-row-title">Game Log tab</span><span className="felt-row-sub">Every hand with its actions, open to anyone with the report. It does not show hidden cards.</span></span>
-            </label>
-          </div>
-        )}
-
-        {busy && <div className="felt-skel" style={{ height: 160 }} aria-label="Building the report" />}
-
-        {tier === 'segments' && !reportReady(g) && (
-          <div className="sat-flat sat-card sat-small">The game summary needs a closed game with at least {MIN_REPORT_HANDS} recorded hands. This game has {recordedHands(g)}.</div>
-        )}
-        {tier === 'segments' && reportReady(g) && picked.length === 0 && <div className="sat-flat sat-card sat-small">Tick at least 1 part.</div>}
-
-        {!busy && tier !== 'data' && tier !== 'html' && (
-          <div>
-            {files.length > 1 && <p className="sat-small sat-muted" style={{ marginBottom: 'var(--sat-space-2)' }}>{files.length} images, shared together.</p>}
-            {urls.map((u, i) => <img key={u} src={u} className="felt-preview" alt={`Report page ${i + 1}`} />)}
-          </div>
-        )}
-
-        {tier === 'html' && !reportReady(g) && (
-          <div className="sat-flat sat-card sat-small">The game report needs a closed game with at least {MIN_REPORT_HANDS} recorded hands. This game has {recordedHands(g)}.</div>
-        )}
-
-        {tier === 'html' && linkMade && (
-          <div className="sat-flat sat-card sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-            <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><b>Report link</b><Help k="reportLink" /></span>
-            <p className="sat-small sat-mono" style={{ wordBreak: 'break-all' }}>{linkMade}</p>
-            <WordButton word="Copied" instant className="sat-btn sat-btn--sm" run={() => { navigator.clipboard?.writeText(linkMade).catch(() => toast('Copy was blocked. Select the link and copy it.')); }}><Icon name="copy" size={16} /> Copy link</WordButton>
-          </div>
-        )}
-
-        {tier === 'html' && noCode.length > 0 && (
-          <div className="sat-flat sat-card sat-small">{noCode.map((p) => p.name).join(', ')} {noCode.length === 1 ? 'has' : 'have'} an unseen code. Open Players, tap the player and tap the eye. The report still builds.</div>
-        )}
-
-        {!busy && (tier === 'data' || tier === 'html') && (
-          <div className="sat-glass-2 felt-list">
-            {files.map((f) => (
-              <div key={f.name} className="felt-row">
-                <Icon name="file" size={20} />
-                <div className="felt-row-main"><div className="felt-row-title felt-ellipsis sat-mono sat-small">{f.name}</div><div className="felt-row-sub">{(f.size / 1024).toFixed(1)} KB</div></div>
+        <div>
+          <FoldKeep open={tier === 'png'}>
+            <div className="sat-split" style={PAD}>
+              <span className="sat-small sat-muted">Image colours:</span>
+              <div className="sat-seg" role="radiogroup" aria-label="Image theme">
+                <TabPill />
+                <button role="radio" aria-checked={look === 'light'} onClick={() => setLook('light')} aria-label="Light image"><Icon name="sun" /></button>
+                <button role="radio" aria-checked={look === 'dark'} onClick={() => setLook('dark')} aria-label="Dark image"><Icon name="moon" /></button>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          </FoldKeep>
+
+          <FoldKeep open={busy}>
+            <div style={PAD}><div className="felt-skel" style={{ height: 160 }} aria-label="Building the export" /></div>
+          </FoldKeep>
+
+          <FoldKeep open={tier === 'png' && ready && setKey === 'log' && !ticked.length}>
+            <div style={PAD}><div className="sat-flat sat-card sat-small">Tick at least 1 hand.</div></div>
+          </FoldKeep>
+
+          <FoldKeep open={!busy && tier === 'png' && urls.length > 0}>
+            <div style={PAD}>
+              {urls.map((u, i) => (
+                <img key={u} src={u} className="felt-preview felt-preview--press" alt={urls.length > 1 ? `${set.label} image, page ${i + 1} of ${urls.length}` : `${set.label} image`} draggable={false} {...press(i)} />
+              ))}
+            </div>
+          </FoldKeep>
+
+          <FoldKeep open={(tier === 'html' || tier === 'png') && !ready}>
+            <div style={PAD}><div className="sat-flat sat-card sat-small">{tier === 'png' ? 'The images need' : 'The game report needs'} a closed game with at least {MIN_REPORT_HANDS} recorded hands. This game has {recordedHands(g)}.</div></div>
+          </FoldKeep>
+
+          <FoldKeep open={tier === 'html' && !!linkMade}>
+            <div style={PAD}>
+              <div className="sat-flat sat-card sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+                <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><b>Report link</b><Help k="reportLink" /></span>
+                <p className="sat-small sat-mono felt-selectable" style={{ wordBreak: 'break-all' }}>{linkMade}</p>
+              </div>
+            </div>
+          </FoldKeep>
+
+          <FoldKeep open={tier === 'html' && noCode.length > 0}>
+            <div style={PAD}><div className="sat-flat sat-card sat-small">{noCode.map((p) => p.name).join(', ')} {noCode.length === 1 ? 'has' : 'have'} an unseen code. Open Players, tap the player and tap the eye. The report still builds.</div></div>
+          </FoldKeep>
+
+          <FoldKeep open={!busy && tier === 'csv' && files.length > 0}>
+            <div style={PAD}>
+              <div className="sat-glass-2 felt-list">
+                {files.map((f) => (
+                  <div key={f.name} className="felt-row">
+                    <Icon name="file" size={20} />
+                    <div className="felt-row-main"><div className="felt-row-title felt-ellipsis sat-mono sat-small">{f.name}</div><div className="felt-row-sub">{(f.size / 1024).toFixed(1)} KB</div></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </FoldKeep>
+        </div>
       </div>
 
       {viewing !== null && createPortal(
@@ -223,14 +381,16 @@ export default function Report({ gameId }: { gameId: string }) {
           <iframe title="Game report" srcDoc={viewing} />
         </div>, document.body)}
 
-      <div className="sat-bottombar sat-glass-2">
-        {tier === 'html' && <button className="sat-btn sat-btn--lg" aria-disabled={busy || !files.length} onClick={async () => { if (!busy && files[0]) setViewing(await files[0].text()); }}><Icon name="eye" /> View</button>}
-        {tier === 'html' && <button className="sat-btn sat-btn--lg" aria-disabled={busy || !files.length || linking} onClick={shareLink}><Icon name="share" /> {linking ? 'Saving' : 'Link'}</button>}
+      {full && urls.length > 0 && createPortal(
+        <div ref={fullRef} tabIndex={-1} className="felt-img-full" data-closing={fullClosing || undefined} role="dialog" aria-modal="true" aria-label={`${set.label} image, full screen. Press Escape to close.`} onClick={closeFull}>
+          {urls.map((u, i) => <img key={u} src={u} alt={urls.length > 1 ? `${set.label} image, page ${i + 1} of ${urls.length}` : `${set.label} image`} draggable={false} />)}
+        </div>, document.body)}
+
+      <div className="sat-bottombar sat-glass-2 felt-bar-fade" data-open={tier !== 'html'} {...(tier === 'html' ? { inert: '' } : {})}>
         <button className="sat-btn sat-btn--primary sat-btn--lg" aria-disabled={busy || !files.length} onClick={() => !busy && files.length && share()}>
-          <Icon name={tier === 'html' ? 'download' : 'share'} /> {tier === 'html' ? 'Download' : `Download or share ${tier === 'data' ? '3 CSV files' : files.length > 1 ? `${files.length} images` : 'image'}`}
+          <Icon name="share" /> {barTier.current === 'csv' ? 'Download or share 3 CSV files' : files.length > 1 ? `Download or share ${files.length} images` : 'Download or share image'}
         </button>
       </div>
     </div>
   );
 }
-

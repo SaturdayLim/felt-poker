@@ -344,7 +344,7 @@ function handRow(h: Hand, name: NameFn): Block {
       text(ctx, timeLabel(h.at), x, y + 88, font(500, 17, 'mono'), C.muted);
       const winners = h.winners.map((w) => (h.winners.length > 1 ? `${name(w.playerId)} ${units(w.amount)}` : name(w.playerId))).join(' and ');
       text(ctx, winners || 'No winner', x + 100, y + 58, font(400, 38, 'display'), C.text, 'left', 480);
-      const meta = [h.dealerId ? `${name(h.dealerId)} on the button` : '', (h.pots?.length ?? 1) > 1 ? h.pots!.map((p, i) => `${i ? `side ${i}` : 'main'} ${units(p.amount)} ${p.winners.map((w) => name(w.playerId)).join('/')}`).join(', ') : h.winners.length > 1 ? 'split pot' : ''].filter(Boolean).join(', ');
+      const meta = [h.dealerId ? name(h.dealerId) : '', (h.pots?.length ?? 1) > 1 ? h.pots!.map((p, i) => `${i ? `side ${i}` : 'main'} ${units(p.amount)} ${p.winners.map((w) => name(w.playerId)).join('/')}`).join(', ') : ''].filter(Boolean).join(', ');
       if (h.dealerId) dealerChip(ctx, x + 112, y + 82, 11);
       text(ctx, meta, x + (h.dealerId ? 130 : 100), y + 89, font(400, 20), C.muted, 'left', 420);
       caption(ctx, 'Pot', W - PAD - 28, y + 40, { q: 'chips', size: 17, align: 'right' });

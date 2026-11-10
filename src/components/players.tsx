@@ -5,8 +5,7 @@ import { ALPHABET, newCode, showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary, summaryFigure } from '../lib/stats';
 import { gameFigure, gameResults } from '../lib/calc';
-import { contributions } from '../lib/hand';
-import { figureDelta, figureNumber, figureText, figureUnit, shortDate } from '../lib/format';
+import { dateLabel, figureDelta, figureNumber, figureUnit, money, units } from '../lib/format';
 import { go } from '../router';
 import type { Game, ID, Player } from '../types';
 
@@ -268,101 +267,76 @@ function NameField({ p }: { p: Player }) {
   );
 }
 
-/** Hands a player won (took chips from a pot) and lost (put chips in, took none) in one game. */
-function handTally(g: Game, p: ID) {
-  let won = 0, lost = 0;
-  for (const h of g.hands) {
-    if (h.missed) continue;
-    if (h.winners.some((w) => w.playerId === p && w.amount > 0)) won++;
-    else if (h.log && (contributions(g, h.log, h.log.button)[p] ?? 0) > 0) lost++;
-  }
-  return { won, lost };
-}
+/** The player pop-up, top to bottom: the name (edit in place), the code, Net, Win rate and Games, then one summary list
+    of the player's games, then Full stats. A tap on a blank part of the card opens or closes the list. Each row shows
+    the game and date, the buy-in, the net and the hands won. A swipe down, a swipe sideways or a tap outside closes the card. */
+/** Hands this player won among the hands counted as logged (same base as `playerSummary().logged`). */
+const wonLogged = (g: Game, pid: ID) => g.hands.filter((h) => !h.missed && !h.excluded && h.log?.dealt.includes(pid) && h.winners.some((w) => w.playerId === pid)).length;
 
-/** One figure of a cash game in both measures. Tournaments have no chip figure, so they stay in money. */
-function cashPart(g: Game, m: number, chips: number) {
-  return { money: m, chips: g.type === 'cash' ? chips : null, currency: g.currency };
-}
-
-/** The player pop-up, top to bottom: the name (edit in place), the code, Net, Win rate and Games, then Full stats.
-    Net, Win rate and Games each open out under the three figures, one at a time, the same way. Net lists each closed
-    game with in, out and result. Win rate lists hands won and lost in each game. Games lists every game with that
-    night's net. A swipe down or a tap outside closes the card. */
 export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) {
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
   const showMoney = useStore((s) => s.settings.showMoney);
-  const [more, setMore] = useState<'net' | 'rate' | 'games' | null>(null);
+  const [more, setMore] = useState(false);
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
   const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
-  const closed = played.filter((g) => g.status === 'closed');
   // leaving for another page: the sheet first slides down off the screen, and only then does the page change
   const leave = useRef<((after?: () => void) => void) | null>(null);
   const goAfter = (path: string) => { if (leave.current) leave.current(() => go(path)); else { onClose(); go(path); } };
   const stats = () => goAfter(`players/stats/${p.id}`);
   const open = (g: Game) => goAfter(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/hands`);
-  const tile = (k: 'net' | 'rate' | 'games', cap: string, value: string) => (
-    <button type="button" className="sat-flat sat-card felt-fig" aria-expanded={more === k} onClick={() => setMore(more === k ? null : k)}>
-      <span className="sat-caption">{cap}</span><b className="sat-num">{value}</b>
-      <span className="felt-fig-chev" data-open={more === k} aria-hidden="true"><Icon name="chevron" size={14} stroke={2.2} /></span>
-    </button>
-  );
+  // a tap on any blank part of the card opens or closes the list; a control keeps its own job
+  const anchor = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const d = anchor.current?.closest('dialog');
+    if (!d) return;
+    const tap = (e: MouseEvent) => {
+      if (e.target === d) return; // a tap on the backdrop closes the sheet; it must not toggle the list
+      if ((e.target as HTMLElement).closest?.('button, input, a, [role="button"], .sat-tip, .felt-row, .felt-codectl')) return;
+      setMore((m) => !m);
+    };
+    d.addEventListener('click', tap);
+    return () => d.removeEventListener('click', tap);
+  }, []);
+  const tile = (cap: string, value: string, chev?: boolean) => {
+    const inner = <><span className="sat-caption">{cap}</span><b className="sat-num">{value}</b>
+      {chev && <span className="felt-fig-chev" data-open={more} aria-hidden="true"><Icon name="chevron" size={14} stroke={2.2} /></span>}</>;
+    return chev
+      ? <button type="button" className="sat-flat sat-card felt-fig" aria-expanded={more} onClick={() => setMore(!more)}>{inner}</button>
+      : <div className="sat-flat sat-card felt-fig">{inner}</div>;
+  };
   return (
     <Sheet open noClose onClose={onClose} dismissRef={leave} title={p.name} head={<NameField p={p} />}>
+      <span ref={anchor} hidden />
       <CodeControl pid={p.id} label />
       <div className="felt-tiles">
-        {tile('net', `Net (${figureUnit(summaryFigure(s, currency), showMoney)})`, s.games ? figureNumber(summaryFigure(s, currency), showMoney, { sign: true }) : '-')}
-        {tile('rate', 'Win rate', s.games ? `${Math.round(s.winRate * 100)}%` : '-')}
-        {tile('games', 'Games', String(played.length))}
+        {tile(`Net (${figureUnit(summaryFigure(s, currency), showMoney)})`, s.games ? figureNumber(summaryFigure(s, currency), showMoney, { sign: true }) : '-')}
+        {tile('Win rate', s.games ? `${Math.round(s.winRate * 100)}%` : '-')}
+        {tile('Games', String(played.length), true)}
       </div>
-      <Disclose open={more === 'net'}>
-        {closed.length === 0 ? <p className="sat-small sat-muted">No closed games yet.</p> : (
-          <div className="sat-flat felt-list">
-            {closed.map((g) => {
-              const r = gameResults(g).find((x) => x.playerId === p.id)!;
-              return (
-                <button key={g.id} className="felt-row" onClick={() => open(g)}>
-                  <span className="felt-row-main">
-                    <span className="felt-row-title felt-ellipsis">{g.name}</span>
-                    <span className="felt-row-sub sat-num">{shortDate(g.startedAt)}: in {figureText(cashPart(g, r.in, r.inUnits), showMoney)}, out {figureText(cashPart(g, r.out, r.outUnits), showMoney)}</span>
-                  </span>
-                  <Delta {...figureDelta(gameFigure(g, p.id), showMoney)} />
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </Disclose>
-      <Disclose open={more === 'rate'}>
-        {played.length === 0 ? <p className="sat-small sat-muted">Not in any games yet.</p> : (
-          <div className="sat-flat felt-list">
-            {played.map((g) => {
-              const t = handTally(g, p.id);
-              return (
-                <button key={g.id} className="felt-row" onClick={() => open(g)}>
-                  <span className="felt-row-main">
-                    <span className="felt-row-title felt-ellipsis">{g.name}</span>
-                    <span className="felt-row-sub">{g.status === 'live' ? 'Live' : shortDate(g.startedAt)}</span>
-                  </span>
-                  <span className="felt-row-end sat-num"><b className="felt-up">{t.won} won</b><br /><span className="felt-down">{t.lost} lost</span></span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </Disclose>
-      <Disclose open={more === 'games'}>
+      <Disclose open={more}>
         {played.length === 0 ? <p className="sat-small sat-muted">Not in any games yet.</p> : (
           <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
             <div className="sat-flat felt-list">
-              {played.map((g) => (
-                <button key={g.id} className="felt-row" onClick={() => open(g)}>
-                  <span className="felt-row-main"><span className="felt-row-title felt-ellipsis">{g.name}</span><span className="felt-row-sub">{g.status === 'live' ? 'Live' : shortDate(g.startedAt)}</span></span>
-                  {g.status === 'closed' ? <Delta {...figureDelta(gameFigure(g, p.id), showMoney)} /> : <span className="sat-small sat-muted">Live</span>}
-                </button>
-              ))}
+              {played.map((g) => {
+                const r = gameResults(g).find((x) => x.playerId === p.id);
+                const ps = playerSummary([g], p.id);
+                const buyIn = r ? (g.type === 'cash' && !showMoney ? units(r.inUnits) : money(r.in, g.currency)) : '0';
+                return (
+                  <button key={g.id} className="felt-row" onClick={() => open(g)}>
+                    <span className="felt-row-main">
+                      <span className="felt-row-title felt-ellipsis">{g.name} ({dateLabel(g.startedAt)})</span>
+                      <span className="felt-row-sub sat-num">Buy-in: {buyIn}</span>
+                    </span>
+                    <span className="felt-row-end sat-num">
+                      {g.status === 'closed' ? <Delta {...figureDelta(gameFigure(g, p.id), showMoney)} /> : <span className="sat-small sat-muted">Live</span>}
+                      <br /><span className="felt-row-sub">{wonLogged(g, p.id)}/{ps.logged} hands won</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            <button className="sat-btn sat-btn--block sat-btn--ghost" onClick={() => goAfter(`games/${p.id}`)}>Show these games on the Games page</button>
+            <button className="sat-btn sat-btn--block sat-btn--ghost" onClick={() => goAfter(`games/${p.id}`)}>Show these games on the game page</button>
           </div>
         )}
       </Disclose>

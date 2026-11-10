@@ -1,14 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { go } from '../router';
 import { calm, navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
 import { haptic } from '../lib/haptics';
-import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, TabPill, Toggle, num, toast, useCardLook, useRankOrder } from '../components/ui';
+import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, Toggle, num, paths, toast, useCardLook, useRankOrder } from '../components/ui';
 import { LiquidToggle } from '../components/liquidToggle';
 import { InstallButton, InstallGuide } from '../components/install';
 import { CardPlayground } from '../components/cardTest';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor, orderedRanks } from '../lib/cards';
-import { DEFAULT_PALETTE, PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
+import { PALETTE_KEYS, PALETTE_NAME, cleanPalette, coloursFor, defaultsFor, withColours } from '../lib/palette';
+import { useResolvedTheme } from '../theme';
 import { CodeBoxes } from '../components/codeBoxes';
 import { FEATURES } from '../lib/features';
 import { codeMatches } from '../lib/codes';
@@ -64,7 +65,7 @@ function AnimationSpeed() {
   const end = (f: number) => { pick(Math.round(f * LAST)); setDrag(null); };
   const toggle = (on: boolean) => { setMotionPref(on ? 'calm' : 'full'); setReduced(on); };
   return (
-    <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+    <div className="sat-stack" style={gap(3)}>
       <div className="sat-split">
         <Caption tip="motion">Animation speed</Caption>
       </div>
@@ -85,7 +86,7 @@ function AnimationSpeed() {
       <div className="felt-stops" aria-hidden="true">
         {STOPS.map((x, i) => <span key={x.v} data-on={i === idx} style={{ left: `${(i / LAST) * 100}%`, transform: `translateX(-${(i / LAST) * 100}%)` }}>{x.label}</span>)}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -94,19 +95,21 @@ function AnimationSpeed() {
 function MessageMode() {
   const mode = useStore((s) => s.settings.toastMode ?? 'replace');
   const update = useStore((s) => s.updateSettings);
-  const example = () => { toast('First message'); window.setTimeout(() => toast('Second message'), 700); };
+  const sample = () => { toast('First message'); window.setTimeout(() => toast('Second message'), 700); };
   return (
-    <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+    <div className="sat-stack" style={gap(3)}>
       <div className="sat-split">
         <Caption>Messages</Caption>
-        <button type="button" className="sat-btn sat-btn--sm" onClick={example}>Show example</button>
+        <button type="button" className="sat-btn sat-btn--sm" onClick={sample}>Sample</button>
       </div>
-      <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="New message">
-        <TabPill />
-        {(['replace', 'stack'] as const).map((k) => <button key={k} role="radio" aria-checked={mode === k} onClick={() => update({ toastMode: k })}>{k === 'replace' ? 'Replace' : 'Stack'}</button>)}
+      <div className="sat-switch-row">
+        <span>New message</span>
+        <span className="felt-switch-end">
+          <Help k={mode === 'stack' ? 'messageStack' : 'messageReplace'} />
+          <LiquidToggle on={mode === 'stack'} onChange={(v) => update({ toastMode: v ? 'stack' : 'replace' })} label="Stack new messages" width={52} icons={[paths.replace, paths.stack]} />
+        </span>
       </div>
-      <p className="sat-small sat-muted">{mode === 'replace' ? 'A new message takes the place of the one on screen.' : 'A new message sits above the one on screen. Up to 3 show at once.'}</p>
-    </section>
+    </div>
   );
 }
 
@@ -132,20 +135,21 @@ export default function Settings({ view = 'general' }: { view?: SettingsView }) 
 function General() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
+  const money = !!settings.showMoney;
   return (
     <>
-      <section className="sat-glass sat-card sat-stack">
-        <div className="felt-set-switches">
-          <div className="sat-switch-row">
-            <span>Show money <Help k="showMoney" /></span>
-            <Toggle on={!!settings.showMoney} onChange={(v) => update({ showMoney: v })} label="Show money" />
-          </div>
+      <section className="sat-glass sat-card sat-stack" style={gap(5)}>
+        <h2 className="sat-h2">Display</h2>
+        <div className="sat-switch-row">
+          <span>Units</span>
+          <span className="felt-switch-end">
+            <Help k={money ? 'unitsMoney' : 'unitsChips'} />
+            <LiquidToggle on={money} onChange={(v) => update({ showMoney: v })} label="Show money" width={52} icons={[paths.chip, paths.dollar]} />
+          </span>
         </div>
+        <AnimationSpeed />
+        <MessageMode />
       </section>
-
-      <AnimationSpeed />
-
-      <MessageMode />
 
       <section className="sat-glass sat-card sat-stack">
         <PaletteEditor />
@@ -347,10 +351,14 @@ function DataView() {
     every colour of the app from these five. Kept on this phone. */
 function PaletteEditor() {
   const saved = cleanPalette(useStore((s) => s.settings.palette));
+  const pref = useStore((s) => s.settings.theme);
   const update = useStore((s) => s.updateSettings);
+  const theme = useResolvedTheme(pref);
   const isDefault = !saved.custom;
-  // Default shows the true default colours; the custom ones stay saved, out of sight, for the switch back
-  const shown = isDefault ? DEFAULT_PALETTE : saved;
+  // light theme edits the light colours, dark theme the dark ones; Default shows the true defaults of the open theme
+  // (the custom ones stay saved, out of sight, for the switch back)
+  const shown = isDefault ? defaultsFor(theme) : coloursFor(saved, theme);
+  const tips: Partial<Record<(typeof PALETTE_KEYS)[number], ReactNode>> = { base: <Help k="paletteBase" />, main: <Help k="paletteMain" /> };
   return (
     <>
       <div className="sat-split">
@@ -362,13 +370,17 @@ function PaletteEditor() {
       </div>
       <div className="felt-suit-list">
         {PALETTE_KEYS.map((k) => (
-          <div key={k} className="felt-suit-row">
-            <span className="felt-suit-grip" aria-hidden="true" />
+          <div key={k} className="felt-suit-row felt-pal-row">
             <span className="felt-suit-mark" style={{ background: shown[k] }} aria-hidden="true" />
-            <span className="felt-row-title felt-grow">{PALETTE_NAME[k]}</span>
-            {/* a colour picked while on Default starts Custom from the default colours */}
+            <span className="felt-suit-namecell felt-grow"><span className="felt-row-title">{PALETTE_NAME[k]}</span>{tips[k]}</span>
+            {/* a colour picked while on Default starts Custom from the default colours of this theme */}
             <div className="felt-suit-custom is-open">
-              <SuitColor name={PALETTE_NAME[k]} value={shown[k]} off={false} onChange={(hex) => update({ palette: { ...(isDefault ? DEFAULT_PALETTE : saved), [k]: hex, custom: true } })} />
+              <SuitColor name={PALETTE_NAME[k]} value={shown[k]} off={false} onChange={(hex) => {
+                const other = theme === 'dark' ? 'light' : 'dark';
+                // leaving Default: the other theme starts from its defaults too, not from old saved custom colours
+                const base = isDefault ? withColours(saved, other, defaultsFor(other)) : saved;
+                update({ palette: withColours({ ...base, custom: true }, theme, { ...shown, [k]: hex }) });
+              }} />
             </div>
           </div>
         ))}

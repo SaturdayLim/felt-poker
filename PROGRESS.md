@@ -1,6 +1,12 @@
 # Felt: progress
 
-## Latest (10 Nov 2026): 1.6.3 to 1.6.5 from docs/PLAN-v1.7.md
+## Latest (10 Nov 2026): 1.7.0
+- Owner spec built by six agents plus an Opus review and two fix agents: PNG sets (src/report/pngSets.ts), Export screen, player card single list and sideways sheet swipe, Games search and press contraction, tab drag that follows the finger, Settings Display section and per-theme palettes, card back logo 40%.
+- Test servers: felt-agent-1 to felt-agent-6 (ports 5181 to 5186, vite --mode mock), one per agent, so data does not mix. Test data: trial/potato-test-backup.json loaded through __store.setState.
+- Not seen: real iPhone (clipboard copy of link and image, haptics, back swipe), a rebuy circle on screen (unit test only).
+- Open: the neighbour tab is blank page colour during a drag (screens are routed, not pre-rendered). Banner theme switch is 60 px, content switches 52 px. CSV label says event ledger, not action log (owner wrote action log).
+
+## Earlier (10 Nov 2026): 1.6.3 to 1.6.5 from docs/PLAN-v1.7.md
 - Done: revisions 1.6.3 (count gives back its cash-outs, also after an app close: rememberCountOpen/undoCountOpen in store.ts; rebuy Undo; felt-test runs vite --mode mock), 1.6.4 (closed record, one game clock from first buy-in, Results in chips, Off cuts all motion via html[data-motion-off] and a 0 ms Element.animate wrapper in motion.ts, calm springs have no bounce, toasts, live row fade), 1.6.5 (viewer Result label, closed room text, Sign in words, viewer Settings order, bar labels).
 - Commits are local, not pushed: Q9 and Q10 are open (CLAUDE.md: no push while a question is open).
 - Next: answers to Q9 and Q10, push, then 1.7.0 (second review R1 to R5, then D1, D2 if Q9 is yes, D3).

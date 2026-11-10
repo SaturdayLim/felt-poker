@@ -1,7 +1,7 @@
 // @ts-expect-error node types are not in the app tsconfig; vitest runs in node
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { AWARD_LIST, awardsFor, buildModel, buyinsOf, handClass, kingCaption, positionNames, resultStreet, type TrialPlayer } from './model';
+import { AWARD_LIST, awardsFor, buildModel, buyinsOf, handClass, mergeRebuys, kingCaption, positionNames, resultStreet, type TrialPlayer } from './model';
 import { AWARD_ICONS } from './awardIcons';
 import type { HandLog } from '../types';
 
@@ -156,6 +156,14 @@ describe('rebuy size in buy-ins', () => {
     expect(buyinsOf(300, 200)).toBe(1.5);
     expect(buyinsOf(100, 300)).toBe(0.3);
     expect(buyinsOf(50, 0)).toBe(1);
+  });
+});
+
+describe('rebuy sets', () => {
+  it('sums buy-ins between the same two hands into one set', () => {
+    // a rebuy for 2 buy-ins after hand 5, then three taps of + before hand 6 (one buy-in each)
+    const sets = mergeRebuys([{ after: 5, amount: 400 }, { after: 5, amount: 200 }, { after: 5, amount: 200 }, { after: 5, amount: 200 }, { after: 9, amount: 200 }], 200);
+    expect(sets).toEqual([{ after: 5, amount: 1000, buyins: 5 }, { after: 9, amount: 200, buyins: 1 }]);
   });
 });
 

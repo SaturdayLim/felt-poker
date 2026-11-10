@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { SPLASH_KEY, useStore } from './store';
-import { applyTheme } from './theme';
+import { applyTheme, useResolvedTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
 import { applyPalette, cleanPalette } from './lib/palette';
 import { NAV_TABS, go, goTab, guardHistory, tabPos, useRoute } from './router';
@@ -49,18 +49,20 @@ export default function App() {
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
   // the static start shell (app/index.html) gives way to the real first screen in the same frame: same mark, same place
   useLayoutEffect(() => { if (hydrated) document.getElementById('felt-boot')?.remove(); }, [hydrated]);
-  // the phone's back swipe moves to the next tab and the forward swipe to the previous one (like a drag across the page); at Settings and Home they bounce
+  // the phone's back swipe (finger moving right) moves to the tab on the left and the forward swipe to the tab on the right (like a drag across the page); at Settings and Home they bounce
   useEffect(() => guardHistory((way) => {
     const top = window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? '';
     const i = NAV_TABS.indexOf(top === 'insights' ? 'players' : top);
-    const to = NAV_TABS[i + (way === 'back' ? 1 : -1)];
+    const to = NAV_TABS[i + (way === 'back' ? -1 : 1)];
     if (i >= 0 && to !== undefined && document.querySelector('.felt-nav')) goTab(to); else bounceBack(way === 'back' ? 1 : -1);
   }), []);
   // a drag across the page moves to the neighbouring tab, or bounces at Home and Settings
   useEffect(() => installTabSwipe(), []);
   useEffect(() => { document.documentElement.style.setProperty('--felt-card-face', face); }, [face]);
   const palette = useStore((s) => s.settings.palette);
-  useEffect(() => { applyPalette(cleanPalette(palette)); }, [palette, theme]);
+  // the open theme, not the preference: with Phone, an OS switch to dark must swap in the dark set
+  const shownTheme = useResolvedTheme(theme);
+  useEffect(() => { applyPalette(cleanPalette(palette)); }, [palette, shownTheme]);
   // live link: reconnect to rooms that were open, and publish changes to shared games
   useEffect(() => {
     if (!hydrated) return;

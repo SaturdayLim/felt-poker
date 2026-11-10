@@ -33,3 +33,18 @@ html[data-calm] .felt-stops > [data-on="true"] { transition: none; }
 .felt-miniboard-cell { display: grid; place-items: center; border-radius: 4px; font-size: 9.5px; font-weight: 600; color: var(--suit); letter-spacing: -0.02em;
   background: color-mix(in srgb, var(--suit) 9%, var(--felt-card-face, #FBFCFC)); }
 html[data-calm] .felt-miniboard-row { transition: none; }
+
+/* Display: a tip and its switch sit together at the right end of a row. */
+.felt-switch-end { display: inline-flex; align-items: center; gap: var(--sat-space-2); }
+
+/* Colours: no drag grip, so the tile sits one edge distance from the left, the same as the eyedropper tip sits from the right. */
+.felt-pal-row { padding-left: var(--felt-pal-edge, 16.4px); }
+.felt-suit-namecell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+/* Game list rows and sections that arrive or leave: the space grows from 0fr to 1fr while the row fades.
+   Reduced motion: a 150 ms fade only, no change of height. */
+.felt-grow { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 280ms var(--sat-ease), opacity 220ms var(--sat-ease); }
+.felt-grow[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.felt-grow-in { min-height: 0; overflow: hidden; }
+html[data-calm] .felt-grow { grid-template-rows: 1fr; transition: opacity 150ms linear; }
+html[data-motion-off] .felt-grow { transition: none; }

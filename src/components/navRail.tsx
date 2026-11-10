@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './ui';
 import { calm, navMs } from '../lib/motion';
 import { goTab } from '../router';
+import { NAV_DRAG, type NavDrag } from '../lib/tabSwipe';
 
 /* The main tab bar, made like a chip tray: one straight rail with a pocket cut under it for each tab. The icon of
    each tab rests in its pocket. A poker chip in the Main colour marks the open tab: it rolls along the rail to the
@@ -25,6 +26,7 @@ const SAFE_MAX = 34;
 // the roll: one ease-in-out curve with no overshoot, so the chip never passes its pocket and comes back
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const smooth = (v: number) => { const t = clamp01(v); return t * t * (3 - 2 * t); };
 const round = (dx: number) => (Math.abs(dx) < PR ? Math.sqrt(PR * PR - dx * dx) : 0);
@@ -93,6 +95,9 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
   const [w, setW] = useState(0);
   const at = useRef<{ x: number; turn: number } | null>(null);
   const raf = useRef(0);
+  // a page drag moves the chip: where it rested when the drag began, and whether the next roll starts from a drag
+  const base = useRef<{ x: number; turn: number } | null>(null);
+  const dragged = useRef(false);
   const idx = tabs.findIndex((t) => t.path === active);
 
   useEffect(() => {
@@ -139,6 +144,47 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
     paint({ x, y: lift });
   };
 
+  // a drag across the page rolls the chip toward the next pocket in step with the finger (without slipping), and the rail dips with it.
+  // Let go under half way and the chip rolls home; over half way the tab change takes it on from where it is (the effect below).
+  useEffect(() => {
+    const n = nav.current;
+    if (!w || idx < 0) return;
+    const gap = w / tabs.length;
+    const on = (e: Event) => {
+      const { p, dir, end } = (e as CustomEvent<NavDrag>).detail;
+      if (calm() || navMs() === 0) return;
+      if (end === 'commit') return;
+      if (!base.current) base.current = at.current ?? { x: centre(idx), turn: 0 };
+      const b = base.current;
+      if (end === 'back') {
+        cancelAnimationFrame(raf.current);
+        const from = at.current ?? b;
+        base.current = null;
+        const t0 = performance.now(), ms = Math.max(120, navMs() * p);
+        const step = (now: number) => {
+          const t = Math.min(1, (now - t0) / ms), q = easeOut(t);
+          const x = from.x + (b.x - from.x) * q;
+          draw(x, 0, from.turn + (b.turn - from.turn) * q);
+          at.current = { x, turn: from.turn + (b.turn - from.turn) * q };
+          if (t < 1) raf.current = requestAnimationFrame(step);
+          else { at.current = b; draw(b.x, 0, b.turn); if (n) delete n.dataset.rolling; }
+        };
+        raf.current = requestAnimationFrame(step);
+        return;
+      }
+      cancelAnimationFrame(raf.current);
+      dragged.current = true;
+      if (n) n.dataset.rolling = '';
+      const x = b.x + dir * clamp01(p) * gap;
+      const turn = b.turn + ((x - b.x) / R) * (180 / Math.PI);
+      at.current = { x, turn };
+      draw(x, 0, turn);
+    };
+    window.addEventListener(NAV_DRAG, on);
+    return () => window.removeEventListener(NAV_DRAG, on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, w, tabs.length]);
+
   useLayoutEffect(() => {
     const c = chip.current;
     if (!c || !w) return;
@@ -147,6 +193,9 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
     c.style.opacity = '1';
     const x = centre(idx);
     const from = at.current;
+    const carried = dragged.current;
+    dragged.current = false;
+    base.current = null;
     // a full turn of the chip covers 2 x pi x r along the rail
     const turn = (from?.turn ?? 0) + (from ? ((x - from.x) / R) * (180 / Math.PI) : 0);
     at.current = { x, turn };
@@ -156,10 +205,12 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
     if (n) n.dataset.rolling = '';
     // it lifts out of the old pocket onto the rail, rolls, and drops into the new one; the rail gives way under it all the way
     const t0 = performance.now();
+    // a roll that carries on from a drag covers what is left of the way, on the same curve as the page (SlidePane)
+    const ms = carried ? navMs() * Math.max(0.4, Math.min(1, Math.abs(x - from.x) / (w / tabs.length))) : navMs();
     const step = (now: number) => {
-      const t = Math.min(1, (now - t0) / navMs());
-      const q = ease(t);
-      draw(from.x + (x - from.x) * q, Math.sin(t * Math.PI) * -6, from.turn + (turn - from.turn) * q);
+      const t = Math.min(1, (now - t0) / ms);
+      const q = carried ? easeOut(t) : ease(t);
+      draw(from.x + (x - from.x) * q, carried ? 0 : Math.sin(t * Math.PI) * -6, from.turn + (turn - from.turn) * q);
       // the chip has reached the pocket: the icon takes the chip colours while it settles
       if (n && q > 0.96) delete n.dataset.rolling;
       if (t < 1) raf.current = requestAnimationFrame(step);

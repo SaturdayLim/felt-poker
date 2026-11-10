@@ -92,3 +92,17 @@ html[data-calm] .felt-fab-icon > span { transition: none; }
 /* Animation speed Off: every animation is an instant cut (owner, 10 Nov 2026). Web Animations get 0 ms in motion.ts. */
 html[data-motion-off] *, html[data-motion-off] *::before, html[data-motion-off] *::after { transition: none !important; animation: none !important; }
 html[data-motion-off]::view-transition-group(*), html[data-motion-off]::view-transition-old(*), html[data-motion-off]::view-transition-new(*) { animation: none !important; }
+
+/* Games search: one box, a mode icon at its left. The three mode icons share one cell and cross-fade with a small turn. */
+.felt-gsearch { position: relative; display: flex; align-items: center; height: 44px; border: 2px solid var(--sat-line-strong); border-radius: 10px; background: var(--sat-solid-2); transition: border-color 150ms var(--sat-ease); }
+.felt-gsearch:focus-within { border-color: var(--sat-accent); }
+.felt-gsearch-mode { position: relative; flex: none; width: 40px; height: 100%; display: grid; place-items: center; color: var(--sat-text); }
+.felt-gsearch-ico { grid-area: 1 / 1; display: grid; place-items: center; opacity: 0; scale: .6; rotate: -40deg; filter: blur(2px);
+  transition: opacity 220ms var(--sat-ease), scale 220ms var(--sat-ease), rotate 220ms var(--sat-ease), filter 220ms var(--sat-ease); }
+.felt-gsearch-ico[data-on="true"] { opacity: 1; scale: 1; rotate: 0deg; filter: none; }
+.felt-gsearch-input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--sat-text); font-size: 16px; font-weight: 600; padding: 0 4px; -webkit-appearance: none; appearance: none; }
+.felt-gsearch-input::-webkit-search-cancel-button { display: none; }
+.felt-gsearch-clear { flex: none; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; display: grid; place-items: center; background: var(--sat-well); color: var(--sat-muted); opacity: 0; scale: .86; pointer-events: none; transition: opacity 150ms var(--sat-ease), scale 150ms var(--sat-ease); }
+.felt-gsearch-clear[data-on="true"] { opacity: 1; scale: 1; pointer-events: auto; }
+html[data-calm] .felt-gsearch-ico { transition: opacity 150ms linear; scale: 1; rotate: 0deg; filter: none; }
+html[data-calm] .felt-gsearch-clear { transition: opacity 150ms linear; }

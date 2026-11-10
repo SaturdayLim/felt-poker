@@ -63,7 +63,10 @@ export function playersCsv(games: Game[], name: NameFn): string {
   ], rows);
 }
 
-export function handsCsv(games: Game[], name: NameFn): string {
+/** Which coding the hands file carries for each pot: the street it was won on, or the player who won it. */
+export type PotCoding = 'street' | 'player';
+
+export function handsCsv(games: Game[], name: NameFn, potCoding: PotCoding = 'street'): string {
   const rows: unknown[][] = [];
   for (const g of games) {
     for (const h of g.hands) {
@@ -93,6 +96,9 @@ export function handsCsv(games: Game[], name: NameFn): string {
         h.bounty ? h.bounty.payers.map((p) => `${name(p)}:${bountyPay(h.bounty!, p)}`).join('; ') : '',
         h.log ? Object.entries(contributions(g, h.log, h.log.button)).filter(([, v]) => v > 0).map(([p, v]) => `${name(p)}:${v}`).join('; ') : '',
         h.missed ? 1 : 0, h.partial ? 1 : 0,
+        potCoding === 'street'
+          ? (h.log ? [...STREETS].reverse().find((st) => h.log!.streets[st]) ?? '' : '')
+          : h.winners.map((w) => name(w.playerId)).join('; '),
       ]);
     }
   }
@@ -100,7 +106,7 @@ export function handsCsv(games: Game[], name: NameFn): string {
     'game_id', 'game', 'date', 'hand', 'time', 'button', 'pot_chips', 'pot_money', 'winners', 'winner_amounts',
     'split', 'board', 'flop', 'turn', 'river', 'shown_cards', 'shown_hand_ranks', 'all_in', 'straddle', 'tags', 'note', 'pots',
     'entry_mode', 'vpip_players', 'pfr_players', 'pot_by_street', 'in_by_street', 'runs', 'returned', 'seconds', 'bounty_27', 'bounty_27_paid_by',
-    'chips_in_by_player', 'missed', 'partly_recorded',
+    'chips_in_by_player', 'missed', 'partly_recorded', potCoding === 'street' ? 'pot_won_street' : 'pot_won_player',
   ], rows);
 }
 

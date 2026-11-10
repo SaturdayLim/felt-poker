@@ -4,3 +4,26 @@
 /* tick rows in the download screen */
 .felt-tick { cursor: pointer; align-items: flex-start; }
 .felt-tick > input[type="checkbox"] { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--sat-accent); }
+/* Export screen: the Copy button sits beside the HTML row; the options under a row grow open (Fold). */
+.felt-exp-row { display: flex; align-items: center; gap: var(--sat-space-2); padding-inline-end: var(--sat-space-3); }
+.felt-exp-row > .felt-choice { flex: 1; min-width: 0; }
+.felt-exp-copy { flex: none; }
+.felt-exp-actions { display: flex; flex-wrap: wrap; gap: var(--sat-space-2); padding: var(--sat-space-2) var(--sat-space-4) var(--sat-space-3); }
+.felt-exp-pot { display: flex; flex-direction: column; align-items: stretch; gap: var(--sat-space-2); padding: var(--sat-space-2) var(--sat-space-4) var(--sat-space-3); }
+.felt-exp-hands { max-height: 240px; overflow-y: auto; overscroll-behavior: contain; }
+.felt-fold-head { width: 100%; text-align: left; }
+.felt-preview--press { -webkit-touch-callout: none; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.felt-img-full { position: fixed; inset: 0; z-index: 95; overflow: auto; background: var(--sat-bg); padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px); animation: felt-img-in 220ms var(--sat-ease); }
+.felt-img-full > img { width: 100%; display: block; border-radius: var(--sat-radius-md); }
+@keyframes felt-img-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes felt-img-out { to { opacity: 0; } }
+.felt-img-full { outline: none; }
+.felt-img-full[data-closing] { animation: felt-img-out 200ms var(--sat-ease) forwards; pointer-events: none; }
+.felt-img-full > img + img { margin-top: 12px; }
+html[data-calm] .felt-img-full { animation-duration: 150ms; }
+html[data-calm] .felt-img-full[data-closing] { animation-duration: 150ms; }
+/* The bottom bar of Export fades in for PNG and CSV and out for HTML (a plain fade, 150 ms when motion is reduced). */
+.felt-app .felt-bar-fade { transition: opacity 220ms var(--sat-ease); }
+.felt-app .felt-bar-fade[data-open="false"] { opacity: 0; pointer-events: none; }
+html[data-calm] .felt-app .felt-bar-fade { transition: opacity 150ms linear; }
+.felt-lb[data-wait="true"] { opacity: .7; }

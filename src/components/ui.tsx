@@ -8,10 +8,11 @@ import { HELP, type HelpKey, type TipLine } from '../lib/help';
 import type { Card, CardLook } from '../types';
 import { LiquidToggle, ThemeToggle } from './liquidToggle';
 import { useStore } from '../store';
+import { takeCarry } from '../lib/tabSwipe';
 
 /* ------------------------------- icons ------------------------------- */
 
-const paths: Record<string, ReactNode> = {
+export const paths: Record<string, ReactNode> = {
   home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></>,
   games: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
   chart: <><path d="M4 20V10" /><path d="M10 20V4" /><path d="M16 20v-7" /><path d="M22 20H2" /></>,
@@ -68,6 +69,13 @@ const paths: Record<string, ReactNode> = {
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.9 4.9 1.4 1.4" /><path d="m17.7 17.7 1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m4.9 19.1 1.4-1.4" /><path d="m17.7 6.3 1.4-1.4" /></>,
   moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
   phone: <><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M11 18.5h2" /></>,
+  person: <><circle cx="12" cy="8" r="4" /><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" /></>,
+  book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5" /></>,
+  dollar: <><path d="M12 2.5v19" /><path d="M16.5 6.5c-.8-1.3-2.5-2-4.5-2-2.6 0-4.5 1.3-4.5 3.4 0 4.6 9.5 2.4 9.5 7.5 0 2-1.9 3.6-5 3.6-2.2 0-4-.8-4.8-2.4" /></>,
+  /* Messages, Replace: a circle with a dotted circle behind it (the message it takes the place of) */
+  replace: <><circle cx="14.5" cy="9.5" r="6" strokeDasharray="1.6 2.4" /><circle cx="9.5" cy="14.5" r="6" /></>,
+  /* Messages, Stack: three lines, one message above the other */
+  stack: <><path d="M5 7h14" /><path d="M5 12h14" /><path d="M5 17h14" /></>,
   qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3z" /><path d="M21 14v.01" /><path d="M21 21h-4v-4" /><path d="M14 21v-.01" /></>,
 };
 
@@ -243,12 +251,12 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
   getSnapshotBeforeUpdate(prev: { k: string; i: number }) {
     const el = this.el.current;
     if (!el || prev.k === this.props.k || prev.i < 0 || this.props.i < 0 || navMs() === 0) return null;
-    return { copy: el.cloneNode(true) as HTMLElement, r: el.getBoundingClientRect() };
+    return { copy: el.cloneNode(true) as HTMLElement, r: el.getBoundingClientRect(), c: takeCarry() };
   }
-  componentDidUpdate(prev: { k: string; i: number }, _s: unknown, snap: { copy: HTMLElement; r: DOMRect } | null) {
+  componentDidUpdate(prev: { k: string; i: number }, _s: unknown, snap: { copy: HTMLElement; r: DOMRect; c: { x: number; p: number } | null } | null) {
     const el = this.el.current;
     if (!snap || !el) return;
-    const { copy, r } = snap;
+    const { copy, r, c } = snap;
     // Reduced motion reduces the motion: the old screen fades out and the new one fades in, with no slide
     if (calm()) {
       copy.setAttribute('aria-hidden', 'true');
@@ -270,24 +278,27 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     copy.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => { if (r.top < 0) h.style.transform = `translateY(${-r.top}px)`; });
     (el.closest('dialog') ?? document.body).append(copy);
     // the same ease-in-out as the chip roll, so the swipe and the roll move as one
-    const t = { duration: navMs(), easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
+    // after a swipe the slide carries on from where the finger let go (c): the old page leaves the way it was going, the new one follows it in
+    const dur = c ? navMs() * Math.max(0.4, 1 - c.p) : navMs();
+    const t = { duration: dur, easing: c ? 'cubic-bezier(0.33, 1, 0.68, 1)' : 'cubic-bezier(0.65, 0, 0.35, 1)' };
+    const inFrom = c ? c.x + by : by;
     // the bars stay: only the content under the header swipes, and the header text cross-fades
     const body = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>(':scope > .felt-page > :not(.felt-header)')];
     const outItems = body(copy), inItems = body(el);
     const whole = !outItems.length || !inItems.length;
     // the screens are see-through, so the old one fades out before the new one reaches it
-    const fadeOut = copy.animate({ opacity: [1, 0] }, { duration: whole ? navMs() * 0.4 : navMs() * 0.5, easing: 'ease-out', fill: 'forwards' });
-    const outs = (whole ? [copy] : outItems).map((n) => n.animate({ translate: ['0 0', `${-by * 0.28}px 0`] }, t));
+    const fadeOut = copy.animate({ opacity: [1, 0] }, { duration: whole ? dur * 0.4 : dur * 0.5, easing: 'ease-out', fill: 'forwards' });
+    const outs = (whole ? [copy] : outItems).map((n) => n.animate({ translate: c ? [`${c.x}px 0`, `${Math.sign(c.x) * r.width}px 0`] : ['0 0', `${-by * 0.28}px 0`] }, t));
     outs[0].onfinish = outs[0].oncancel = () => copy.remove();
     void fadeOut;
     // a hidden tab holds back the finish event
-    window.setTimeout(() => copy.remove(), navMs() + 100);
+    window.setTimeout(() => copy.remove(), dur + 100);
     el.classList.add('felt-slide-in');
     const over = () => el.classList.remove('felt-slide-in');
-    window.setTimeout(over, navMs());
-    if (whole) el.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t);
+    window.setTimeout(over, dur);
+    if (whole) el.animate({ transform: [`translateX(${inFrom}px)`, 'translateX(0)'] }, t);
     else {
-      inItems.forEach((n) => n.animate({ transform: [`translateX(${by}px)`, 'translateX(0)'] }, t));
+      inItems.forEach((n) => n.animate({ transform: [`translateX(${inFrom}px)`, 'translateX(0)'] }, t));
       el.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => h.animate({ opacity: [0, 1] }, { duration: navMs() * 0.5, easing: 'ease-out', delay: navMs() * 0.2, fill: 'backwards' }));
     }
   }
@@ -334,7 +345,7 @@ export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, o
       return null;
     };
     const start = (e: TouchEvent) => {
-      const free = (e.target as HTMLElement).closest?.('input[type="range"], input[type="color"], textarea, [data-drag-row]');
+      const free = (e.target as HTMLElement).closest?.('input, textarea, select, [contenteditable], [data-drag-row], .felt-keypad, .felt-picker, .felt-hold, [data-noswipe]');
       s = e.touches.length === 1 && !free ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), drag: false } : null;
     };
     const move = (e: TouchEvent) => {
@@ -644,8 +655,63 @@ export function mixClip(a: string, b: string, q: number): string {
   const v = na.map((x, i) => x + (nb[i] - x) * q);
   return `inset(${v[0]}px ${v[1]}px ${v[2]}px ${v[3]}px round ${v[4]}px)`;
 }
-/** A sheet from the bottom. On a phone it always opens by sliding up and always leaves by sliding down: a swipe,
-    a tap outside or a button. `edge` keeps the coral edge of the card button. */
+/** A sideways swipe on a sheet: the sheet follows the finger, then leaves to that side past a third of its width or on
+    a fast flick, else it springs back. A vertical swipe, a range, a drag row or a sideways scroller is left alone. */
+function useSwipeSide(ref: RefObject<HTMLElement>, onSide: (side: -1 | 1) => void, on = true) {
+  const out = useRef(onSide);
+  out.current = onSide;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !on) return;
+    let s: { x: number; y: number; t: number; mode: 'x' | 'y' | null } | null = null;
+    const sideScroller = (from: EventTarget | null) => {
+      for (let n = from as HTMLElement | null; n; n = n === el ? null : n.parentElement) {
+        if (n.scrollWidth > n.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(n).overflowX)) return true;
+      }
+      return false;
+    };
+    const start = (e: TouchEvent) => {
+      const free = (e.target as HTMLElement).closest?.('input[type="range"], input[type="color"], textarea, [data-drag-row]');
+      s = e.touches.length === 1 && !free && !sideScroller(e.target) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), mode: null } : null;
+    };
+    const move = (e: TouchEvent) => {
+      if (!s || s.mode === 'y') return;
+      const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+      if (!s.mode) {
+        if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) { s.mode = 'y'; return; }
+        if (Math.abs(dx) > 8) { s.mode = 'x'; s.x = e.touches[0].clientX; s.t = Date.now(); } else return;
+      }
+      e.preventDefault();
+      el.style.translate = `${e.touches[0].clientX - s.x}px 0px`;
+    };
+    const end = (e: TouchEvent) => {
+      if (s?.mode !== 'x') { s = null; return; }
+      const dx = e.changedTouches[0].clientX - s.x, speed = Math.abs(dx) / Math.max(1, Date.now() - s.t);
+      s = null;
+      // the tap that ends a swipe must not press a button
+      const stop = (c: Event) => { c.stopPropagation(); c.preventDefault(); };
+      window.addEventListener('click', stop, { capture: true, once: true });
+      window.setTimeout(() => window.removeEventListener('click', stop, true), 350);
+      if (Math.abs(dx) > el.offsetWidth / 3 || (Math.abs(dx) > 24 && speed > 0.6)) { out.current(dx < 0 ? -1 : 1); return; }
+      spring(el, (p) => ({ translate: `${dx * (1 - p)}px 0px` }), SPRING.sheetDown);
+      el.style.translate = '';
+    };
+    const cancel = () => { s = null; el.style.translate = ''; };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', cancel);
+    return () => {
+      el.removeEventListener('touchstart', start);
+      el.removeEventListener('touchmove', move);
+      el.removeEventListener('touchend', end);
+      el.removeEventListener('touchcancel', cancel);
+    };
+  }, [ref, on]);
+}
+
+/** A sheet from the bottom. On a phone it always opens by sliding up. It leaves by sliding down (a swipe down, a tap
+    outside or a button) or to the side it was swiped. `edge` keeps the coral edge of the card button. */
 export function Sheet({ open, onClose, title, sub, children, edge, head, noClose, action, dismissRef }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
   /** No Close button: the swipe bar, a swipe down and a tap outside close it. */
@@ -666,7 +732,7 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
   const fadeBackdrop = (d: HTMLDialogElement, from: number, to: number, ms: number) => {
     try { d.animate({ opacity: [from, to] }, { duration: ms, easing: 'linear', fill: 'forwards', pseudoElement: '::backdrop' }); } catch { /* an older phone: the backdrop does not fade */ }
   };
-  const dismiss = (after?: () => void) => {
+  const dismiss = (after?: () => void, side?: -1 | 1) => {
     const d = ref.current;
     if (leaving.current) return;
     if (!d?.animate) { closing.current(); after?.(); return; }
@@ -678,8 +744,13 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
     leaving.current = true;
     fadeBackdrop(d, 1, 0, SPRING.sheetDown[0] * 1000);
     const done = () => { leaving.current = false; closing.current(); after?.(); };
-    // a sheet with a swipe bar always leaves the way a swipe takes it: down, however it was closed
-    if (phone()) {
+    if (side) {
+      // swiped sideways: it leaves to that side, from where the finger let go
+      const fx = parseFloat(d.style.translate.split(' ')[0] ?? '') || 0, by = side * (window.innerWidth + d.offsetWidth) / 2 + 24 * side - fx;
+      d.style.translate = '';
+      spring(d, (p) => ({ translate: `${fx + by * Math.min(p, 1)}px 0px` }), SPRING.sheetDown, { fill: 'forwards', near: 0.02 })!.onfinish = done;
+    } else if (phone()) {
+      // a sheet with a swipe bar leaves down unless it was swiped sideways, however it was closed
       const from = parseFloat(d.style.translate.split(' ')[1] ?? '') || 0, by = d.offsetHeight + 24 - from;
       d.style.translate = '';
       spring(d, (p) => ({ translate: `0 ${from + by * Math.min(p, 1)}px` }), SPRING.sheetDown, { fill: 'forwards', near: 0.02 })!.onfinish = done;
@@ -689,6 +760,7 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
   dismissNow.current = dismiss;
   if (dismissRef) dismissRef.current = dismiss;
   useSwipeDown(ref, () => dismissNow.current(), open);
+  useSwipeSide(ref, (side) => dismissNow.current(undefined, side), open);
   useEffect(() => {
     const d = ref.current;
     if (!open || !d) return;
@@ -993,9 +1065,9 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
 }
 
-/** A face-down card: the blue S on ink, with one ice border. The S is 20% of the card height (70, 40, 31 px). */
+/** A face-down card: the blue S on ink, with one ice border. The S is 40% of the card height (70, 40, 31 px; owner, 10 Nov 2026). */
 export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
-  return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 14 : size === 'sm' ? 6.2 : 8} /></span>;
+  return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 28 : size === 'sm' ? 12.4 : 16} /></span>;
 }
 
 /** One etched box split down the middle (Nil), or two face-down cards (Filled). */

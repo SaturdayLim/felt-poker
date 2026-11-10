@@ -93,7 +93,8 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 .felt-row .felt-row-sub { font-size: var(--sat-fs-small); color: var(--sat-muted); }
 .felt-row .felt-row-end { text-align: right; }
 button.felt-row { color: inherit; }
-@media (hover: hover) and (pointer: fine) { button.felt-row:hover { background: var(--sat-hover); } }
+@media (hover: hover) and (pointer: fine) { button.felt-row:hover:not(:active) { background: var(--sat-hover); } }
+button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 
 .felt-grow { flex: 1; min-width: 0; }
 .felt-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -730,6 +731,8 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-card.felt-cardback { background: #1c1e21; border: 2px solid #ebf1f5; display: inline-grid; place-items: center; --sat-mark: #0052cc; --sat-mark-stroke: 1.1px; }
 .felt-card.felt-cardback.lg { border-width: 3px; --sat-mark-stroke: 1.6px; }
 .felt-card.felt-cardback.sm { border-width: 1.5px; --sat-mark-stroke: 1px; }
+/* the S is 40% of the card height at every size, also where a screen sets its own card size (owner, 10 Nov 2026) */
+.felt-card.felt-cardback > svg { height: 40%; width: auto; }
 /* 2-7 rules as one group in the player view */
 .felt-rule-group { margin-top: var(--sat-space-1);  }
 .felt-rule-cap { display: flex; align-items: center; gap: 4px; padding: var(--sat-space-3) 0 var(--sat-space-1); }
@@ -864,25 +867,25 @@ input, textarea, select, [contenteditable="true"], .felt-selectable, .felt-selec
 .felt-ntab .sat-brand { margin-right: 0; }
 .felt-ntab-right { margin-left: auto; display: flex; align-items: center; gap: var(--sat-space-1); padding-bottom: 4px; }
 
-/* Colours, custom: every token comes from five base colours on <html> (lib/palette.ts). Base is the dark ground
-   and the light text; Main is the blue role; Accent the orange role; Up and Down the results. Default leaves the
+/* Colours, custom: every token comes from five base colours on <html> (lib/palette.ts). Base is the background of the open theme
+   (light or dark, each with its own five colours); Main is the blue role; Accent the orange role; Up and Down the results. Default leaves the
    hand-tuned tokens of skin-felt.css alone. Light first, then dark, guarded the same way as the skin. */
 html[data-skin="felt"][data-palette="custom"] {
-  --sat-bg: color-mix(in oklab, var(--felt-main) 7%, #fff);
+  --sat-bg: var(--felt-base);
   --sat-mesh-1: color-mix(in oklab, var(--felt-main) 30%, transparent);
   --sat-mesh-2: color-mix(in oklab, var(--felt-main) 20%, transparent);
   --sat-mesh-3: color-mix(in oklab, var(--felt-main) 14%, transparent);
-  --sat-text: var(--felt-base);
-  --sat-muted: color-mix(in oklab, var(--felt-base) 72%, #fff);
-  --sat-faint: color-mix(in oklab, var(--felt-base) 50%, #fff);
-  --sat-line: color-mix(in oklab, var(--felt-base) 12%, transparent);
-  --sat-line-strong: color-mix(in oklab, var(--felt-base) 22%, transparent);
+  --sat-text: #1C1E21;
+  --sat-muted: color-mix(in oklab, #1C1E21 72%, #fff);
+  --sat-faint: color-mix(in oklab, #1C1E21 50%, #fff);
+  --sat-line: color-mix(in oklab, #1C1E21 12%, transparent);
+  --sat-line-strong: color-mix(in oklab, #1C1E21 22%, transparent);
   --sat-glass-1: rgba(255,255,255,0.6);
   --sat-glass-2: rgba(255,255,255,0.8);
   --sat-solid-1: color-mix(in oklab, var(--felt-main) 3%, #fff);
   --sat-solid-2: #fff;
-  --sat-well: color-mix(in oklab, var(--felt-base) 5%, transparent);
-  --sat-hover: color-mix(in oklab, var(--felt-base) 5%, transparent);
+  --sat-well: color-mix(in oklab, #1C1E21 5%, transparent);
+  --sat-hover: color-mix(in oklab, #1C1E21 5%, transparent);
   --sat-accent: var(--felt-main);
   --sat-accent-fill: var(--felt-main);
   --sat-accent-fill-hover: color-mix(in oklab, var(--felt-main) 85%, #000);

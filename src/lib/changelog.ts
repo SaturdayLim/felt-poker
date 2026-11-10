@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.7.0', date: '10 Nov 2026', notes: [
+    'Export replaces Download or Share: HTML with Copy for the 30-day link, PNG with four sets (Summary, Detailed, Playstyle, Full Action Log), and CSV with pot coding by street won or player won.',
+    'PNG images: title with the date, blinds and chip value under it. Results are ranked candles with award icons. Charts sit on the image background. Biggest pots no longer clip.',
+    'Rebuys between two hands count as one set on the stack graph.',
+    'Player card: a tap anywhere opens one list of the player games, and a button shows them on the Games page. Every pop-up closes with a sideways swipe too.',
+    'Games: search by player, game name or date. A press and hold shrinks the whole box instead of a sharp highlight.',
+    'Tabs: the page follows the finger, the chip rolls with the drag, and half the screen completes the change.',
+    'Settings: a Display section with Units (chips or money), Animation speed and Messages. Light and dark themes each keep their own colours. The card back logo is bigger.',
+  ] },
   { version: '1.6.5', date: '10 Nov 2026', notes: [
     'Viewer: a hand won with no showdown shows under Result, also in Copy hand.',
     'Viewer: a closed room says to ask the host for a new link or the report.',

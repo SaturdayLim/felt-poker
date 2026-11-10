@@ -147,6 +147,8 @@ Cannot be checked here: a real iPhone (Safari back swipe, haptics, keyboard and 
 
 Update 10 Nov 2026 (evening): 1.6.3, 1.6.4 and 1.6.5 are built and committed on `main`, not pushed (Q9 and Q10 open). 151 tests pass. Section 4 tasks A1 to C3 are done; see PROGRESS.md for gaps. 1.7.0 is next.
 
+Owner answers, 10 Nov 2026 (later): Q9 yes, in a new form (Export screen with HTML, PNG, CSV; PNG sets Summary, Detailed, Playstyle, Full Action Log). Q10 yes (split control exception in CLAUDE.md). Push 1.6.3 to 1.6.5 together with 1.7.0. Results candles are horizontal rows, ranked highest to lowest by the ending result from par. Rebuys between two hands form one set.
+
 Earlier state:
 
 - `main` at v1.6.2 (`1d8736c`) plus this plan. 144 tests pass. `tsc` clean.

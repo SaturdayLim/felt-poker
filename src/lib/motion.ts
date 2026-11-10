@@ -176,10 +176,19 @@ const INK_MS = MS.ink;
 /** The pulse colour around the letters of a name: the blue of the theme. */
 const glow = () => getComputedStyle(document.documentElement).getPropertyValue('--sat-accent').trim() || '#0052cc';
 
-/** The frame that reacts: the button, or the list around it when the button is the only row in that list. */
+/** The frame that reacts: the button, the list around it when the button is the only row in that list,
+    or the swipe row that carries it (so the row and its background contract together). */
 function frameOf(b: HTMLElement): HTMLElement {
   const p = b.parentElement;
+  if (p?.matches('.felt-swipe-row')) return p;
   return p?.matches('.felt-list') && p.children.length === 1 ? p : b;
+}
+
+/** A square-cornered row has soft corners while it contracts, so the shrinking field never shows a sharp rectangle. */
+function roundFrame(frame: HTMLElement): boolean {
+  if (parseFloat(getComputedStyle(frame).borderTopLeftRadius) > 0) return false;
+  frame.style.borderRadius = 'var(--sat-radius-md)';
+  return true;
 }
 
 /** Light that spreads from the finger across the frame, clipped to its corners. */
@@ -216,7 +225,7 @@ export function recentPress(ms = 600): { el: HTMLElement; rect: DOMRect } | null
     A press has one look, however long the finger stays down, and the action runs on release with no wait.
     A long press only does something on controls that say so (.felt-hold, the recorder names). */
 export function installPresses() {
-  let down: { b: HTMLElement; frame: HTMLElement; c: PressClass; sink?: Animation; lift?: Animation; ink?: Ink } | null = null;
+  let down: { b: HTMLElement; frame: HTMLElement; c: PressClass; sink?: Animation; lift?: Animation; ink?: Ink; rounded?: boolean } | null = null;
   const find = (t: EventTarget | null) => (t as Element | null)?.closest?.<HTMLElement>('[data-player], button, a[href], .felt-nav a');
   document.addEventListener('click', (e) => {
     const b = find(e.target);
@@ -235,15 +244,18 @@ export function installPresses() {
     const s = DOWN[c];
     // straight to the press depth, and it stays there: a longer press looks the same
     if (s) down.sink = frame.animate([{ scale: 1 }, { scale: s }], { duration: MS.pressDown, easing: 'ease-out', fill: 'forwards' });
-    if (c === 'forward' || c === 'dismiss' || c === 'open') down.ink = startInk(frame, e);
+    // a row, card or game row contracts as a whole field: no light spreads over it (that was the sharp rectangle)
+    if (c === 'forward' || c === 'dismiss') down.ink = startInk(frame, e);
+    if (c === 'open' && roundFrame(frame)) down.rounded = true;
     // a toggle also goes down with weight
     if (c === 'toggle') down.lift = b.animate({ translate: ['0 0', '0 3px'] }, { duration: MS.pressDown, easing: 'ease-out', fill: 'forwards' });
     if (c === 'name') down.lift = b.animate({ textShadow: ['0 0 0 transparent', `0 0 10px ${glow()}`] }, { duration: MS.pressDown, easing: 'ease-out', fill: 'forwards' });
   }, true);
   const up = () => {
     if (!down) return;
-    const { b, frame, c, sink, lift, ink } = down;
+    const { b, frame, c, sink, lift, ink, rounded } = down;
     down = null;
+    if (rounded) window.setTimeout(() => { frame.style.borderRadius = ''; }, 320);
     const now = sink && DOWN[c] ? parseFloat(getComputedStyle(frame).scale) || DOWN[c]! : 1;
     const dy = lift && c === 'toggle' ? parseFloat(getComputedStyle(b).translate.split(' ')[1] ?? '') || 3 : 0;
     sink?.cancel();

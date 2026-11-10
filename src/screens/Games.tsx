@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { PlayerName } from '../components/players';
@@ -24,10 +24,26 @@ export default function Games({ player: arg }: { player?: string }) {
   const who = useStore((s) => s.players.find((p) => p.id === player));
   const groups = useStore((s) => s.groups);
   const showMoney = useStore((s) => s.settings.showMoney);
+  const allPlayers = useStore((s) => s.players);
   const [type, setType] = useState<TypeFilter>('all');
-  const list = games.filter((g) => (type === 'all' || g.type === type) && (!who || g.playerIds.includes(who.id))).sort((a, b) => b.startedAt - a.startedAt);
-  const live = list.filter((g) => g.status === 'live');
-  const closed = list.filter((g) => g.status === 'closed');
+  const [mode, setMode] = useState<SearchMode>('person');
+  const [typed, setTyped] = useState<string | null>(null);
+  // a player filter from the player card shows in the box as person mode
+  useEffect(() => { if (player) { setMode('person'); setTyped(null); } }, [player]);
+  const boxValue = typed ?? who?.name ?? '';
+  const needle = typed === null ? '' : norm(typed);
+  const nameOf = (id: string) => allPlayers.find((p) => p.id === id)?.name ?? '';
+  const hit = (g: Game) => !needle || (mode === 'person' ? g.playerIds.some((id) => norm(nameOf(id)).includes(needle))
+    : mode === 'game' ? norm(g.name).includes(needle) : dateWords(g.startedAt).some((w) => ` ${w}`.includes(` ${needle}`)));
+  const list = games.filter((g) => (type === 'all' || g.type === type) && (!who || g.playerIds.includes(who.id)) && hit(g)).sort((a, b) => b.startedAt - a.startedAt);
+  const searching = !!boxValue;
+  const liveNow = list.filter((g) => g.status === 'live');
+  const closedNow = list.filter((g) => g.status === 'closed');
+  // rows that leave stay mounted while they shrink away; rows that arrive grow in
+  const live = useRows(liveNow), closed = useRows(closedNow);
+  const showEmpty = useHold(list.length === 0);
+  const emptyNode = useRef<ReactNode>(null);
+  if (list.length === 0) emptyNode.current = searching ? <Empty title="No matches">{`No game matches "${boxValue}". Try another word or search mode.`}</Empty> : <Empty title="No games">Games you start appear here.</Empty>;
   const groupName = (g: Game) => groups.find((x) => x.id === g.groupId)?.name;
 
   return (
@@ -35,44 +51,40 @@ export default function Games({ player: arg }: { player?: string }) {
       <Header banner="Games" tabs={[{ label: 'Game list', icon: 'lines', on: !stats, go: () => go('games', true) }, { label: 'Stats', icon: 'sigma', on: stats, go: () => go('games/stats', true) }]} />
       <div className="sat-stack">
         <TypeChips type={type} setType={setType} />
-        {who && (
-          <div className="sat-cluster">
-            <button className="sat-chip" aria-pressed="true" aria-label={`Showing games of ${who.name}. Tap to show all games`} onClick={() => go('games', true)}>{who.name} <Icon name="close" size={14} stroke={2.4} /></button>
-          </div>
-        )}
         <SlidePane k={stats ? 'stats' : 'list'} i={stats ? 1 : 0}>
-        {stats ? <GameStats games={closed} /> : <div className="sat-stack">
+        {stats ? <GameStats games={closedNow} /> : <div className="sat-stack">
+        <GameSearch mode={mode} setMode={(m) => { setMode(m); if (who) go('games', true); setTyped(''); }} value={boxValue} onChange={(v) => { if (who) go('games', true); setTyped(v); }} />
         <div className="felt-start">
           <button className={`sat-btn sat-btn--primary${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> New Game</button>
           {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
         </div>
-        {list.length === 0 && <Empty title="No games">Games you start appear here.</Empty>}
+        {showEmpty && <Grow open={list.length === 0}>{emptyNode.current}</Grow>}
 
-        {live.length > 0 && (
-          <section className="felt-section">
+        {live.rows.length > 0 && (
+          <Grow open={liveNow.length > 0}><section className="felt-section">
             <h2 className="sat-caption felt-section-cap"><span className="felt-dot felt-dot--pulse" />Live now</h2>
-            {live.map((g) => {
+            {live.rows.map(({ g, open: rowOpen }) => {
               const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
               return (
-                <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
+                <Grow key={g.id} open={rowOpen} initial={live.first}><button className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
                   <span className="felt-live-name">{g.name}</span>
                   <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}{runningMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}{groupName(g) ? `, ${groupName(g)}` : ''}</span>
                   <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
-                </button>
+                </button></Grow>
               );
             })}
-          </section>
+          </section></Grow>
         )}
 
-        {closed.length > 0 && (
-          <section className="felt-section">
+        {closed.rows.length > 0 && (
+          <Grow open={closedNow.length > 0}><section className="felt-section">
             <h2 className="sat-caption felt-section-cap">Closed</h2>
             <div className="sat-flat felt-list felt-closed-list">
-              {closed.map((g) => {
+              {closed.rows.map(({ g, open: rowOpen }) => {
                 const res = gameResults(g);
                 const open = openTransfers(g).length;
                 return (
-                  <SwipeDelete key={g.id} label={`Delete ${g.name}`} onDelete={(row) => shrinkAway(row, () => withUndo(`${g.name} deleted.`, () => useStore.getState().deleteGame(g.id)))}>
+                  <Grow key={g.id} open={rowOpen} initial={closed.first}><SwipeDelete label={`Delete ${g.name}`} onDelete={(row) => shrinkAway(row, () => { closed.drop(g.id); withUndo(`${g.name} deleted.`, () => useStore.getState().deleteGame(g.id)); })}>
                   <button className="felt-row" onClick={() => go(`game/${g.id}/hands`)}>
                     <div className="felt-row-main">
                       <div className="felt-row-title felt-ellipsis" data-game-title={g.id}>{g.name}</div>
@@ -86,15 +98,87 @@ export default function Games({ player: arg }: { player?: string }) {
                       </div>
                     )}
                   </button>
-                  </SwipeDelete>
+                  </SwipeDelete></Grow>
                 );
               })}
             </div>
-          </section>
+          </section></Grow>
         )}
         </div>}
         </SlidePane>
       </div>
+    </div>
+  );
+}
+
+const GROW_MS = 300;
+/** True while `flag` is true and for a moment after, so a leaving block can finish its exit. */
+function useHold(flag: boolean): boolean {
+  const [held, setHeld] = useState(flag);
+  useEffect(() => {
+    if (flag) { setHeld(true); return; }
+    const t = window.setTimeout(() => setHeld(false), GROW_MS);
+    return () => window.clearTimeout(t);
+  }, [flag]);
+  return flag || held;
+}
+/** The games of a list plus the ones that just left, which stay mounted until their exit has played. `first` is true on the first render: those rows do not animate in. */
+function useRows(items: Game[]) {
+  const kept = useRef(new Map<string, Game>());
+  const timers = useRef(new Map<string, number>());
+  const [, bump] = useState(0);
+  const first = useRef(true);
+  useEffect(() => { first.current = false; }, []);
+  const ids = new Set(items.map((g) => g.id));
+  items.forEach((g) => { kept.current.set(g.id, g); });
+  useEffect(() => {
+    for (const id of ids) { const t = timers.current.get(id); if (t) { clearTimeout(t); timers.current.delete(id); } }
+    for (const id of kept.current.keys()) {
+      if (ids.has(id) || timers.current.has(id)) continue;
+      timers.current.set(id, window.setTimeout(() => { timers.current.delete(id); kept.current.delete(id); bump((n) => n + 1); }, GROW_MS + 40));
+    }
+  });
+  useEffect(() => () => timers.current.forEach((t) => clearTimeout(t)), []);
+  const rows = [...kept.current.values()].sort((a, b) => b.startedAt - a.startedAt).map((g) => ({ g, open: ids.has(g.id) }));
+  const drop = (id: string) => { kept.current.delete(id); bump((n) => n + 1); };
+  return { rows, drop, first: first.current };
+}
+/** Grows open from zero height (and fades in), and closes the same way. `initial`: start open, no entry. */
+function Grow({ open, initial = false, children }: { open: boolean; initial?: boolean; children: ReactNode }) {
+  const [on, setOn] = useState(initial ? open : false);
+  useEffect(() => {
+    const r = requestAnimationFrame(() => requestAnimationFrame(() => setOn(open)));
+    return () => cancelAnimationFrame(r);
+  }, [open]);
+  return <div className="felt-grow" data-open={on} {...(on ? {} : { inert: '' })}><div className="felt-grow-in">{children}</div></div>;
+}
+
+type SearchMode = 'person' | 'game' | 'date';
+const MODES: { id: SearchMode; icon: string; label: string; holder: string }[] = [
+  { id: 'person', icon: 'person', label: 'Search by player name', holder: 'Search players' },
+  { id: 'game', icon: 'book', label: 'Search by game name', holder: 'Search games' },
+  { id: 'date', icon: 'calendar', label: 'Search by date', holder: 'Search dates' },
+];
+const norm = (t: string) => t.toLowerCase().replace(/[’']/g, ' ').replace(/\s+/g, ' ').trim();
+/** The date as the list shows it (9 Nov'26), in the ways a person types it: 9 Nov, Nov 2026, 2026. */
+function dateWords(at: number): string[] {
+  const d = new Date(at);
+  const day = d.getDate(), y = d.getFullYear();
+  const mon = d.toLocaleDateString('en-GB', { month: 'short' }), long = d.toLocaleDateString('en-GB', { month: 'long' });
+  return [`${day} ${mon} ${String(y).slice(2)}`, `${day} ${mon} ${y}`, `${day} ${long} ${y}`, `${day} ${mon}`, `${day} ${long}`, `${mon} ${y}`, `${long} ${y}`, `${y}`].map(norm);
+}
+
+/** One search box over the game list. The icon at its left cycles player, game and date; the three icons cross-fade, no cut. */
+function GameSearch({ mode, setMode, value, onChange }: { mode: SearchMode; setMode: (m: SearchMode) => void; value: string; onChange: (v: string) => void }) {
+  const cur = MODES.find((m) => m.id === mode)!;
+  const next = MODES[(MODES.indexOf(cur) + 1) % MODES.length];
+  return (
+    <div className="felt-gsearch" role="search">
+      <button type="button" className="felt-gsearch-mode" data-press="select" aria-label={`${cur.label}. Tap for ${next.label.toLowerCase()}`} onClick={() => setMode(next.id)}>
+        {MODES.map((m) => <span key={m.id} className="felt-gsearch-ico" data-on={m.id === mode}><Icon name={m.icon} size={20} /></span>)}
+      </button>
+      <input className="felt-gsearch-input" type="search" inputMode="search" enterKeyHint="search" autoComplete="off" aria-label={cur.holder} placeholder={cur.holder} value={value} onChange={(e) => onChange(e.target.value)} />
+      <button type="button" className="felt-gsearch-clear" data-press="none" data-on={!!value} aria-label="Clear search" tabIndex={value ? 0 : -1} onClick={() => onChange('')}><Icon name="close" size={14} stroke={2.4} /></button>
     </div>
   );
 }

@@ -36,6 +36,84 @@
         "--strictPort"
       ],
       "port": 5174
+    },
+    {
+      "name": "felt-agent-1",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "mock",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "port": 5181
+    },
+    {
+      "name": "felt-agent-2",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "mock",
+        "--port",
+        "5182",
+        "--strictPort"
+      ],
+      "port": 5182
+    },
+    {
+      "name": "felt-agent-3",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "mock",
+        "--port",
+        "5183",
+        "--strictPort"
+      ],
+      "port": 5183
+    },
+    {
+      "name": "felt-agent-4",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "mock",
+        "--port",
+        "5184",
+        "--strictPort"
+      ],
+      "port": 5184
+    },
+    {
+      "name": "felt-agent-5",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "mock",
+        "--port",
+        "5185",
+        "--strictPort"
+      ],
+      "port": 5185
+    },
+    {
+      "name": "felt-agent-6",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "mock",
+        "--port",
+        "5186",
+        "--strictPort"
+      ],
+      "port": 5186
     }
   ]
 }

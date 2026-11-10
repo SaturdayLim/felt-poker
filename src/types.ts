@@ -307,7 +307,7 @@ export interface BountyRule {
 export type SuitKey = 's' | 'h' | 'c' | 'd';
 /** How cards look on this phone: the order of the suit rows in the card picker (top to bottom) and a colour per suit. */
 /** The five base colours of the app (Settings, Colours). `custom` off: the default palette. */
-export interface Palette { custom?: boolean; base: string; main: string; accent: string; up: string; down: string }
+export interface Palette { custom?: boolean; base: string; main: string; accent: string; up: string; down: string; /** The dark-theme colours; the five above are the light-theme ones. */ dark?: { base: string; main: string; accent: string; up: string; down: string } }
 
 export interface CardLook { order: SuitKey[]; colors: Record<SuitKey, string>; custom?: boolean; bg?: string }
 

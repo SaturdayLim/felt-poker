@@ -6,7 +6,7 @@ import { playerSummary, type PlayerSummary } from '../lib/stats';
 import { estimateStacks } from '../lib/stacks';
 import { STREETS, STREET_CARDS, actingOrder, bountyPay, bountyTotal, contributions, defaultAct, inAtEnd, replayStreet, pfr, takedown, vpip, wentToShowdown } from '../lib/hand';
 import { RANKS, bestHand } from '../lib/cards';
-import { playMs } from '../lib/format';
+import { dateLabel, money, playMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
 import { clashLevel, countedPairs, effectivePairs, privateOf, shownPair } from '../lib/clash';
@@ -69,6 +69,8 @@ export interface HandView {
 }
 export interface TrialModel {
   game: string; date: string;
+  /** Image header: "Potato Day (1 Nov 2026)" and "(1/2 * S$0.10 Cash)". */
+  title: string; sub: string;
   /** Every position of the table, button first, then clockwise: BTN, SB, BB, UTG ... HJ, CO. */
   positions: Pos[];
   /** The seats the game had: the most seats used, never fewer than the players. */
@@ -76,7 +78,7 @@ export interface TrialModel {
   /** The full game log, only when the host ticked it for the report. */
   log?: HandView[];
   hands: number; minutes: number; medianSec: number; players4: number;
-  pots: { n: number; pot: number; winners: string[] }[];
+  pots: { n: number; pot: number; winners: string[]; street: string }[];
   reach: { preflop: number; flop: number; turn: number; river: number; showdown: number };
   multiway: number; raisedPre: number;
   bounties: { n: number; to: string; total: number }[];
@@ -91,6 +93,18 @@ export interface TrialModel {
   /** Who pays whom, in chips, to close the accounts. */
   settle: { from: string; to: string; amount: number }[];
   players: TrialPlayer[];
+}
+
+/** Buy-ins between the same two hands are one rebuy set: sum them (owner rule, 10 Nov 2026). */
+export function mergeRebuys(list: { after: number; amount: number }[], buyIn: number): { after: number; amount: number; buyins: number }[] {
+  const out: { after: number; amount: number; buyins: number }[] = [];
+  for (const r of list) {
+    const last = out[out.length - 1];
+    if (last && last.after === r.after) last.amount += r.amount;
+    else out.push({ after: r.after, amount: r.amount, buyins: 0 });
+  }
+  for (const r of out) r.buyins = buyinsOf(r.amount, buyIn);
+  return out;
 }
 
 /** A rebuy in buy-ins: its own amount over the game's buy-in, one decimal only when not a whole number (400 in a 200 game = 2). */
@@ -275,10 +289,9 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
     const buys = g.buyIns.filter((b) => b.playerId === p).sort((a, b) => a.at - b.at);
     const start = buys.length ? buys[0].at : g.startedAt;
     const boughtBy = (t: number) => buys.filter((b) => b.at <= t).reduce((a, b) => a + b.amount, 0);
-    const rebuys = buys.filter((b) => b.at > start + 60000).map((b) => ({
+    const rebuys = mergeRebuys(buys.filter((b) => b.at > start + 60000).map((b) => ({
       after: hands.filter((h) => (h.endedAt ?? h.at) <= b.at).length, amount: b.amount,
-      buyins: buyinsOf(b.amount, g.buyIns[0]?.amount ?? 0),
-    }));
+    })), g.buyIns[0]?.amount ?? 0);
     const dev = [0, ...hands.map((h, i) => (i === hands.length - 1
       ? r.outUnits - r.inUnits
       : Math.round((estimateStacks(noOut, h.n + 1).stack[p] ?? 0) - boughtBy(h.endedAt ?? h.at))))];
@@ -327,10 +340,12 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
   const bounties = hands.filter((h) => h.bounty).map((h) => ({ n: h.n, to: name(h.bounty!.playerId), total: bountyTotal(h.bounty!) }));
   return {
     game: g.name, date: new Date(g.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    title: `${g.name} (${dateLabel(g.startedAt)})`,
+    sub: `(${g.sb}/${g.bb} * ${money(g.unitValue, g.currency)} ${g.type === 'tournament' ? 'Tournament' : 'Cash'})`,
     positions, seatsN, log: opts.gameLog ? [...views.values()] : undefined,
     hands: hands.length, minutes: Math.round((playMs(g) ?? 0) / 60000),
     medianSec: secs[Math.floor(secs.length / 2)] ?? 0, players4: dealtN,
-    pots: hands.map((h) => ({ n: h.n, pot: h.pot, winners: h.winners.map((w) => name(w.playerId)) })),
+    pots: hands.map((h) => ({ n: h.n, pot: h.pot, winners: h.winners.map((w) => name(w.playerId)), street: STREET_LABEL[wonAt(h.log!)] })),
     reach,
     multiway: hands.filter((h) => inAtEnd(h.log!, 'preflop').length >= 3).length,
     raisedPre: hands.filter((h) => h.log!.streets.preflop?.raisers.length).length,

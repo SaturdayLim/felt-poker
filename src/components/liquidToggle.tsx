@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { calm } from '../lib/motion';
 import { resolveTheme, useResolvedTheme } from '../theme';
 import { useStore } from '../store';
@@ -12,8 +12,10 @@ const OMEGA = 16, ZETA = 0.5;
 const LAG_A = 0.045, LAG_B = 0.095;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** `plain`: no sun and moon, for a switch that is not the theme. Every switch in Felt moves the same way. */
-export function LiquidToggle({ on, onChange, label, width = 60, plain = false }: { on: boolean; onChange: (v: boolean) => void; label: string; width?: number; plain?: boolean }) {
+/** `plain`: no sun and moon, for a switch that is not the theme. Every switch in Felt moves the same way.
+    `icons`: two marks (drawn in a 24 x 24 box, stroked, no fill) that replace the sun and the moon: the first sits at the
+    off end, the second at the on end. The chosen one rides on the knob. */
+export function LiquidToggle({ on, onChange, label, width = 60, plain = false, icons }: { on: boolean; onChange: (v: boolean) => void; label: string; width?: number; plain?: boolean; icons?: readonly [ReactNode, ReactNode] }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const id = (n: string) => `lq-${n}-${uid}`;
   const glow = useRef<SVGRectElement>(null);
@@ -119,18 +121,26 @@ export function LiquidToggle({ on, onChange, label, width = 60, plain = false }:
         <rect ref={glow} x="0" y="0" width={W} height={H} rx={H / 2} fill={`url(#${id('on')})`} filter={`url(#${id('glow')})`} opacity="0" />
         <rect x="0" y="0" width={W} height={H} rx={H / 2} fill="#3A3D44" />
         <rect ref={lit} x="0" y="0" width={W} height={H} rx={H / 2} fill={`url(#${id('on')})`} opacity="0" />
-        <g ref={sun} display={plain ? 'none' : undefined} transform="translate(59 59)" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" fill="none">
+        <g ref={sun} display={plain && !icons ? 'none' : undefined} transform="translate(59 59)" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" fill="none">
+          {icons ? <g transform="translate(-30 -30) scale(2.5)" strokeWidth="1.5" strokeLinejoin="round">{icons[0]}</g> : <>
           <circle r="13" fill="#fff" stroke="none" />
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <path key={a} d="M0 -21V-27" transform={`rotate(${a})`} />)}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <path key={a} d="M0 -21V-27" transform={`rotate(${a})`} />)}</>}
         </g>
-        <g ref={moon} display={plain ? 'none' : undefined} transform="translate(177 59)"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="translate(-27.6 -27.6) scale(2.3)" fill="#fff" /></g>
+        <g ref={moon} display={plain && !icons ? 'none' : undefined} transform="translate(177 59)" {...(icons ? { stroke: '#fff', strokeLinecap: 'round' as const, fill: 'none' } : {})}>
+          {icons ? <g transform="translate(-30 -30) scale(2.5)" strokeWidth="1.5" strokeLinejoin="round">{icons[1]}</g>
+            : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="translate(-27.6 -27.6) scale(2.3)" fill="#fff" />}
+        </g>
         <circle ref={shadow} cx="0" cy="0" r={KNOB} fill="#000" opacity="0.32" filter={`url(#${id('soft')})`} />
         <rect x="-40" y="-40" width={W + 80} height={H + 80} fill={`url(#${id('knob')})`} mask={`url(#${id('mask')})`} />
-        <g ref={kSun} display={plain ? 'none' : undefined} stroke="#1C1E21" strokeWidth="3.6" strokeLinecap="round" fill="none" pointerEvents="none">
+        <g ref={kSun} display={plain && !icons ? 'none' : undefined} stroke="#1C1E21" strokeWidth="3.6" strokeLinecap="round" fill="none" pointerEvents="none">
+          {icons ? <g transform="translate(-30 -30) scale(2.5)" strokeWidth="1.6" strokeLinejoin="round">{icons[0]}</g> : <>
           <circle r="12" fill="#1C1E21" stroke="none" />
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <path key={a} d="M0 -19V-25" transform={`rotate(${a})`} />)}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <path key={a} d="M0 -19V-25" transform={`rotate(${a})`} />)}</>}
         </g>
-        <g ref={kMoon} display={plain ? 'none' : undefined} pointerEvents="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="translate(-27.6 -27.6) scale(2.3)" fill="#1C1E21" /></g>
+        <g ref={kMoon} display={plain && !icons ? 'none' : undefined} pointerEvents="none" {...(icons ? { stroke: '#1C1E21', strokeLinecap: 'round' as const, fill: 'none' } : {})}>
+          {icons ? <g transform="translate(-30 -30) scale(2.5)" strokeWidth="1.6" strokeLinejoin="round">{icons[1]}</g>
+            : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="translate(-27.6 -27.6) scale(2.3)" fill="#1C1E21" />}
+        </g>
       </svg>
     </button>
   );

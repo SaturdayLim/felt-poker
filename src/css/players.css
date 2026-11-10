@@ -12,7 +12,10 @@
 .felt-fold-inner > .felt-row { padding-inline: var(--sat-space-4); }
 .felt-fold .felt-fold-chev { transform: none; transition: transform 260ms var(--sat-ease); }
 .felt-fold .felt-fold-head[aria-expanded="true"] .felt-fold-chev { transform: rotate(180deg); }
-html[data-calm] .felt-fold-wrap, html[data-calm] .felt-fold-inner > *, html[data-calm] .felt-fold .felt-fold-chev { transition: none; }
+/* Reduced motion: no travel, but the fold still cross-fades in 150 ms (nothing cuts) */
+html[data-calm] .felt-fold-wrap { transition: grid-template-rows 150ms linear, opacity 150ms linear; }
+html[data-calm] .felt-fold-inner > * { transition: opacity 150ms linear; }
+html[data-calm] .felt-fold .felt-fold-chev { transition: none; }
 
 /* Game type filter: two chips that turn on and off on their own (Cash, Tournaments) */
 .felt-typechips { display: flex; flex-wrap: wrap; gap: var(--sat-space-2); }

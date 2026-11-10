@@ -85,6 +85,8 @@ export function LiveRow({ g }: { g: Game }) {
     if (!live.on) return;
     navigator.clipboard?.writeText(live.link).then(() => toast('Link copied.'), () => toast('Copy was blocked.'));
   };
+  // the room decides: a password of spaces only opens an unlocked room
+  const noPass = live.on && !live.locked;
   const state = busy ? 'wait' : !live.on ? 'off' : live.connected ? 'on' : 'wait';
 
   return (
@@ -92,14 +94,17 @@ export function LiveRow({ g }: { g: Game }) {
       <div className={`sat-flat sat-card felt-liverow is-${state}`}>
         <button type="button" className={`felt-liveswitch is-${state}`} role="switch" aria-checked={live.on} aria-label="Live link" aria-disabled={busy} onClick={() => { if (busy) return; if (live.on) stop(); else start(); }}><Icon name="power" size={16} stroke={2.6} /></button>
         {/* off: a field to type in. On: the same space, censored, with the eye. */}
-        <span className={`felt-livepass ${live.on ? 'is-set' : ''}`}>
+        <span className={`felt-livepass ${live.on ? 'is-set' : ''} ${noPass ? 'is-none' : ''}`}>
           <span className="felt-livepass-fit">
             <input className="felt-livepass-in" type={see ? 'text' : 'password'} aria-label="Live link password" placeholder={live.on ? '' : 'Add password'} autoComplete="off" autoCapitalize="off" spellCheck={false}
               value={pass} disabled={live.on || busy} onChange={(e) => setPass(e.target.value)} />
           </span>
-          {pass && <button type="button" className="felt-livepass-eye" aria-label={see ? 'Hide the password' : 'Show the password'} aria-pressed={see} onClick={() => setSee(!see)}><Icon name={see ? 'eye' : 'dark'} size={18} /></button>}
+          {noPass && <span className="felt-livepass-none">No password</span>}
+          {pass && !noPass && <button type="button" className="felt-livepass-eye" aria-label={see ? 'Hide the password' : 'Show the password'} aria-pressed={see} onClick={() => setSee(!see)}><Icon name={see ? 'eye' : 'dark'} size={18} /></button>}
         </span>
         <Help k="sharing" />
+        {/* off: the row names itself, so a host knows what the red button starts with no tip open */}
+        {!live.on && <span className="felt-liverow-name">Live link off</span>}
         {live.on && (
           <span className="felt-liverow-end">
             <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Copy the link" onClick={copy}><Icon name="link" /></button>

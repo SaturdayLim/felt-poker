@@ -472,10 +472,14 @@ html[data-calm] .felt-dot--pulse { animation: none; }
 .felt-pcard-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sat-space-3); font-size: var(--sat-fs-small); color: var(--sat-muted); }
 .felt-pcard-stats b { color: var(--sat-text); font-weight: 600; }
 .felt-stat { white-space: nowrap; }
-.felt-pill { display: inline-flex; align-items: center; border-radius: var(--sat-radius-pill); background: var(--sat-well); }
-.felt-pill > button { min-height: 32px; padding: 0 10px; color: inherit; border-radius: var(--sat-radius-pill); }
-.felt-pill > .felt-pill-plus { width: 32px; padding: 0; display: grid; place-items: center; color: var(--sat-accent-text); border-left: 1px solid var(--sat-line); border-radius: 0 var(--sat-radius-pill) var(--sat-radius-pill) 0; }
-@media (pointer: coarse) { .felt-pill > button { min-height: 36px; } .felt-pill > .felt-pill-plus { width: 40px; } }
+.felt-buyins { display: inline-flex; align-items: center; border-radius: var(--sat-radius-pill); background: var(--sat-well); }
+.felt-buyins > button { min-height: 32px; padding: 0 10px; color: inherit; border-radius: var(--sat-radius-pill); }
+.felt-buyins > .felt-buyins-plus { width: 32px; padding: 0; display: grid; place-items: center; color: var(--sat-accent-text); border-left: 1px solid var(--sat-line); border-radius: 0 var(--sat-radius-pill) var(--sat-radius-pill) 0; }
+@media (pointer: coarse) { .felt-buyins > button { min-height: 36px; } .felt-buyins > .felt-buyins-plus { width: 40px; } }
+/* the count and + are one segmented control. The stack count keeps 8 px from it, on the same line or the next */
+.felt-buyins + .felt-stat { margin-left: 2px; }
+.felt-pcard-stats { row-gap: 8px; }
+.felt-pcard-stats .felt-stat-btn { margin-block: 0; }
 .felt-out-cap { margin-top: var(--sat-space-3); }
 .felt-addbar { display: flex; align-items: center; justify-content: center; gap: var(--sat-space-2); width: 100%; min-height: 52px; border-radius: var(--sat-radius-md);
   border: 1.5px dashed var(--sat-line-strong); color: var(--sat-accent-text); font-weight: 600; background: transparent; }
@@ -741,6 +745,16 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-liverow.is-on, .felt-liverow.is-wait { --felt-sw: #35c46b; }
 .felt-liverow.is-off { --felt-sw: #e5484d; }
 .felt-liverow-end { display: flex; align-items: center; gap: 0; margin-left: auto; flex: none; }
+.felt-liverow-name { margin-left: auto; padding-right: var(--sat-space-3); flex: none; font-size: var(--sat-fs-small); font-weight: 500; color: var(--sat-muted); }
+/* the words of the row fade in, as do the link and QR: nothing in the row cuts in */
+.felt-liverow-name, .felt-livepass-none, .felt-liverow-end { animation: felt-liverow-in 240ms var(--sat-ease) both; }
+@keyframes felt-liverow-in { from { opacity: 0; } }
+html[data-calm] .felt-liverow-name, html[data-calm] .felt-livepass-none, html[data-calm] .felt-liverow-end { animation-duration: 150ms; }
+/* on with no password: the quiet words take the place of the field, in the same space */
+.felt-livepass.is-none .felt-livepass-fit { display: none; }
+.felt-livepass.is-none .felt-livepass-none { padding-inline: 0 var(--sat-space-1); }
+/* the tip target (44 px) stays clear of the eye */
+.felt-liverow > .sat-tip { margin-left: 5px; }
 /* off: a boxed field. On with a password: the same text with no box. On with none: small quiet text */
 .felt-livepass { flex: 0 1 150px; min-width: 0; display: flex; align-items: center; height: 38px; padding: 0 var(--sat-space-1) 0 var(--sat-space-3); border: 1px solid var(--sat-line-strong); border-radius: var(--sat-radius-sm); background: var(--sat-well); }
 .felt-livepass:focus-within { border-color: var(--sat-accent); }

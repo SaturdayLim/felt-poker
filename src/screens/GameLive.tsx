@@ -222,11 +222,11 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
           {!closed && <StatusLight value={status} onChange={onLight} name={name} outLabel={isCash ? 'Clock out' : 'Bust'} />}
         </div>
         <div className="felt-pcard-stats">
-          <span className="felt-pill">
+          <span className="felt-buyins">
             <button type="button" onClick={onBuyIns} aria-label={`${n} ${isCash ? 'buy-ins' : 'entries'}. Show or change`}>
               <b className="sat-num">{n}</b> {isCash ? (n === 1 ? 'buy-in' : 'buy-ins') : n === 1 ? 'entry' : 'entries'}
             </button>
-            {!closed && <button type="button" className="felt-pill-plus" onClick={onRebuy} aria-label={isCash ? `Rebuy ${units(g.defaultBuyIn)} chips for ${name}` : `Re-enter ${name}`}><Icon name="plus" size={14} stroke={2.4} /></button>}
+            {!closed && <button type="button" className="felt-buyins-plus" onClick={onRebuy} aria-label={isCash ? `Rebuy ${units(g.defaultBuyIn)} chips for ${name}` : `Re-enter ${name}`}><Icon name="plus" size={14} stroke={2.4} /></button>}
           </span>
           {stack !== null && status !== 'out' && (
             <span className="felt-stat">

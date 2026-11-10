@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.6.2', date: '10 Nov 2026', notes: [
+    'Game page: each player card shows the buy-in count and the rebuy button again. A tap on the count lists the buy-ins, and a wrong one can be deleted.',
+    'Live link: the row says Live link off when it is off, and No password when it is on with no password.',
+  ] },
   { version: '1.6.1', date: '10 Nov 2026', notes: [
     'The player card opens Net, Win rate and Games in place, the same way, with each night’s net in the game list.',
     'A tap on a closed game opens its record (Hands). Results and Settle Up are two steps after it, and the game name glides between the list and the record.',

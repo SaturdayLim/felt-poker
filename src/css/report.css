@@ -1,9 +1,6 @@
 /* report area styles (owned by one package at a time) */
+/* period chips wrapper (used by Insights) */
+.felt-period-wrap { position: relative; }
 /* tick rows in the download screen */
 .felt-tick { cursor: pointer; align-items: flex-start; }
 .felt-tick > input[type="checkbox"] { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--sat-accent); }
-/* period chips: a tip over each chip (the tips sit above the chip row, only the circles take taps) */
-.felt-period-wrap { position: relative; }
-.felt-period-tips { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); pointer-events: none; }
-.felt-period-tips > .felt-tipped { pointer-events: none; }
-.felt-period-tips .sat-tip { pointer-events: auto; }

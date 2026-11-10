@@ -1080,16 +1080,19 @@ export function ToastHost() {
   modeRef.current = mode;
   const [list, setList] = useState<ToastItem[]>([]);
   const timers = useRef(new Map<number, number>());
+  /** Toasts already fading out. A new message in Replace mode drops these at once, so no more than one fades beside the new one. */
+  const leavingIds = useRef(new Set<number>());
   const [, tick] = useState(0);
   useEffect(() => {
     if (!list.some((t) => t.until)) return;
     const i = window.setInterval(() => tick((x) => x + 1), 250);
     return () => window.clearInterval(i);
   }, [list]);
-  const drop = (id: number) => { window.clearTimeout(timers.current.get(id)); timers.current.delete(id); setList((l) => l.filter((t) => t.id !== id)); };
+  const drop = (id: number) => { window.clearTimeout(timers.current.get(id)); timers.current.delete(id); leavingIds.current.delete(id); setList((l) => l.filter((t) => t.id !== id)); };
   /** Slides down and fades; only this message is removed when it has gone. */
   const leave = (id: number) => {
     window.clearTimeout(timers.current.get(id));
+    leavingIds.current.add(id);
     const e = document.querySelector<HTMLElement>(`[data-toast="${id}"]`);
     if (!e?.animate || calm()) { drop(id); return; }
     e.getAnimations().forEach((a) => a.cancel());
@@ -1103,7 +1106,8 @@ export function ToastHost() {
     toastListener = (msg, action) => {
       const id = ++toastSeq;
       const ms = action?.countdown ? action.countdown * 1000 : action ? 5000 : 2600;
-      if (modeRef.current === 'replace') timers.current.forEach((_, old) => leaveRef.current(old));
+      // Replace: older messages fade out; one already fading is removed at once, so the stack never holds more than two
+      if (modeRef.current === 'replace') timers.current.forEach((_, old) => (leavingIds.current.has(old) ? drop(old) : leaveRef.current(old)));
       setList((l) => [...(modeRef.current === 'stack' ? l.slice(-2) : l), { id, msg, action, until: action?.countdown ? Date.now() + ms : undefined }]);
       timers.current.set(id, window.setTimeout(() => leaveRef.current(id), ms));
     };

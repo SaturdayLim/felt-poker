@@ -57,6 +57,27 @@ export function QrPopup({ link, from, onClose }: { link: string; from?: DOMRect;
   );
 }
 
+/** Keeps a piece of the row mounted while it fades out (240 ms, the same time as its fade in), then removes it.
+    A fade that turns back mid-way runs in reverse, so nothing jumps to full opacity. Calm: no fade. */
+function useFadeOut<T extends HTMLElement>(show: boolean, ms = 240) {
+  const [mounted, setMounted] = useState(show);
+  const ref = useRef<T>(null);
+  const run = useRef<Animation | null>(null);
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      if (run.current) { run.current.onfinish = null; run.current.reverse(); run.current = null; }
+      return;
+    }
+    const el = ref.current;
+    if (!el?.animate || calm()) { setMounted(false); return; }
+    const a = el.animate({ opacity: [1, 0] }, { duration: ms, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' });
+    run.current = a;
+    a.onfinish = () => { run.current = null; setMounted(false); };
+  }, [show, ms]);
+  return { mounted, ref };
+}
+
 /** The live link of one game, on the page: password, copy, QR and the switch. The switch glows green when the link
     is on and red when it is off. Copy and QR exist only when it is on. The password is hidden until the eye is tapped. */
 export function LiveRow({ g }: { g: Game }) {
@@ -67,6 +88,11 @@ export function LiveRow({ g }: { g: Game }) {
   const [see, setSee] = useState(false);
   const [busy, setBusy] = useState(false);
   const [qrFrom, setQrFrom] = useState<DOMRect | null>(null);
+  // the room decides: a password of spaces only opens an unlocked room
+  const noPass = live.on && !live.locked;
+  const nameFade = useFadeOut<HTMLSpanElement>(!live.on);
+  const noPassFade = useFadeOut<HTMLSpanElement>(noPass);
+  const endFade = useFadeOut<HTMLSpanElement>(live.on);
   if (!liveAvailable()) return <div className="sat-flat sat-card sat-small">The live link is not set up in this app yet. See docs/FIREBASE-SETUP.md.</div>;
 
   const start = async () => {
@@ -85,8 +111,6 @@ export function LiveRow({ g }: { g: Game }) {
     if (!live.on) return;
     navigator.clipboard?.writeText(live.link).then(() => toast('Link copied.'), () => toast('Copy was blocked.'));
   };
-  // the room decides: a password of spaces only opens an unlocked room
-  const noPass = live.on && !live.locked;
   const state = busy ? 'wait' : !live.on ? 'off' : live.connected ? 'on' : 'wait';
 
   return (
@@ -99,14 +123,14 @@ export function LiveRow({ g }: { g: Game }) {
             <input className="felt-livepass-in" type={see ? 'text' : 'password'} aria-label="Live link password" placeholder={live.on ? '' : 'Add password'} autoComplete="off" autoCapitalize="off" spellCheck={false}
               value={pass} disabled={live.on || busy} onChange={(e) => setPass(e.target.value)} />
           </span>
-          {noPass && <span className="felt-livepass-none">No password</span>}
+          {noPassFade.mounted && <span ref={noPassFade.ref} className="felt-livepass-none">No password</span>}
           {pass && !noPass && <button type="button" className="felt-livepass-eye" aria-label={see ? 'Hide the password' : 'Show the password'} aria-pressed={see} onClick={() => setSee(!see)}><Icon name={see ? 'eye' : 'dark'} size={18} /></button>}
         </span>
         <Help k="sharing" />
         {/* off: the row names itself, so a host knows what the red button starts with no tip open */}
-        {!live.on && <span className="felt-liverow-name">Live link off</span>}
-        {live.on && (
-          <span className="felt-liverow-end">
+        {nameFade.mounted && <span ref={nameFade.ref} className="felt-liverow-name">Live link off</span>}
+        {endFade.mounted && (
+          <span ref={endFade.ref} className="felt-liverow-end">
             <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Copy the link" onClick={copy}><Icon name="link" /></button>
             <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Show the QR code" onClick={(e) => setQrFrom(e.currentTarget.getBoundingClientRect())}><Icon name="qr" /></button>
           </span>

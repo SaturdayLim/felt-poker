@@ -64,23 +64,31 @@ export function playMs(g: Pick<Game, 'hands'>): number | null {
   return closes.length ? Math.max(...closes) - Math.min(...closes) : null;
 }
 
-/** The Running figure of a game page. Live: from the close of hand 1 to now, so it keeps counting between hands.
-    Closed: the same as `playMs`. Null until hand 1 closes. */
-export function runningMs(g: Pick<Game, 'hands' | 'status'>, now = Date.now()): number | null {
-  if (g.status === 'closed') return playMs(g);
+type Clock = Pick<Game, 'hands'> & Partial<Pick<Game, 'buyIns' | 'status' | 'endedAt'>>;
+
+/** Game time: the same clock as the players. It starts at the first buy-in (the close of hand 1 when a game has no
+    buy-in) and stops at the close of the game (the last hand when the end time is missing). While the game is live it
+    runs to now. Null until a buy-in or a closed hand gives it a start. */
+export function runningMs(g: Clock, now = Date.now()): number | null {
   const closes = g.hands.filter((h) => !h.missed).map((h) => h.endedAt ?? h.at);
-  return closes.length ? Math.max(0, now - Math.min(...closes)) : null;
+  const buys = (g.buyIns ?? []).map((b) => b.at);
+  const starts = buys.length ? buys : closes;
+  if (!starts.length) return null;
+  const start = Math.min(...starts);
+  const closed = g.status === 'closed' || (g.status === undefined && g.endedAt !== undefined);
+  const end = closed ? g.endedAt ?? (closes.length ? Math.max(...closes) : start) : now;
+  return Math.max(0, end - start);
 }
 
-/** Text for the Running figure and the closed Length figure: "-" until hand 1 closes. */
-export function runningLabel(g: Pick<Game, 'hands' | 'status'>, now = Date.now()): string {
+/** Text for the game time: "-" until it has a start. */
+export function runningLabel(g: Clock, now = Date.now()): string {
   const ms = runningMs(g, now);
   return ms === null ? '-' : duration(ms);
 }
 
-export function gameLength(g: Pick<Game, 'hands'>): string {
-  const ms = playMs(g);
-  return ms === null ? '-' : duration(ms);
+/** The game time as text. Same clock as `runningLabel`. */
+export function gameLength(g: Clock, now = Date.now()): string {
+  return runningLabel(g, now);
 }
 
 /** Full date, as in source lines: 13 Oct 2026. */

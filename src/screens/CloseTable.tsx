@@ -3,8 +3,8 @@ import { PlayerName } from '../components/players';
 import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
 import { back, backTo, go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, withUndo } from '../components/ui';
-import { gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
-import { gameLength, money, units } from '../lib/format';
+import { gameFigure, gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
+import { figureDelta, gameLength, money, units } from '../lib/format';
 import { uid } from '../lib/ids';
 import type { Expense, Game, ID } from '../types';
 import { gameSubtitle } from './GameLive';
@@ -16,6 +16,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
   const g = useGame(gameId);
   const name = usePlayerName();
   const st = useStore();
+  const showMoney = useStore((s) => s.settings.showMoney);
   const [expOpen, setExpOpen] = useState(false);
   const [editExp, setEditExp] = useState<Expense | 'new' | null>(null);
 
@@ -74,7 +75,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
         {closed && !settle && (
           <>
             <section className="sat-stack" style={gap(3)}>
-              <div className="sat-split"><h2 className="sat-h2">Results</h2><span className="sat-small sat-muted">{gameLength(g)}</span></div>
+              <div className="sat-split"><h2 className="sat-h2">Results</h2><span className="sat-small sat-muted">Length {gameLength(g)}</span></div>
               <div className="sat-glass-2 felt-list">
                 {results.map((r, i) => (
                   <div key={r.playerId} className="felt-row">
@@ -87,7 +88,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
                         {r.expenses !== 0 && `, expenses ${money(r.expenses, g.currency, { sign: true })}`}
                       </div>
                     </div>
-                    <Delta value={r.net} format={fmt} />
+                    <Delta {...figureDelta(gameFigure(g, r.playerId), showMoney)} />
                   </div>
                 ))}
               </div>

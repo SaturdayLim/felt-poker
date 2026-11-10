@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName, undoCountOpen } from '../store';
 import { back, backTo, go, setPath } from '../router';
 import { useDragList } from '../components/dragList';
@@ -46,6 +46,14 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   // the open view is part of the address (game/<id> or game/<id>/hands): Back from a hand comes back to the Hands view
   const setTab = (t: 'players' | 'hands') => { setTabState(t); setPath(`game/${gameId}${t === 'hands' ? '/hands' : ''}`); };
   const [sheet, setSheet] = useState<SheetKind>(null);
+  // a closed game cannot share: the live row only exists while the game runs, and it closes away when the game closes
+  const isClosed = g?.status === 'closed';
+  const [liveShown, setLiveShown] = useState(!isClosed);
+  const liveRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (isClosed && liveShown) shrinkAway(liveRef.current, () => setLiveShown(false));
+    else if (!isClosed && !liveShown) setLiveShown(true);
+  }, [isClosed, liveShown]);
 
   if (!g) return <div className="felt-page"><Header back={() => go('')} title="Game" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
   const isCash = g.type === 'cash';
@@ -87,7 +95,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   return (
     <div className="felt-page">
       <Header back={() => back(closed ? 'games' : '')} share="game" banner={g.name} sub={gameSubtitle(g)}
-        tabs={[{ label: `Players ${inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }]}
+        tabs={[{ label: `Players ${closed ? ordered.length : inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }]}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>} />
 
       <SlidePane k={tab} i={tab === 'players' ? 0 : 1}>
@@ -98,7 +106,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
           </button>
         )}
 
-        <LiveRow g={g} />
+        {liveShown && <div ref={liveRef}><LiveRow g={g} /></div>}
 
         <div className="felt-summary">
           <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins` : money(totalPotMoney(g), g.currency)}</b></span>
@@ -109,7 +117,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         {tab === 'players' && (
           <>
             <div className="sat-split">
-              <Caption tip="stack">{isCash ? 'Playing' : 'Still in'} ({inPlayers.length})</Caption>
+              <Caption tip="stack">{closed ? 'Players' : isCash ? 'Playing' : 'Still in'} ({closed ? ordered.length : inPlayers.length})</Caption>
               {!closed && inPlayers.length > 1 && (
                 <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
                   <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setSheet({ k: 'move' })}><Icon name="plus" /> Chip move</button>
@@ -117,12 +125,15 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
                 </span>
               )}
             </div>
-            <SeatList g={g} ids={inPlayers} disabled={closed} render={(pid, handle) => (
+            {closed ? ordered.map((pid) => (
+              <PlayerCard key={pid} g={g} pid={pid} name={name(pid)} stack={null}
+                onLight={(v) => onLight(pid, v)} onRebuy={() => rebuy(pid)} onBuyIns={() => setSheet({ k: 'buyins', pid })} />
+            )) : <SeatList g={g} ids={inPlayers} render={(pid, handle) => (
               <PlayerCard key={pid} g={g} pid={pid} name={name(pid)} handle={handle} stack={stackLabel(g, est, pid)}
                 onLight={(v) => onLight(pid, v)} onRebuy={() => rebuy(pid)} onBuyIns={() => setSheet({ k: 'buyins', pid })} onCount={() => setSheet({ k: 'count', pid })} />
-            )} />
+            )} />}
             {!closed && <AddPlayerCard g={g} />}
-            {outPlayers.length > 0 && (
+            {!closed && outPlayers.length > 0 && (
               <>
                 <Caption className="felt-out-cap">{isCash ? 'Clocked out' : 'Busted'} ({outPlayers.length})</Caption>
                 {outPlayers.map((pid) => (

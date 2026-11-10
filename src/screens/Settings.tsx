@@ -4,7 +4,7 @@ import { go } from '../router';
 import { calm, navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
 import { haptic } from '../lib/haptics';
 import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, TabPill, Toggle, num, toast, useCardLook, useRankOrder } from '../components/ui';
-import { LiquidToggle, ThemeToggle } from '../components/liquidToggle';
+import { LiquidToggle } from '../components/liquidToggle';
 import { InstallButton, InstallGuide } from '../components/install';
 import { CardPlayground } from '../components/cardTest';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor, orderedRanks } from '../lib/cards';
@@ -67,11 +67,10 @@ function AnimationSpeed() {
     <section className="sat-glass sat-card sat-stack" style={gap(3)}>
       <div className="sat-split">
         <Caption tip="motion">Animation speed</Caption>
-        <span className="sat-cluster" style={gap(2)}>
-          <MotionIcon />
-          <Toggle on={reduced} onChange={toggle} label="Reduced motion" />
-          <Help k="reducedMotion" />
-        </span>
+      </div>
+      <div className="sat-switch-row">
+        <span className="felt-reduce-label"><MotionIcon /> Reduced motion <Help k="reducedMotion" /></span>
+        <Toggle on={reduced} onChange={toggle} label="Reduced motion" />
       </div>
       <div className="felt-detents" ref={track} role="slider" tabIndex={0} aria-label="Animation speed" aria-valuemin={0} aria-valuemax={LAST} aria-valuenow={idx} aria-valuetext={STOPS[idx].label}
         data-grab={drag !== null}
@@ -137,10 +136,6 @@ function General() {
     <>
       <section className="sat-glass sat-card sat-stack">
         <div className="felt-set-switches">
-          <div className="sat-switch-row">
-            <span>Dark theme</span>
-            <ThemeToggle />
-          </div>
           <div className="sat-switch-row">
             <span>Show money <Help k="showMoney" /></span>
             <Toggle on={!!settings.showMoney} onChange={(v) => update({ showMoney: v })} label="Show money" />

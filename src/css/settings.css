@@ -5,6 +5,10 @@
 .felt-liquid svg { display: block; overflow: visible; }
 .felt-liquid:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 2px; border-radius: 22px; }
 
+/* Reduced motion switch: the icon and the visible label sit together on the left of the row. */
+.felt-reduce-label { display: inline-flex; align-items: center; gap: 8px; }
+.felt-reduce-label > svg { flex: 0 0 auto; }
+
 /* Animation speed: the stop labels sit under their stops; the first aligns left and the last right. */
 .felt-stops { position: relative; height: 20px; margin-inline: 10px; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
 .felt-stops > span { position: absolute; top: 0; white-space: nowrap; }

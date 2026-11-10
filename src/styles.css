@@ -964,9 +964,6 @@ html[data-skin="felt"][data-palette="custom"][data-theme="dark"] {
 .felt-ntab--view:not(.is-on) .felt-header-title { font-weight: 500; }
 .felt-ntab--view.is-on { z-index: 1; }
 
-/* Theme toggle in the Home header: three icons (phone, sun, moon) */
-.felt-theme3 { padding: 2px; }
-.felt-theme3 > button { min-height: 34px; min-width: 40px; padding: 0 10px; justify-content: center; }
 /* a tapped name or link keeps no ring: the ring is for keyboard focus only */
 .felt-name:focus:not(:focus-visible), [data-player]:focus:not(:focus-visible), .felt-pcard-name:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 

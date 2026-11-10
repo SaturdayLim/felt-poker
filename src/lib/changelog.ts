@@ -1,5 +1,12 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.6.4', date: '10 Nov 2026', notes: [
+    'A closed game record has no live link row. It says Players 4 and lists every player once.',
+    'Game time runs from the first buy-in to the close, the same clock as the players. Results label it Length.',
+    'Results show chips, or money with Show money on. Settle Up stays in money.',
+    'Animation speed Off makes every animation an instant cut. Reduced motion has a visible label and takes out the bounce. Dark theme shows once on Settings.',
+    'Messages on Replace show one message at a time. The live link texts fade out as well as in.',
+  ] },
   { version: '1.6.3', date: '10 Nov 2026', notes: [
     'End game, then Back to game: every stack keeps its value. The count gives back what it filled in, also when the app closed on the count.',
     'The rebuy button on a player card has Undo on its message. Undo takes back that one buy-in.',

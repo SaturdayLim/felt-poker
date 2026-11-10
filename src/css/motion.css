@@ -88,3 +88,7 @@ html[data-calm] .felt-fab-icon > span { transition: none; }
 .felt-num-c { position: relative; display: inline-block; }
 .felt-num-ghost { position: absolute; left: 0; top: 0; pointer-events: none; }
 .felt-num-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Animation speed Off: every animation is an instant cut (owner, 10 Nov 2026). Web Animations get 0 ms in motion.ts. */
+html[data-motion-off] *, html[data-motion-off] *::before, html[data-motion-off] *::after { transition: none !important; animation: none !important; }
+html[data-motion-off]::view-transition-group(*), html[data-motion-off]::view-transition-old(*), html[data-motion-off]::view-transition-new(*) { animation: none !important; }

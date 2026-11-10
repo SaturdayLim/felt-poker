@@ -3,7 +3,7 @@ import { go } from '../router';
 import { PlayerName, openPlayer } from '../components/players';
 import { Delta, Empty, Header, Icon, ThemeCycle, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
-import { figureDelta, gameCaption, gameLength, playMs } from '../lib/format';
+import { figureDelta, gameCaption, gameLength, runningMs } from '../lib/format';
 import { filterGames, leaderboard, summaryFigure } from '../lib/stats';
 import { gameFigure } from '../lib/calc';
 import { FEATURES } from '../lib/features';
@@ -31,7 +31,7 @@ export default function Home() {
           return (
             <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
               <span className="felt-live-name"><span className="felt-dot felt-dot--pulse" />{g.name}</span>
-              <span className="sat-small sat-muted">Live{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}</span>
+              <span className="sat-small sat-muted">Live{runningMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}</span>
               <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
             </button>
           );

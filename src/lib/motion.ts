@@ -12,7 +12,20 @@ export type NavSpeed = 'off' | 'quick' | 'standard' | 'relaxed';
 const NAV_KEY = 'felt-nav-speed';
 const NAV_SCALE: Record<NavSpeed, number> = { off: 0, quick: 0.65, standard: 1, relaxed: 1.5 };
 export const navSpeed = (): NavSpeed => { try { const v = localStorage.getItem(NAV_KEY); return v === 'off' || v === 'quick' || v === 'relaxed' ? v : 'standard'; } catch { return 'standard'; } };
-export const setNavSpeed = (v: NavSpeed) => { try { if (v === 'standard') localStorage.removeItem(NAV_KEY); else localStorage.setItem(NAV_KEY, v); } catch { /* private mode */ } window.dispatchEvent(new Event('felt-nav-speed')); };
+export const setNavSpeed = (v: NavSpeed) => { try { if (v === 'standard') localStorage.removeItem(NAV_KEY); else localStorage.setItem(NAV_KEY, v); } catch { /* private mode */ } markMotionOff(); window.dispatchEvent(new Event('felt-nav-speed')); };
+/** Animation speed Off: every animation is an instant cut (owner, 10 Nov 2026). html[data-motion-off] stops the CSS
+    transitions and animations (motion.css), and every Web Animation plays at 0 ms, so it lands on its end state and its
+    finish callbacks still run. */
+export const motionOff = () => navSpeed() === 'off';
+function markMotionOff() { if (typeof document !== 'undefined') document.documentElement.toggleAttribute('data-motion-off', motionOff()); }
+if (typeof Element !== 'undefined' && Element.prototype.animate) {
+  const play = Element.prototype.animate;
+  Element.prototype.animate = function (frames: Keyframe[] | PropertyIndexedKeyframes | null, opts?: number | KeyframeAnimationOptions) {
+    if (motionOff()) opts = typeof opts === 'number' ? 0 : { ...opts, duration: 0, delay: 0, endDelay: 0 };
+    return play.call(this, frames, opts);
+  };
+  markMotionOff();
+}
 export const navMs = () => Math.round(NAV_MS * NAV_SCALE[navSpeed()]);
 /** Reduced motion on this phone: the phone's setting unless the toggle in Settings overrules it. */
 export const reducedNow = () => { const p = motionPref(); return p === 'calm' || (p === 'phone' && phoneAsksCalm()); };
@@ -47,6 +60,8 @@ export type Spring = readonly [number, number];
 
 /** Progress of a spring from 0 to 1, one value per step, and its length in ms. */
 export function springCurve([visual, bounce]: Spring, stepMs = 16, near = 0.002): { p: number[]; ms: number } {
+  // Reduced motion takes out the extra motion: a spring settles with no bounce (owner, 10 Nov 2026)
+  if (typeof document !== 'undefined' && calm()) bounce = 0;
   const w0 = (2 * Math.PI) / (visual * 1.2);
   const z = Math.min(1, Math.max(0.05, 1 - bounce));
   const wd = w0 * Math.sqrt(1 - z * z);

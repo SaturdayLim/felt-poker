@@ -6,7 +6,7 @@ import { Delta, Empty, Header, Icon, SlidePane, withUndo } from '../components/u
 import { Headline, StatRows } from '../components/statRows';
 import { TypeChips } from './Insights';
 import { gameFigure, gameResults, handStats, openTransfers, playerStatus } from '../lib/calc';
-import { gameCaption, figureDelta, gameLength, playMs } from '../lib/format';
+import { gameCaption, figureDelta, gameLength, runningMs } from '../lib/format';
 import { groupTotals, handPace, type TypeFilter } from '../lib/stats';
 import { shrinkAway } from '../lib/motion';
 import { haptic } from '../lib/haptics';
@@ -56,7 +56,7 @@ export default function Games({ player: arg }: { player?: string }) {
               return (
                 <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
                   <span className="felt-live-name">{g.name}</span>
-                  <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}{playMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}{groupName(g) ? `, ${groupName(g)}` : ''}</span>
+                  <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}{runningMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}{groupName(g) ? `, ${groupName(g)}` : ''}</span>
                   <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
                 </button>
               );
@@ -141,7 +141,7 @@ function GameStats({ games }: { games: Game[] }) {
   const pots = hs.reduce((a, h) => a + h.totalPot, 0);
   const showdowns = hs.reduce((a, h) => a + h.showdowns, 0);
   const allIns = hs.reduce((a, h) => a + h.allIns, 0);
-  const lengths = games.map((g) => playMs(g)).filter((m): m is number => m !== null);
+  const lengths = games.map((g) => runningMs(g)).filter((m): m is number => m !== null);
   const avgMin = lengths.length ? Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length / 60000) : null;
   const buyIns = games.reduce((a, g) => a + g.buyIns.length, 0);
   const seats = games.reduce((a, g) => a + g.playerIds.length, 0);

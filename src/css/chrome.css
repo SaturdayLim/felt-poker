@@ -60,3 +60,8 @@ html[data-theme="dark"] .felt-lamp--playing { color: #3ddc84; }
 /* the Felt mark of the Home banner is where the Start view's mark lands (a shared element) */
 .felt-banner-brand .sat-mark { view-transition-name: felt-logo; }
 html[data-calm] .felt-banner-brand .sat-mark { view-transition-name: none; }
+
+/* The name of the tab beside this one, shown in the banner during a swipe (lib/tabSwipe.ts) */
+.felt-banner { position: relative; }
+.felt-banner-ghost { position: absolute; top: 50%; translate: 0 -50%; flex: none; width: auto; max-width: 60%; pointer-events: none; }
+.felt-banner-ghost.sat-wordmark { font-size: 1.75rem; }

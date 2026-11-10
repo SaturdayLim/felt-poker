@@ -31,3 +31,24 @@ html.felt-typing .felt-nav { visibility: hidden; opacity: 0; pointer-events: non
 .felt-notebook:has(> .felt-ntab--icon) > .felt-ntab--view { flex: 0 0 auto; }
 .felt-notebook:has(> .felt-ntab--icon) > .felt-ntab--view.is-on { flex: 0 1 auto; min-width: 0; }
 html[data-calm] .felt-ntab--icon .felt-ntab-lab, html[data-calm] .felt-ntab--icon .felt-ntab-lab > .felt-header-title { transition: none; }
+
+/* Shared theme toggle: one control over the sliding pages, where each banner leaves a slot of the same size. Its centre sits on the
+   centre of the 52 px banner row (8 px of space, then the safe area above it). */
+.felt-banner-right .felt-toggle-slot { display: block; width: 60px; height: 44px; flex: none; }
+.felt-toggle-host { position: fixed; z-index: 42; top: calc(var(--felt-safe-top) + 12px); right: max(20px, calc((100vw - 520px) / 2 + 20px)); height: 44px; display: flex; align-items: center;
+  transition: opacity 200ms var(--sat-ease); }
+.felt-toggle-host[data-open="false"] { opacity: 0; pointer-events: none; }
+
+/* Shared New Game: floats above the tab bar at the right, outside the sliding pages. It grows from its bottom right corner. */
+.felt-ng { position: fixed; z-index: 39; display: flex; gap: var(--sat-space-2); bottom: calc(86px + var(--felt-nav-safe, min(var(--felt-safe-bottom), 34px)) + 12px);
+  right: max(var(--sat-gutter-mobile), calc((100vw - 520px) / 2 + var(--sat-gutter-mobile))); transform-origin: 100% 100%;
+  transition: transform 300ms cubic-bezier(0.34, 1.3, 0.64, 1), opacity 200ms ease-out; }
+.felt-ng .sat-btn { box-shadow: var(--felt-elev-2); }
+.felt-ng[data-open="false"] { transform: scale(0.3); opacity: 0; pointer-events: none; transition: transform 250ms cubic-bezier(0.65, 0, 0.35, 1), opacity 180ms ease-in; }
+html.felt-typing .felt-ng { visibility: hidden; opacity: 0; transition: none; }
+/* the page leaves room under the last row while the control is there */
+.felt-page { transition: padding-bottom 300ms var(--sat-ease); }
+html.felt-has-ng .felt-page { padding-bottom: calc(var(--felt-safe-bottom) + 176px); }
+html[data-calm] .felt-ng, html[data-calm] .felt-ng[data-open="false"] { transition: opacity 150ms linear; transform: none; }
+html[data-calm] .felt-page { transition: none; }
+html[data-motion-off] .felt-ng, html[data-motion-off] .felt-toggle-host { transition: none; }

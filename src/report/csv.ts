@@ -3,6 +3,7 @@ import { handStats, hasCashedOut, playerResult, timePlayed } from '../lib/calc';
 import { bestHand } from '../lib/cards';
 import { STREETS, bountyPay, bountyTotal, contributions, inAtEnd, pfr, potTotal, vpip } from '../lib/hand';
 import { estimateStacks } from '../lib/stacks';
+import { fileDate } from '../lib/format';
 
 type NameFn = (id: ID) => string;
 
@@ -12,7 +13,7 @@ const iso = (t: number) => {
   const d = new Date(t);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
-const day = (t: number) => new Date(t).toLocaleDateString('en-CA');
+const day = fileDate;
 
 function cell(v: unknown): string {
   if (v === undefined || v === null) return '';
@@ -137,7 +138,7 @@ export const fileSafe = (s: string) => s.replace(/[\\/:*?"<>|]+/g, ' ').replace(
 /** A file name that says what is inside: "<game name> - results - 2026-11-09.png". `what` is the content, for example
     "results", "results and stats", "full game record", "game record" or "data (3 csv) players". No two outputs of one game share a name. */
 export function outputName(g: Pick<Game, 'name' | 'startedAt'>, what: string, ext: string, part?: string) {
-  return `${fileSafe(g.name)} - ${what}${part ? ` ${part}` : ''} - ${new Date(g.startedAt).toLocaleDateString('en-CA')}.${ext}`;
+  return `${fileSafe(g.name)} - ${what}${part ? ` ${part}` : ''} - ${fileDate(g.startedAt)}.${ext}`;
 }
 
 export function slug(s: string) {

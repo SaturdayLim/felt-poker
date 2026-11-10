@@ -16,7 +16,7 @@ import { uid } from '../lib/ids';
 import { haptic } from '../lib/haptics';
 import {
   NOT_SHOWN, STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
-  isTakedown, newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, unknownBoxes, type Replay,
+  isTakedown, newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, switchRuns, unknownBoxes, type Replay,
 } from '../lib/hand';
 import { bustedAfterSave, estimateStacks, exactStacks } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
@@ -312,7 +312,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const used = useMemo(() => {
     const s = new Set<Card>();
     if (!st) return s;
-    st.board.forEach((c) => c && s.add(c));
+    // with more than one run the board tail is run 1, held in runSlots: only the common cards count from the board
+    const common = st.log.runFrom !== undefined && (st.log.runs ?? 1) > 1 ? st.log.runFrom : 5;
+    st.board.forEach((c, i) => c && i < common && s.add(c));
     // run cards count only while the hand is on a run: going back to a street frees them
     if (st.log.runFrom !== undefined) st.runSlots.forEach((r) => r.forEach((c) => c && s.add(c)));
     // a hand never blocks anything: only the board and the runs take a card out of the picker
@@ -370,7 +372,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const payTag = (p: ID) => (
     <>
       {/* my own cards entered earlier: one tap shows them, when I show at the table */}
-      {shown27(p) && live.includes(p) && (
+      {!readOnly && shown27(p) && live.includes(p) && (
         <span className="felt-paytag-wrap">
           <button type="button" className="sat-chip felt-mini felt-paytag" aria-pressed={bountyTo === p} onClick={() => set({ bounty: bountyTo === p ? null : p })}>Pay bounty</button>
           <Help k="payBounty" />
@@ -650,10 +652,10 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     return !used.has(c);
   };
   const setRuns = (n: number) => {
-    const from = log.runFrom ?? 0;
-    const rs = Array.from({ length: n }, (_, r) => st.runSlots[r] ?? Array(5 - from).fill(null));
-    setSt({ ...st, log: { ...log, runs: n }, runSlots: n > 1 ? rs : [] });
-    setTarget(firstEmptyRun({ ...log, runs: n }, st.board, rs));
+    // run 1 is the single run: its cards move between the board and the first run, so nothing entered is lost or blocked
+    const sw = switchRuns(st.board, st.runSlots, log.runFrom ?? 0, log.runs ?? 1, n);
+    setSt({ ...st, log: { ...log, runs: n }, board: sw.board, runSlots: sw.runSlots });
+    setTarget(firstEmptyRun({ ...log, runs: n }, sw.board, sw.runSlots));
   };
 
   /* --------- keypad --------- */
@@ -786,11 +788,11 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
 
         {st.tab === 'showdown' && (
           <fieldset className="felt-review sat-stack" style={gap(3)} disabled={readOnly}>
-          <Showdown g={g} st={st} log={log} live={live} res={res} partial={partial} extra={extra} recordedPot={recordedPot} exclude={exclude} name={name}
+          <Showdown ro={readOnly} g={g} st={st} log={log} live={live} res={res} partial={partial} extra={extra} recordedPot={recordedPot} exclude={exclude} name={name}
             boardForResolve={boardForResolve} commonCards={commonCards} isTarget={isTarget} tapSlot={tapSlot} setRuns={setRuns}
             set={set} setTarget={setTarget} bountyOn={bountyOn} payTag={payTag}>
             {bountyOn && res && (
-              <BountyBlock live={live} dealt={log.dealt} to={bountyTo} auto={bountyTo !== null && bountyTo === bountyAuto} amount={bountyAmt} off={st.bountyOff ?? []} name={name}
+              <BountyBlock ro={readOnly} live={live} dealt={log.dealt} to={bountyTo} auto={bountyTo !== null && bountyTo === bountyAuto} amount={bountyAmt} off={st.bountyOff ?? []} name={name}
                 busted={busted} payOf={payOf}
                 onPick={(p) => set({ bounty: p })} onOff={(p) => set({ bountyOff: (st.bountyOff ?? []).includes(p) ? st.bountyOff!.filter((x) => x !== p) : [...(st.bountyOff ?? []), p] })} />
             )}
@@ -970,13 +972,13 @@ function useDeal(cards: (Card | null)[]) {
   return ref;
 }
 
-function RunCards({ cards, isTarget, onTap }: { cards: (Card | null)[]; isTarget: (i: number) => boolean; onTap: (i: number, filled: boolean) => void }) {
+function RunCards({ cards, isTarget, onTap }: { cards: (Card | null)[]; isTarget: (i: number) => boolean; onTap?: (i: number, filled: boolean) => void }) {
   const ref = useDeal(cards);
-  return <div ref={ref} className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>{cards.map((c, i) => <PlayingCard key={i} card={c} target={isTarget(i)} onClick={() => onTap(i, !!c)} />)}</div>;
+  return <div ref={ref} className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>{cards.map((c, i) => <PlayingCard key={i} card={c} target={isTarget(i)} onClick={onTap ? () => onTap(i, !!c) : undefined} />)}</div>;
 }
 
 function BoardRow({ board, to, lockedBefore, compact, isTarget, onTap }: {
-  board: (Card | null)[]; to: number; lockedBefore: number; compact?: boolean; isTarget: (i: number) => boolean; onTap: (i: number, filled: boolean) => void;
+  board: (Card | null)[]; to: number; lockedBefore: number; compact?: boolean; isTarget: (i: number) => boolean; onTap?: (i: number, filled: boolean) => void;
 }) {
   const ref = useDeal(board.slice(0, to));
   return (
@@ -984,7 +986,7 @@ function BoardRow({ board, to, lockedBefore, compact, isTarget, onTap }: {
       {Array.from({ length: to }, (_, i) => {
         const c = board[i];
         if (i < lockedBefore) return <PlayingCard key={i} card={c} size="sm" />;
-        return <PlayingCard key={i} card={c} size={compact ? undefined : 'lg'} target={isTarget(i)} placeholder={compact ? '' : i < 3 ? 'FLOP' : i === 3 ? 'TURN' : 'RIVER'} onClick={() => onTap(i, !!c)} />;
+        return <PlayingCard key={i} card={c} size={compact ? undefined : 'lg'} target={isTarget(i)} placeholder={compact ? '' : i < 3 ? 'FLOP' : i === 3 ? 'TURN' : 'RIVER'} onClick={onTap ? () => onTap(i, !!c) : undefined} />;
       })}
     </div>
   );
@@ -1200,33 +1202,37 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
 
 /** Showdown, in three visually different parts: run-out (if all-in), cards shown (a list of hands),
     and the result (one accent card saying who wins what). Partly recorded hands add the final pot. */
-function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude, name, boardForResolve, commonCards, isTarget, tapSlot, setRuns, set, setTarget, bountyOn, payTag, children }: {
-  g: Game; st: RState; log: HandLog; live: ID[]; res: ReturnType<typeof resolve> | null; partial: boolean; extra: number; recordedPot: number; exclude: boolean;
+function Showdown({ ro, g, st, log, live, res, partial, extra, recordedPot, exclude, name, boardForResolve, commonCards, isTarget, tapSlot, setRuns, set, setTarget, bountyOn, payTag, children }: {
+  ro: boolean; g: Game; st: RState; log: HandLog; live: ID[]; res: ReturnType<typeof resolve> | null; partial: boolean; extra: number; recordedPot: number; exclude: boolean;
   name: (id: ID) => string; boardForResolve: () => Card[]; commonCards: (n: number) => Card[];
   isTarget: (t: Exclude<Target, null>) => boolean; tapSlot: (t: Exclude<Target, null>, filled: boolean) => void; setRuns: (n: number) => void;
   set: (p: Partial<RState>) => void; setTarget: (t: Target) => void; bountyOn: boolean; payTag: (p: ID) => ReactNode; children?: ReactNode;
 }) {
   const order = showdownOrder(g, log, live);
   const b = boardForResolve();
+  // more than one run: one board per run, and each run has its own hand rank
+  const boards: Card[][] = (log.runs ?? 1) > 1 && log.runFrom !== undefined
+    ? Array.from({ length: log.runs ?? 1 }, (_, r) => [...commonCards(log.runFrom ?? 0), ...((st.runSlots[r] ?? []).filter(Boolean) as Card[])])
+    : [b];
   const winnersOf = new Set(res?.winners.map((w) => w.playerId) ?? []);
   return (
     <>
       {log.runFrom !== undefined && live.length > 1 && (
         <section className="sat-glass sat-card sat-stack" style={gap(3)}>
           <div className="sat-split"><h2 className="sat-h3">No more action: run it</h2><Help k="runs" /></div>
-          <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Times to run the board">
+          {ro ? <p className="sat-small">{(log.runs ?? 1) === 1 ? 'Run once' : `Run ${log.runs} times`}</p> : <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Times to run the board">
             <TabPill />
             {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={(log.runs ?? 1) === n} onClick={() => setRuns(n)}>{n === 1 ? 'Once' : `${n}x`}</button>)}
-          </div>
+          </div>}
           {(log.runs ?? 1) === 1 ? (
-            <BoardRow board={st.board} to={5} lockedBefore={log.runFrom} isTarget={(i) => isTarget({ kind: 'board', i })} onTap={(i, f) => tapSlot({ kind: 'board', i }, f)} />
+            <BoardRow board={st.board} to={5} lockedBefore={log.runFrom} isTarget={(i) => isTarget({ kind: 'board', i })} onTap={ro ? undefined : (i, f) => tapSlot({ kind: 'board', i }, f)} />
           ) : (
             <div className="sat-stack" style={gap(2)}>
               {Array.from({ length: log.runs ?? 1 }, (_, r) => (
                 <div key={r} className="sat-cluster" style={{ ...gap(2), flexWrap: 'nowrap' }}>
                   <span className="sat-caption" style={{ width: 44 }}>Run {r + 1}</span>
                   {commonCards(log.runFrom ?? 0).map((c) => <PlayingCard key={c} card={c} size="sm" />)}
-                  <RunCards cards={Array.from({ length: 5 - (log.runFrom ?? 0) }, (_, i) => st.runSlots[r]?.[i] ?? null)} isTarget={(i) => isTarget({ kind: 'run', r, i })} onTap={(i, f) => tapSlot({ kind: 'run', r, i }, f)} />
+                  <RunCards cards={Array.from({ length: 5 - (log.runFrom ?? 0) }, (_, i) => st.runSlots[r]?.[i] ?? null)} isTarget={(i) => isTarget({ kind: 'run', r, i })} onTap={ro ? undefined : (i, f) => tapSlot({ kind: 'run', r, i }, f)} />
                 </div>
               ))}
             </div>
@@ -1242,32 +1248,34 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
         <section className="felt-section">
           {/* one bar: open it says Cards shown, closed it says No cards */}
           <div className="felt-showbar">
-            <button type="button" className="felt-showbar-btn sat-glass" aria-expanded={!st.skipReveal} onClick={() => { set({ skipReveal: !st.skipReveal }); setTarget(null); }}>
+            {ro ? <span className="felt-showbar-btn sat-glass" style={{ cursor: 'default' }}><span className="sat-caption">{st.skipReveal ? 'No cards' : 'Cards shown'}</span></span> : <button type="button" className="felt-showbar-btn sat-glass" aria-expanded={!st.skipReveal} onClick={() => { set({ skipReveal: !st.skipReveal }); setTarget(null); }}>
               <span className="sat-caption">{st.skipReveal ? 'No cards' : 'Cards shown'}</span>
               <span className="felt-showbar-chev"><Icon name="chevron" size={18} /></span>
-            </button>
+            </button>}
             <Help k="shown" />
           </div>
-          {!st.skipReveal && b.length > 0 && <div className="felt-board-mini"><span className="sat-caption">Board</span>{b.map((c) => <PlayingCard key={c} card={c} size="sm" />)}</div>}
+          {!st.skipReveal && boards.length === 1 && b.length > 0 && <div className="felt-board-mini"><span className="sat-caption">Board</span>{b.map((c) => <PlayingCard key={c} card={c} size="sm" />)}</div>}
+          {!st.skipReveal && boards.length > 1 && boards.map((rb, r) => <div key={r} className="felt-board-mini"><span className="sat-caption">Run {r + 1}</span>{rb.map((c) => <PlayingCard key={c} card={c} size="sm" />)}</div>)}
           {!st.skipReveal && (
             <div className="felt-showlist">
               {order.map((p, i) => {
                 const cards = st.shown[p] ?? [null, null];
                 const mucked = log.mucked.includes(p);
-                const v = cards.every(Boolean) && b.length === 5 ? bestHand([...(cards as Card[]), ...b]) : null;
+                const ranks = cards.every(Boolean) ? boards.map((rb) => (rb.length === 5 ? bestHand([...(cards as Card[]), ...rb])?.name : undefined)) : [];
+                const v = ranks.length && ranks.every(Boolean) ? (boards.length > 1 ? ranks.map((n, r) => `Run ${r + 1}: ${n}`).join('. ') : ranks[0]) : null;
                 // felt never blocks a hand, so it flags a card entered twice
-                const twice = !mucked && cards.some((c) => c && (b.includes(c) || order.some((q) => q !== p && (st.shown[q] ?? []).includes(c))));
+                const twice = !mucked && cards.some((c) => c && (boards.some((rb) => rb.includes(c)) || order.some((q) => q !== p && (st.shown[q] ?? []).includes(c))));
                 return (
                   <div key={p} className={`felt-show ${winnersOf.has(p) && !res?.missing ? 'is-winner' : ''} ${mucked ? 'is-mucked' : ''}`}>
                     <span className="felt-show-n sat-num">{i + 1}</span>
                     <div className="felt-row-main">
                       <div className="felt-row-title">{g.status === 'closed' ? <PlayerName id={p} /> : name(p)}{log.allInAt?.[p] ? <span className="sat-badge sat-badge--muted" style={{ marginLeft: 6 }}>All-in</span> : null}</div>
-                      <div className="felt-row-sub">{mucked ? NOT_SHOWN : v ? v.name : cards.every(Boolean) ? 'Shown' : 'No cards entered'}</div>
+                      <div className="felt-row-sub">{mucked ? NOT_SHOWN : v ? v : cards.every(Boolean) ? 'Shown' : 'No cards entered'}</div>
                       {twice && <div className="sat-small" style={{ color: 'var(--sat-neg)' }}>Same card entered twice</div>}
                       {!mucked && payTag(p)}
                     </div>
-                    {!mucked && cards.map((c, ci) => <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', p, ci })} onClick={() => tapSlot({ kind: 'shown', p, ci }, !!c)} />)}
-                    {live.length > 1 && <button className="sat-chip felt-mini" aria-pressed={mucked} onClick={() => set({ log: { ...log, mucked: mucked ? log.mucked.filter((x) => x !== p) : [...log.mucked, p] } })}>{NOT_SHOWN}</button>}
+                    {!mucked && cards.map((c, ci) => <PlayingCard key={ci} card={c} target={isTarget({ kind: 'shown', p, ci })} onClick={ro ? undefined : () => tapSlot({ kind: 'shown', p, ci }, !!c)} />)}
+                    {live.length > 1 && !ro && <button className="sat-chip felt-mini" aria-pressed={mucked} onClick={() => set({ log: { ...log, mucked: mucked ? log.mucked.filter((x) => x !== p) : [...log.mucked, p] } })}>{NOT_SHOWN}</button>}
                   </div>
                 );
               })}
@@ -1291,7 +1299,7 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
         </section>
       )}
 
-      {res && <Result res={res} log={log} live={live} runs={log.runs ?? 1} name={name} manual={st.manual} onManual={(i, ids) => set({ manual: { ...st.manual, [i]: ids } })} />}
+      {res && <Result ro={ro} res={res} log={log} live={live} runs={log.runs ?? 1} name={name} manual={st.manual} onManual={(i, ids) => set({ manual: { ...st.manual, [i]: ids } })} />}
       {children}
 
       <div className="sat-field">
@@ -1303,8 +1311,8 @@ function Showdown({ g, st, log, live, res, partial, extra, recordedPot, exclude,
 }
 
 /** Who wins: one accent card. Undecided pots ask "Who won?" with big name buttons. */
-function Result({ res, log, live, runs, name, manual, onManual }: {
-  res: ReturnType<typeof resolve>; log: HandLog; live: ID[]; runs: number; name: (id: ID) => string;
+function Result({ ro, res, log, live, runs, name, manual, onManual }: {
+  ro: boolean; res: ReturnType<typeof resolve>; log: HandLog; live: ID[]; runs: number; name: (id: ID) => string;
   manual: Record<number, ID[]>; onManual: (i: number, ids: ID[]) => void;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
@@ -1322,13 +1330,13 @@ function Result({ res, log, live, runs, name, manual, onManual }: {
       </div>
       {live.length > 1 && res.pots.map((p, i) => {
         const decided = p.runs.every((r) => r.winners.length);
-        const open = !decided || editing === i;
+        const open = !ro && (!decided || editing === i);
         const title = res.pots.length === 1 ? 'Pot' : i === 0 ? 'Main pot' : `Side pot ${i}`;
         return (
           <div key={i} className="felt-result-pot-row">
             <div className="sat-split" style={{ flexWrap: 'nowrap' }}>
               <span className="sat-small"><b>{title} <span className="sat-num">{units(p.amount)}</span></b>{decided ? `: ${names(p.winners.map((w) => w.playerId))}` : ''}</span>
-              {decided && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setEditing(editing === i ? null : i)}>{editing === i ? 'Done' : 'Change'}</button>}
+              {decided && !ro && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => setEditing(editing === i ? null : i)}>{editing === i ? 'Done' : 'Change'}</button>}
             </div>
             {runs > 1 && decided && <p className="sat-small sat-muted">{p.runs.map((r, k) => `Run ${k + 1}: ${names(r.winners)}`).join('. ')}</p>}
             {open && (
@@ -1356,8 +1364,8 @@ function Result({ res, log, live, runs, name, manual, onManual }: {
 /** 7-2 bounty at the result: who collects, and who paid. Filled in when shown cards qualify under the
     house rule; otherwise tap the player who was paid. Every other player dealt in pays; tap a name to
     leave them out. */
-function BountyBlock({ live, dealt, to, auto, amount, off, name, busted, payOf, onPick, onOff }: {
-  live: ID[]; dealt: ID[]; to: ID | null; auto: boolean; amount: number; off: ID[]; name: (id: ID) => string;
+function BountyBlock({ ro, live, dealt, to, auto, amount, off, name, busted, payOf, onPick, onOff }: {
+  ro: boolean; live: ID[]; dealt: ID[]; to: ID | null; auto: boolean; amount: number; off: ID[]; name: (id: ID) => string;
   busted: ID[]; payOf: (p: ID) => number; onPick: (p: ID | null) => void; onOff: (p: ID) => void;
 }) {
   const others = to ? dealt.filter((p) => p !== to) : [];
@@ -1368,19 +1376,20 @@ function BountyBlock({ live, dealt, to, auto, amount, off, name, busted, payOf, 
     <section className={`felt-section felt-bounty ${to ? 'is-paid' : ''}`} aria-live="polite">
       <div className="sat-split">
         <h2 className="sat-caption felt-section-cap">7-2 bounty <Help k="bounty27" /></h2>
-        {to && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => onPick(null)}>Clear</button>}
+        {to && !ro && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => onPick(null)}>Clear</button>}
       </div>
       {to ? (
         <>
           <p className="felt-bounty-head"><b>{name(to)}</b> collects <b className="sat-num">{units(total)}</b> chips{auto ? ' for the shown 7-2' : ''}.</p>
-          <span className="sat-small sat-muted">{short ? `${payers.length} players pay ${units(amount)} chips each, or the chips they have left.` : `${payers.length} players pay ${units(amount)} chips each.`} Tap a name to leave that player out.</span>
+          <span className="sat-small sat-muted">{short ? `${payers.length} players pay ${units(amount)} chips each, or the chips they have left.` : `${payers.length} players pay ${units(amount)} chips each.`}{ro ? '' : ' Tap a name to leave that player out.'}</span>
           <div className="sat-cluster" style={gap(2)}>
-            {others.map((p) => (busted.includes(p)
+            {others.map((p) => (ro ? (busted.includes(p) || off.includes(p) ? null : <span key={p} className="sat-small">{name(p)}{payOf(p) < amount ? ` ${units(payOf(p))}` : ''}</span>)
+              : busted.includes(p)
               ? <button key={p} className="sat-chip felt-mini" aria-pressed={false} disabled>{name(p)}, busted</button>
               : <button key={p} className="sat-chip felt-mini" aria-pressed={!off.includes(p)} onClick={() => onOff(p)}>{name(p)}{!off.includes(p) && payOf(p) < amount ? ` ${units(payOf(p))}` : ''}</button>))}
           </div>
         </>
-      ) : (
+      ) : ro ? null : (
         <>
           <div className="sat-cluster" style={gap(2)}>
             {live.map((p) => <button key={p} className="sat-chip felt-mini" onClick={() => onPick(p)}>{name(p)}</button>)}

@@ -143,8 +143,26 @@ export function backPlain(fallback = '') {
   back(fallback);
 }
 
+/** Step Back when this session opened the screen from another one (the trail knows it); after a reload or a cold load the trail is
+    empty and history.length lies (Felt keeps spare entries), so go to the logical parent instead. */
+export const backWay = (trailLength: number): 'history' | 'parent' => (trailLength > 0 ? 'history' : 'parent');
+
+/** The screen Back leads to from a sub page when the session has no trail, or undefined for a main tab. `closed` says whether
+    a game is closed (its parent is the Games list and its hand review sits under Hands). */
+export function parentOf(path: string, closed: (id: string) => boolean = () => false): string | undefined {
+  const p = path.replace(/^#?\/?/, '').split('/').filter(Boolean);
+  if (p[0] === 'group' || p[0] === 'join') return p[0] === 'group' ? 'players' : '';
+  if (p[0] === 'new') return '';
+  if (p[0] !== 'game' || !p[1]) return undefined;
+  const id = p[1], sub = p[2];
+  if (!sub || sub === 'hands') return closed(id) ? 'games' : '';
+  if (sub === 'hand') return closed(id) ? `game/${id}/hands` : `game/${id}`;
+  if (sub === 'report') return `game/${id}/close`;
+  return `game/${id}`;
+}
+
 export function back(fallback = '') {
-  if (window.history.length > 1) window.history.back();
+  if (backWay(trail.length) === 'history') window.history.back();
   else go(fallback, true);
 }
 

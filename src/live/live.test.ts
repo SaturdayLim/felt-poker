@@ -128,6 +128,35 @@ describe('host and viewer read the same hand', () => {
   });
 });
 
+describe('viewer reads what the host reads', () => {
+  const three = () => ({ ...game(), hands: [], playerIds: ['a', 'b', 'c'], seats: { a: 1, b: 2, c: 3 }, buyIns: ['a', 'b', 'c'].map((p, i) => ({ id: `b${i}`, playerId: p, amount: 200, at: 1 })) } as ReturnType<typeof game>);
+  const names3: Player[] = [{ id: 'a', name: 'Ann', createdAt: 0 }, { id: 'b', name: 'Bo', createdAt: 0 }, { id: 'c', name: 'Cy', createdAt: 0 }];
+  it('the stack in the table view is the stack behind the chips in front', () => {
+    const g = three();
+    const stacks = { a: 200, b: 200, c: 200 };
+    let log = newBoxLog(g, ['a', 'b', 'c'], 'a', stacks);
+    const next = replayStreet(g, log, 'preflop', stacks).next!;
+    log = setAct(g, log, 'preflop', next.p, next.r, { k: 'bet', to: 6 }, stacks);
+    const sent = buildNow(g, names3, { n: 1, tab: 'preflop', log, board: [], ended: false });
+    const before = Object.fromEntries(buildNow(g, names3, { n: 1, tab: 'preflop', log: newBoxLog(g, ['a', 'b', 'c'], 'a', stacks), board: [], ended: false }).stacks.map((s) => [s.name, s.stack]));
+    const raiser = names3.find((x) => x.id === next.p)!.name;
+    expect(before[raiser]).toBe(200);
+    expect(sent.stacks.find((s) => s.name === raiser)!.stack).toBe(194);
+    // the blinds are in front too: the small blind has 199 behind its 1
+    expect(sent.stacks.find((s) => s.name === 'Bo')!.stack).toBe(199);
+  });
+  it('a straddle reads as a straddle, and a dark bet after the flop says so', () => {
+    const g = three();
+    const stacks = { a: 200, b: 200, c: 200 };
+    let log = newBoxLog(g, ['a', 'b', 'c'], 'a', stacks);
+    const next = replayStreet(g, log, 'preflop', stacks).next!;
+    log = setAct(g, log, 'preflop', next.p, next.r, { k: 'bet', to: 4, dark: true }, stacks);
+    const v = buildNow(g, names3, { n: 1, tab: 'preflop', log, board: [], ended: false }).view;
+    expect(v.streets[0].lines.join('|')).toContain('straddles to 4');
+    expect(v.streets[0].lines.join('|')).not.toContain('raises to 4');
+  });
+});
+
 describe('hand view', () => {
   const st = (acts: unknown) => ({ bets: {}, prev: {}, typed: {}, folded: [], raisers: [], acts });
   it('names positions and shows the chips already in', () => {

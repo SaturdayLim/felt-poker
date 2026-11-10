@@ -16,7 +16,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - **One line per field in a tip.** When an info tip covers two or more separate fields or options (for example Bet entry and Pot count), give each its own line: write `text` as an array in `src/lib/help.ts`; `Help` renders each entry as its own paragraph.
 - Saturday WRITING.md still applies: no contractions, no middle-dot chains, Title Case page titles.
 - **ASD-STE100 for all copy.** Short sentences (procedures 20 words max, descriptions 25), active voice, one fact or instruction per sentence, one word per meaning. No filler or AI phrasing ("The usual rule", "simply", "just").
-- **Tips, not captions.** On setup and settings screens, an explanation lives in its field's info tip, one tip per field. The page shows only labels and live figures (for example "4 players: 30 chips to the 2-7").
+- **Tips, not captions.** On setup and settings screens, an explanation lives in its field's info tip, one tip per field. The page shows only labels and live figures (for example "4 players: 30 chips to the 7-2").
 - **Tips sit on top.** An open info tip renders on <body> (fixed position), so no card or frame can cover it.
 - **Tip button shape.** An info button is a circle at the top-right of the element it explains (`.felt-tipped`). It may sit just outside the box when that stops it colliding with a control (owner, 9 Nov 2026). Targets never overlap and keep 8 px between them. Exception: a split control (the buy-in count and its + on a player card) is one control, and its halves touch (owner, 10 Nov 2026).
 
@@ -43,11 +43,12 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A hand never blocks anything. Only board and run cards leave the picker. A card entered twice is flagged, not refused.
 - Hold actions give feedback by haptics, not an animation under the thumb. Copy: "Generate New Code".
 - A press acts at once. Where a long press does nothing different, it looks and acts the same as a tap.
-- Add player mid-game: saved players first. A name already saved is flagged, and the user is asked for a different name.
+- Add player mid-game: saved players first. A name already saved is flagged, and the user is asked for a different name. New Game and the seat picker share one rule (findSaved): an exact saved name adds that player; a close name is never swapped in silently: "Nat is saved. Add Nat, or save Cat as new?".
 - Action table past 4 columns: Players and Action titles stay still; column numbers scroll with their boxes and cut off at the names.
 - Showdown: one bar opens or closes the shown cards, labelled Cards shown or No cards.
 - Keypad: Straddle (or Dark) sits beside Raise.
 - Live link row order: button, password and tip, then link and QR flush right.
+- Run it twice or three times: the cards of a single run become run 1, and going back to 1 run keeps run 1's cards; they never block their own run (owner, 11 Nov 2026).
 - Hand recorder rows run in time order: small blind first, button last. Columns are passes around the table, newest flush right.
 - A skipped box takes the default: check, or fold when facing a bet. Defaults are there to save taps and stay editable.
 - Shuffling seats does not draw a button: seat 1 has the button, seat 2 the small blind, seat 3 the big blind.
@@ -55,7 +56,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Action boxes: C = call or check, F = fold, a number = the street total bet or raised to. Typing an amount no higher than the bet is a C.
 - Amounts are totals, never added: only a player's latest box stands, earlier boxes fade hard.
 - An action answers a specific bet; if an earlier change moves that bet, the action is dropped (blank box).
-- House rules (minimum raise, 2-7 bounty) belong to each game: set in New Game, changed in the game settings, copied from the last game of the same type. Not in app Settings.
+- House rules (minimum raise, 7-2 bounty) belong to each game: set in New Game, changed in the game settings, copied from the last game of the same type. Not in app Settings.
 - Minimum raise: Last raise (default), SB steps, Double. A smaller raise is refused with C or the minimum raise offered.
 - Keypad buttons say Call (Check when nothing is owed), Fold, All-in, with no amounts under them. Only the boxes use C and F.
 - Amount box: the minimum shows as ghost text. The first digit replaces it. Bet or Raise with no amount logs the minimum.
@@ -63,8 +64,8 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Dark actions carry a shut-eye mark; the SB and BB posts always show it. Straddle only for the first to act preflop (or the next after straddles), at the minimum raise of the house rule; it gives that player a later turn.
 - A player with nobody left to answer (everyone else folded or all-in) cannot bet or raise: those keys are greyed and a stored raise counts as a call.
 - Use "SB" and "BB" in labels, not "Small blind" and "Big blind".
-- 2-7 bounty (per game; on by default for cash, off for tournaments): Revealed, Winning, Best hand (last hand standing counts); Offsuit only or Suited allowed; chips. Every other player dealt in pays; a player who busts in the hand is exempt, a short stack pays what it has. It moves chips between stacks, never into the pot.
-- A shown 2-7 gets a Pay bounty tag at the result: pressed automatically when the rule is met, pressable by hand when it is not. Felt records what the table agreed; it never decides.
+- 7-2 bounty (per game; on by default for cash, off for tournaments): Revealed, Winning, Best hand (last hand standing counts); Offsuit only or Suited allowed; chips. Every other player dealt in pays; a player who busts in the hand is exempt, a short stack pays what it has. It moves chips between stacks, never into the pot.
+- A shown 7-2 gets a Pay bounty tag at the result: pressed automatically when the rule is met, pressable by hand when it is not. Felt records what the table agreed; it never decides.
 - A bought-in player with an exact stack of 0 is not dealt in by default and cannot be added until a rebuy. A player with no chips in the pot is never a finalist.
 - Viewers see a new hand only after real action (check, call, bet, raise, fold). Blinds and card entry alone do not show it.
 - Viewers can send their own cards for a hand. The host's entry for that player replaces them.
@@ -101,12 +102,12 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Tap a stack: the count sheet, with Rebuy (chips, default the game buy-in) and Add chips under it (cash).
 - Drag to reorder seats: a press and hold on the grip or on any blank part of a player card lifts it. A long press never selects text on a card.
 - Sub-navigation and Settings tabs: see "Motion and structure review".
-- Settings, Cards: Suits (drag rows; a miniature board under it mirrors the order as a row passes, with the A > 2 flip), then the card test ground. Check hidden cards is a Game Defaults switch. Info tab: App update and How to install, written out on the page.
+- Settings, Cards: Suits (drag rows; a miniature board under it mirrors the order as a row passes, with the A > 2 flip), then the card test ground. The suit colours switch shows Default as a red and black swatch and Custom as a colour wheel; on Default the hex codes still show, greyed and not editable (owner, 11 Nov 2026). Check hidden cards is a Game Defaults switch. Info tab: App update and How to install, written out on the page.
 - Groups: a game belongs to a group when it was started under it or when every player in it is a member (a subset counts). Others is an automatic group of the games that belong to no group. Everyone and Groups are two sections of the same level. One box searches and adds: empty box lists players A to Z, typing narrows, no match turns the search icon into a plus.
 - Bluff (Your hands): a bet or raise after the flop when the hand was clearly behind (no pair from my cards, no strong draw, not two cards over the board). A draw is a semi-bluff and is not counted.
 - Opening a group slides in from the right (a push inside Players) and Back slides out. Full stats on a player card: the sheet slides down first, then Players opens with that player selected.
 - Player card name: edit it in place (plain text). Enter or leaving the field saves; a saved name of another player is refused. No Edit name button. A name press glows around the letters; no box lights up.
-- Player card order: name, player code, Net + Win rate + Games, one summary list of the player's games, Show these games on the game page, Full stats. No Close button (the swipe bar closes it). A tap on a blank part of the card opens or closes the list. Each row: "Potato Day (1 Nov 2026)", "Buy-in: 200", the net with an arrow (chips first), and "9/23 hands won". The button closes the card, then opens Games filtered to the player (at once with Animation speed Off). Full stats opens the player page.
+- Player card order: name, player code, Net + Games up + Games, one summary list of the player's games, Show these games on the game page, Full stats. No Close button (the swipe bar closes it). A tap on a blank part of the card opens or closes the list. Each row: "Potato Day (1 Nov 2026)", "Buy-in: 200", the net with an arrow (chips first), and "9/23 hands won". The button closes the card, then opens Games filtered to the player (at once with Animation speed Off). Full stats opens the player page. The card has no Win rate: Games up is the share of closed games finished above the buy-in (with a tip); hands won appears only in the per-game list (owner rule of one word per meaning, 11 Nov 2026).
 - A field in a sheet: the sheet rises by the keyboard height only, and never grows taller than the space above the keyboard.
 - Stacks: a missed hand turns them into ranges; a count (tap the stack) or a typed all-in makes one exact again. With a range, All-in asks for the amount.
 - Chip moves (side game, tip, other) change stacks, not pots or hand stats, and show as dashed rows between hands.
@@ -117,10 +118,9 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Shared report (trial): Game Summary and Compare are open; each player page is encrypted with that player's code. Lock text: "Enter player code to access player stats."
 - Awards come from a fixed list, each with a minimum to count (src/report/model.ts, AWARD_LIST). A tie shares an award.
 - Oldest phones: Felt needs iOS 16.2 or Chrome 111. `app/index.html` shows a warning below that. Do not add workarounds for older phones.
-- Report: View (in the app), Link (encrypted online for 30 days, key in the link), Download (HTML file).
 - Tabs: Home, Games, Players, Settings. Players holds Players, Leaderboard and Stats (old #/insights links still open there). Games holds Games and Stats (table-level figures across closed games).
 - Players list: Everyone and each group open and close with one tap on the head (kept on this phone); the arrow turns over and the rows slide in. An open group shows every player as a chip; a tap adds or takes out that player. No per-player hide eye; Show hidden players lists players hidden from new games.
-- Stats filters: Cash and Tournaments are two on/off chips (both on = all; one is always on). Periods: All, CYTD, L30D, across the full width. Charts carry axis labels and titles.
+- Stats filters: Cash and Tournaments are two on/off chips (both on = all; one is always on; hidden while tournaments are parked). Periods: All, CYTD, L30D, across the full width. Charts carry axis labels and titles.
 - Swipe a closed game left to show Delete; a long swipe deletes at once. Undo puts it back.
 - Game settings: Save sits top right and stays in view. A swipe down or a tap outside leaves without saving.
 - The live room closes by itself when the game is closed, or after 12 hours with no action from the host.
@@ -131,19 +131,19 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Each time Felt opens, the first view asks Host or Player (a game link skips it). Host opens Home. Player opens the camera scanner, which has a Back button top left. A scanned or pasted game link opens that game. Host a game instead leads to Home.
 - Settings, Hands, You: enter your player code to make this phone yours (Not me undoes it). Your own hidden cards then open on this phone.
 - Tap a closed game on Home or the Game list: it opens for viewing (Settle Up). It does not reopen; Reopen sits on that page.
-- Motion follows the phone (Reduce Motion) unless Settings, Motion says Full. It belongs to the phone: a backup restore must not change it.
+- Motion settings (Animation speed, Reduced motion) belong to the phone: a backup restore must not change them.
 - Action table: names sit in a panel on the page background, with no box. Boxes cut off at the panel edge. A slide bar shows when columns are out of view.
 - A hand opened again goes to where it stopped: the street cards if missing, else the player to act.
 - Save hand and Save, next hand show only when no card entry is open.
 - Every button press gives a haptic tick, fired inside the click (iOS allows it only there).
 - UI principles (names open cards, controls show only when they work, frames react): `.claude/skills/felt-ui/SKILL.md`.
 - Card design rules: `.claude/skills/card-design/SKILL.md`. Logo on a card back is 40% of the card height (owner, 10 Nov 2026: the old 20% was much too small).
-- Export (was Download or Share; list caption Share): three options, HTML, PNG, CSV, each growing open under its row. HTML: Copy beside Game Report makes and copies the 30-day link; Game log is a tick box under it. PNG: a dropdown of four one-image sets (Summary: results rows, biggest pots, settle up; Detailed: awards, stack size, pot sizes by street won; Playstyle: style map, hand progression, pot sizes by player won; Full Action Log: picked hands). Tap the image for full screen, press and hold to copy it. CSV: Full player list, hands and event ledger, with pot coding by street won or player won (owner, 10 Nov 2026).
+- Export (owner mockup, 11 Nov 2026): header "Export" with no sub-line, caption Share, one radio list of four rows, each with a tip; the picked row grows open. Interactive Game Dashboard: Include full action log tick, eye (view) and copy (30-day link). Game summary snapshot: copy, and Summary, Details, Playstyle ticks each with an eye. Full Action Log: copy and a scrolling list of "Hand 1 (Everett)" rows (winner named), each with a tick and an eye. Full Data: share, and Players, Hand, Data ticks (CSV), with pot coding by street won or player won under Hand. Each eye grows its preview from the tapped element into an overlay; it leaves by the back arrow, a swipe down or Escape. No Close text button.
 - PNG images: title "Potato Day (1 Nov 2026)", subtitle "(1/2 * S$0.10 Cash)". No House Rules or Side Action sections. Results are horizontal candles, one row per player, ranked by the ending result from par, with award icons after the name. Charts sit on the image background, no white panel. The action log names the dealer only: "(D) Bel".
 - Commit buttons (Save, Saved, Copy) are loading buttons: a spinner and Saving, then a check and the word, on the interior.dev spring. Copy, share and download skip the spinner.
 - Player cards saved: they go back to the list face up for a moment and turn face down in turn. They never stay face up.
 - Raise: a tap on the amount box runs an orange trail round the number pad. Raise is orange only once a number is typed. Call or Check carries the default outline.
-- Home: New Game is the one start button. Join a game is the camera button in the banner. A swipe back from the first screen bounces.
+- New Game is one shared button outside the sliding area, shown on Home and Games: it stays still between them and grows in or shrinks away when another tab opens. It is secondary while a game is live. Join a game is the camera button in the Home banner. A swipe back from the first screen bounces.
 - A player back in: the red light seats them with the chips they left with. No question about how they buy back.
 - Generate a new player code: tap the icon, then hold Generate New Code in the sheet (1800 ms fill). Each box rolls through random characters as the fill crosses it, then settles. Letting go early keeps the old code and the next hold draws a new one. Sub-caption: "Old code will stop working when a new code is generated."
 - Hands in a live game swipe left to delete, with Undo.
@@ -153,10 +153,10 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Settings, General opens with Display (a section title like Colours) holding Units, Animation speed and Messages. Units (was Show money) is an icon switch, chip or $, with only the chosen option's tip beside the switch. Every content switch is one size.
 - Games page: a search box with an icon switch that cycles person, book, calendar (search by player, game name or date).
 - A press and hold on a box (list rows, cards, game rows, a swiping row) contracts the whole box like a button press. No sharp highlight rectangle.
-- Settings, Animation speed is one part of Display: a four-stop navigation speed slider (Off, Quick, Standard, Relaxed), the Opening screen length, and a Reduced motion switch with an icon, a visible label and a tip. Off turns all animation into instant cuts (the owner's opt-out from No sharp cut). Reduced motion takes out the extra motion, such as bounce (owner, 10 Nov 2026). The switch starts as the phone setting; there is no Follow phone option.
+- Settings, Animation speed is one part of Display: a four-stop navigation speed slider (Off, Quick, Standard, Relaxed; each stop also sets the opening screen length), and a Reduced motion switch whose icon sits on the switch, with a tip and no caption (owner, 11 Nov 2026). Units, Animation speed and New message share one row style. Off turns all animation into instant cuts (the owner's opt-out from No sharp cut). Reduced motion takes out the extra motion, such as bounce (owner, 10 Nov 2026). The switch starts as the phone setting; there is no Follow phone option.
 - Rebuy after a bust: the amount starts at one buy-in, can be typed freely, and cannot be empty or 0.
 - Comeback award: the biggest climb, from a low point at least 100 BB under par, to a finish above par.
-- A 2-7 shown before the showdown in a takedown is a revealed takedown, not a showdown.
+- A 7-2 shown before the showdown in a takedown is a revealed takedown, not a showdown.
 - Stack graph rebuy circle: each rebuy shows its own size in buy-ins (a 400 rebuy in a 200 game reads 2), only for the player being viewed. Buy-ins between the same two hands are one rebuy set: a rebuy for 2 after the last hand plus three taps on + reads 5 (owner, 10 Nov 2026). Undo on a + takes one buy-in out of the set; the player stays seated.
 - Starting-hand map: counts hands with known cards, shown at the table or self-reported (a hard-conflicting entry is left out).
 - Player view has a Table view (bird's-eye): the player to act highlighted, chips in front of each player, folded players greyed, seat 1 at the dealer on a long side.
@@ -168,6 +168,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 Run these on every screen change, and again in any UI review. An Opus agent runs the review when a set of work touches screens.
 
 - **No sharp cut.** No two screens, states or animations may swap with a cut. Anything that changes moves: it fades, slides, grows or morphs, and a shared element (the Felt mark, a pill, a number) keeps its identity across the change. Check: load screen to Start, Start to Home or Join, tab to tab, sheet to page, list to detail.
+- **Shared chrome holds still (owner, 11 Nov 2026).** Between main tabs (drag, swipe or tap) only the page name, the view tabs and the page content move. The header band, the theme toggle (ThemeHost), the New Game button (NewGameFab) and the tab bar are drawn once in App.tsx, outside SlidePane. During a drag the banner fades from the open page name to the next one in step with the finger.
 - **Shared elements hold still.** An element two sibling views both show (the Players filter, the banner, the tab row) sits outside the sliding area, so it stays put while the view changes. Where it appears or goes (the filter on the list view) it opens or closes, never appears.
 - **A control that changes the list changes it by growing or shrinking** (Show all players), and its arrow shows the direction the list will move.
 - **Numbers roll.** A figure that changes on the host or player view uses `NumericText` (changed digits roll up when it grows, down when it falls).
@@ -181,5 +182,8 @@ Run these on every screen change, and again in any UI review. An Opus agent runs
 - **Swipes:** the page follows the finger: a thumb moving left to right shows the tab on the left (Players to Games), right to left the tab on the right. The phone's back swipe goes left, forward goes right. The header and the tab bar do not move; the chip rolls in step with the drag. On release, half the screen or more (or a quick flick) completes the change, less goes back (owner, 10 Nov 2026). Home and Settings bounce. Felt keeps one spare history entry on each side of the screen, so a swipe never reaches a blank page or an old page.
 - **Reduced motion reduces:** screens and sheets cross-fade in 150 ms with no travel, and springs have no bounce. Nothing cuts. Only Animation speed Off cuts.
 - **Every switch moves like the theme switch** (`Toggle`, `LiquidToggle plain`). The live link switch keeps its glow colours.
+- Messages (toasts) sit at the top of the screen, under the safe area, so they never cover a bottom bar or button; inside a sheet they stay at the sheet bottom (11 Nov 2026).
+- Game time runs from the first buy-in to the last recorded event; a late Close game press does not count, and a reopened game leaves out the time it sat closed (`runningMs`, `Game.pauses`).
+- Back on a sub page goes to its parent (`parentOf` in src/router.ts), also after a reload.
 - **Messages (Settings):** a new message replaces the one on screen (default) or stacks above it (3 at most). Kept on this phone. Replace and Stack are one icon switch (circle over a dotted circle, three lines) with the active option's tip; the example button says Sample.
 - **Player card:** one list of the player's games opens out under the three figures (a tap on any blank part of the card), with each night's net.

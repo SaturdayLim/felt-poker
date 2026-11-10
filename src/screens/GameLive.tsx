@@ -63,6 +63,8 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const outPlayers = ordered.filter((p) => playerStatus(g, p) === 'out');
   const est = estimateStacks(g);
   const nextN = (g.hands[g.hands.length - 1]?.n ?? 0) + 1;
+  // Log hand needs somebody dealt in: playing, and not an exact stack of 0
+  const dealtIn = ordered.some((p) => playerStatus(g, p) === 'playing' && !(est.stack[p] === 0 && !(est.spread[p] > 0)));
 
   const onLight = (pid: ID, v: Light) => {
     const cur = playerStatus(g, pid);
@@ -109,7 +111,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
         {liveShown && <div ref={liveRef}><LiveRow g={g} /></div>}
 
         <div className="felt-summary">
-          <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} buy-ins` : money(totalPotMoney(g), g.currency)}</b></span>
+          <span><Caption tip="inPlay">{isCash ? (closed ? 'Bought in' : 'In play') : 'Pool'}</Caption><b className="sat-num">{isCash ? `${buyInsEquivalent(g, totalBuyInUnits(g))} ${buyInsEquivalent(g, totalBuyInUnits(g)) === '1' ? 'buy-in' : 'buy-ins'}` : money(totalPotMoney(g), g.currency)}</b></span>
           <span><Caption>Chips</Caption><b className="sat-num">{units(totalBuyInUnits(g))}</b></span>
           <span><Caption>{closed ? 'Length' : 'Running'}</Caption><b className="sat-num">{runningLabel(g)}</b></span>
         </div>
@@ -159,7 +161,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
       {!closed && (
         <div className="sat-bottombar sat-glass-2">
           <button className="sat-btn sat-btn--ghost sat-btn--lg" style={{ flex: '0 0 auto' }} onClick={() => go(isCash ? `game/${g.id}/count` : `game/${g.id}/close`)}>End game</button>
-          <button ref={rememberLogButton} className="sat-btn sat-btn--primary sat-btn--lg felt-logbtn" onClick={(e) => { rememberLogButton(e.currentTarget); go(`game/${g.id}/hand/new`); }}>Log hand {nextN}</button>
+          <button ref={rememberLogButton} className="sat-btn sat-btn--primary sat-btn--lg felt-logbtn" aria-disabled={!dealtIn} title={dealtIn ? undefined : 'Nobody is dealt in. Turn a player green first.'} onClick={(e) => { if (!dealtIn) { toast('Nobody is dealt in. Turn a player green first.'); return; } rememberLogButton(e.currentTarget); go(`game/${g.id}/hand/new`); }}>Log hand {nextN}</button>
         </div>
       )}
 
@@ -243,7 +245,7 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
         </div>
         <div className="felt-pcard-stats">
           <span className="felt-buyins">
-            <button type="button" onClick={onBuyIns} aria-label={`${n} ${isCash ? 'buy-ins' : 'entries'}. Show or change`}>
+            <button type="button" onClick={onBuyIns} aria-label={`${n} ${isCash ? (n === 1 ? 'buy-in' : 'buy-ins') : n === 1 ? 'entry' : 'entries'}. Show or change`}>
               <b className="sat-num">{n}</b> {isCash ? (n === 1 ? 'buy-in' : 'buy-ins') : n === 1 ? 'entry' : 'entries'}
             </button>
             {!closed && <button type="button" className="felt-buyins-plus" onClick={onRebuy} aria-label={isCash ? `Rebuy ${units(g.defaultBuyIn)} chips for ${name}` : `Re-enter ${name}`}><Icon name="plus" size={14} stroke={2.4} /></button>}

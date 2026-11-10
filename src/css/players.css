@@ -61,6 +61,7 @@ html[data-calm] .felt-search-input, html[data-calm] .felt-search-clear { transit
 .felt-disclose { overflow: hidden; }
 .felt-disclose-in { padding-block: 2px; }
 .felt-fig { position: relative; }
+.felt-fig-tip { position: absolute; right: 4px; top: 4px; }
 .felt-fig-chev { position: absolute; right: 8px; top: 8px; color: var(--sat-muted); transition: rotate var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out); rotate: 0deg; }
 .felt-fig-chev[data-open="true"] { rotate: 180deg; }
 html[data-calm] .felt-fig-chev { transition: none; }

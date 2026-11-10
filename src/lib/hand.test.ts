@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Game, Hand, HandLog } from '../types';
 import { handStats } from './calc';
-import { isTakedown, bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, takedown, tapPlayer, typeBet, vpip, wentToShowdown } from './hand';
+import { isTakedown, bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, switchRuns, takedown, tapPlayer, typeBet, vpip, wentToShowdown } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -506,5 +506,40 @@ describe('Not shown and takedowns', () => {
   it('takedown needs the pot to have a log and a saved hand', () => {
     expect(takedown({})).toBe(false);
     expect(takedown({ log: newLog(g3(), three, 'bets', 'CY'), missed: true })).toBe(false);
+  });
+});
+
+describe('run count switch', () => {
+  // all-in on the flop: from = 3, board has flop + turn + river entered for the single run
+  const board = ['As', 'Kd', '2c', '7h', '9s'] as const;
+  const b = [...board] as (string | null)[] as never[];
+  it('1 to 2 runs: run 1 holds turn and river, run 2 is empty, the board keeps the flop', () => {
+    const r = switchRuns(b, [], 3, 1, 2);
+    expect(r.board).toEqual(['As', 'Kd', '2c', null, null]);
+    expect(r.runSlots).toEqual([['7h', '9s'], [null, null]]);
+  });
+  it('run 1 cards are not on the board, so they do not block run 1 slots', () => {
+    const r = switchRuns(b, [], 3, 1, 3);
+    const onBoard = r.board.filter(Boolean);
+    expect(onBoard).not.toContain('7h');
+    expect(onBoard).not.toContain('9s');
+    expect(r.runSlots).toHaveLength(3);
+  });
+  it('back to 1 run restores the same single board', () => {
+    const two = switchRuns(b, [], 3, 1, 2);
+    const one = switchRuns(two.board, two.runSlots, 3, 2, 1);
+    expect(one.board).toEqual([...board]);
+    expect(one.runSlots).toEqual([]);
+  });
+  it('2 to 3 to 2 keeps runs 1 and 2', () => {
+    const two = { board: ['As', 'Kd', '2c', null, null], runSlots: [['7h', '9s'], ['Qd', 'Jc']] } as never as { board: (string | null)[]; runSlots: (string | null)[][] };
+    const three = switchRuns(two.board as never, two.runSlots as never, 3, 2, 3);
+    expect(three.runSlots).toEqual([['7h', '9s'], ['Qd', 'Jc'], [null, null]]);
+    const back = switchRuns(three.board, three.runSlots, 3, 3, 2);
+    expect(back.runSlots).toEqual([['7h', '9s'], ['Qd', 'Jc']]);
+  });
+  it('cards only in runs 2 and 3 are dropped when going back to 1 run', () => {
+    const r = switchRuns(['As', 'Kd', '2c', null, null], [['7h', null], ['Qd', 'Jc'], [null, null]], 3, 3, 1);
+    expect(r.board).toEqual(['As', 'Kd', '2c', '7h', null]);
   });
 });

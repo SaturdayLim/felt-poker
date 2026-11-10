@@ -127,7 +127,7 @@ function PlayerList() {
     if (players.some((p) => p.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already on the list. Use a different name.`); return; }
     addPlayer(n);
     setQ('');
-    toast(`${n} added to players`);
+    toast(`${n} added to players.`);
   };
 
   return (
@@ -157,7 +157,7 @@ function PlayerList() {
                     <Avatar name={p.name} />
                     <span className="felt-row-main">
                       <span className="felt-row-title">{p.name}</span>
-                      <span className="felt-row-sub">{s.games} games, {s.handsWon} hands won{p.archived ? ', hidden' : ''}</span>
+                      <span className="felt-row-sub">{s.games} {s.games === 1 ? 'game' : 'games'}, {s.handsWon} {s.handsWon === 1 ? 'hand' : 'hands'} won{p.archived ? ', hidden' : ''}</span>
                     </span>
                     {s.games ? <Delta {...figureDelta(summaryFigure(s, currency), showMoney)} /> : <span className="sat-muted">-</span>}
                   </button>

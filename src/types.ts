@@ -243,6 +243,8 @@ export interface Game {
   createdAt: number;
   startedAt: number;
   endedAt?: number;
+  /** Time the game sat closed before it was reopened (close press to reopen press). The game clock leaves it out. */
+  pauses?: { from: number; to: number }[];
   currency: string;
   /** Money value of one unit (1 unit = 1 SB by default). */
   unitValue: number;

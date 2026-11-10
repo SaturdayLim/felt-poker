@@ -157,7 +157,8 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs,
             : sub
               ? <div className="felt-banner-stack"><h1 className="felt-banner-title" data-share={share}>{banner}</h1><small className="felt-banner-sub">{sub}</small></div>
               : <h1 className="felt-banner-title" data-share={share}>{banner}</h1>}
-          <div className="felt-banner-right">{right ?? <ThemeCycle />}</div>
+          {/* a main tab: the theme toggle is one shared control in App (ThemeHost), so this banner keeps only a slot for it */}
+          <div className="felt-banner-right">{back ? right ?? <ThemeToggle /> : <>{right}<span className="felt-toggle-slot" aria-hidden="true" /></>}</div>
         </div>
         {tabRow}
         {children}
@@ -204,11 +205,6 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs,
       {children}
     </header>
   );
-}
-
-/** Theme: a two-state liquid toggle (light or dark). It starts as the phone setting. */
-export function ThemeCycle() {
-  return <ThemeToggle />;
 }
 
 /* ------------------------------- sheet ------------------------------- */
@@ -287,7 +283,12 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     const outItems = body(copy), inItems = body(el);
     const whole = !outItems.length || !inItems.length;
     // the screens are see-through, so the old one fades out before the new one reaches it
-    const fadeOut = copy.animate({ opacity: [1, 0] }, { duration: whole ? dur * 0.4 : dur * 0.5, easing: 'ease-out', fill: 'forwards' });
+    // the header band stays solid (it is the same band on both pages); only its content (title, view tabs) and the body fade
+    const fades = (whole ? [copy] : [...outItems, ...copy.querySelectorAll<HTMLElement>('.felt-header > *')]);
+    const fadeOut = fades.map((n) => {
+      const cur = parseFloat(getComputedStyle(n).opacity) || 1;
+      return n.animate({ opacity: [cur, 0] }, { duration: whole ? dur * 0.4 : dur * 0.5, easing: 'ease-out', fill: 'forwards' });
+    });
     const outs = (whole ? [copy] : outItems).map((n) => n.animate({ translate: c ? [`${c.x}px 0`, `${Math.sign(c.x) * r.width}px 0`] : ['0 0', `${-by * 0.28}px 0`] }, t));
     outs[0].onfinish = outs[0].oncancel = () => copy.remove();
     void fadeOut;
@@ -299,7 +300,7 @@ export class SlidePane extends Component<{ k: string; i: number; children: React
     if (whole) el.animate({ transform: [`translateX(${inFrom}px)`, 'translateX(0)'] }, t);
     else {
       inItems.forEach((n) => n.animate({ transform: [`translateX(${inFrom}px)`, 'translateX(0)'] }, t));
-      el.querySelectorAll<HTMLElement>('.felt-header').forEach((h) => h.animate({ opacity: [0, 1] }, { duration: navMs() * 0.5, easing: 'ease-out', delay: navMs() * 0.2, fill: 'backwards' }));
+      el.querySelectorAll<HTMLElement>('.felt-header > *').forEach((h) => h.animate({ opacity: [0, 1] }, { duration: navMs() * 0.5, easing: 'ease-out', delay: navMs() * 0.2, fill: 'backwards' }));
     }
   }
   render() { return <div ref={this.el} className="felt-slide">{this.props.children}</div>; }
@@ -412,8 +413,8 @@ export function WordButton({ word, run, ready = true, instant, pending = 'Saving
     later(() => { busy.current = false; setPhase('idle'); }, PENDING_MS + WORD_MS + RUN_AFTER);
   };
   return (
-    <button type="button" data-press="commit" {...rest} className={`felt-lb ${className ?? ''}`} aria-busy={phase === 'pending'} onClick={click}>
-      <span className="felt-lb-face" data-on={phase === 'idle'}>{children}</span>
+    <button type="button" data-press="commit" {...rest} className={`felt-lb ${className ?? ''}`} aria-busy={phase === 'pending'} aria-live="polite" onClick={click}>
+      <span className="felt-lb-face" data-on={phase === 'idle'} aria-hidden={phase !== 'idle'}>{children}</span>
       <span className="felt-lb-face" data-on={phase === 'pending'} aria-hidden={phase !== 'pending'}><svg className="felt-lb-spin" width="12" height="12" viewBox="0 0 12 12"><path d="M6 1.5A4.5 4.5 0 1 1 1.5 6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>{pending}</span>
       <span className="felt-lb-face" data-on={phase === 'done'} aria-hidden={phase !== 'done'}><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.5 5 9l4.5-5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>{word}</span>
     </button>
@@ -422,41 +423,6 @@ export function WordButton({ word, run, ready = true, instant, pending = 'Saving
 
 /** When the pulses come during a hold: closer and closer, so the finish can be felt coming. */
 const HOLD_PULSES = [0, 500, 850, 1050];
-
-/** A button for an action that cannot be undone. The thumb covers the button, so the feedback is felt, not seen:
-    the phone pulses faster while the press lasts, then gives a strong pulse when the action runs. A short tap only says so. */
-export function HoldButton({ ms = 1200, label, hint, onDone, children }: { ms?: number; label: string; hint: string; onDone: () => void; children: ReactNode }) {
-  const [holding, setHolding] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
-  const pulses = useRef<number[]>([]);
-  const at = useRef(0);
-  // iOS may refuse a pulse from a timer during the press, so the finger coming up after the action gives the sure one
-  const finished = useRef(false);
-  const release = (tap: boolean) => {
-    window.clearTimeout(timer.current);
-    pulses.current.forEach(window.clearTimeout);
-    if (finished.current) { finished.current = false; if (tap) haptic(40); return; }
-    if (!at.current) return;
-    if (tap && Date.now() - at.current < 350) toast(hint);
-    at.current = 0;
-    setHolding(false);
-  };
-  useEffect(() => () => { window.clearTimeout(timer.current); pulses.current.forEach(window.clearTimeout); }, []);
-  return (
-    <button type="button" className={`sat-btn sat-btn--ghost sat-iconbtn felt-hold ${holding ? 'is-holding' : ''}`} aria-label={label}
-      onPointerDown={() => {
-        at.current = Date.now();
-        setHolding(true);
-        pulses.current = HOLD_PULSES.map((t) => window.setTimeout(() => haptic(8), t));
-        timer.current = window.setTimeout(() => { at.current = 0; finished.current = true; setHolding(false); haptic(40); onDone(); }, ms);
-      }}
-      onPointerUp={() => release(true)} onPointerLeave={() => release(false)} onPointerCancel={() => release(false)}
-      onContextMenu={(e) => e.preventDefault()}
-      onClick={(e) => { if (e.detail === 0) onDone(); }}>
-      {children}
-    </button>
-  );
-}
 
 /** Hold to confirm, built like the Hold to Confirm of interior.dev: one button fills left to right while it is held
     (`ms`, 1800 by default). Letting go early drains the fill in about 720 ms. At full, `onDone` runs once, the label
@@ -1060,7 +1026,7 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
   if (onClick)
     return (
       <button type="button" className={cls} onClick={onClick}
-        aria-label={card ? `${cardText(card)}${removable ? ', tap again to remove' : ''}` : `Empty ${placeholder ?? ''} slot`}>{inner}</button>
+        aria-label={card ? `${cardText(card)}${removable ? ', tap again to remove' : ''}` : (placeholder ? `Empty ${placeholder} slot` : 'Empty slot')}>{inner}</button>
     );
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
 }
@@ -1185,14 +1151,14 @@ export function ToastHost() {
     };
     return () => { toastListener = null; };
   }, []);
-  // each new message rises with a spring
+  // each new message arrives with a spring: down from the top of the screen, up from the sheet edge inside a sheet
   const seen = useRef(new Set<number>());
   useLayoutEffect(() => {
     for (const t of list) {
       if (seen.current.has(t.id)) continue;
       seen.current.add(t.id);
       const e = document.querySelector<HTMLElement>(`[data-toast="${t.id}"]`);
-      if (e && !calm()) spring(e, (p) => ({ translate: `0 ${40 * (1 - p)}px`, opacity: String(Math.min(1, p * 2)) }), SPRING.toast);
+      if (e && !calm()) spring(e, (p) => ({ translate: `0 ${(e.closest('.felt-toasts--sheet') ? 40 : -40) * (1 - p)}px`, opacity: String(Math.min(1, p * 2)) }), SPRING.toast);
     }
   }, [list]);
   if (!list.length) return null;

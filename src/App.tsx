@@ -3,14 +3,14 @@ import { SPLASH_KEY, useStore } from './store';
 import { applyTheme, useResolvedTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
 import { applyPalette, cleanPalette } from './lib/palette';
-import { NAV_TABS, go, goTab, guardHistory, tabPos, useRoute } from './router';
+import { NAV_TABS, back, go, goTab, guardHistory, parentOf, tabPos, useRoute } from './router';
 import { installTabSwipe } from './lib/tabSwipe';
 import { flushSync } from 'react-dom';
 import { bounceBack, calm } from './lib/motion';
 import { FEATURES } from './lib/features';
 import { SlidePane, ToastHost } from './components/ui';
 import { PlayerHost } from './components/players';
-import { NavRail } from './components/navRail';
+import { NavRail, NewGameFab, ThemeHost } from './components/navRail';
 import Home from './screens/Home';
 import Games from './screens/Games';
 import NewGame from './screens/NewGame';
@@ -54,7 +54,10 @@ export default function App() {
     const top = window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? '';
     const i = NAV_TABS.indexOf(top === 'insights' ? 'players' : top);
     const to = NAV_TABS[i + (way === 'back' ? -1 : 1)];
-    if (i >= 0 && to !== undefined && document.querySelector('.felt-nav')) goTab(to); else bounceBack(way === 'back' ? 1 : -1);
+    if (i >= 0 && to !== undefined && document.querySelector('.felt-nav')) { goTab(to); return; }
+    // a sub page: the back swipe leaves it for the screen it came from (or its logical parent after a reload)
+    const parent = way === 'back' ? parentOf(window.location.hash, (id) => useStore.getState().games.find((g) => g.id === id)?.status === 'closed') : undefined;
+    if (parent !== undefined) back(parent); else bounceBack(way === 'back' ? 1 : -1);
   }), []);
   // a drag across the page moves to the neighbouring tab, or bounces at Home and Settings
   useEffect(() => installTabSwipe(), []);
@@ -181,6 +184,8 @@ export default function App() {
     <div className="felt-app felt-enter">
       <SlidePane k={a === 'insights' ? 'players' : a ?? ''} i={tabPos(a ?? '')}>{screen}</SlidePane>
       {nav && <NavRail tabs={NAV} active={active} />}
+      <ThemeHost show={nav && !!role && Number.isInteger(tabPos(a ?? ''))} />
+      <NewGameFab show={nav && !!role && (a === undefined || a === 'games')} />
       <PlayerHost />
       {role && <InstallPopup />}
       <ToastHost />

@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.7.1', date: '11 Nov 2026', notes: [
+    'Export follows the new layout: Interactive Game Dashboard, Game summary snapshot, Full Action Log and Full Data, each with copy or share and an eye that grows its preview.',
+    'Swiping between tabs: the header band, theme switch, New Game and the tab bar stay still. New Game is one shared button on Home and Games.',
+    'Run it twice or three times keeps the cards of the first run.',
+    'Settings: Units, Animation speed and New message share one style. Reduced motion sits on its switch. Suit colours show a swatch or a colour wheel, and Default shows the codes greyed.',
+    'Back works after a reload on any page. New Game asks before it swaps a close name. Reopen seats the players again.',
+    'Viewer table view no longer counts chips twice. Straddles read as straddles. Hand review hides controls that do nothing. Two-run hands show each board.',
+    'Game time ends at the last action, not at a late close. Messages show at the top of the screen.',
+  ] },
   { version: '1.7.0', date: '10 Nov 2026', notes: [
     'Export replaces Download or Share: HTML with Copy for the 30-day link, PNG with four sets (Summary, Detailed, Playstyle, Full Action Log), and CSV with pot coding by street won or player won.',
     'PNG images: title with the date, blinds and chip value under it. Results are ranked candles with award icons. Charts sit on the image background. Biggest pots no longer clip.',
@@ -233,7 +242,7 @@ export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
     'End game names any older hand with chips that went to nobody. Open it and save it to repair it.',
     'The report counts all-in run-outs as reaching the river. A player with no chips no longer counts as a showdown.',
     'Card colours: the switch says Default or Custom, the colour sliders work, and the card background can change.',
-    'Player view: add-cards button on every tab, Filled and Nil, face-down cards, mucked players, new standing chart, grouped 2-7 settings.',
+    'Player view: add-cards button on every tab, Filled and Nil, face-down cards, mucked players, new standing chart, grouped 7-2 settings.',
     'Viewers see a new hand only after the first real action.',
     'Host: QR pop-up, the board stays on screen while recording, and a pop-up when a device or player joins.',
   ] },
@@ -263,7 +272,7 @@ export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
     'Live link: a switch with a status lamp. Green is live, amber is waiting for a connection, red is off.',
     'Sharing off has an Undo for 5 seconds. Sharing on again uses the same link.',
     'View the game report inside the app.',
-    '2-7 settings now take 3 rows, each with a tip.',
+    '7-2 settings now take 3 rows, each with a tip.',
   ] },
   { version: '1.1.3', date: '3 Nov 2026', notes: [
     'Hand logging: a floating card icon adds player cards on any stage. My cards and Show my cards are gone.',
@@ -308,7 +317,7 @@ export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
     'Check for update button in Settings.',
     'Player codes and private cards.',
     'Hand review for closed games.',
-    'Chip moves, 2-7 bounty and per-game house rules.',
+    'Chip moves, 7-2 bounty and per-game house rules.',
     'Narrow phone screens fit.',
   ] },
   { version: '0.1.0', date: '31 Oct 2026', notes: [

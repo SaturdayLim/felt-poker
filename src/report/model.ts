@@ -6,7 +6,7 @@ import { playerSummary, type PlayerSummary } from '../lib/stats';
 import { estimateStacks } from '../lib/stacks';
 import { STREETS, STREET_CARDS, actingOrder, bountyPay, bountyTotal, contributions, defaultAct, inAtEnd, replayStreet, pfr, takedown, vpip, wentToShowdown } from '../lib/hand';
 import { RANKS, bestHand } from '../lib/cards';
-import { dateLabel, money, playMs } from '../lib/format';
+import { dateLabel, money, runningMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
 import { clashLevel, countedPairs, effectivePairs, privateOf, shownPair } from '../lib/clash';
@@ -339,11 +339,11 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
   }
   const bounties = hands.filter((h) => h.bounty).map((h) => ({ n: h.n, to: name(h.bounty!.playerId), total: bountyTotal(h.bounty!) }));
   return {
-    game: g.name, date: new Date(g.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    game: g.name, date: dateLabel(g.startedAt),
     title: `${g.name} (${dateLabel(g.startedAt)})`,
     sub: `(${g.sb}/${g.bb} * ${money(g.unitValue, g.currency)} ${g.type === 'tournament' ? 'Tournament' : 'Cash'})`,
     positions, seatsN, log: opts.gameLog ? [...views.values()] : undefined,
-    hands: hands.length, minutes: Math.round((playMs(g) ?? 0) / 60000),
+    hands: hands.length, minutes: Math.round((runningMs(g) ?? 0) / 60000),
     medianSec: secs[Math.floor(secs.length / 2)] ?? 0, players4: dealtN,
     pots: hands.map((h) => ({ n: h.n, pot: h.pot, winners: h.winners.map((w) => name(w.playerId)), street: STREET_LABEL[wonAt(h.log!)] })),
     reach,

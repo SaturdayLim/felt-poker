@@ -58,17 +58,13 @@ export function duration(ms: number): string {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
-/** Time from the close of hand 1 to the close of the last hand. Null until hand 1 closes. */
-export function playMs(g: Pick<Game, 'hands'>): number | null {
-  const closes = g.hands.filter((h) => !h.missed).map((h) => h.endedAt ?? h.at);
-  return closes.length ? Math.max(...closes) - Math.min(...closes) : null;
-}
+type Clock = Pick<Game, 'hands'> &
+  Partial<Pick<Game, 'buyIns' | 'status' | 'endedAt' | 'cashOuts' | 'statusEvents' | 'moves' | 'pauses'>>;
 
-type Clock = Pick<Game, 'hands'> & Partial<Pick<Game, 'buyIns' | 'status' | 'endedAt'>>;
-
-/** Game time: the same clock as the players. It starts at the first buy-in (the close of hand 1 when a game has no
-    buy-in) and stops at the close of the game (the last hand when the end time is missing). While the game is live it
-    runs to now. Null until a buy-in or a closed hand gives it a start. */
+/** Game time, the one clock (also for hands per hour). It starts at the first buy-in (the close of hand 1 when a game
+    has no buy-in). A live game runs to now. A closed game stops at its last recorded event (a hand close, buy-in,
+    cash-out, status change or chip move), never later than the close, so a Close game press next morning adds nothing.
+    A closed game with no events and no end time stops at its start. Null until something gives it a start. */
 export function runningMs(g: Clock, now = Date.now()): number | null {
   const closes = g.hands.filter((h) => !h.missed).map((h) => h.endedAt ?? h.at);
   const buys = (g.buyIns ?? []).map((b) => b.at);
@@ -76,19 +72,26 @@ export function runningMs(g: Clock, now = Date.now()): number | null {
   if (!starts.length) return null;
   const start = Math.min(...starts);
   const closed = g.status === 'closed' || (g.status === undefined && g.endedAt !== undefined);
-  const end = closed ? g.endedAt ?? (closes.length ? Math.max(...closes) : start) : now;
-  return Math.max(0, end - start);
+  // time the game sat closed before a reopen does not count
+  const paused = (end: number) => (g.pauses ?? []).reduce((a, p) => a + Math.max(0, Math.min(p.to, end) - Math.max(p.from, start)), 0);
+  if (!closed) return Math.max(0, now - start - paused(now));
+  // an event at the close press is the close itself (Close game writes an 'out' for each player then)
+  const before = (t: number) => g.endedAt === undefined || t < g.endedAt;
+  const events = [
+    ...closes,
+    ...buys,
+    ...(g.cashOuts ?? []).map((c) => c.at),
+    ...(g.statusEvents ?? []).map((e) => e.at),
+    ...(g.moves ?? []).map((m) => m.at),
+  ].filter(before);
+  const end = Math.max(start, ...events);
+  return Math.max(0, end - start - paused(end));
 }
 
 /** Text for the game time: "-" until it has a start. */
 export function runningLabel(g: Clock, now = Date.now()): string {
   const ms = runningMs(g, now);
   return ms === null ? '-' : duration(ms);
-}
-
-/** The game time as text. Same clock as `runningLabel`. */
-export function gameLength(g: Clock, now = Date.now()): string {
-  return runningLabel(g, now);
 }
 
 /** Full date, as in source lines: 13 Oct 2026. */
@@ -104,19 +107,16 @@ export function timeLabel(t: number): string {
   return new Date(t).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' });
 }
 
-export function ago(t: number, now = Date.now()): string {
-  const m = Math.floor((now - t) / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ${m % 60}m ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-export function stakesLabel(g: Game): string {
-  if (g.type === 'tournament') return `${money(g.tournament?.buyIn ?? 0, g.currency)} tournament`;
-  return `${g.sb}/${g.bb} cash, multiplier ${money(g.unitValue, g.currency)}`;
-}
+/** A share as text: "40%", or "-" when there is nothing to share. */
+export const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-');
+/** A share as a 0 to 1 bar length, or undefined when there is nothing to share. */
+export const share = (a: number, b: number) => (b ? a / b : undefined);
+/** One decimal at most, never a trailing ".0": 5 stays 5, 4.25 becomes 4.3. */
+export const oneDecimal = (n: number) => String(Math.round(n * 10) / 10);
+/** Date for a file name, for example 2026-11-09 (local time). */
+export const fileDate = (t: number = Date.now()) => new Date(t).toLocaleDateString('en-CA');
+/** "1 game", "2 games". */
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export function initials(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || '?';

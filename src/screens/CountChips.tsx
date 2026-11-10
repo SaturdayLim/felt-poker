@@ -27,8 +27,7 @@ export default function CountChips({ gameId }: { gameId: string }) {
   // The count writes its figures to the game as it goes, so leaving without closing puts the cash-outs back to what they
   // were when the page opened (none for a live game; the first close's for a reopened one). Close game and the hand
   // pages keep them. The saved list sits on the phone (store.ts, rememberCountOpen), so it outlives a trip to a hand page
-  // and an app closed on this page; the game page puts it back too.
-  if (g && g.status !== 'closed') rememberCountOpen(g);
+  // and an app closed on this page; the game page puts it back too. The save runs in the mount effect, before the fill below writes.
   const keep = useRef(false);
   const toHand = useRef(false);
   useEffect(() => {

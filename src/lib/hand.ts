@@ -746,3 +746,15 @@ export function showdownOrder(g: Game, log: HandLog, live: ID[]): ID[] {
   const i = order.indexOf(aggressor);
   return [...order.slice(i), ...order.slice(0, i)];
 }
+
+/** Change the run count without losing cards. With one run the run-out cards sit on the board (index `from` and up). With two or more
+    runs each run holds its own cards in `runSlots` and the board keeps only the common cards. Run 1 is always the single run.
+    Runs above the new count are dropped (they do not come back when the count goes up again). */
+export function switchRuns(board: (Card | null)[], runSlots: (Card | null)[][], from: number, prevRuns: number, n: number): { board: (Card | null)[]; runSlots: (Card | null)[][] } {
+  const len = Math.max(0, 5 - from);
+  const pad = (r?: (Card | null)[]) => Array.from({ length: len }, (_, i) => r?.[i] ?? null);
+  const first = prevRuns > 1 ? pad(runSlots[0]) : pad(board.slice(from));
+  const common = board.map((c, i) => (i < from ? c : null));
+  if (n <= 1) return { board: common.map((c, i) => (i >= from ? first[i - from] ?? null : c)), runSlots: [] };
+  return { board: common, runSlots: Array.from({ length: n }, (_, r) => (r === 0 ? first : pad(prevRuns > 1 ? runSlots[r] : undefined))) };
+}

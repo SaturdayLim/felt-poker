@@ -8,7 +8,7 @@ import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
 import { gameFigure, playerResult } from '../lib/calc';
 import { FEATURES } from '../lib/features';
-import { chipsText, dateLabel, figureDelta, money, shortDate, units } from '../lib/format';
+import { chipsText, dateLabel, figureDelta, fileDate, money, oneDecimal, pct, plural, share, shortDate, units } from '../lib/format';
 import { cumulativeSeries, filterGames, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
@@ -22,8 +22,6 @@ const RANGES: { k: RangeFilter; label: string; long: string }[] = [
   { k: '30d', label: 'L30D', long: 'L30D' },
 ];
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
-const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-');
-const share = (a: number, b: number) => (b ? a / b : undefined);
 
 /** Game type as two chips that turn on and off on their own: Cash and Tournaments. Both on = all games.
     One chip stays on: turning off the last one turns on the other. */
@@ -155,7 +153,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
         {s.history.length > 1 && (
           <figure style={{ marginTop: 'var(--sat-space-2)' }}>
             <LineChart height={170} yTitle={`Net (${unit})`} series={[{ name: 'net', color: 'var(--sat-accent)', values: cumVals }]} />
-            <figcaption className="sat-figcaption"><b>Net = {fmt(pick(s.net, s.netChips))}</b> after {s.games} games{best ? `, best ${signed(best.net, best.chips)} on ${shortDate(best.t)}` : ''}.</figcaption>
+            <figcaption className="sat-figcaption"><b>Net = {fmt(pick(s.net, s.netChips))}</b> after {plural(s.games, 'game')}{best ? `, best ${signed(best.net, best.chips)} on ${shortDate(best.t)}` : ''}.</figcaption>
           </figure>
         )}
       </section>
@@ -168,7 +166,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
       <StatRows title="Record" rows={[
         { label: 'Streak', tip: 'streak', value: s.streak === 0 ? '-' : `${Math.abs(s.streak)} ${s.streak > 0 ? 'up' : 'down'}`, note: s.streak === 0 ? 'No streak' : `${Math.abs(s.streak)} game${Math.abs(s.streak) === 1 ? '' : 's'} in a row` },
         { label: 'Hands won', value: s.handsWon, note: `Top pot ${s.biggestPot} chips` },
-        { label: 'Buy-ins per game', value: s.games ? (s.buyIns / s.games).toFixed(1) : '-', note: `${s.buyIns} in total` },
+        { label: 'Buy-ins per game', value: s.games ? oneDecimal(s.buyIns / s.games) : '-', note: `${s.buyIns} in total` },
       ]} />
 
       {s.logged > 0 && (
@@ -229,8 +227,8 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
       <section className="sat-glass sat-card sat-stack" style={gap(3)}>
         <div className="sat-split"><h2 className="sat-h3">Rebuys</h2><Help k="rebuys" /></div>
         <div className="sat-grid" style={{ ['--sat-min' as string]: '130px', ...gap(3) }}>
-          <div className="sat-stack" style={gap(1)}><Caption q={`${withRebuy.length} games`}>Rebought</Caption><Delta value={netOf(withRebuy)} format={fmt} /></div>
-          <div className="sat-stack" style={gap(1)}><Caption q={`${noRebuy.length} games`}>One buy-in</Caption><Delta value={netOf(noRebuy)} format={fmt} /></div>
+          <div className="sat-stack" style={gap(1)}><Caption q={plural(withRebuy.length, 'game')}>Rebought</Caption><Delta value={netOf(withRebuy)} format={fmt} /></div>
+          <div className="sat-stack" style={gap(1)}><Caption q={plural(noRebuy.length, 'game')}>One buy-in</Caption><Delta value={netOf(noRebuy)} format={fmt} /></div>
         </div>
       </section>
 
@@ -282,7 +280,7 @@ function Standings({ games, board, currency, name, scope }: {
     try {
       await loadReportFonts();
       const canvases = renderStandings(games, board, name, currency, scope, look);
-      const files = await Promise.all(canvases.map((c, i) => canvasToFile(c, `leaderboard-${new Date().toLocaleDateString('en-CA')}${canvases.length > 1 ? `-${i + 1}` : ''}.png`)));
+      const files = await Promise.all(canvases.map((c, i) => canvasToFile(c, `leaderboard-${fileDate()}${canvases.length > 1 ? `-${i + 1}` : ''}.png`)));
       const r = await shareFiles(files, 'Leaderboard');
       if (r === 'downloaded') toast('Leaderboard exported to Downloads');
     } catch (e) {
@@ -339,7 +337,7 @@ function Standings({ games, board, currency, name, scope }: {
               </span>
             ))}
           </div>
-          {leader && <figcaption className="sat-figcaption"><b>Leader = <PlayerName id={leader} /> ({signed(lastVals[leader] ?? 0)})</b> over {series.length} games{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
+          {leader && <figcaption className="sat-figcaption"><b>Leader = <PlayerName id={leader} /> ({signed(lastVals[leader] ?? 0)})</b> over {plural(series.length, 'game')}{series.length > 1 ? `, ${shortDate(series[0].t)} to ${shortDate(series[series.length - 1].t)}` : ''}.</figcaption>}
         </figure>
       </section>
     </>

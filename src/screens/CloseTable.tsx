@@ -4,7 +4,7 @@ import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
 import { back, backTo, go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, withUndo } from '../components/ui';
 import { gameFigure, gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
-import { figureDelta, gameLength, money, units } from '../lib/format';
+import { figureDelta, runningLabel, money, units } from '../lib/format';
 import { uid } from '../lib/ids';
 import type { Expense, Game, ID } from '../types';
 import { gameSubtitle } from './GameLive';
@@ -75,7 +75,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
         {closed && !settle && (
           <>
             <section className="sat-stack" style={gap(3)}>
-              <div className="sat-split"><h2 className="sat-h2">Results</h2><span className="sat-small sat-muted">Length {gameLength(g)}</span></div>
+              <div className="sat-split"><h2 className="sat-h2">Results</h2><span className="sat-small sat-muted">Length {runningLabel(g)}</span></div>
               <div className="sat-glass-2 felt-list">
                 {results.map((r, i) => (
                   <div key={r.playerId} className="felt-row">
@@ -97,7 +97,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
               <span><b>Settle up</b><br /><span className="sat-small sat-muted">{open.length ? `${open.length} payment${open.length === 1 ? '' : 's'}, ${fmt(openSum)} still owed` : g.transfers.length ? 'All paid' : 'Nobody owes anything'}</span></span>
               <span style={{ transform: 'rotate(-90deg)', display: 'inline-flex' }}><Icon name="chevron" size={18} /></span>
             </button>
-            <button className="sat-btn sat-btn--ghost" onClick={() => { st.reopenGame(g.id); go(`game/${g.id}`, true); toast('Game reopened for changes'); }}>
+            <button className="sat-btn sat-btn--ghost" onClick={() => { st.reopenGame(g.id); go(`game/${g.id}`, true); toast('Game reopened for changes.'); }}>
               <Icon name="undo" /> Reopen game
             </button>
           </>
@@ -150,7 +150,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
                       {t.resolved ? (
                         <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => st.setTransferResolved(g.id, t.id, false)} aria-label={`Undo: ${name(p)} paid ${name(t.to)}`}><Icon name="undo" /> Undo</button>
                       ) : (
-                        <button className="sat-btn sat-btn--sm" onClick={() => { st.setTransferResolved(g.id, t.id, true); toast(`${name(p)} paid ${name(t.to)} ${fmt(t.amount)}`); }}>Mark paid</button>
+                        <button className="sat-btn sat-btn--sm" onClick={() => { st.setTransferResolved(g.id, t.id, true); toast(`${name(p)} paid ${name(t.to)} ${fmt(t.amount)}.`); }} aria-label={`Mark ${name(p)} pays ${name(t.to)} paid`}>Mark paid</button>
                       )}
                     </div>
                   ))}
@@ -164,7 +164,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
       {closed && !settle && (
         <div className="sat-bottombar sat-glass-2">
           <button className="sat-btn sat-btn--lg" onClick={() => backTo(`game/${g.id}/hands`)}><Icon name="cards" /> Hands ({g.hands.filter((h) => !h.missed).length})</button>
-          <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => go(`game/${g.id}/report`)}><Icon name="share" /> Download or share</button>
+          <button className="sat-btn sat-btn--primary sat-btn--lg" onClick={() => go(`game/${g.id}/report`)}><Icon name="share" /> Export</button>
         </div>
       )}
 

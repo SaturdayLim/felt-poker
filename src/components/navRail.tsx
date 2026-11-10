@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './ui';
+import { ThemeToggle } from './liquidToggle';
+import { useStore } from '../store';
+import { FEATURES } from '../lib/features';
 import { calm, navMs } from '../lib/motion';
-import { goTab } from '../router';
+import { go, goTab } from '../router';
 import { NAV_DRAG, type NavDrag } from '../lib/tabSwipe';
 
 /* The main tab bar, made like a chip tray: one straight rail with a pocket cut under it for each tab. The icon of
@@ -244,5 +247,25 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
         ))}
       </div>
     </nav>
+  );
+}
+
+/** The theme toggle of the main tabs: one control above the sliding pages. It holds still while the pages change; it fades away
+    on a screen that has no banner slot (a game, a group). Each banner leaves a slot of the same size (`.felt-toggle-slot`). */
+export function ThemeHost({ show }: { show: boolean }) {
+  return <div className="felt-toggle-host" data-open={show} aria-hidden={!show} {...({ inert: show ? undefined : '' } as object)}><ThemeToggle /></div>;
+}
+
+/** New Game: one control for Home and Games, outside the sliding pages. It stays put while Home and Games swap, grows in when
+    one of them opens and shrinks away when another screen opens. A live game makes it secondary, as on the old Home button. */
+export function NewGameFab({ show }: { show: boolean }) {
+  const live = useStore((s) => s.games.some((g) => g.status === 'live'));
+  // the bottom space the page needs only while the control is there (nav.css reads html.felt-has-ng)
+  useEffect(() => { document.documentElement.classList.toggle('felt-has-ng', show); return () => document.documentElement.classList.remove('felt-has-ng'); }, [show]);
+  return (
+    <div className="felt-ng" data-open={show} aria-hidden={!show} {...({ inert: show ? undefined : '' } as object)}>
+      <button className={`sat-btn ${live ? '' : 'sat-btn--primary'}`} onClick={() => go('new/cash')}><Icon name="plus" /> New Game</button>
+      {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
+    </div>
   );
 }

@@ -496,9 +496,11 @@ function SendCount({ onCount }: { onCount: (chips: number) => Promise<void> }) {
   );
 }
 
+const B27_NAME: Record<string, string> = { win: 'Win condition', hand: 'Hand', amount: 'Bounty (chips)' };
+
 function Rules({ pub }: { pub: PubSnapshot }) {
-  const row = (r: PubSnapshot['rules'][number], label = r.label.replace('2-7', '7-2')) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{label}{r.tip === 'minRaise' ? <MinRaiseTip value={r.value} /> : r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>;
-  const is27 = (r: PubSnapshot['rules'][number]) => /^[27]-[27] (win|hand|amount)$/.test(r.label);
+  const row = (r: PubSnapshot['rules'][number], label = r.label) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{label}{r.tip === 'minRaise' ? <MinRaiseTip value={r.value} /> : r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>;
+  const is27 = (r: PubSnapshot['rules'][number]) => /^7-2 (win|hand|amount)$/.test(r.label);
   const b27 = pub.rules.filter(is27);
   return (
     <>
@@ -506,7 +508,7 @@ function Rules({ pub }: { pub: PubSnapshot }) {
       {b27.length > 0 && (
         <section className="sat-glass-2 felt-list felt-rule-group" aria-label="7-2 bounty">
           <span className="sat-caption felt-rule-cap">7-2 bounty <Help k="bounty27" /></span>
-          {b27.map((r) => row(r, r.label[4].toUpperCase() + r.label.slice(5)))}
+          {b27.map((r) => row(r, B27_NAME[r.label.slice(4)] ?? r.label))}
         </section>
       )}
     </>

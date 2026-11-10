@@ -17,7 +17,7 @@ import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
 import { useDragList } from '../components/dragList';
-import { money } from '../lib/format';
+import { fileDate, money } from '../lib/format';
 import type { CardLook, Markers, Settings as S, SuitKey } from '../types';
 
 export type SettingsView = 'general' | 'defaults' | 'cards' | 'data' | 'info';
@@ -40,9 +40,21 @@ const STOPS: { v: NavSpeed; label: string; splash: number }[] = [
   { v: 'relaxed', label: 'Relaxed', splash: 4500 },
 ];
 const LAST = STOPS.length - 1;
-function MotionIcon() {
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8c3-3 5-3 8 0s5 3 8 0" /><path d="M4 15c3-3 5-3 8 0s5 3 8 0" /></svg>;
-}
+/** The two marks of the Reduced motion switch: waves (full motion, off end) and still lines (reduced, on end). */
+const MOTION_MARKS = [
+  <g key="full"><path d="M4 8c3-3 5-3 8 0s5 3 8 0" /><path d="M4 15c3-3 5-3 8 0s5 3 8 0" /></g>,
+  <g key="calm"><path d="M4 9h16" /><path d="M4 15h16" /></g>,
+] as const;
+/** The two marks of the Suits switch: Default is a red and black swatch, Custom is a colour wheel (12 wedges, SVG has no conic gradient). */
+const WHEEL = Array.from({ length: 12 }, (_, i) => {
+  const a0 = (i * 30 - 90) * Math.PI / 180, a1 = ((i + 1) * 30 - 90) * Math.PI / 180, r = 9.5;
+  const pt = (a: number) => `${(12 + r * Math.cos(a)).toFixed(2)} ${(12 + r * Math.sin(a)).toFixed(2)}`;
+  return <path key={i} d={`M12 12L${pt(a0)}A${r} ${r} 0 0 1 ${pt(a1)}Z`} fill={`hsl(${i * 30} 85% 55%)`} stroke="none" />;
+});
+const LOOK_MARKS = [
+  <g key="def" stroke="none"><path d="M12 2.5A9.5 9.5 0 0 0 12 21.5Z" fill="#D62839" /><path d="M12 2.5A9.5 9.5 0 0 1 12 21.5Z" fill="#111111" /></g>,
+  <g key="cus">{WHEEL}</g>,
+] as const;
 function AnimationSpeed() {
   const splashMs = useStore((s) => s.settings.splashMs);
   const update = useStore((s) => s.updateSettings);
@@ -66,12 +78,12 @@ function AnimationSpeed() {
   const toggle = (on: boolean) => { setMotionPref(on ? 'calm' : 'full'); setReduced(on); };
   return (
     <div className="sat-stack" style={gap(3)}>
-      <div className="sat-split">
-        <Caption tip="motion">Animation speed</Caption>
-      </div>
       <div className="sat-switch-row">
-        <span className="felt-reduce-label"><MotionIcon /> Reduced motion <Help k="reducedMotion" /></span>
-        <Toggle on={reduced} onChange={toggle} label="Reduced motion" />
+        <span className="felt-row-label">Animation speed <Help k="motion" /></span>
+        <span className="felt-switch-end">
+          <Help k="reducedMotion" />
+          <LiquidToggle on={reduced} onChange={toggle} label="Reduced motion" width={52} icons={MOTION_MARKS} />
+        </span>
       </div>
       <div className="felt-detents" ref={track} role="slider" tabIndex={0} aria-label="Animation speed" aria-valuemin={0} aria-valuemax={LAST} aria-valuenow={idx} aria-valuetext={STOPS[idx].label}
         data-grab={drag !== null}
@@ -98,13 +110,10 @@ function MessageMode() {
   const sample = () => { toast('First message'); window.setTimeout(() => toast('Second message'), 700); };
   return (
     <div className="sat-stack" style={gap(3)}>
-      <div className="sat-split">
-        <Caption>Messages</Caption>
-        <button type="button" className="sat-btn sat-btn--sm" onClick={sample}>Sample</button>
-      </div>
       <div className="sat-switch-row">
-        <span>New message</span>
+        <span className="felt-row-label">New message</span>
         <span className="felt-switch-end">
+          <button type="button" className="sat-btn sat-btn--sm" onClick={sample}>Sample</button>
           <Help k={mode === 'stack' ? 'messageStack' : 'messageReplace'} />
           <LiquidToggle on={mode === 'stack'} onChange={(v) => update({ toastMode: v ? 'stack' : 'replace' })} label="Stack new messages" width={52} icons={[paths.replace, paths.stack]} />
         </span>
@@ -141,7 +150,7 @@ function General() {
       <section className="sat-glass sat-card sat-stack" style={gap(5)}>
         <h2 className="sat-h2">Display</h2>
         <div className="sat-switch-row">
-          <span>Units</span>
+          <span className="felt-row-label">Units</span>
           <span className="felt-switch-end">
             <Help k={money ? 'unitsMoney' : 'unitsChips'} />
             <LiquidToggle on={money} onChange={(v) => update({ showMoney: v })} label="Show money" width={52} icons={[paths.chip, paths.dollar]} />
@@ -275,7 +284,7 @@ function DataView() {
 
   const backup = async () => {
     const data = exportBackup();
-    const f = textFile(JSON.stringify(data), `felt-backup-${new Date().toLocaleDateString('en-CA')}.json`, 'application/json');
+    const f = textFile(JSON.stringify(data), `felt-backup-${fileDate()}.json`, 'application/json');
     const r = await shareFiles([f], 'Felt backup');
     if (r === 'downloaded') toast('Backup exported to Downloads');
     else if (r === 'shared') toast('Backup shared');
@@ -292,7 +301,7 @@ function DataView() {
   };
   const exportAllCsv = async () => {
     const closed = games.filter((g) => g.status === 'closed').sort((a, b) => a.startedAt - b.startedAt);
-    const d = new Date().toLocaleDateString('en-CA');
+    const d = fileDate();
     const r = await shareFiles([
       textFile(playersCsv(closed, name), `felt-players-${d}.csv`),
       textFile(handsCsv(closed, name), `felt-hands-${d}.csv`),
@@ -415,8 +424,7 @@ function CardLookEditor() {
       <div className="sat-split">
         <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Suits</h2><Help k="cardLook" /></span>
         <label className="felt-look-toggle">
-          <span className="sat-small">{isDefault ? 'Default' : 'Custom'}</span>
-          <LiquidToggle plain on={!isDefault} onChange={(v) => save({ ...look, custom: v })} label="Custom card colours" width={52} />
+          <LiquidToggle on={!isDefault} onChange={(v) => save({ ...look, custom: v })} label="Custom card colours" width={52} icons={LOOK_MARKS} />
         </label>
       </div>
       <div ref={list.wrap} className={`felt-suit-list ${list.listClass}`}>
@@ -428,7 +436,7 @@ function CardLookEditor() {
             </button>
             <span className="felt-suit-mark" style={{ color: lookColor(look, s) }} aria-hidden="true">{SUIT_SYMBOL[s]}</span>
             <span className="felt-row-title felt-grow">{SUIT_NAME[s]}</span>
-            <div className={`felt-suit-custom ${isDefault ? '' : 'is-open'}`} aria-hidden={isDefault}>
+            <div className={`felt-suit-custom is-open ${isDefault ? 'is-off' : ''}`}>
               <SuitColor name={SUIT_NAME[s]} value={lookColor(look, s)} off={isDefault} onChange={(hex) => save({ ...look, colors: { ...look.colors, [s]: hex } })} />
             </div>
           </div>
@@ -437,7 +445,7 @@ function CardLookEditor() {
           <span className="felt-suit-grip" aria-hidden="true" />
           <span className="felt-suit-mark" aria-hidden="true" />
           <span className="felt-row-title felt-grow">Background</span>
-          <div className={`felt-suit-custom ${isDefault ? '' : 'is-open'}`} aria-hidden={isDefault}>
+          <div className={`felt-suit-custom is-open ${isDefault ? 'is-off' : ''}`}>
             <SuitColor name="Background" value={look.bg ?? DEFAULT_FACE} off={isDefault} onChange={(hex) => save({ ...look, bg: hex })} />
           </div>
         </div>
@@ -494,16 +502,16 @@ function SuitColor({ name, value, off, onChange }: { name: string; value: string
   useEffect(() => { setText(full(value)); }, [value]);
   return (
     <>
-      <input className="sat-input felt-suit-hex sat-num" aria-label={`${name} colour as a hex code`} value={text} maxLength={7} autoComplete="off" autoCapitalize="characters" spellCheck={false} tabIndex={off ? -1 : 0}
+      <input className="sat-input felt-suit-hex sat-num" aria-label={`${name} colour as a hex code`} value={text} maxLength={7} autoComplete="off" autoCapitalize="characters" spellCheck={false} tabIndex={off ? -1 : 0} disabled={off}
         onChange={(e) => {
           const v = e.target.value.trim();
           setText(v);
           const h = v.startsWith('#') ? v : `#${v}`;
           if (/^#[0-9a-fA-F]{6}$/.test(h)) onChange(h.toUpperCase());
         }} />
-      <label className="felt-suit-drop" aria-label={`Pick a colour for ${name}`}>
+      <label className="felt-suit-drop" aria-disabled={off} aria-label={`Pick a colour for ${name}`}>
         <Icon name="eyedrop" size={18} />
-        <input type="color" value={full(value).toLowerCase()} tabIndex={off ? -1 : 0} onChange={(e) => onChange(e.target.value.toUpperCase())} />
+        <input type="color" value={full(value).toLowerCase()} tabIndex={off ? -1 : 0} disabled={off} onChange={(e) => onChange(e.target.value.toUpperCase())} />
       </label>
     </>
   );

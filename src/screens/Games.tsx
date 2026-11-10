@@ -6,11 +6,10 @@ import { Delta, Empty, Header, Icon, SlidePane, withUndo } from '../components/u
 import { Headline, StatRows } from '../components/statRows';
 import { TypeChips } from './Insights';
 import { gameFigure, gameResults, handStats, openTransfers, playerStatus } from '../lib/calc';
-import { gameCaption, figureDelta, gameLength, runningMs } from '../lib/format';
+import { gameCaption, figureDelta, oneDecimal, pct, runningLabel, runningMs, share } from '../lib/format';
 import { groupTotals, handPace, type TypeFilter } from '../lib/stats';
 import { shrinkAway } from '../lib/motion';
 import { haptic } from '../lib/haptics';
-import { FEATURES } from '../lib/features';
 import type { Game } from '../types';
 
 /* Live games sit in their own section as solid glass cards with a pulsing dot.
@@ -54,10 +53,6 @@ export default function Games({ player: arg }: { player?: string }) {
         <SlidePane k={stats ? 'stats' : 'list'} i={stats ? 1 : 0}>
         {stats ? <GameStats games={closedNow} /> : <div className="sat-stack">
         <GameSearch mode={mode} setMode={(m) => { setMode(m); if (who) go('games', true); setTyped(''); }} value={boxValue} onChange={(v) => { if (who) go('games', true); setTyped(v); }} />
-        <div className="felt-start">
-          <button className={`sat-btn sat-btn--primary${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> New Game</button>
-          {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
-        </div>
         {showEmpty && <Grow open={list.length === 0}>{emptyNode.current}</Grow>}
 
         {live.rows.length > 0 && (
@@ -68,7 +63,7 @@ export default function Games({ player: arg }: { player?: string }) {
               return (
                 <Grow key={g.id} open={rowOpen} initial={live.first}><button className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
                   <span className="felt-live-name">{g.name}</span>
-                  <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}{runningMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}{groupName(g) ? `, ${groupName(g)}` : ''}</span>
+                  <span className="sat-small sat-muted">{g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}{runningMs(g) === null ? '' : `, ${runningLabel(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}{groupName(g) ? `, ${groupName(g)}` : ''}</span>
                   <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
                 </button></Grow>
               );
@@ -150,7 +145,7 @@ function Grow({ open, initial = false, children }: { open: boolean; initial?: bo
     const r = requestAnimationFrame(() => requestAnimationFrame(() => setOn(open)));
     return () => cancelAnimationFrame(r);
   }, [open]);
-  return <div className="felt-grow" data-open={on} {...(on ? {} : { inert: '' })}><div className="felt-grow-in">{children}</div></div>;
+  return <div className="felt-rowgrow" data-open={on} {...(on ? {} : { inert: '' })}><div className="felt-rowgrow-in">{children}</div></div>;
 }
 
 type SearchMode = 'person' | 'game' | 'date';
@@ -229,20 +224,18 @@ function GameStats({ games }: { games: Game[] }) {
   const avgMin = lengths.length ? Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length / 60000) : null;
   const buyIns = games.reduce((a, g) => a + g.buyIns.length, 0);
   const seats = games.reduce((a, g) => a + g.playerIds.length, 0);
-  const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-');
-  const share = (a: number, b: number) => (b ? a / b : undefined);
   const len = avgMin === null ? '-' : `${Math.floor(avgMin / 60)}h ${avgMin % 60}m`;
   return (
     <div className="sat-stack">
       <Headline label="Table totals" items={[
-        { label: 'Games', value: t.games, note: `${(seats / games.length).toFixed(1)} players each` },
+        { label: 'Games', value: t.games, note: `${oneDecimal(seats / games.length)} players each` },
         { label: 'Hands', value: t.hands, note: `${(t.hands / games.length).toFixed(0)} per game` },
         { label: 'Average pot', q: 'chips', value: t.hands ? Math.round(pots / t.hands) : '-', note: `Top pot ${t.biggestPot}` },
       ]} />
       <StatRows title="Pace" rows={[
         { label: 'Game length', value: len, note: 'Average' },
         { label: 'Per hand', value: pace.hands ? `${Math.floor(pace.medianSec / 60)}m ${pace.medianSec % 60}s` : '-', note: 'Median' },
-        { label: 'Buy-ins per game', value: (buyIns / games.length).toFixed(1), note: `${buyIns} in total` },
+        { label: 'Buy-ins per game', value: oneDecimal(buyIns / games.length), note: `${buyIns} in total` },
       ]} />
       <StatRows title="Pots" rows={[
         { label: 'Showdowns', value: pct(showdowns, t.hands), share: share(showdowns, t.hands), note: `${showdowns} of ${t.hands} hands` },

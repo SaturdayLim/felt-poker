@@ -1,6 +1,11 @@
 # Felt: progress
 
-## Latest (10 Nov 2026): 1.7.0
+## Latest (11 Nov 2026): 1.7.1
+- Owner list built by four Sonnet builders (Export to mockup, shared swipe chrome and one New Game, run switch bug, Settings ranks and suit swatches), then a Fable advisor reviewed the whole app (IDs A1 to A25) and four fix agents closed A1 to A24 and cleaned duplicates and dead code.
+- Open gaps, owner questions and untested areas: docs/CHECKLIST.md. Start there.
+- Watch: two meanings of one class name broke layout once (.felt-grow). Check computed styles after any CSS merge.
+
+## Earlier (10 Nov 2026): 1.7.0
 - Owner spec built by six agents plus an Opus review and two fix agents: PNG sets (src/report/pngSets.ts), Export screen, player card single list and sideways sheet swipe, Games search and press contraction, tab drag that follows the finger, Settings Display section and per-theme palettes, card back logo 40%.
 - Test servers: felt-agent-1 to felt-agent-6 (ports 5181 to 5186, vite --mode mock), one per agent, so data does not mix. Test data: trial/potato-test-backup.json loaded through __store.setState.
 - Not seen: real iPhone (clipboard copy of link and image, haptics, back swipe), a rebuy circle on screen (unit test only).

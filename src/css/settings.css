@@ -5,9 +5,11 @@
 .felt-liquid svg { display: block; overflow: visible; }
 .felt-liquid:focus-visible { outline: 2px solid var(--sat-focus); outline-offset: 2px; border-radius: 22px; }
 
-/* Reduced motion switch: the icon and the visible label sit together on the left of the row. */
-.felt-reduce-label { display: inline-flex; align-items: center; gap: 8px; }
-.felt-reduce-label > svg { flex: 0 0 auto; }
+/* Display: Units, Animation speed and New message share one row label style (body text, regular weight). */
+.felt-row-label { display: inline-flex; align-items: center; gap: var(--sat-space-2); font-size: var(--sat-fs-body, 1rem); font-weight: 400; color: var(--sat-text); }
+
+/* Suits on Default: the hex codes show but stay greyed and cannot be edited. */
+.felt-suit-custom.is-open.is-off { opacity: 0.45; pointer-events: none; }
 
 /* Animation speed: the stop labels sit under their stops; the first aligns left and the last right. */
 .felt-stops { position: relative; height: 20px; margin-inline: 10px; font-size: var(--sat-fs-caption); color: var(--sat-muted); }
@@ -43,8 +45,12 @@ html[data-calm] .felt-miniboard-row { transition: none; }
 
 /* Game list rows and sections that arrive or leave: the space grows from 0fr to 1fr while the row fades.
    Reduced motion: a 150 ms fade only, no change of height. */
-.felt-grow { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 280ms var(--sat-ease), opacity 220ms var(--sat-ease); }
-.felt-grow[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
-.felt-grow-in { min-height: 0; overflow: hidden; }
-html[data-calm] .felt-grow { grid-template-rows: 1fr; transition: opacity 150ms linear; }
-html[data-motion-off] .felt-grow { transition: none; }
+/* The same class is also the plain flex filler (grow, no min width) in the recorder rows. Both uses share this rule. */
+/* .felt-grow: a flex item that takes the free space (used across the app) */
+.felt-grow { flex: 1; min-width: 0; }
+/* .felt-rowgrow: a Games list row that grows in and shrinks out (Games.tsx) */
+.felt-rowgrow { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 280ms var(--sat-ease), opacity 220ms var(--sat-ease); }
+.felt-rowgrow[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.felt-rowgrow-in { min-height: 0; overflow: hidden; }
+html[data-calm] .felt-rowgrow { grid-template-rows: 1fr; transition: opacity 150ms linear; }
+html[data-motion-off] .felt-rowgrow { transition: none; }

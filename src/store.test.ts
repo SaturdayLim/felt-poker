@@ -98,3 +98,31 @@ describe('stacks before the game starts', () => {
     expect(stack(a)).toBe(400);
   });
 });
+
+describe('reopen game', () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(1_000_000); useStore.setState({ players: [], games: [] }); });
+  afterEach(() => vi.useRealTimers());
+
+  it('seats the players who were at the table at close with their cash-out chips; earlier leavers stay out', () => {
+    const { a, b, id, game, stack, tick } = setup();
+    tick(); st().clockOut(id, b, 120); // b leaves early
+    tick(); st().setCashOut(id, a, 260); // the End game count writes a cash-out, then Close game
+    tick(); st().finishGame(id);
+    expect(playerStatus(game(), a)).toBe('out');
+    tick(); st().reopenGame(id);
+    expect(game().status).toBe('live');
+    expect(game().endedAt).toBeUndefined();
+    expect(playerStatus(game(), a)).toBe('playing');
+    expect(hasCashedOut(game(), a)).toBe(false);
+    expect(stack(a)).toBe(260);
+    expect(playerStatus(game(), b)).toBe('out');
+    expect(hasCashedOut(game(), b)).toBe(true);
+  });
+
+  it('seats a player who was still playing at close', () => {
+    const { a, b, id, game, tick } = setup();
+    tick(); st().finishGame(id);
+    tick(); st().reopenGame(id);
+    expect([playerStatus(game(), a), playerStatus(game(), b)]).toEqual(['playing', 'playing']);
+  });
+});

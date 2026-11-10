@@ -24,66 +24,60 @@ function distance(a: string, b: string): number {
   return d[a.length][b.length];
 }
 
-/** Closest saved player to what was typed: exact, then start of name, then up to 1 typo (2 for longer names). */
-export function matchPlayer(input: string, players: Player[]): Player | null {
+/** One rule for both name fields. `exact`: a saved player with this name (any case). `close`: no exact match, but a saved
+    name that starts with the text or is 1 typo away (2 for longer names). Close is never added silently. */
+export function findSaved(input: string, players: Player[]): { exact: Player | null; close: Player | null } {
   const q = input.trim().toLowerCase();
-  if (!q) return null;
+  if (!q) return { exact: null, close: null };
+  const exact = players.find((p) => p.name.toLowerCase() === q) ?? null;
+  if (exact) return { exact, close: null };
   const list = players.filter((p) => !p.archived);
-  const exact = list.find((p) => p.name.toLowerCase() === q);
-  if (exact) return exact;
-  const prefix = list.filter((p) => p.name.toLowerCase().startsWith(q));
-  if (prefix.length) return prefix.sort((a, b) => a.name.length - b.name.length)[0];
+  const prefix = list.filter((p) => p.name.toLowerCase().startsWith(q)).sort((x, y) => x.name.length - y.name.length)[0];
+  if (prefix) return { exact: null, close: prefix };
   const limit = q.length <= 4 ? 1 : 2;
   let best: Player | null = null, bestD = Infinity;
   for (const p of list) {
     const dd = distance(q, p.name.toLowerCase());
     if (dd <= limit && dd < bestD) { best = p; bestD = dd; }
   }
-  return best;
+  return { exact: null, close: best };
 }
 
-/** Name field that corrects to a saved player on Enter, with an explicit option to add a new name instead. */
-export function NameEntry({ onPick, exclude = [], placeholder = 'Player name (e.g. Dani)' }: {
-  onPick: (p: Player) => void; exclude?: string[]; placeholder?: string;
+/** Name field for New Game. Enter adds an exact saved name, or saves a new name. A new name close to a saved one is
+    flagged with two plain choices and never replaced. */
+export function NameEntry({ onPick, placeholder = 'Player name (e.g. Dani)' }: {
+  onPick: (p: Player) => void; placeholder?: string;
 }) {
   const players = useStore((s) => s.players);
   const addPlayer = useStore((s) => s.addPlayer);
   const [v, setV] = useState('');
-  const pool = players.filter((p) => !exclude.includes(p.id));
-  const match = matchPlayer(v, pool);
   const typed = titleCase(v);
-  const isExact = !!match && match.name.toLowerCase() === v.trim().toLowerCase();
-  const takenElsewhere = players.some((p) => p.name.toLowerCase() === typed.toLowerCase());
+  const { exact, close } = findSaved(typed, players);
 
   const pick = (p: Player) => { onPick(p); setV(''); };
   const addNew = () => {
     if (!typed) return;
-    const existing = players.find((p) => p.name.toLowerCase() === typed.toLowerCase());
-    if (existing) { pick(existing); return; }
     const p = addPlayer(typed);
-    toast(`${p.name} saved to players`);
+    toast(`${p.name} saved to players.`);
     pick(p);
   };
-  const enter = () => { if (match) pick(match); else addNew(); };
+  // Enter never picks a close match for the user: the flag below stays until a choice is made
+  const enter = () => { if (exact) pick(exact); else if (!close) addNew(); };
 
   return (
     <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
       <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
-        <input className="sat-input" aria-label="Player name" placeholder={placeholder} value={v} autoCapitalize="words" autoComplete="off" autoCorrect="off" spellCheck={false}
+        <input className="sat-input" aria-label="Player name" aria-invalid={!!close} placeholder={placeholder} value={v} autoCapitalize="words" autoComplete="off" autoCorrect="off" spellCheck={false}
           onChange={(e) => setV(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enter(); } }} enterKeyHint="done" />
-        <button className="sat-btn sat-iconbtn" onClick={enter} aria-disabled={!v.trim()} aria-label={match ? `Add ${match.name}` : 'Add new player'}><Icon name="plus" /></button>
+        <button className="sat-btn sat-iconbtn" onClick={enter} aria-disabled={!v.trim() || (!exact && !!close)} aria-label={exact ? `Add ${exact.name}` : 'Add new player'}><Icon name="plus" /></button>
       </div>
-      {v.trim() && (
-        <div className="sat-cluster sat-small" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-          {match ? (
-            <>
-              <span className="sat-muted">Enter adds</span>
-              <button className="sat-chip" aria-pressed="true" onClick={() => pick(match)}>{match.name}</button>
-              {!isExact && !takenElsewhere && <button className="sat-btn sat-btn--ghost sat-btn--sm" onClick={addNew}>Save "{typed}" as new</button>}
-            </>
-          ) : (
-            <span className="sat-muted">Enter saves {typed} as a new player.</span>
-          )}
+      {close && !exact && (
+        <div className="sat-stack sat-small" role="alert" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+          <span className="sat-error">{close.name} is saved. Add {close.name}, or save {typed} as new?</span>
+          <div className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+            <button type="button" className="sat-btn sat-btn--sm" onClick={() => pick(close)}>Add {close.name}</button>
+            <button type="button" className="sat-btn sat-btn--sm sat-btn--ghost" onClick={addNew}>Save {typed} as new</button>
+          </div>
         </div>
       )}
     </div>
@@ -98,7 +92,7 @@ export function SeatPicker({ inGame, onPick }: { inGame: ID[]; onPick: (p: Playe
   const [v, setV] = useState('');
   const typed = titleCase(v);
   const q = typed.toLowerCase();
-  const same = q ? players.find((p) => p.name.toLowerCase() === q) : undefined;
+  const same = findSaved(typed, players).exact ?? undefined;
   const pool = players
     .filter((p) => !inGame.includes(p.id) && (!p.archived || p === same) && (!q || p.name.toLowerCase().includes(q)))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -106,7 +100,7 @@ export function SeatPicker({ inGame, onPick }: { inGame: ID[]; onPick: (p: Playe
   const addNew = () => {
     if (!typed || same) return;
     const p = addPlayer(typed);
-    toast(`${p.name} saved to players`);
+    toast(`${p.name} saved to players.`);
     onPick(p);
     setV('');
   };
@@ -187,14 +181,14 @@ export function PlayerEditSheet({ p, onClose }: { p: Player; onClose: () => void
       <WordButton word="Saved" ready={!!titleCase(nm)} className="sat-btn sat-btn--primary sat-btn--block" run={save}>Save name</WordButton>
       {inGames ? (
         <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>
-          <button className="sat-btn sat-btn--block" onClick={() => { st.setPlayerArchived(p.id, !p.archived); toast(p.archived ? `${p.name} restored to the list` : `${p.name} removed from the list`); onClose(); }}>
+          <button className="sat-btn sat-btn--block" onClick={() => { st.setPlayerArchived(p.id, !p.archived); toast(p.archived ? `${p.name} restored to the list.` : `${p.name} removed from the list.`); onClose(); }}>
             {p.archived ? 'Restore to the list' : 'Remove from the list'}
           </button>
           <p className="sat-small sat-muted">Their past games and stats stay. They no longer show when you start a game.</p>
         </div>
       ) : (
         <button className="sat-btn sat-btn--ghost sat-btn--block" style={{ color: 'var(--sat-neg)' }}
-          onClick={() => { if (!confirm) { setConfirm(true); return; } st.deletePlayer(p.id); toast(`${p.name} deleted`); onClose(); }}>
+          onClick={() => { if (!confirm) { setConfirm(true); return; } st.deletePlayer(p.id); toast(`${p.name} deleted.`); onClose(); }}>
           <Icon name="trash" /> {confirm ? 'Tap again to delete' : 'Delete player'}
         </button>
       )}
@@ -258,7 +252,7 @@ function NameField({ p }: { p: Player }) {
     if (st.players.some((x) => x.id !== p.id && x.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already saved. Use a different name.`); setNm(p.name); return; }
     st.renamePlayer(p.id, n);
     setNm(n);
-    toast(`Name saved: ${n}`);
+    toast(`Name saved: ${n}.`);
   };
   return (
     <input className="felt-name-edit sat-h3" aria-label={`Name of ${p.name}. Edit to change it`} value={nm} maxLength={40} autoCapitalize="words" autoComplete="off" spellCheck={false}
@@ -267,7 +261,7 @@ function NameField({ p }: { p: Player }) {
   );
 }
 
-/** The player pop-up, top to bottom: the name (edit in place), the code, Net, Win rate and Games, then one summary list
+/** The player pop-up, top to bottom: the name (edit in place), the code, Net, Games up and Games, then one summary list
     of the player's games, then Full stats. A tap on a blank part of the card opens or closes the list. Each row shows
     the game and date, the buy-in, the net and the hands won. A swipe down, a swipe sideways or a tap outside closes the card. */
 /** Hands this player won among the hands counted as logged (same base as `playerSummary().logged`). */
@@ -298,12 +292,12 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
     d.addEventListener('click', tap);
     return () => d.removeEventListener('click', tap);
   }, []);
-  const tile = (cap: string, value: string, chev?: boolean) => {
+  const tile = (cap: string, value: string, chev?: boolean, tip?: 'gamesUp') => {
     const inner = <><span className="sat-caption">{cap}</span><b className="sat-num">{value}</b>
       {chev && <span className="felt-fig-chev" data-open={more} aria-hidden="true"><Icon name="chevron" size={14} stroke={2.2} /></span>}</>;
     return chev
       ? <button type="button" className="sat-flat sat-card felt-fig" aria-expanded={more} onClick={() => setMore(!more)}>{inner}</button>
-      : <div className="sat-flat sat-card felt-fig">{inner}</div>;
+      : <div className="sat-flat sat-card felt-fig">{inner}{tip && <span className="felt-fig-tip"><Help k={tip} /></span>}</div>;
   };
   return (
     <Sheet open noClose onClose={onClose} dismissRef={leave} title={p.name} head={<NameField p={p} />}>
@@ -311,7 +305,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
       <CodeControl pid={p.id} label />
       <div className="felt-tiles">
         {tile(`Net (${figureUnit(summaryFigure(s, currency), showMoney)})`, s.games ? figureNumber(summaryFigure(s, currency), showMoney, { sign: true }) : '-')}
-        {tile('Win rate', s.games ? `${Math.round(s.winRate * 100)}%` : '-')}
+        {tile('Games up', s.games ? `${Math.round(s.winRate * 100)}%` : '-', false, 'gamesUp')}
         {tile('Games', String(played.length), true)}
       </div>
       <Disclose open={more}>

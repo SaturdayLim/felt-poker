@@ -50,6 +50,40 @@ export function swipeCommits(dx: number, v: number, width: number): boolean {
   return Math.abs(dx) >= width * FAR || (Math.abs(v) > FLICK && Math.abs(dx) > 36);
 }
 
+/* The banner shows both names while the finger drags: the title of the open tab fades out as the name of the tab beside it fades in.
+   The band, the theme toggle and the tab bar do not move (the pages carry only their content). The ghost is a copy of the title
+   placed where the title sits; a committed change takes it into the copy of the old page, which fades it out. */
+const NAMES: Record<string, string> = { '': 'Felt', games: 'Games', players: 'Players', settings: 'Settings' };
+interface Ghost { el: HTMLElement; title: HTMLElement; name: string }
+let ghost: Ghost | null = null;
+const titleOf = (page: HTMLElement) => page.querySelector<HTMLElement>('.felt-header .felt-banner-brand, .felt-header .felt-banner-stack, .felt-header .felt-banner-title');
+const setGhost = (page: HTMLElement, name: string | undefined, p: number) => {
+  if (!name) { dropGhost(false); return; }
+  if (ghost && ghost.name !== name) dropGhost(false);
+  const title = titleOf(page), banner = title?.parentElement;
+  if (!title || !banner) return;
+  if (!ghost) {
+    const el = document.createElement('div');
+    el.className = name === 'Felt' ? 'felt-banner-ghost sat-wordmark' : 'felt-banner-ghost felt-banner-title';
+    el.textContent = name;
+    el.setAttribute('aria-hidden', 'true');
+    el.style.left = `${title.offsetLeft + (name === 'Felt' ? 30 : 0)}px`;
+    banner.appendChild(el);
+    ghost = { el, title, name };
+  }
+  ghost.el.style.opacity = String(p);
+  ghost.title.style.opacity = String(1 - p);
+};
+/** `ease`: the drag went back, so the two names fade back; otherwise the ghost goes at once. */
+const dropGhost = (ease: boolean) => {
+  const g = ghost; ghost = null;
+  if (!g) return;
+  if (!ease || calm()) { g.el.remove(); g.title.style.opacity = ''; return; }
+  g.el.style.transition = g.title.style.transition = 'opacity 200ms ease-out';
+  g.el.style.opacity = '0'; g.title.style.opacity = '1';
+  window.setTimeout(() => { g.el.remove(); g.title.style.opacity = ''; g.title.style.transition = ''; }, 240);
+};
+
 export function installTabSwipe(): () => void {
   let s: { x: number; y: number; t: number; live: boolean; tab: string; page: HTMLElement; items: HTMLElement[] } | null = null;
   let shown = 0;
@@ -84,7 +118,11 @@ export function installTabSwipe(): () => void {
     // a tab on that side: the page follows the finger. None: a band that stiffens
     const room = neighbour(s.tab, dx) !== undefined;
     paint(room ? Math.sign(dx) * Math.min(w, Math.abs(dx)) : Math.sign(dx) * Math.min(44, Math.abs(dx) * 0.2));
-    if (room) tell({ p: Math.abs(shown) / w, dir: dx > 0 ? -1 : 1 });
+    if (room) {
+      tell({ p: Math.abs(shown) / w, dir: dx > 0 ? -1 : 1 });
+      const n = neighbour(s.tab, dx);
+      setGhost(s.page, n === undefined ? undefined : NAMES[n], Math.min(1, Math.abs(shown) / w));
+    } else dropGhost(true);
   };
   const end = (e?: Event) => {
     const g = s; s = null;
@@ -101,16 +139,18 @@ export function installTabSwipe(): () => void {
       // the page stays where the finger left it: SlidePane carries on from there, and the chip from where it is
       carry = { x: was, p: Math.min(1, Math.abs(was) / w) };
       shown = 0;
+      ghost = null;
       haptic(6);
       tell({ p: carry.p, dir, end: 'commit' });
       goTab(next);
       // a change that did not happen must not leave the page off to one side
-      window.setTimeout(() => { if (carry) { carry = null; clear(g); tell({ p: 0, dir, end: 'back' }); } }, 400);
+      window.setTimeout(() => { if (carry) { carry = null; clear(g); dropGhost(true); tell({ p: 0, dir, end: 'back' }); } }, 400);
       return;
     }
     if (next === undefined && Math.abs(dx) > 40) haptic(6);
     // not far enough, or nowhere to go: the page and the chip go back
     tell({ p: Math.min(1, Math.abs(was) / w), dir, end: 'back' });
+    dropGhost(true);
     shown = 0;
     clear(g);
     // Reduced motion: a short linear return, not a jump (nothing cuts)

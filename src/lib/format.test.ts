@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chipsText, figureDelta, figureNumber, figureText, figureUnit, gameLength, runningLabel, runningMs, type Figure } from './format';
+import { chipsText, figureDelta, figureNumber, figureText, figureUnit, runningLabel, runningMs, type Figure } from './format';
 import type { Game } from '../types';
 
 const cash: Figure = { money: 14, chips: 7, currency: 'S$' };
@@ -61,14 +61,43 @@ describe('game time, one clock with the players', () => {
     expect(runningMs(g, 30 * min)).toBe(30 * min);
   });
 
-  it('stops at the close of a closed game', () => {
+  it('stops at the last event of a closed game, not at the later close press', () => {
     const g = { hands: [hand(0, 10 * min)], buyIns: [buy(0)], status: 'closed' as const, endedAt: 225 * min };
-    expect(runningLabel(g, 999 * min)).toBe('3h 45m');
-    expect(gameLength(g, 999 * min)).toBe('3h 45m');
+    expect(runningLabel(g, 999 * min)).toBe('10m');
   });
 
   it('uses the last hand when a closed game has no end time', () => {
     const g = { hands: [hand(0, 10 * min), hand(10 * min, 40 * min)], buyIns: [buy(0)], status: 'closed' as const };
     expect(runningMs(g, 999 * min)).toBe(40 * min);
+  });
+
+  it('stops at the last event when the game is closed much later', () => {
+    const g = { hands: [hand(0, 10 * min), hand(10 * min, 90 * min)], buyIns: [buy(0)], status: 'closed' as const, endedAt: 700 * min };
+    expect(runningMs(g, 999 * min)).toBe(90 * min);
+  });
+
+  it('counts a cash-out, a status change and a chip move as events', () => {
+    const base = { hands: [hand(0, 10 * min)], buyIns: [buy(0)], status: 'closed' as const, endedAt: 700 * min };
+    expect(runningMs({ ...base, cashOuts: [{ at: 120 * min } as Game['cashOuts'][number]] }, 0)).toBe(120 * min);
+    expect(runningMs({ ...base, statusEvents: [{ at: 130 * min } as Game['statusEvents'][number]] }, 0)).toBe(130 * min);
+    expect(runningMs({ ...base, moves: [{ at: 140 * min } as NonNullable<Game['moves']>[number]] }, 0)).toBe(140 * min);
+  });
+
+  it('ignores events at or after the close press', () => {
+    const g = { hands: [hand(0, 10 * min)], buyIns: [buy(0)], status: 'closed' as const, endedAt: 50 * min,
+      cashOuts: [{ at: 80 * min } as Game['cashOuts'][number]], statusEvents: [{ at: 50 * min, status: 'out' } as Game['statusEvents'][number]] };
+    expect(runningMs(g, 999 * min)).toBe(10 * min);
+  });
+
+  it('leaves out the time a reopened game sat closed', () => {
+    const live = { hands: [hand(0, 10 * min)], buyIns: [buy(0)], status: 'live' as const, pauses: [{ from: 60 * min, to: 1000 * min }] };
+    expect(runningMs(live, 1030 * min)).toBe(90 * min);
+    const again = { ...live, status: 'closed' as const, endedAt: 1100 * min, hands: [hand(0, 10 * min), hand(1000 * min, 1040 * min)] };
+    expect(runningMs(again, 9999 * min)).toBe(1040 * min - 940 * min);
+  });
+
+  it('hands per hour use this same span', () => {
+    const g = { hands: [hand(0, 10 * min)], buyIns: [buy(0)], status: 'closed' as const, endedAt: 700 * min };
+    expect(runningMs(g)).toBe(10 * min);
   });
 });

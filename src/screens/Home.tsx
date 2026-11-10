@@ -1,9 +1,9 @@
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { PlayerName, openPlayer } from '../components/players';
-import { Delta, Empty, Header, Icon, ThemeCycle, useTick } from '../components/ui';
+import { Delta, Empty, Header, Icon, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
-import { figureDelta, gameCaption, gameLength, runningMs } from '../lib/format';
+import { figureDelta, gameCaption, runningLabel, runningMs } from '../lib/format';
 import { filterGames, leaderboard, summaryFigure } from '../lib/stats';
 import { gameFigure } from '../lib/calc';
 import { FEATURES } from '../lib/features';
@@ -24,23 +24,18 @@ export default function Home() {
 
   return (
     <div className="felt-page">
-      <Header brand banner="Felt" right={<><button type="button" className="felt-joinbtn" data-press="select" onClick={() => go('join')} aria-label="Join a game with the camera"><Icon name="qr" /></button><ThemeCycle /></>} />
+      <Header brand banner="Felt" right={<><button type="button" className="felt-joinbtn" data-press="select" onClick={() => go('join')} aria-label="Join a game with the camera"><Icon name="qr" /></button></>} />
       <div className="sat-stack">
         {live.map((g) => {
           const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;
           return (
             <button key={g.id} className="sat-glass sat-card felt-live-card" onClick={() => go(`game/${g.id}`)}>
               <span className="felt-live-name"><span className="felt-dot felt-dot--pulse" />{g.name}</span>
-              <span className="sat-small sat-muted">Live{runningMs(g) === null ? '' : `, ${gameLength(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}</span>
+              <span className="sat-small sat-muted">Live{runningMs(g) === null ? '' : `, ${runningLabel(g)}`}, {seated} playing, {g.hands.length} hand{g.hands.length === 1 ? '' : 's'}</span>
               <span className="felt-live-go" aria-hidden="true"><Icon name="back" /></span>
             </button>
           );
         })}
-
-        <div className="felt-start">
-          <button className={`sat-btn ${live.length ? '' : 'sat-btn--primary'}${FEATURES.tournaments ? '' : ' sat-btn--block'}`} onClick={() => go('new/cash')}><Icon name="plus" /> New Game</button>
-          {FEATURES.tournaments && <button className="sat-btn" onClick={() => go('new/tournament')}><Icon name="trophy" /> Tournament</button>}
-        </div>
 
         {board.length > 0 && (
           <section className="felt-section">

@@ -11,7 +11,7 @@
 }
 
 body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-.felt-app { max-width: 520px; margin: 0 auto; min-height: 100dvh; }
+.felt-app { max-width: 520px; margin: 0 auto; min-height: 100dvh; overflow-x: clip; }
 /* Arrival from the splash (index.html): fade in once, when the store has loaded. Same-origin page
    changes also cross-fade where the browser supports cross-document view transitions.
    Opacity only: a transform here (even a finished one, held by fill-mode) turns .felt-app into the
@@ -23,7 +23,7 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 .felt-page > .sat-stack { --sat-gap: var(--sat-space-4); }
 
 /* Header: the kit's sticky glass bar, pushed below the iPhone status bar */
-.felt-header { margin: 0 calc(var(--sat-gutter-mobile) * -1) var(--sat-space-2); padding: calc(var(--felt-safe-top) + var(--sat-space-2)) var(--sat-space-3) var(--sat-space-2); }
+.felt-header { position: sticky; top: 0; z-index: 40; background: var(--sat-bg); margin: 0 calc(var(--sat-gutter-mobile) * -1) var(--sat-space-2); padding: calc(var(--felt-safe-top) + var(--sat-space-2)) var(--sat-space-3) var(--sat-space-3); }
 .felt-header .sat-header-bar { padding-left: var(--sat-space-2); min-height: 56px; }
 /* Tab screens (no back button): clear the bar's rounded corner so every tab title starts at the same inset */
 .felt-header--tab .sat-header-bar { padding-left: var(--sat-space-5); }
@@ -39,7 +39,7 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
    (components/navRail.tsx). The page fades out under the tray.
    Height: a fixed 86 px plus the home indicator inset. --felt-nav-safe is that inset measured by NavRail (capped at
    34 px); before it is measured, the env() value, capped the same way. Nothing inside can make the bar taller. */
-.felt-nav { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 40; box-sizing: border-box;
+.felt-nav { view-transition-name: felt-nav; position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 40; box-sizing: border-box;
   --felt-nav-pad: var(--felt-nav-safe, min(var(--felt-safe-bottom), 34px));
   height: calc(86px + var(--felt-nav-pad)); padding: 10px var(--sat-space-3) calc(var(--felt-nav-pad) + 4px); overflow: visible;
   background: linear-gradient(to bottom, color-mix(in srgb, var(--sat-bg) 0%, transparent), var(--sat-bg) 22px); }
@@ -96,7 +96,6 @@ button.felt-row { color: inherit; }
 @media (hover: hover) and (pointer: fine) { button.felt-row:hover:not(:active) { background: var(--sat-hover); } }
 button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 
-.felt-grow { flex: 1; min-width: 0; }
 .felt-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .felt-right { text-align: right; }
 
@@ -106,10 +105,10 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 
 .felt-empty { padding: var(--sat-space-6) var(--sat-space-5); display: flex; flex-direction: column; gap: var(--sat-space-2); align-items: flex-start; }
 
-.felt-toasts { position: fixed; left: 50%; right: auto; top: auto; margin: 0; padding: 0; border: 0; background: none; overflow: visible; color: inherit; transform: translateX(-50%); bottom: calc(var(--felt-safe-bottom) + 96px); z-index: 80;
+.felt-toasts { position: fixed; left: 50%; right: auto; top: calc(var(--felt-safe-top) + var(--sat-space-3)); margin: 0; padding: 0; border: 0; background: none; overflow: visible; color: inherit; transform: translateX(-50%); bottom: auto; z-index: 80;
   display: flex; flex-direction: column; align-items: center; gap: var(--sat-space-2); max-width: calc(100vw - 32px); width: max-content; pointer-events: none; }
 .felt-toasts > * { pointer-events: auto; }
-.felt-toast {
+.felt-toast { display: flex; align-items: center; gap: var(--sat-space-3);
   padding: var(--sat-space-3) var(--sat-space-4); border-radius: var(--sat-radius-md); max-width: calc(100vw - 32px); font-weight: 600; }
 
 /* Report inside the app */
@@ -156,7 +155,6 @@ html.felt-roleswap::view-transition-new(felt-nav) { animation: felt-vt-in 400ms 
 :root { --felt-move: cubic-bezier(0.77, 0, 0.175, 1); --felt-drawer: cubic-bezier(0.32, 0.72, 0, 1); }
 
 /* Screens slide with the tab highlight (SlidePane in ui.tsx). The Log hand morph is the only view transition. */
-.felt-app { overflow-x: clip; }
 .felt-slide { min-width: 0; }
 .felt-slide-in { position: relative; z-index: 6; }
 /* press feedback lives in src/lib/motion.ts; the kit's own press only remains for reduced motion */
@@ -165,7 +163,6 @@ html.felt-roleswap::view-transition-new(felt-nav) { animation: felt-vt-in 400ms 
 .felt-ink i { position: absolute; width: 16px; height: 16px; margin: -8px; border-radius: 50%; background: currentColor; opacity: .16; scale: 0; }
 .felt-slide-out, .felt-slide-out *, .felt-dock-ghost, .felt-dock-ghost * { animation: none !important; transition: none !important; view-transition-name: none !important; }
 .felt-dock-ghost { background: var(--sat-solid-2); border-radius: var(--sat-radius-lg); }
-.felt-nav { view-transition-name: felt-nav; }
 ::view-transition-old(felt-nav) { display: none; }
 ::view-transition-new(felt-nav), ::view-transition-group(felt-nav) { animation: none; }
 /* the bar exists on one side only (a game page, Join): it fades, never a cut */
@@ -212,10 +209,7 @@ html[data-calm] .felt-pill { transition: none; }
 .felt-drop-slot { position: absolute; top: 0; left: 8px; right: 8px; height: 3px; z-index: 0; border-radius: 2px; background: color-mix(in srgb, var(--felt-coral) 55%, transparent); transition: transform var(--sat-dur-base) var(--sat-ease); pointer-events: none; }
 
 /* New content in the live log, and small state changes */
-.felt-band { animation: felt-rise var(--sat-dur-base) var(--sat-ease); }
 @keyframes felt-rise { from { opacity: 0; transform: translateY(6px); } }
-.felt-box { transition: background-color var(--sat-dur-fast) var(--sat-ease), border-color var(--sat-dur-fast) var(--sat-ease), box-shadow var(--sat-dur-fast) var(--sat-ease), opacity var(--sat-dur-fast) var(--sat-ease); }
-.felt-card { transition: width var(--sat-dur-base) var(--sat-ease), height var(--sat-dur-base) var(--sat-ease); }
 .felt-row, .felt-pickwin-btn, .felt-choice-dot { transition: background-color var(--sat-dur-fast) var(--sat-ease), border-color var(--sat-dur-fast) var(--sat-ease); }
 html[data-calm] .felt-band { animation: sat-fade var(--sat-dur-base) var(--sat-ease); }
 
@@ -224,7 +218,6 @@ html[data-calm] .felt-band { animation: sat-fade var(--sat-dur-base) var(--sat-e
 .sat-sheet.felt-sheet--edge { border: 1.5px solid var(--felt-coral); }
 dialog.sat-sheet[open] { animation: none; overscroll-behavior: contain; margin-bottom: var(--felt-kb, 0px); max-height: min(80dvh, 720px, calc(var(--felt-vvh, 100dvh) - var(--felt-safe-top) - 12px)); }
 html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
-.felt-rec-dock { overscroll-behavior: contain; }
 /* An open panel is solid: the page behind must not show through the keys */
 .felt-app .felt-rec-dock:has(.felt-dock-panel) { background: var(--sat-solid-2); }
 .felt-dock-panel { display: flex; flex-direction: column; gap: var(--sat-space-2); }
@@ -266,7 +259,7 @@ html.felt-sheet-open, html.felt-sheet-open body { overflow: hidden; }
 .felt-run > .sat-caption { width: 44px; flex: none; }
 
 /* Recorder: a name being filled, and the Action tip above the boxes */
-button.felt-acts-name { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-offset: -2px; }
 
 /* Join: the camera fills the screen */
@@ -300,7 +293,7 @@ button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-o
 .felt-copy.felt-copy { position: absolute; top: 2px; right: 2px; z-index: 1; }
 .felt-frame-title { margin: 0; font: inherit; font-size: .8125rem; font-weight: 700; letter-spacing: .12em; color: var(--sat-text); }
 .felt-frame-live { display: flex; justify-content: space-between; gap: var(--sat-space-2); padding: 0 var(--sat-space-1) var(--sat-space-1); }
-.felt-band { display: flex; flex-direction: column; gap: 6px; padding: var(--sat-space-2) var(--sat-space-3); border-radius: var(--sat-radius-md); background: var(--sat-well); border: 1px solid var(--sat-line); }
+.felt-band { animation: felt-rise var(--sat-dur-base) var(--sat-ease); display: flex; flex-direction: column; gap: 6px; padding: var(--sat-space-2) var(--sat-space-3); border-radius: var(--sat-radius-md); background: var(--sat-well); border: 1px solid var(--sat-line); }
 .felt-band:nth-of-type(even) { background: transparent; }
 .felt-band-title { font-size: var(--sat-fs-caption); font-weight: 600; color: var(--sat-accent-text); }
 .felt-band-cards { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
@@ -346,7 +339,8 @@ html[data-calm] .felt-skel { animation: none; }
 .felt-amount { display: inline-flex; align-items: baseline; gap: var(--sat-space-2); padding: var(--sat-space-1) var(--sat-space-3); }
 
 /* Playing cards: white faces in both themes, four-colour suits */
-.felt-card { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
+.felt-card { position: relative; transition: width var(--sat-dur-base) var(--sat-ease), height var(--sat-dur-base) var(--sat-ease);
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
   width: 30px; height: 40px; border-radius: 6px; background: var(--felt-card-face, #FBFCFC); border: 1px solid rgba(28,30,33,0.14); box-shadow: var(--felt-elev-1);
   font-family: var(--sat-font-ui); font-weight: 600; line-height: 1; }
 .felt-card .r { font-size: 15px; letter-spacing: -0.03em; }
@@ -397,12 +391,10 @@ html[data-calm] .felt-skel { animation: none; }
 .felt-down { color: var(--sat-neg); }
 
 /* Selected card on the board: a small red bar says "tap again to remove" */
-.felt-card { position: relative; }
 .felt-card-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--sat-neg); box-shadow: var(--felt-elev-1); }
 .felt-card-x::after { content: ''; position: absolute; left: 4px; right: 4px; top: 8px; height: 2px; border-radius: 1px; background: #fff; }
 
 /* Press and hold chips: no iOS callout or text selection while holding */
-.felt-hold { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 
 /* Traffic light, top right of a player card: one lamp (green playing, faded orange away, red out)
    and a small red cross to clock out. Each control has a 40px hit area around a small mark. */
@@ -470,7 +462,7 @@ html[data-calm] .felt-dot--pulse { animation: none; }
 .felt-pcard-top { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 40px; }
 .felt-pcard-name { flex: 1; min-width: 0; text-align: left; font: 400 1.3125rem/1.2 var(--sat-font-display); font-synthesis: none; min-height: 40px; color: inherit; }
 .felt-pcard-input { flex: 1; min-width: 0; min-height: 40px; padding: 4px 10px; font: 400 1.1875rem/1.2 var(--sat-font-display); }
-.felt-pcard-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sat-space-3); font-size: var(--sat-fs-small); color: var(--sat-muted); }
+.felt-pcard-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sat-space-3); row-gap: 8px; font-size: var(--sat-fs-small); color: var(--sat-muted); }
 .felt-pcard-stats b { color: var(--sat-text); font-weight: 600; }
 .felt-stat { white-space: nowrap; }
 .felt-buyins { display: inline-flex; align-items: center; border-radius: var(--sat-radius-pill); background: var(--sat-well); }
@@ -479,7 +471,6 @@ html[data-calm] .felt-dot--pulse { animation: none; }
 @media (pointer: coarse) { .felt-buyins > button { min-height: 36px; } .felt-buyins > .felt-buyins-plus { width: 40px; } }
 /* the count and + are one segmented control. The stack count keeps 8 px from it, on the same line or the next */
 .felt-buyins + .felt-stat { margin-left: 2px; }
-.felt-pcard-stats { row-gap: 8px; }
 .felt-pcard-stats .felt-stat-btn { margin-block: 0; }
 .felt-out-cap { margin-top: var(--sat-space-3); }
 .felt-addbar { display: flex; align-items: center; justify-content: center; gap: var(--sat-space-2); width: 100%; min-height: 52px; border-radius: var(--sat-radius-md);
@@ -524,7 +515,8 @@ html[data-calm] .felt-dot--pulse { animation: none; }
 .felt-acts-bar { position: relative; margin: 2px 0 0 112px; height: 20px; touch-action: none; cursor: pointer; }
 .felt-acts-bar::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 4px; border-radius: 2px; background: var(--sat-line); }
 .felt-acts-bar i { position: absolute; left: 0; top: 7px; height: 6px; width: 100%; border-radius: 3px; background: var(--sat-accent); }
-.felt-box { min-height: 0; scroll-margin: 200px 0 300px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; gap: 1px;
+.felt-box { position: relative; transition: background-color var(--sat-dur-fast) var(--sat-ease), border-color var(--sat-dur-fast) var(--sat-ease), box-shadow var(--sat-dur-fast) var(--sat-ease), opacity var(--sat-dur-fast) var(--sat-ease);
+  min-height: 0; scroll-margin: 200px 0 300px; border-radius: var(--sat-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; gap: 1px;
   border: 1.5px solid var(--sat-accent); background: var(--sat-glass-2); color: var(--sat-text); -webkit-tap-highlight-color: transparent; user-select: none; padding: 0 2px; }
 .felt-box .v { font-size: var(--sat-fs-caption); font-weight: 600; }
 .felt-box .n { font-size: 0.9375rem; font-weight: 600; }
@@ -539,7 +531,6 @@ html[data-calm] .felt-dot--pulse { animation: none; }
 .felt-box.is-sel { box-shadow: inset 0 0 0 2.5px var(--sat-focus); border-color: transparent; }
 /* a later box replaces this one: amounts are street totals, never added together */
 .felt-box.is-past { opacity: 0.22; }
-.felt-box { position: relative; }
 .felt-box .l { font-size: 1.0625rem; font-weight: 700; }
 .felt-box-dark { position: absolute; top: 1px; right: 3px; display: grid; color: var(--sat-muted); }
 
@@ -572,7 +563,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-pickwin-btn[aria-pressed="true"] { border-color: var(--sat-accent); background: var(--sat-accent-fill); color: var(--sat-on-accent); }
 .felt-result-split { display: flex; flex-wrap: wrap; gap: var(--sat-space-2) var(--sat-space-4); font-size: var(--sat-fs-small); }
 
-.felt-rec-dock { flex-direction: column; align-items: stretch; }
+.felt-rec-dock { overscroll-behavior: contain; flex-direction: column; align-items: stretch; }
 .felt-app .felt-rec-dock > * { flex: none; }
 .felt-dock-actions { display: flex; gap: var(--sat-space-2); }
 .felt-dock-actions > * { flex: 1; min-width: 0; }
@@ -600,7 +591,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad-amount { display: grid; grid-template-columns: minmax(0, 1fr) auto 84px; align-items: center; gap: 8px; }
 .felt-keypad-ghost { color: var(--sat-muted); opacity: .6; }
 .felt-fab { --felt-fab-bg: var(--sat-accent-fill); position: absolute; right: var(--sat-space-4); bottom: calc(100% + 12px); flex: none !important; width: 60px; height: 60px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--felt-fab-bg); color: var(--sat-on-accent); box-shadow: var(--felt-elev-2); cursor: pointer; transition: transform var(--sat-dur-fast) var(--sat-ease); }
-.felt-keypad-field { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0 0 0 var(--sat-space-3); border-radius: var(--sat-radius-sm);
+.felt-keypad-field { transition: border-color 150ms var(--sat-ease), background-color 150ms var(--sat-ease); display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0 0 0 var(--sat-space-3); border-radius: var(--sat-radius-sm);
   background: var(--sat-well); border: 1.5px solid var(--sat-line); color: var(--sat-muted); }
 .felt-keypad-field.has-value { border-color: var(--sat-accent); color: var(--sat-text); }
 .felt-keypad-label { font-size: var(--sat-fs-caption); font-weight: 600; }
@@ -609,7 +600,7 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-keypad .felt-keypad-bs:disabled { opacity: 0.3; }
 .felt-keypad .felt-keypad-ok { background: var(--sat-glass); color: var(--sat-text); border: 1px solid var(--sat-line-strong); }
 .felt-keypad .felt-keypad-ok[aria-disabled="true"] { opacity: 0.4; }
-.felt-keypad-digits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.felt-keypad-digits { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .felt-keypad-digits button { font-size: 1.25rem; background: var(--sat-glass-2); border: 1px solid var(--sat-line); font-variant-numeric: tabular-nums; }
 
 /* Street-by-street recorder (earlier version, kept for old hands) */
@@ -632,12 +623,10 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-bounty.is-paid { box-shadow: inset 0 0 0 1.5px var(--sat-accent); }
 .felt-bounty-head { margin: 0; }
 /* the name cell is a button: tap a name to enter the cards that player shows */
-button.felt-acts-name { border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 /* Pay bounty tag on a shown 2-7 row */
 .felt-paytag-wrap { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
 .felt-paytag[aria-pressed="false"] { color: var(--sat-muted); }
-.felt-toast { display: flex; align-items: center; gap: var(--sat-space-3); }
-.felt-toasts--sheet { position: sticky; left: auto; transform: none; bottom: 0; margin-top: var(--sat-space-3); }
+.felt-toasts--sheet { position: sticky; left: auto; transform: none; top: auto; bottom: 0; margin-top: var(--sat-space-3); }
 .felt-toast-act { border: 0; background: none; font: inherit; font-weight: 700; color: var(--sat-accent-text); padding: 4px 2px; cursor: pointer; }
 /* keypad open: everything but the keypad and the action boxes is greyed out; a tap there closes the keypad */
 .felt-recorder.has-keypad .felt-rec-status, .felt-recorder.has-keypad .felt-fab, .felt-recorder.has-keypad .felt-rec-bar, .felt-recorder.has-keypad .felt-dock-actions, .felt-recorder.has-keypad .sat-header-bar,
@@ -697,7 +686,6 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-suit-row.is-dragging { position: relative; z-index: 2; box-shadow: var(--felt-elev-2); }
 .felt-suit-grip { width: 32px; min-height: 44px; flex: none; display: grid; place-items: center; border: 0; background: none; color: var(--sat-muted); touch-action: pan-y; cursor: grab; padding: 0; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .felt-suit-mark { flex: none; width: 34px; height: 40px; display: grid; place-items: center; font-size: 1.4rem; line-height: 1; border-radius: 6px; background: var(--felt-card-face, #fbfcfc); box-shadow: inset 0 0 0 1px rgba(16,32,31,.16); transition: color var(--sat-dur-fast) var(--sat-ease); }
-.felt-grow { flex: 1; min-width: 0; }
 /* room for the focus ring: the box has a small inset, so the clip never cuts the ring's left edge */
 .felt-suit-custom { display: flex; align-items: center; gap: 4px; max-width: 0; opacity: 0; overflow: hidden; padding: 3px 0 3px 3px; transition: max-width 320ms var(--sat-ease), opacity 240ms var(--sat-ease); }
 .felt-suit-custom.is-open { max-width: 132px; opacity: 1; }
@@ -775,8 +763,7 @@ html[data-calm] .felt-liverow-name, html[data-calm] .felt-livepass-none, html[da
 /* a keycap: raised when off, pressed in and lit when on. The hit area reaches 44px past the edge */
 .felt-liveswitch { position: relative; flex: none; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--felt-sw) 70%, #000); color: #fff; cursor: pointer; background: var(--felt-sw); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 2px 0 color-mix(in srgb, var(--felt-sw) 55%, #000), 0 0 10px 1px color-mix(in srgb, var(--felt-sw) 60%, transparent); transition: background-color 240ms var(--sat-ease), box-shadow 240ms var(--sat-ease), transform var(--sat-dur-fast) var(--sat-ease); }
 .felt-liveswitch::after { content: ''; position: absolute; inset: -7px; }
-.felt-liveswitch.is-on { transform: translateY(2px); box-shadow: inset 0 1px 3px rgba(0,0,0,.3), 0 0 12px 2px color-mix(in srgb, var(--felt-sw) 70%, transparent); }
-.felt-liveswitch.is-on { --felt-sw: #35c46b; }
+.felt-liveswitch.is-on { --felt-sw: #35c46b; transform: translateY(2px); box-shadow: inset 0 1px 3px rgba(0,0,0,.3), 0 0 12px 2px color-mix(in srgb, var(--felt-sw) 70%, transparent); }
 .felt-liveswitch.is-off { --felt-sw: #e5484d; }
 .felt-liveswitch.is-wait { --felt-sw: #35c46b; animation: felt-sw-wait 1.2s ease-in-out infinite; }
 @keyframes felt-sw-wait { 50% { opacity: .5; } }
@@ -857,7 +844,6 @@ input, textarea, select, [contenteditable="true"], .felt-selectable, .felt-selec
 /* Header: the tab of a notebook page. A thin line runs across the screen (the page edge); the title sits in a divider
    tab that stands up from it: a 1.5px outline, small top corners, and the page colour, so it joins the page below. */
 /* The sticky header is a solid band in the page colour. Its bottom edge fades out (::after, chrome.css), and nothing shows above it. */
-.felt-header { position: sticky; top: 0; z-index: 40; background: var(--sat-bg); padding-bottom: var(--sat-space-3); }
 .felt-header .sat-header-bar.felt-notebook { position: relative; align-items: flex-end; gap: var(--sat-space-2); padding: 0 var(--sat-space-2) 0 var(--sat-space-3); min-height: 0; border-radius: 0; background: none; box-shadow: none;
   border-bottom: 1.5px solid var(--sat-line-strong); }
 .felt-ntab { position: relative; display: flex; align-items: center; gap: var(--sat-space-1); min-width: 0; max-width: calc(100% - 56px); margin-bottom: -1.5px;
@@ -973,7 +959,6 @@ html[data-skin="felt"][data-palette="custom"][data-theme="dark"] {
 /* A list that opens and closes with one tap on its head (Players: Everyone and each group) */
 .felt-fold { padding: 0; overflow: hidden; }
 .felt-fold > .felt-row { padding-inline: var(--sat-space-4); }
-.felt-fold-head { border-bottom: 0; }
 .felt-fold-head[aria-expanded="true"] { border-bottom: 1px solid var(--sat-line); }
 .felt-fold-chev { display: inline-flex; color: var(--sat-muted); transition: transform var(--sat-dur-fast) var(--sat-ease); transform: rotate(-90deg); }
 .felt-fold-head[aria-expanded="true"] .felt-fold-chev { transform: none; }

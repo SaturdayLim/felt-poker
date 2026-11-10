@@ -20,3 +20,7 @@
 .felt-picker-wrap .sat-btn--sm { min-height: 44px; min-width: 44px; }
 .felt-picker-wrap .sat-split .sat-cluster { gap: 8px; }
 .felt-picker { gap: 3px; }
+
+/* The orange card button stands 72 px above the dock (60 px and a 12 px gap): the page keeps that much room so
+   the last control, such as Change on the result card, rests clear of it. */
+.felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + var(--felt-dock-h, 358px) + 32px + 72px); }

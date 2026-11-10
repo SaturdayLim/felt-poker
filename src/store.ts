@@ -363,6 +363,23 @@ export const useStore = create<State>()(
           }),
         reopenGame: (gameId) =>
           mutateGame(gameId, (g) => {
+            // Players who were at the table at Close game (their last 'out' is the close itself) come back seated with the
+            // chips they cashed out, as a player back in does. Players who left earlier stay out.
+            const closeAt = g.endedAt;
+            const t = now();
+            if (closeAt !== undefined)
+              for (const pid of g.playerIds) {
+                if (playerStatus(g, pid) !== 'out') continue;
+                const last = [...g.statusEvents].reverse().find((e) => e.playerId === pid);
+                if (!last) continue;
+                // a clock-out writes its cash-out and its 'out' at the same moment; a count written at the end has no such twin
+                const early = g.cashOuts.some((c) => c.playerId === pid && c.at === last.at);
+                const atClose = last.at === closeAt || (g.type === 'cash' && g.cashOuts.some((c) => c.playerId === pid) && !early);
+                if (!atClose) continue;
+                if (g.type === 'cash' && g.cashOuts.some((c) => c.playerId === pid)) resumeFromCashOut(g, pid, t);
+                else g.statusEvents.push({ playerId: pid, status: 'playing', at: t });
+              }
+            if (closeAt !== undefined) g.pauses = [...(g.pauses ?? []), { from: closeAt, to: t }];
             g.status = 'live';
             g.endedAt = undefined;
           }),

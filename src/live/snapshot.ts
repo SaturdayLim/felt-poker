@@ -5,7 +5,7 @@ import type { Card, Game, ID, Player, PlayerStatus, Settings, StreetName } from 
 import { playerStatus } from '../lib/calc';
 import { estimateStacks, exactStacks } from '../lib/stacks';
 import { bestHand } from '../lib/cards';
-import { finalists, hasActs, NOT_SHOWN, potTotal, replayStreet, rowOrder, STREETS, wentToShowdown } from '../lib/hand';
+import { contributions, finalists, hasActs, NOT_SHOWN, potTotal, replayStreet, rowOrder, STREETS, wentToShowdown } from '../lib/hand';
 import { units } from '../lib/format';
 import { rulesList } from '../report/model';
 import type { HandLog } from '../types';
@@ -60,6 +60,14 @@ const stackLines = (g: Game, name: (id: ID) => string): StackLine[] => {
   const est = estimateStacks(g);
   return g.playerIds.map((p) => ({ name: name(p), stack: est.stack[p] ?? null, spread: est.spread[p] ?? 0 }));
 };
+
+/** Stacks at the start of the hand, less what each player has put in this hand. */
+const behind = (lines: StackLine[], put: Record<ID, number>, g: Game, name: (id: ID) => string): StackLine[] =>
+  lines.map((l) => {
+    const id = g.playerIds.find((p) => name(p) === l.name);
+    const v = id ? put[id] ?? 0 : 0;
+    return l.stack === null || !v ? l : { ...l, stack: Math.max(0, l.stack - v) };
+  });
 
 /** The slow part: settings, players, closed hands and approximate stacks. Sent when a hand closes or a setting changes. */
 export function buildPub(g: Game, players: Player[], settings?: Settings, at = Date.now()): PubSnapshot {
@@ -133,10 +141,13 @@ export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) =
           const a = c.act ?? (c.implied ? { k: c.toCall ? 'fold' : 'call' } as const : null);
           if (c.post && !c.act) { lines.push(`${who(p)}, ${units(before)}) posts ${units(c.amount)}`); put[p] = c.amount; continue; }
           if (!a) continue;
+          // a dark action carries the shut-eye mark on the host; viewers read it in words
+          const dark = (a as { dark?: boolean }).dark ? ' in the dark' : '';
           const text = a.k === 'fold' ? 'folds'
             : a.k === 'call' ? (c.toCall > 0 ? `calls to ${units(c.amount)}` : 'checks')
-            : a.k === 'allin' ? `all-in to ${units(c.amount)}`
-            : c.high > 0 ? `raises to ${units(c.amount)}` : `bets ${units(c.amount)}`;
+            : street === 'preflop' && rp.straddles.includes(p) && c.act ? `straddles to ${units(c.amount)}`
+            : a.k === 'allin' ? `all-in to ${units(c.amount)}${dark}`
+            : c.high > 0 ? `raises to ${units(c.amount)}${dark}` : `bets ${units(c.amount)}${dark}`;
           lines.push(`${who(p)}, ${units(before)}) ${text}`);
           put[p] = c.amount;
         }
@@ -218,6 +229,7 @@ export function buildNow(g: Game, players: Player[], hand: { n: number; tab: str
     pot: potTotal(g, hand.log, hand.log.button),
     toAct: hand.ended ? null : toAct,
     view: buildView(g, (hand.log.runs ?? 1) > 1 ? { ...hand.log, runCards: (hand.runSlots ?? []).map((r) => r.filter(Boolean) as Card[]) } : hand.log, board, name, undefined, shown, hand.n),
-    ended: hand.ended, acted: hasActs(hand.log), stacks: stackLines(g, name), updatedAt: at,
+    // the chips in front of a player are not in the stack: the host shows the stack behind them, so viewers do too
+    ended: hand.ended, acted: hasActs(hand.log), stacks: behind(stackLines(g, name), hasActs(hand.log) ? contributions(g, hand.log, hand.log.button) : {}, g, name), updatedAt: at,
   };
 }

@@ -9,6 +9,9 @@
     <script>try{var fm=localStorage.getItem('felt-motion');if(fm==='calm'||(fm!=='full'&&matchMedia('(prefers-reduced-motion: reduce)').matches))document.documentElement.setAttribute('data-calm','')}catch(e){}</script>
     <!-- A launch that lands here directly (an icon saved from this page) still plays the opening screen once. A link with a route goes straight in. -->
     <script>try{if(!sessionStorage.getItem('felt-splashed')&&(!location.hash||location.hash==='#/')&&localStorage.getItem('felt-splash-ms')!=='0'){document.documentElement.style.visibility='hidden';location.replace('../')}}catch(e){}</script>
+    <!-- A launch with no role chosen yet shows the Start view: its static copy below paints in the first frame, so the load screen's mark has a place to land. -->
+    <script>try{if(!sessionStorage.getItem('felt-role')&&(!location.hash||location.hash==='#/'))document.documentElement.classList.add('felt-boot')}catch(e){}</script>
+    <link rel="expect" href="#felt-boot" blocking="render" />
     <meta name="theme-color" content="#1C1E21" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -20,6 +23,22 @@
   </head>
   <body class="sat">
     <div id="root"></div>
+    <div id="felt-boot" aria-hidden="true">
+      <div class="felt-page felt-start-view">
+        <div class="felt-start-mark">
+          <svg class="sat-mark" style="--sat-mark-h:64px" viewBox="-2 -2 68 104" aria-hidden="true">
+            <g opacity="0.22"><circle cx="32" cy="26" r="22.5" fill="var(--sat-muted)" stroke="none"/><circle cx="32" cy="26" r="15" stroke="var(--sat-bg)" stroke-width="1.4" opacity="0.85" vector-effect="none"/><path d="M46.72 34.50 L51.49 37.25 M32.00 43.00 L32.00 48.50 M17.28 34.50 L12.51 37.25 M17.28 17.50 L12.51 14.75 M32.00 9.00 L32.00 3.50 M46.72 17.50 L51.49 14.75" style="stroke:var(--sat-bg);stroke-width:5;stroke-linecap:butt;vector-effect:none"/></g>
+            <g opacity="0.22"><circle cx="32" cy="74" r="22.5" fill="var(--sat-muted)" stroke="none"/><circle cx="32" cy="74" r="15" stroke="var(--sat-bg)" stroke-width="1.4" opacity="0.85" vector-effect="none"/><path d="M46.72 82.50 L51.49 85.25 M32.00 91.00 L32.00 96.50 M17.28 82.50 L12.51 85.25 M17.28 65.50 L12.51 62.75 M32.00 57.00 L32.00 51.50 M46.72 65.50 L51.49 62.75" style="stroke:var(--sat-bg);stroke-width:5;stroke-linecap:butt;vector-effect:none"/></g>
+            <path d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43"/>
+          </svg>
+          <span class="sat-wordmark">Felt</span>
+        </div>
+        <div class="felt-start-choices">
+          <div class="felt-start-choice"><i></i><b>Host</b><span>Run the game and log hands on this phone.</span></div>
+          <div class="felt-start-choice"><i></i><b>Player</b><span>Scan the QR code to follow the action and log your hands.</span></div>
+        </div>
+      </div>
+    </div>
     <!-- Oldest phones: old syntax on purpose, so a phone too old for the app can still run this. Floor is in docs/PLAN-v1.2.md. -->
     <script data-floor>
       (function () {

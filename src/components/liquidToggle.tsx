@@ -19,6 +19,8 @@ export function LiquidToggle({ on, onChange, label, width = 60 }: { on: boolean;
   const lit = useRef<SVGRectElement>(null);
   const sun = useRef<SVGGElement>(null);
   const moon = useRef<SVGGElement>(null);
+  const kSun = useRef<SVGGElement>(null);
+  const kMoon = useRef<SVGGElement>(null);
   const shadow = useRef<SVGCircleElement>(null);
   const knob = useRef<SVGCircleElement>(null);
   const dropA = useRef<SVGCircleElement>(null);
@@ -52,8 +54,13 @@ export function LiquidToggle({ on, onChange, label, width = 60 }: { on: boolean;
     const k = clamp(p, 0, 1);
     lit.current?.setAttribute('opacity', k.toFixed(3));
     glow.current?.setAttribute('opacity', (0.75 * k).toFixed(3));
-    sun.current?.setAttribute('opacity', (0.4 + 0.6 * k).toFixed(3));
-    moon.current?.setAttribute('opacity', (0.4 + 0.6 * (1 - k)).toFixed(3));
+    // the chosen state is the mark on the knob; the other mark rests faint on the track, so one reads as selected
+    sun.current?.setAttribute('opacity', (0.38 * k).toFixed(3));
+    moon.current?.setAttribute('opacity', (0.38 * (1 - k)).toFixed(3));
+    kSun.current?.setAttribute('transform', `translate(${cx.toFixed(2)} ${cy})`);
+    kMoon.current?.setAttribute('transform', `translate(${cx.toFixed(2)} ${cy})`);
+    kSun.current?.setAttribute('opacity', (1 - k).toFixed(3));
+    kMoon.current?.setAttribute('opacity', k.toFixed(3));
   };
 
   const step = (now: number) => {
@@ -118,6 +125,11 @@ export function LiquidToggle({ on, onChange, label, width = 60 }: { on: boolean;
         <g ref={moon} transform="translate(177 59)"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="translate(-27.6 -27.6) scale(2.3)" fill="#fff" /></g>
         <circle ref={shadow} cx="0" cy="0" r={KNOB} fill="#000" opacity="0.32" filter={`url(#${id('soft')})`} />
         <rect x="-40" y="-40" width={W + 80} height={H + 80} fill={`url(#${id('knob')})`} mask={`url(#${id('mask')})`} />
+        <g ref={kSun} stroke="#1C1E21" strokeWidth="3.6" strokeLinecap="round" fill="none" pointerEvents="none">
+          <circle r="12" fill="#1C1E21" stroke="none" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <path key={a} d="M0 -19V-25" transform={`rotate(${a})`} />)}
+        </g>
+        <g ref={kMoon} pointerEvents="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="translate(-27.6 -27.6) scale(2.3)" fill="#1C1E21" /></g>
       </svg>
     </button>
   );

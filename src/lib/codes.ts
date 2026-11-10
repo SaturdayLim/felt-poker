@@ -2,7 +2,7 @@
    cards in the app. Letters and digits that read alike (0/O, 1/I/L) are left out. Two players could get
    the same code, but with 31^6 (about 887 million) codes it is very unlikely. */
 
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 /** A new random code, for example "K7M2QX". Every character is equally likely. */
 export function newCode(len = 6): string {

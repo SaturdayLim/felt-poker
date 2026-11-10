@@ -56,3 +56,7 @@ html[data-theme="dark"] .felt-lamp--playing { color: #3ddc84; }
 .felt-banner-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .felt-banner-stack .felt-banner-title { flex: none; font-size: 1.375rem; }
 .felt-banner-sub { color: var(--sat-muted); font-size: var(--sat-fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the Felt mark of the Home banner is where the Start view's mark lands (a shared element) */
+.felt-banner-brand .sat-mark { view-transition-name: felt-logo; }
+html[data-calm] .felt-banner-brand .sat-mark { view-transition-name: none; }

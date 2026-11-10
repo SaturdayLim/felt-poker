@@ -5,6 +5,12 @@ import { calm } from './lib/motion';
 const hashPath = (h: string) => h.replace(/^[^#]*#?\/?/, '');
 /** The main tabs in bar order: a change between two of them slides in that direction. */
 export const NAV_TABS = ['', 'games', 'players', 'settings'];
+/** Where a screen sits along the slide: the main tabs in bar order, and a group page just after Players, so opening one pushes in
+    from the right and Back slides it away again. -1 means the screen has no place (a game, the hand recorder). */
+export const tabPos = (top: string): number => {
+  const k = top === 'insights' ? 'players' : top;
+  return k === 'group' ? NAV_TABS.indexOf('players') + 0.5 : NAV_TABS.indexOf(k);
+};
 
 /* The routes behind the current one, oldest first, so a screen can tell whether Back leads to a given
    screen. A replace keeps the stack; a hash change to the route on top of the stack counts as Back. */
@@ -19,6 +25,13 @@ const scrollAt = new Map<string, number>();
 /** A drag from the left edge is under way, or ended at this time: the phone may be doing its own back swipe. */
 let edge: { x: number; y: number; moved: boolean } | null = null;
 let edgeEnd = 0;
+/** The address of the screen in view, kept so a step Back onto the spare history entry can put it back. */
+let curHash = typeof window !== 'undefined' ? window.location.hash : '';
+/** Hash changes caused by a step onto the spare entry. They are not navigation: the screen stays where it is. */
+let guarding: string | null = null;
+const guardEvents = new WeakSet<Event>();
+/** True for the hash change a step onto the spare history entry causes. */
+export const isGuardEvent = (e: Event) => guardEvents.has(e);
 if (typeof window !== 'undefined') {
   // the app puts the scroll back itself (Back returns to the same place); the browser must not move it as well
   try { window.history.scrollRestoration = 'manual'; } catch { /* old browser */ }
@@ -40,6 +53,8 @@ if (typeof window !== 'undefined') {
   window.addEventListener('touchend', lift, { passive: true, capture: true });
   window.addEventListener('touchcancel', lift, { passive: true, capture: true });
   window.addEventListener('hashchange', (e) => {
+    if (guarding !== null && hashPath(e.oldURL) === hashPath(guarding)) { guarding = null; guardEvents.add(e); return; }
+    curHash = window.location.hash;
     const from = hashPath(e.oldURL), to = hashPath(e.newURL);
     wentBack = false;
     if (replacing) replacing = false;
@@ -61,8 +76,9 @@ export function useRoute(): string[] {
   const [parts, setParts] = useState(read);
   useEffect(() => {
     const on = (e: HashChangeEvent) => {
+      if (isGuardEvent(e)) return;
       const top = (u?: string) => hashPath(u ?? '').split('/')[0];
-      const a = NAV_TABS.indexOf(top(e.oldURL)), b = NAV_TABS.indexOf(top(e.newURL));
+      const a = tabPos(top(e.oldURL)), b = tabPos(top(e.newURL));
       // between main tabs the screen slides (SlidePane in App.tsx)
       if (a >= 0 && b >= 0 && a !== b) { plainNext = false; flushSync(() => setParts(read())); window.scrollTo(0, 0); return; }
       // a view inside the same tab (Players, Leaderboard, Stats) slides inside the tab
@@ -91,6 +107,10 @@ export function useRoute(): string[] {
   return parts;
 }
 
+/** Open a main tab (or a view of one) from the bar or a swipe. It replaces the screen in view: tabs do not pile up in the history,
+    so a swipe back from the first screen never lands on an empty one. */
+export const goTab = (path: string) => go(path, true);
+
 export function go(path: string, replace = false) {
   const h = '#/' + path.replace(/^\/+/, '');
   // keep this screen's place: a step Back to it scrolls there again
@@ -108,6 +128,7 @@ export function setPath(path: string) {
   const h = '#/' + path.replace(/^\/+/, '');
   if (hashPath(h) === hashPath(window.location.hash)) return;
   window.history.replaceState(window.history.state, '', h);
+  curHash = h;
 }
 
 /** Back, with no view transition: the swipe back on the hand page has already closed it into the button. */
@@ -133,8 +154,10 @@ export function backTo(path: string) {
 }
 
 /** Nothing behind the first screen: a swipe back from it must not leave Felt for a blank page. Felt keeps one spare history
-    entry under the first screen. Back onto it puts the spare entry back and tells the page to bounce, as a rubber band does. */
-export function guardHistory(onBounce: () => void): () => void {
+    entry under the first screen. Back onto it puts the spare entry back, keeps the address of the screen in view (the spare
+    entry carries the address Felt opened with, which would otherwise jump the page to Home) and calls `onBack`: a swipe
+    from the edge of the screen moves to the neighbouring tab, or bounces when there is none. */
+export function guardHistory(onBack: () => void): () => void {
   if (typeof window === 'undefined') return () => undefined;
   try {
     if (!history.state?.feltBase) {
@@ -144,8 +167,12 @@ export function guardHistory(onBounce: () => void): () => void {
   } catch { return () => undefined; }
   const on = (e: PopStateEvent) => {
     if (e.state?.feltBase && !e.state?.feltTop) {
-      try { history.pushState({ feltTop: true }, ''); } catch { return; }
-      onBounce();
+      // the step moved the address to the spare entry's own: that hash change is not navigation
+      if (window.location.hash !== curHash) guarding = curHash;
+      try { history.pushState({ feltTop: true }, '', window.location.pathname + window.location.search + curHash); } catch { return; }
+      window.setTimeout(() => { guarding = null; }, 400);
+      plainNext = false;
+      onBack();
     }
   };
   window.addEventListener('popstate', on);

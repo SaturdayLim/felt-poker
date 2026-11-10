@@ -2,7 +2,7 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardPair, Empty, Header, Help, Icon, Info, NewItemsPill, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
+import { CardPair, Empty, Header, Help, Icon, Info, NewItemsPill, NumericText, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { calm } from '../lib/motion';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
@@ -276,7 +276,7 @@ function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blind
     <section className="sat-glass-2 felt-frame" aria-label={`Hand ${n}`}>
       <div className="felt-frame-sum"><h2 className="felt-frame-title">Hand {n}</h2></div>
       <CopyHand n={n} blinds={blinds} view={view} />
-      {live && <div className="felt-frame-live"><span>{live.toAct ? <><b>{live.toAct}</b> to act</> : ''}</span><span>Pot <b className="sat-num">{money(live.pot)}</b></span></div>}
+      {live && <div className="felt-frame-live"><span>{live.toAct ? <><b>{live.toAct}</b> to act</> : ''}</span><span>Pot <b className="sat-num"><NumericText value={money(live.pot)} /></b></span></div>}
       {[...view.streets].reverse().map((s) => <Band key={s.key} s={s} runs={view.runs} />)}
     </section>
     </RevealProvider>
@@ -361,7 +361,7 @@ function PlayByPlay({ view, board }: { view: HandView; board: Card[] }) {
         <TabPill />
         {view.streets.map((x) => <button key={x.key} role="tab" aria-selected={x.key === at} onClick={() => setAt(x.key)}>{x.key === 'preflop' ? 'Pre' : x.key === 'showdown' ? 'End' : x.label}</button>)}
       </div>
-      {s && s.key !== 'showdown' && <div className="felt-rec-status"><span /><span>Pot <b className="sat-num">{money(s.pot)}</b></span></div>}
+      {s && s.key !== 'showdown' && <div className="felt-rec-status"><span /><span>Pot <b className="sat-num"><NumericText value={money(s.pot)} /></b></span></div>}
       <SlidePane k={at} i={view.streets.findIndex((x) => x.key === at)}>
       {s?.key === 'showdown' ? (
         <section className="sat-glass-2 felt-frame">
@@ -453,7 +453,7 @@ function PlayersTab({ pub, stacks, me, button, onCount }: { pub: PubSnapshot; st
           return (
             <div key={p.id} className={`felt-seat ${p.id === me?.id ? 'is-me' : ''}`} style={{ left: `${50 + 38 * Math.cos(a)}%`, top: `${50 + 37 * Math.sin(a)}%` }}>
               <b className="felt-ellipsis">{p.name}</b>
-              <span className="felt-seat-stack sat-num">{stackText(stacks.find((s) => s.name === p.name))}</span>
+              <span className="felt-seat-stack sat-num"><NumericText value={stackText(stacks.find((s) => s.name === p.name))} /></span>
               {button === p.name && <span className="felt-seat-btn" aria-label="Button">D</span>}
             </div>
           );

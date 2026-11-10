@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePlayerName, useStore } from '../store';
 import { Delta, Disclose, Help, HoldFill, Icon, Sheet, toast, WordButton } from './ui';
-import { newCode, showCode } from '../lib/codes';
+import { ALPHABET, newCode, showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary, summaryFigure } from '../lib/stats';
 import { gameFigure, gameResults } from '../lib/calc';
@@ -296,12 +296,15 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
   const s = playerSummary(filterGames(games, 'all', 'all'), p.id);
   const played = games.filter((g) => g.playerIds.includes(p.id)).sort((a, b) => b.startedAt - a.startedAt);
   const closed = played.filter((g) => g.status === 'closed');
-  const stats = () => { onClose(); go(`players/stats/${p.id}`); };
-  const open = (g: Game) => { onClose(); go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/close`); };
+  // leaving for another page: the sheet first slides down off the screen, and only then does the page change
+  const leave = useRef<((after?: () => void) => void) | null>(null);
+  const goAfter = (path: string) => { if (leave.current) leave.current(() => go(path)); else { onClose(); go(path); } };
+  const stats = () => goAfter(`players/stats/${p.id}`);
+  const open = (g: Game) => goAfter(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/close`);
   const back = <button className="sat-btn sat-btn--block" onClick={() => setView('card')}>Back to {p.name}</button>;
   if (view === 'net') {
     return (
-      <Sheet open noClose onClose={onClose} title={`${p.name}: Net`}>
+      <Sheet open noClose onClose={onClose} dismissRef={leave} title={`${p.name}: Net`}>
         {closed.length === 0 && <p className="sat-small sat-muted">No closed games yet.</p>}
         {closed.length > 0 && (
           <div className="sat-flat felt-list">
@@ -325,7 +328,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
   }
   if (view === 'rate') {
     return (
-      <Sheet open noClose onClose={onClose} title={`${p.name}: Hands won and lost`}>
+      <Sheet open noClose onClose={onClose} dismissRef={leave} title={`${p.name}: Hands won and lost`}>
         {played.length === 0 && <p className="sat-small sat-muted">Not in any games yet.</p>}
         {played.length > 0 && (
           <div className="sat-flat felt-list">
@@ -348,7 +351,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
     );
   }
   return (
-    <Sheet open noClose onClose={onClose} title={p.name} head={<NameField p={p} />}>
+    <Sheet open noClose onClose={onClose} dismissRef={leave} title={p.name} head={<NameField p={p} />}>
       <CodeControl pid={p.id} label />
       <div className="felt-tiles">
         <button type="button" className="sat-flat sat-card felt-fig" onClick={() => setView('net')}><span className="sat-caption">Net ({figureUnit(summaryFigure(s, currency), showMoney)})</span><b className="sat-num">{s.games ? figureNumber(summaryFigure(s, currency), showMoney, { sign: true }) : '-'}</b></button>
@@ -366,7 +369,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
               ))}
             </div>
           )}
-          {played.length > 0 && <button className="sat-btn sat-btn--block sat-btn--ghost" onClick={() => { onClose(); go(`games/${p.id}`); }}>Show all {played.length} game{played.length === 1 ? '' : 's'}</button>}
+          {played.length > 0 && <button className="sat-btn sat-btn--block sat-btn--ghost" onClick={() => goAfter(`games/${p.id}`)}>Show all {played.length} game{played.length === 1 ? '' : 's'}</button>}
         </div>
       </Disclose>
       <button className="sat-btn sat-btn--primary sat-btn--block" onClick={stats}>Full stats</button>
@@ -396,24 +399,37 @@ export function PlayerName({ id }: { id: ID }) {
 }
 
 
-/** Replace a player code: a sheet from the bottom with a hold-to-confirm button. While the button fills, the new code loads
-    in, one box for each sixth of the hold. Letting go early keeps the old code. At full the old code stops working. */
+/** Generate a new player code: a sheet from the bottom with a hold-to-confirm button. The code is made as the button fills:
+    each box rolls through random characters while the fill crosses it, then settles on its own. Letting go early keeps the old
+    code, and the next hold draws a different new one. At full the old code stops working. */
 function ReplaceCodeSheet({ pid, name, onClose, onNew }: { pid: ID; name: string; onClose: () => void; onNew: (code: string) => void }) {
   const issueCode = useStore((s) => s.issueCode);
   const next = useRef(newCode());
-  const [left, setLeft] = useState(0);
+  const last = useRef(0);
+  const [v, setV] = useState(0);
   const [code, setCode] = useState<string | null>(null);
-  const copy = () => navigator.clipboard?.writeText(`${name}: ${showCode(code ?? next.current)}`)
+  const settled = code ? 6 : Math.floor(v * 6 + 0.001);
+  const shown = code ?? next.current;
+  const copy = () => navigator.clipboard?.writeText(`${name}: ${showCode(shown)}`)
     .then(() => toast('Code copied.'), () => toast('Copy was blocked.'));
+  const progress = (x: number) => {
+    // the fill fell back before the end: the next hold makes a new code
+    if (x === 0 && last.current > 0 && last.current < 1) next.current = newCode();
+    last.current = x;
+    setV(x);
+  };
   return (
-    <Sheet open onClose={onClose} title={`Replace code for ${name}`} sub="The old code stops working when the button is full.">
+    <Sheet open onClose={onClose} title={`New code for ${name}`} sub="Old code will stop working when a new code is generated.">
       <div className="felt-boxes is-idle felt-boxes--static" role="img" aria-label={code ? `New code ${code}` : 'New code loading'}>
-        {Array.from({ length: 6 }, (_, i) => (
-          <span key={`${i}${i < left ? 'on' : 'off'}`} className={`felt-boxes-cell ${i < left ? 'is-in' : ''}`} aria-hidden="true">{i < left ? next.current[i] : ''}</span>
-        ))}
+        {Array.from({ length: 6 }, (_, i) => {
+          const rolling = !code && v > 0 && i === settled;
+          // the box under the fill rolls through characters, one step for each sixtieth of the hold
+          const ch = i < settled ? shown[i] : rolling ? ALPHABET[(Math.floor(v * 90) * 7 + i * 11) % ALPHABET.length] : '';
+          return <span key={`${i}${i < settled ? 'on' : 'off'}`} className={`felt-boxes-cell ${i < settled ? 'is-in' : ''} ${rolling ? 'is-roll' : ''}`} aria-hidden="true">{ch}</span>;
+        })}
       </div>
-      <HoldFill label="Hold to replace code" doneLabel="Code replaced" onProgress={(v) => setLeft(Math.floor(v * 6 + 0.001))}
-        onDone={() => { const c = issueCode(pid, next.current); setCode(c); setLeft(6); onNew(c); }} />
+      <HoldFill label="Generate New Code" doneLabel="New Code Generated" onProgress={progress}
+        onDone={() => { const c = issueCode(pid, next.current); setCode(c); setV(1); onNew(c); }} />
       {code && <button type="button" className="sat-btn sat-btn--block" onClick={copy}><Icon name="file" /> Copy code</button>}
     </Sheet>
   );

@@ -1,5 +1,15 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.6.0', date: '10 Nov 2026', notes: [
+    'Settings tabs are icons, and the open one opens out to its title. Players and Games tabs follow. A new Info tab holds App update and How to install, written out on the page.',
+    'Cards: a miniature board under the suits follows a suit row as you drag it. Check hidden cards moved to Game Defaults.',
+    'A swipe across a tab moves to the neighbouring tab or bounces at the ends. The phone back swipe no longer lands on an empty screen.',
+    'The load screen glides into the Start view, and Host or Player fades into the next screen. Opening a group slides in.',
+    'Players: Leaderboard and Stats share one filter that holds still. One box searches and adds players. Groups count games played by members only, and Others holds the rest.',
+    'Stats read in tiers: big figures first, then rows with bars. Bluff rate is tighter: strong draws are semi-bluffs and do not count.',
+    'New code for a player is made as the hold fills. Full stats closes the card first, then opens the player.',
+    'Pots and stacks roll their digits when they change. Info tips are fainter and centred. The theme switch shows the chosen mark on its knob. New award marks for Comeback, Unrelenting and Iron Defender.',
+  ] },
   { version: '1.5.0', date: '9 Nov 2026', notes: [
     'Settings has four tabs: General, Game Defaults, Cards and Data. Cards has a test spot where two face-down cards flip up as you pick, to see the picker order, colours and suits.',
     'One Animation speed slider (Off, Quick, Standard, Relaxed) sets the opening screen and navigation together. The Reduced motion switch sits beside it.',

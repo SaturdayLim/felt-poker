@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './ui';
 import { calm, navMs } from '../lib/motion';
+import { goTab } from '../router';
 
 /* The main tab bar, made like a chip tray: one straight rail with a pocket cut under it for each tab. The icon of
    each tab rests in its pocket. A poker chip in the Main colour marks the open tab: it rolls along the rail to the
@@ -184,7 +185,8 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
         </svg>
         <span ref={chip} className="felt-chip" aria-hidden="true" style={{ top: RAIL_Y - R, opacity: 0 }} />
         {tabs.map((t) => (
-          <a key={t.path} href={`#/${t.path}`} aria-current={active === t.path ? 'page' : undefined}>
+          <a key={t.path} href={`#/${t.path}`} aria-current={active === t.path ? 'page' : undefined}
+            onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); goTab(t.path); }}>
             <span className="felt-rail-icon"><Icon name={t.icon} /></span>
             <span className="felt-rail-label">{t.label}</span>
           </a>

@@ -11,7 +11,7 @@ import { countedPairs } from './clash';
      and they raise.
    A straddle counts as a blind, not a raise. */
 import type { Card, Game, Hand, HandLog, ID, StreetName } from '../types';
-import { bestHand } from './cards';
+import { DECK, bestHand } from './cards';
 import { round2 } from './calc';
 import { STREETS, actingOrder, bountyPay, contributions, defaultAct, inAtEnd, lastStreet, pfr, replayStreet, streetOrder, vpip, wentToShowdown, finalists } from './hand';
 
@@ -149,6 +149,31 @@ export function cardsHelp(hole: Card[], board: Card[]): boolean {
   return !!all && all.category > 0 && all.category > boardCategory(board);
 }
 
+const rankValue = (c: Card) => 14 - 'AKQJT98765432'.indexOf(c[0]);
+
+/** Cards still to come (flop or turn) that would give me a straight or better that the board alone does not have.
+    A flush draw has 9, an open-ended straight draw 8. */
+export function strongOuts(hole: Card[], board: Card[]): number {
+  if (board.length < 3 || board.length >= 5) return 0;
+  const seen = new Set<Card>([...hole, ...board]);
+  let n = 0;
+  for (const c of DECK) {
+    if (seen.has(c)) continue;
+    const h = bestHand([...hole, ...board, c]);
+    // an out must beat what the board alone makes with that card
+    if (h && h.category >= 4 && h.category > boardCategory([...board, c])) n++;
+  }
+  return n;
+}
+
+/** A hand with no pair that is still far from dead: a strong draw (8 or more outs to a straight or flush), or two cards
+    higher than anything on the board, with a card still to come. Betting with it is a semi-bluff: the equity is real. */
+export function isDraw(hole: Card[], board: Card[]): boolean {
+  if (board.length < 3 || board.length >= 5) return false;
+  const top = Math.max(...board.map(rankValue));
+  return strongOuts(hole, board) >= 8 || hole.every((c) => rankValue(c) > top);
+}
+
 export interface MyHand {
   gameId: ID; handId: ID; n: number; at: number; cards: Card[];
   vpip: boolean; pfr: boolean; sawFlop: boolean; showdown: boolean; won: boolean;
@@ -156,8 +181,10 @@ export interface MyHand {
   net: number;
   /** Bet or raise after the flop. */
   aggressive: boolean;
-  /** Bet or raise after the flop with no pair or better from my cards. */
+  /** A bet or raise after the flop when my hand was clearly behind: no pair or better from my cards, and no strong draw. */
   bluff: boolean;
+  /** A bet or raise after the flop with a draw and no pair (a semi-bluff). Not counted as a bluff. */
+  semi: boolean;
 }
 
 /** The phone owner's hands with My cards entered, newest last. */
@@ -169,12 +196,12 @@ export function myHands(games: Game[], me: ID, check = true): MyHand[] {
       const cards = countedPairs(h, check)[me];
       if (h.missed || !h.log || !cards || cards.length < 2) continue;
       const L = h.log;
-      let aggressive = false, bluff = false;
+      let aggressive = false, bluff = false, semi = false;
       for (const st of STREETS.slice(1)) {
         if (!streetMoves(g, L, st).some((m) => m.p === me && (m.k === 'bet' || m.k === 'raise'))) continue;
         aggressive = true;
         const board = h.board.slice(0, st === 'flop' ? 3 : st === 'turn' ? 4 : 5);
-        if (board.length >= 3 && !cardsHelp(cards, board)) bluff = true;
+        if (board.length >= 3 && !cardsHelp(cards, board)) { if (isDraw(cards, board)) semi = true; else bluff = true; }
       }
       const put = L.mode === 'bets' ? contributions(g, L, L.button)[me] ?? 0 : 0;
       const got = (h.winners.find((w) => w.playerId === me)?.amount ?? 0) + (h.returned?.[me] ?? 0);
@@ -183,7 +210,7 @@ export function myHands(games: Game[], me: ID, check = true): MyHand[] {
         gameId: g.id, handId: h.id, n: h.n, at: h.at, cards,
         vpip: vpip(g, L, me, L.button), pfr: pfr(L, me), sawFlop: !!L.streets.flop && inAtEnd(L, 'preflop').includes(me),
         showdown: wentToShowdown(L) && fin.includes(me), won: h.winners.some((w) => w.playerId === me),
-        net: round2(got - put), aggressive, bluff,
+        net: round2(got - put), aggressive, bluff, semi: semi && !bluff,
       });
     }
   }

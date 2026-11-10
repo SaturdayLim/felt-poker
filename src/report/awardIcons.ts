@@ -78,19 +78,15 @@ export const AWARD_ICONS: Record<string, AwardMark> = {
   },
   Apollo: sun(),
   'Ice Cold': snowflake(),
-  // reverse arrow: out to the right, round the bend and back; centred on the grid
+  // U-turn: down on the left, round the bottom, and up on the right with the arrowhead pointing up (recovery)
   Comeback: {
-    main: ['M5 6h10a4.5 4.5 0 0 1 0 9H9', 'M12 12l-3 3 3 3'],
-    detail: ['M5 9.5h7'],
+    main: ['M6.5 4.5v9a5.5 5.5 0 0 0 11 0V6.5', 'M13.5 9.5l4-4 4 4'],
+    detail: ['M9.7 7v6.5a2.3 2.3 0 0 0 4.6 0V12'],
   },
-  // bull head with horns, ears and a nose ring
+  // horns only: two sloped horns joined by a brow piece in the middle
   Unrelenting: {
-    main: [
-      'M7.5 9.5L9.5 9h5l2 .5-.5 5.5c-.3 2-1.5 4-4 6-2.5-2-3.7-4-4-6z',
-      'M7.5 9.5C6 9.5 3.5 8 3 4.5c2 1.3 4 2 6 2.2',
-      'M16.5 9.5C18 9.5 20.5 8 21 4.5c-2 1.3-4 2-6 2.2',
-    ],
-    detail: ['M7.7 12L4.5 12.8 M16.3 12l3.2.8', 'M10.5 18.2a1.5 1.5 0 0 0 3 0', 'M9.8 13h.01 M14.2 13h.01'],
+    main: ['M8.5 17h7', 'M8.5 17C5 17 2.5 13.5 2.5 6.5', 'M15.5 17c3.5 0 6-3.5 6-10.5'],
+    detail: ['M8.5 14c-2 0-3.5-2-4-4.5', 'M15.5 14c2 0 3.5-2 4-4.5'],
   },
   // a boulder with a crack (sits on a surface)
   'The Rock': {
@@ -102,12 +98,13 @@ export const AWARD_ICONS: Record<string, AwardMark> = {
     main: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0z', 'M12 12h.01'],
     detail: ['M7 12a5 5 0 1 0 10 0a5 5 0 1 0-10 0z', 'M12 1.5v4 M12 18.5v4 M1.5 12h4 M18.5 12h4'],
   },
-  // shield carrying a simplified Saturday mark (src/saturday/assets/saturday-shakes-mark.svg)
+  // shield carrying one poker chip: a ring, an inner ring and six edge marks (the chip of the tab bar)
   'Iron Defender': {
     main: ['M12 2.5l8 2.8v6.2c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V5.3z'],
     detail: [
-      'M13.52 9.72L13.16 6.67C12.7 6.5 11.1 6.5 10.78 6.64L10.29 10.94C11.1 11 12.6 11.2 13.56 10.97',
-      'M10.44 10.84C11.4 11.1 13 11 13.71 10.79C13.7 11.6 13.3 16 13.1 17.1C12.8 17.4 11.3 17.4 10.84 17.09C10.6 15.8 10.45 14.2 10.33 12.76',
+      'M7.5 11.6a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0z',
+      'M9.6 11.6a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0z',
+      'M14.68 10.05L15.90 9.35 M12.00 8.50L12.00 7.10 M9.32 10.05L8.10 9.35 M9.32 13.15L8.10 13.85 M12.00 14.70L12.00 16.10 M14.68 13.15L15.90 13.85',
     ],
   },
 };

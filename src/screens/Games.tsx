@@ -2,7 +2,8 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { PlayerName } from '../components/players';
-import { Caption, Delta, Empty, Header, Icon, SlidePane, SourceTip, withUndo } from '../components/ui';
+import { Delta, Empty, Header, Icon, SlidePane, withUndo } from '../components/ui';
+import { Headline, StatRows } from '../components/statRows';
 import { TypeChips } from './Insights';
 import { gameFigure, gameResults, handStats, openTransfers, playerStatus, totalBuyInUnits, totalPotMoney } from '../lib/calc';
 import { dateLabel, figureDelta, figureNumber, figureText, figureUnit, gameLength, playMs } from '../lib/format';
@@ -31,7 +32,7 @@ export default function Games({ player: arg }: { player?: string }) {
 
   return (
     <div className="felt-page">
-      <Header banner="Games" tabs={[{ label: 'Game list', on: !stats, go: () => go('games', true) }, { label: 'Stats', on: stats, go: () => go('games/stats', true) }]} />
+      <Header banner="Games" tabs={[{ label: 'Game list', icon: 'lines', on: !stats, go: () => go('games', true) }, { label: 'Stats', icon: 'sigma', on: stats, go: () => go('games/stats', true) }]} />
       <div className="sat-stack">
         <TypeChips type={type} setType={setType} />
         {who && (
@@ -150,24 +151,26 @@ function GameStats({ games }: { games: Game[] }) {
   const buyIns = games.reduce((a, g) => a + g.buyIns.length, 0);
   const seats = games.reduce((a, g) => a + g.playerIds.length, 0);
   const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-');
-  const tile = (label: string, value: string | number, note?: string) => (
-    <div className="sat-glass sat-stat"><Caption>{label}</Caption><span className="sat-kpi">{value}</span>{note && <span className="sat-note">{note}</span>}</div>
-  );
+  const share = (a: number, b: number) => (b ? a / b : undefined);
+  const len = avgMin === null ? '-' : `${Math.floor(avgMin / 60)}h ${avgMin % 60}m`;
   return (
     <div className="sat-stack">
-      <div className="sat-grid" style={{ ['--sat-min' as string]: '150px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
-        {tile('Games', t.games, `${(seats / games.length).toFixed(1)} players each`)}
-        {tile('Game length', avgMin === null ? '-' : `${Math.floor(avgMin / 60)}h ${avgMin % 60}m`, 'Average')}
-        {tile('Hands', t.hands, `${(t.hands / games.length).toFixed(0)} per game`)}
-        {tile('Pace', pace.hands ? `${Math.floor(pace.medianSec / 60)}m ${pace.medianSec % 60}s` : '-', 'Median per hand')}
-        {tile('Average pot', t.hands ? Math.round(pots / t.hands) : '-', 'Chips')}
-        {tile('Top pot', t.biggestPot, 'Chips')}
-        {tile('Showdowns', pct(showdowns, t.hands), `${showdowns} of ${t.hands} hands`)}
-        {tile('All-ins', pct(allIns, t.hands), `${allIns} hands`)}
-        {tile('Buy-ins per game', (buyIns / games.length).toFixed(1), `${buyIns} in total`)}
-        {tile(`Won in total (${figureUnit(won, showMoney)})`, figureNumber(won, showMoney), 'All winning results added up')}
-      </div>
-      <div className="felt-source"><SourceTip>Felt game log ({games.length} closed games of this type).</SourceTip></div>
+      <Headline label="Table totals" items={[
+        { label: 'Games', value: t.games, note: `${(seats / games.length).toFixed(1)} players each` },
+        { label: 'Hands', value: t.hands, note: `${(t.hands / games.length).toFixed(0)} per game` },
+        { label: 'Won in total', q: figureUnit(won, showMoney), value: figureNumber(won, showMoney), note: 'All winning results added up' },
+      ]} />
+      <StatRows title="Pace" rows={[
+        { label: 'Game length', value: len, note: 'Average' },
+        { label: 'Per hand', value: pace.hands ? `${Math.floor(pace.medianSec / 60)}m ${pace.medianSec % 60}s` : '-', note: 'Median' },
+        { label: 'Buy-ins per game', value: (buyIns / games.length).toFixed(1), note: `${buyIns} in total` },
+      ]} />
+      <StatRows title="Pots" rows={[
+        { label: 'Average pot', value: t.hands ? `${Math.round(pots / t.hands)} chips` : '-' },
+        { label: 'Top pot', value: `${t.biggestPot} chips` },
+        { label: 'Showdowns', value: pct(showdowns, t.hands), share: share(showdowns, t.hands), note: `${showdowns} of ${t.hands} hands` },
+        { label: 'All-ins', value: pct(allIns, t.hands), share: share(allIns, t.hands), note: `${allIns} hands` },
+      ]} />
     </div>
   );
 }

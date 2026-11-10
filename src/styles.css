@@ -140,6 +140,10 @@ dialog.sat-sheet, .sat-tip-body, .felt-toast { box-shadow: var(--felt-elev-3); }
   .sat-glass, .sat-glass-2, .sat-flat, .sat-btn, .sat-input, .felt-frame, .felt-band { corner-shape: squircle; }
 }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
+/* Host or Player: the Start view and the next screen cross-fade slowly, and the Felt mark glides from the Start view to the Home banner */
+html.felt-roleswap::view-transition-old(root), html.felt-roleswap::view-transition-new(root) { animation-duration: 400ms; animation-timing-function: ease-in-out; }
+html.felt-roleswap::view-transition-new(felt-nav) { animation: felt-vt-in 400ms ease-out both; }
+::view-transition-group(felt-logo) { animation-duration: 520ms; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
 
 /* Motion. Curves: --sat-ease to enter and leave, --felt-move for movement on screen, --felt-drawer for docks and morphs. */
 :root { --felt-move: cubic-bezier(0.77, 0, 0.175, 1); --felt-drawer: cubic-bezier(0.32, 0.72, 0, 1); }
@@ -157,6 +161,9 @@ dialog.sat-sheet, .sat-tip-body, .felt-toast { box-shadow: var(--felt-elev-3); }
 .felt-nav { view-transition-name: felt-nav; }
 ::view-transition-old(felt-nav) { display: none; }
 ::view-transition-new(felt-nav), ::view-transition-group(felt-nav) { animation: none; }
+/* the bar exists on one side only (a game page, Join): it fades, never a cut */
+::view-transition-old(felt-nav):only-child { display: block; animation: felt-vt-out 180ms ease-in both; }
+::view-transition-new(felt-nav):only-child { animation: felt-vt-in 180ms ease-out both; }
 
 /* Log hand: the button grows into the hand page, and the page shrinks back into it */
 .felt-logbtn, .felt-recorder { view-transition-name: felt-morph; }
@@ -952,6 +959,14 @@ html[data-skin="felt"][data-palette="custom"][data-theme="dark"] {
 .felt-fold-head[aria-expanded="true"] .felt-fold-chev { transform: none; }
 .felt-fold-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sat-space-3); padding: var(--sat-space-3) var(--sat-space-4) var(--sat-space-4); }
 .felt-row.is-hidden { opacity: .55; }
+
+/* The static copy of the Start view (app/index.html): it holds the first frame until the app has drawn the real one, in the same place */
+#felt-boot { display: none; position: fixed; inset: 0; z-index: 2; background: var(--sat-bg); overflow: hidden; pointer-events: none; }
+html.felt-boot #felt-boot { display: block; }
+#felt-boot .felt-start-choices { opacity: 0; animation: none; }
+#felt-boot .felt-start-choice > i { grid-row: 1; width: 28px; height: 28px; }
+/* the wordmark is already there: the real Start view must not fade it in a second time */
+html.felt-boot .felt-start-mark .sat-wordmark { animation: none; }
 
 /* Start: Host or Player, the first view when Felt opens */
 /* The wordmark and choices fade in on their own (opacity only, short). The app fade on first load runs at once here, so the two do not stack.

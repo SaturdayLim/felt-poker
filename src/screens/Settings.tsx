@@ -3,11 +3,11 @@ import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../sto
 import { go } from '../router';
 import { navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
 import { haptic } from '../lib/haptics';
-import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, Toggle, num, toast, useCardLook } from '../components/ui';
+import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, Toggle, num, toast, useCardLook, useRankOrder } from '../components/ui';
 import { ThemeToggle } from '../components/liquidToggle';
-import { InstallButton, InstallTip } from '../components/install';
+import { InstallButton, InstallGuide } from '../components/install';
 import { CardPlayground } from '../components/cardTest';
-import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
+import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor, orderedRanks } from '../lib/cards';
 import { DEFAULT_PALETTE, PALETTE_KEYS, PALETTE_NAME, cleanPalette } from '../lib/palette';
 import { CodeBoxes } from '../components/codeBoxes';
 import { FEATURES } from '../lib/features';
@@ -19,14 +19,15 @@ import { useDragList } from '../components/dragList';
 import { money } from '../lib/format';
 import type { CardLook, Markers, Settings as S, SuitKey } from '../types';
 
-export type SettingsView = 'general' | 'defaults' | 'cards' | 'data';
-const VIEWS: { k: SettingsView; label: string; path: string }[] = [
-  { k: 'general', label: 'General', path: 'settings' },
-  { k: 'defaults', label: 'Game Defaults', path: 'settings/defaults' },
-  { k: 'cards', label: 'Cards', path: 'settings/cards' },
-  { k: 'data', label: 'Data', path: 'settings/data' },
+export type SettingsView = 'general' | 'defaults' | 'cards' | 'data' | 'info';
+const VIEWS: { k: SettingsView; label: string; path: string; icon: string }[] = [
+  { k: 'general', label: 'General', path: 'settings', icon: 'home' },
+  { k: 'defaults', label: 'Game Defaults', path: 'settings/defaults', icon: 'chip' },
+  { k: 'cards', label: 'Cards', path: 'settings/cards', icon: 'spade' },
+  { k: 'data', label: 'Data', path: 'settings/data', icon: 'floppy' },
+  { k: 'info', label: 'Info', path: 'settings/info', icon: 'desk' },
 ];
-export const settingsView = (s?: string): SettingsView => (s === 'defaults' || s === 'cards' || s === 'data' ? s : 'general');
+export const settingsView = (s?: string): SettingsView => (s === 'defaults' || s === 'cards' || s === 'data' || s === 'info' ? s : 'general');
 
 /** Animation speed: one slider with four stops sets the opening screen length and the navigation speed together.
     Off: no opening screen, tabs change at once. Quick, Standard, Relaxed: 1800, 3000, 4500 ms and x0.65, x1, x1.5.
@@ -92,15 +93,15 @@ function AnimationSpeed() {
 const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
-/** Settings: four views as notebook tabs (General, Game Defaults, Cards, Data). The view lives in the URL: settings/cards. */
+/** Settings: five views as notebook tabs, each an icon that opens out to its title when picked (General, Game Defaults, Cards, Data, Info). The view lives in the URL: settings/cards. */
 export default function Settings({ view = 'general' }: { view?: SettingsView }) {
   return (
     <div className="felt-page">
-      <Header banner="Settings" tabs={VIEWS.map((v) => ({ label: v.label, on: view === v.k, go: () => go(v.path, true) }))} />
+      <Header banner="Settings" tabs={VIEWS.map((v) => ({ label: v.label, icon: v.icon, on: view === v.k, go: () => go(v.path, true) }))} />
       <div className="sat-stack">
         <SlidePane k={view} i={VIEWS.findIndex((v) => v.k === view)}>
           <div className="sat-stack" style={gap(6)}>
-            {view === 'general' ? <General /> : view === 'defaults' ? <GameDefaults /> : view === 'cards' ? <CardsView /> : <DataView />}
+            {view === 'general' ? <General /> : view === 'defaults' ? <GameDefaults /> : view === 'cards' ? <CardsView /> : view === 'info' ? <InfoView /> : <DataView />}
           </div>
         </SlidePane>
       </div>
@@ -111,22 +112,6 @@ export default function Settings({ view = 'general' }: { view?: SettingsView }) 
 function General() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
-  /** Ask the service worker for a new build, then open the live site again so the phone downloads it.
-      Data stays: it lives in this origin's storage, which the live site shares. */
-  const checkUpdate = async () => {
-    const site = new URL('../', location.href);
-    try {
-      toast('Checking for update');
-      await fetch(site.href, { cache: 'no-store', method: 'HEAD' });
-      const reg = await navigator.serviceWorker?.getRegistration();
-      await reg?.update();
-    } catch {
-      toast('No connection. Connect to the internet and try again.');
-      return;
-    }
-    site.searchParams.set('u', String(Date.now()));
-    location.replace(site.href);
-  };
   return (
     <>
       <section className="sat-glass sat-card sat-stack">
@@ -147,7 +132,30 @@ function General() {
       <section className="sat-glass sat-card sat-stack">
         <PaletteEditor />
       </section>
+    </>
+  );
+}
 
+/** Info: the app version and update, and how to install Felt. Plain headings and text: nothing here hides in a tip. */
+function InfoView() {
+  /** Ask the service worker for a new build, then open the live site again so the phone downloads it.
+      Data stays: it lives in this origin's storage, which the live site shares. */
+  const checkUpdate = async () => {
+    const site = new URL('../', location.href);
+    try {
+      toast('Checking for update');
+      await fetch(site.href, { cache: 'no-store', method: 'HEAD' });
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update();
+    } catch {
+      toast('No connection. Connect to the internet and try again.');
+      return;
+    }
+    site.searchParams.set('u', String(Date.now()));
+    location.replace(site.href);
+  };
+  return (
+    <>
       <section className="sat-glass sat-card sat-stack">
         <h2 className="sat-h2">App update</h2>
         <p className="sat-small sat-muted">Version {__APP_VERSION__}, built {__BUILD_DATE__}.</p>
@@ -166,10 +174,9 @@ function General() {
       </section>
 
       <section className="sat-glass sat-card sat-stack">
-        <div className="sat-split">
-          <span className="sat-cluster" style={gap(1)}><h2 className="sat-h2">How to install</h2><InstallTip /></span>
-          <InstallButton />
-        </div>
+        <div className="sat-split"><h2 className="sat-h2">How to install</h2><InstallButton /></div>
+        <p className="sat-small sat-muted">Felt opens faster and works offline when it is on the home screen.</p>
+        <InstallGuide />
       </section>
     </>
   );
@@ -208,31 +215,19 @@ function GameDefaults() {
           <span>Track the button <Help k="trackButton" /></span>
           <Toggle on={settings.markers.dealer} onChange={(v) => setMarker('dealer', v)} label="Track the button" />
         </div>
+        <div className="sat-switch-row">
+          <span>Check hidden cards <Help k="checkCards" /></span>
+          <Toggle on={settings.checkCards !== false} onChange={(v) => update({ checkCards: v })} label="Check hidden cards" />
+        </div>
       </div>
     </section>
   );
 }
 
 function CardsView() {
-  const settings = useStore((s) => s.settings);
-  const update = useStore((s) => s.updateSettings);
   return (
     <>
-      <section className="sat-stack" style={gap(2)}>
-        <Caption tip="rankOrder">Card picker order</Caption>
-        <RankOrderSeg />
-      </section>
-      <section className="sat-glass sat-card sat-stack">
-        <CardLookEditor />
-      </section>
-      <section className="sat-glass sat-card sat-stack">
-        <div className="felt-set-switches">
-          <div className="sat-switch-row">
-            <span>Check hidden cards <Help k="checkCards" /></span>
-            <Toggle on={settings.checkCards !== false} onChange={(v) => update({ checkCards: v })} label="Check hidden cards" />
-          </div>
-        </div>
-      </section>
+      <CardLookEditor />
       <CardPlayground />
     </>
   );
@@ -388,8 +383,9 @@ function CardLookEditor() {
 
   return (
     <>
+      <section className="sat-glass sat-card sat-stack">
       <div className="sat-split">
-        <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Cards</h2><Help k="cardLook" /></span>
+        <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Suits</h2><Help k="cardLook" /></span>
         <label className="felt-look-toggle">
           <span className="sat-small">{isDefault ? 'Default' : 'Custom'}</span>
           <button type="button" role="switch" aria-checked={isDefault} aria-label="Default card colours" className="felt-look-switch" onClick={() => save({ ...look, custom: isDefault })}>
@@ -420,7 +416,33 @@ function CardLookEditor() {
           </div>
         </div>
       </div>
+      </section>
+      <SuitBoard order={list.projected} />
     </>
+  );
+}
+
+/** The board of the card picker in miniature: one row for each suit in the order the suits will have, and the rank order with
+    its flip button. A suit row dragged in the list above moves here at the same time, one row at a time as it passes. */
+function SuitBoard({ order }: { order: SuitKey[] }) {
+  const look = useCardLook();
+  const [rank] = useRankOrder();
+  const ranks = orderedRanks(rank);
+  return (
+    <section className="sat-glass sat-card sat-stack felt-miniboard-card">
+      <RankOrderSeg />
+      <div className="felt-miniboard" role="img" aria-label={`Picker rows from the top: ${order.map((x) => SUIT_NAME[x]).join(', ')}`}>
+        {(['s', 'h', 'c', 'd'] as SuitKey[]).map((su) => {
+          const c = lookColor(look, su);
+          return (
+            <div key={su} className="felt-miniboard-row" style={{ ['--row' as string]: order.indexOf(su), ['--suit' as string]: c }}>
+              <span className="felt-miniboard-suit">{SUIT_SYMBOL[su]}</span>
+              {ranks.map((r) => <span key={r} className="felt-miniboard-cell">{r === 'T' ? '10' : r}</span>)}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -12,7 +12,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 
 - **Chips, not units.** Amounts at the table are "chips" (1 chip = 1 small blind). Code names such as `units()` and `inUnits` stay as they are.
 - **Chips first.** Every result and statistic shows in chips by default. Settings, Show money switches results to money at the game multiplier. Settle Up, payments, the share image and exports stay in money (settling is about money). Use the figure helpers in src/lib/format.ts.
-- **Source only as a tip.** A figure's source is never printed on the page. Use `SourceTip` (an info tip titled Source) beside the heading or block it belongs to.
+- **Tips explain, never log.** A tip holds a definition, a calculation or a rule. A tip that only says where a figure came from ("Felt game log, 3 closed games") adds nothing: leave it out. A player who knows the game must be able to use every screen with no tip open: every screen has a header and a body, and install steps, updates and lists sit on the page, never in a tip. `SourceTip` stays for a source that says something specific.
 - **One line per field in a tip.** When an info tip covers two or more separate fields or options (for example Bet entry and Pot count), give each its own line: write `text` as an array in `src/lib/help.ts`; `Help` renders each entry as its own paragraph.
 - Saturday WRITING.md still applies: no contractions, no middle-dot chains, Title Case page titles.
 - **ASD-STE100 for all copy.** Short sentences (procedures 20 words max, descriptions 25), active voice, one fact or instruction per sentence, one word per meaning. No filler or AI phrasing ("The usual rule", "simply", "just").
@@ -41,7 +41,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Player status: dealt into a hand or acting in it turns the player green (playing). An away player is paused and not dealt in by default.
 - Recorder: who acts sits left and the pot right, under the stage tabs and outside the box. On a street tab the pot is that street's closing pot.
 - A hand never blocks anything. Only board and run cards leave the picker. A card entered twice is flagged, not refused.
-- Hold actions give feedback by haptics, not an animation under the thumb. Copy: "Tap and hold to replace code".
+- Hold actions give feedback by haptics, not an animation under the thumb. Copy: "Generate New Code".
 - A press acts at once. Where a long press does nothing different, it looks and acts the same as a tap.
 - Add player mid-game: saved players first. A name already saved is flagged, and the user is asked for a different name.
 - Action table past 4 columns: Players and Action titles stay still; column numbers scroll with their boxes and cut off at the names.
@@ -100,6 +100,11 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - The close-street button names the outcome ("Eve wins 9") and offers Undo when empty boxes took the default.
 - Tap a stack: the count sheet, with Rebuy (chips, default the game buy-in) and Add chips under it (cash).
 - Drag to reorder seats: a press and hold on the grip or on any blank part of a player card lifts it. A long press never selects text on a card.
+- Sub-navigation and Settings tabs: see "Motion and structure review".
+- Settings, Cards: Suits (drag rows; a miniature board under it mirrors the order as a row passes, with the A > 2 flip), then the card test ground. Check hidden cards is a Game Defaults switch. Info tab: App update and How to install, written out on the page.
+- Groups: a game belongs to a group when it was started under it or when every player in it is a member (a subset counts). Others is an automatic group of the games that belong to no group. Everyone and Groups are two sections of the same level. One box searches and adds: empty box lists players A to Z, typing narrows, no match turns the search icon into a plus.
+- Bluff (Your hands): a bet or raise after the flop when the hand was clearly behind (no pair from my cards, no strong draw, not two cards over the board). A draw is a semi-bluff and is not counted.
+- Opening a group slides in from the right (a push inside Players) and Back slides out. Full stats on a player card: the sheet slides down first, then Players opens with that player selected.
 - Player card name: edit it in place (plain text). Enter or leaving the field saves; a saved name of another player is refused. No Edit name button. A name press glows around the letters; no box lights up.
 - Player card order: name, player code, Net + Win rate + Games, Full stats. No Close button (the swipe bar closes it). Net lists each closed game with in, out and result. Win rate lists hands won and lost in each game. Games opens the Games page filtered to the player. Full stats opens the player page.
 - A field in a sheet: the sheet rises by the keyboard height only, and never grows taller than the space above the keyboard.
@@ -139,7 +144,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Raise: a tap on the amount box runs an orange trail round the number pad. Raise is orange only once a number is typed. Call or Check carries the default outline.
 - Home: New Game is the one start button. Join a game is the camera button in the banner. A swipe back from the first screen bounces.
 - A player back in: the red light seats them with the chips they left with. No question about how they buy back.
-- Replace a player code: tap the icon, then hold the button in the sheet (1800 ms fill); the new code loads in as it fills.
+- Generate a new player code: tap the icon, then hold Generate New Code in the sheet (1800 ms fill). Each box rolls through random characters as the fill crosses it, then settles. Letting go early keeps the old code and the next hold draws a new one. Sub-caption: "Old code will stop working when a new code is generated."
 - Settings, Animation speed: a three-stop slider (Reduced, Follow phone, Full).
 - Hands in a live game swipe left to delete, with Undo.
 - Interior.dev behaviours in use: loading button, hold to confirm, expanding search, new items pill, accordion, slider detents, tabs spring, icon morph, inline validation, OTP input, reorder list (docs/MOTION-LIST.md).
@@ -154,3 +159,17 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Player view has a Table view (bird's-eye): the player to act highlighted, chips in front of each player, folded players greyed, seat 1 at the dealer on a long side.
 - A text box inside a field is never highlighted: only the exterior field border changes on focus. Boxes with uneven padding (more on one side) are balanced: equal padding on all sides, with extra only where a control sits (a chevron).
 - The 7-2 bounty is always written "7-2" (never "2-7"): host, player view, tips, reports and exports.
+
+## Motion and structure review (standing checks, owner 10 Nov 2026)
+
+Run these on every screen change, and again in any UI review. An Opus agent runs the review when a set of work touches screens.
+
+- **No sharp cut.** No two screens, states or animations may swap with a cut. Anything that changes moves: it fades, slides, grows or morphs, and a shared element (the Felt mark, a pill, a number) keeps its identity across the change. Check: load screen to Start, Start to Home or Join, tab to tab, sheet to page, list to detail.
+- **Shared elements hold still.** An element two sibling views both show (the Players filter, the banner, the tab row) sits outside the sliding area, so it stays put while the view changes. Where it appears or goes (the filter on the list view) it opens or closes, never appears.
+- **A control that changes the list changes it by growing or shrinking** (Show all players), and its arrow shows the direction the list will move.
+- **Numbers roll.** A figure that changes on the host or player view uses `NumericText` (changed digits roll up when it grows, down when it falls).
+- **A swipe never reaches an empty screen.** A drag across a main tab moves to the neighbouring tab, or bounces at Home and Settings. The phone's back swipe from the first screen does the same.
+- **Sub-navigation is icons.** Each view of a page is one icon; the open one opens out to its title. Settings: General, Game Defaults, Cards, Data, Info (info desk icon, a solid disc, unlike a tip). Players: Players, Leaderboard, Stats. Games: Game list (three lines), Stats (sigma).
+- **Stats read in tiers.** A page of equal tiles has no first thing to read. Use a `Headline` (two or three big figures), then `StatRows` (a titled list; a rate shows a share bar), then text.
+- **Tips are quiet.** The info button is a faint circle that gains strength on hover, focus and open. Its glyph is drawn, centred, never a typed italic i.
+- **Selected state is the knob.** On a toggle, the mark of the chosen state sits on the knob; the other mark rests faint on the track.

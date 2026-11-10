@@ -282,7 +282,9 @@ textarea.sat-input { padding: var(--sat-space-3); min-height: 96px; resize: vert
    <span class="sat-tip"><button class="sat-tip-btn" aria-expanded="false" aria-label="About this figure">i</button>
    <span class="sat-tip-body" role="tooltip">One sentence.</span></span> */
 .sat-tip { position: relative; display: inline-flex; vertical-align: middle; }
-.sat-tip-btn { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--sat-muted); color: var(--sat-muted); font: italic 600 11px/1 var(--sat-font-display); }
+.sat-tip-btn { display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--sat-muted) 38%, transparent); color: color-mix(in srgb, var(--sat-muted) 62%, transparent); transition: color 160ms ease-out, border-color 160ms ease-out; }
+.sat-tip-btn svg { display: block; }
+.sat-tip-btn:hover, .sat-tip-btn[aria-expanded="true"], .sat-tip-btn:focus-visible { color: var(--sat-muted); border-color: var(--sat-muted); }
 .sat-tip-btn::after { content: ''; position: absolute; inset: -13px; } /* 44px hit area */
 /* Closed tips use display:none so they never widen the page; saturday.js places an open tip inside the screen edge. */
 .sat-tip-body {

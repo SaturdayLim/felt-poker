@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { useGame, useStore, usePlayerName } from '../store';
 import { back, backTo, go, setPath } from '../router';
 import { useDragList } from '../components/dragList';
-import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton } from '../components/ui';
+import { Caption, Cards, Empty, Header, Help, Icon, Sheet, StatusLight, num, toast, useTick, type Light, withUndo, TabPill, SlidePane, WordButton, NumericText } from '../components/ui';
 import { shrinkAway } from '../lib/motion';
 import { SwipeDelete } from './Games';
 import { rememberLogButton } from '../lib/swipeBack';
@@ -231,8 +231,8 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
           {stack !== null && status !== 'out' && (
             <span className="felt-stat">
               {onCount && !closed
-                ? <button type="button" className="felt-stat-btn" onClick={onCount} aria-label={`Stack ${stack}. Tap to count ${name}'s chips`}>Stack <b className="sat-num">{stack}</b></button>
-                : <>Stack <b className="sat-num">{stack}</b></>}
+                ? <button type="button" className="felt-stat-btn" onClick={onCount} aria-label={`Stack ${stack}. Tap to count ${name}'s chips`}>Stack <b className="sat-num"><NumericText value={stack} /></b></button>
+                : <>Stack <b className="sat-num"><NumericText value={stack} /></b></>}
             </span>
           )}
           {isCash && hasCashedOut(g, pid) && status === 'out' && <span className="felt-stat">Left with <b className="sat-num">{units(cashOutUnits(g, pid))}</b></span>}

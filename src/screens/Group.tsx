@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PlayerName } from '../components/players';
 import { useStore } from '../store';
 import { back, backTo, go } from '../router';
-import { Caption, Delta, Empty, Header, Help, Icon, Sheet, SourceTip, toast, withUndo } from '../components/ui';
+import { Caption, Delta, Empty, Header, Help, Icon, Sheet, toast, withUndo } from '../components/ui';
 import { openTransfers, round2, suggestTransfers } from '../lib/calc';
 import { dateLabel, money, shortDate } from '../lib/format';
 import { leaderboard } from '../lib/stats';
@@ -22,14 +22,34 @@ export function groupSettlement(games: Game[]) {
   return { transfers, owed, payments: games.reduce((a, g) => a + openTransfers(g).length, 0) };
 }
 
+/** The id of the automatic group that holds every game that belongs to no group. */
+export const OTHERS = 'others';
+
+/** A game belongs to a group when it was started under that group, or when everyone who played it is a member of the group
+    (a game of a part of the group counts for the group too). */
+export const inGroup = (g: Game, grp: G): boolean =>
+  g.groupId === grp.id || (g.playerIds.length >= 2 && g.playerIds.every((p) => grp.playerIds.includes(p)));
+
+/** The games of a group, newest first. */
+export const gamesOfGroup = (games: Game[], grp: G): Game[] => games.filter((g) => inGroup(g, grp)).sort((a, b) => b.startedAt - a.startedAt);
+
+/** Others: the games that belong to no group. It is not a group anyone made: it has no edit and no member list. */
+export function othersGroup(groups: G[], games: Game[]): { grp: G; games: Game[] } {
+  const rest = games.filter((g) => !groups.some((x) => inGroup(g, x))).sort((a, b) => b.startedAt - a.startedAt);
+  return { grp: { id: OTHERS, name: 'Others', playerIds: [...new Set(rest.flatMap((g) => g.playerIds))], createdAt: 0 }, games: rest };
+}
+
 export default function Group({ groupId }: { groupId: string }) {
-  const grp = useStore((s) => s.groups.find((x) => x.id === groupId));
+  const groups = useStore((s) => s.groups);
   const allGames = useStore((s) => s.games);
+  const isOthers = groupId === OTHERS;
+  const others = othersGroup(groups, allGames);
+  const grp = isOthers ? others.grp : groups.find((x) => x.id === groupId);
   const settleGroup = useStore((s) => s.settleGroup);
   const [edit, setEdit] = useState(false);
   if (!grp) return <div className="felt-page"><Header back={() => back('players')} title="Group" /><Empty title="Group not found">It may have been deleted.</Empty></div>;
 
-  const games = allGames.filter((g) => g.groupId === grp.id).sort((a, b) => b.startedAt - a.startedAt);
+  const games = isOthers ? others.games : gamesOfGroup(allGames, grp);
   const closed = games.filter((g) => g.status === 'closed');
   const currency = closed[0]?.currency ?? useStore.getState().settings.currency;
   const settle = groupSettlement(closed);
@@ -38,7 +58,7 @@ export default function Group({ groupId }: { groupId: string }) {
   return (
     <div className="felt-page">
       <Header back={() => back('players')} title={grp.name} sub={`${grp.playerIds.length} players, ${games.length} games`}
-        right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setEdit(true)} aria-label="Edit group"><Icon name="edit" /></button>} />
+        right={isOthers ? undefined : <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setEdit(true)} aria-label="Edit group"><Icon name="edit" /></button>} />
       <div className="sat-stack">
         <section className="sat-glass sat-card sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
           <div className="sat-split"><h2 className="sat-h3">Settle up <Help k="groupPay" /></h2>{settle.transfers.length > 0 && <span className="sat-small sat-muted">{settle.transfers.length} instead of {settle.payments}</span>}</div>
@@ -54,13 +74,13 @@ export default function Group({ groupId }: { groupId: string }) {
                   </div>
                 ))}
               </div>
-              <button className="sat-btn" onClick={() => withUndo('Every payment in the group marked paid.', () => settleGroup(grp.id))}><Icon name="check" /> Mark all paid</button>
+              <button className="sat-btn" onClick={() => withUndo('Every payment in the group marked paid.', () => settleGroup(grp.id, closed.map((g) => g.id)))}><Icon name="check" /> Mark all paid</button>
             </>
           )}
         </section>
 
         <section className="felt-section">
-          <h2 className="sat-h3">Leaderboard <SourceTip>Felt game log ({closed.length} closed games of {grp.name}). Net result in {currency}.</SourceTip></h2>
+          <h2 className="sat-h3">Leaderboard</h2>
           {board.length === 0 ? <p className="sat-small sat-muted">Closed games of this group appear here.</p> : (
             <div className="sat-glass-2 felt-list">
               {board.map((s, i) => (
@@ -76,7 +96,7 @@ export default function Group({ groupId }: { groupId: string }) {
 
         <section className="felt-section">
           <h2 className="sat-h3">Games</h2>
-          {games.length === 0 ? <p className="sat-small sat-muted">Pick this group when you start a game, or under Game settings.</p> : (
+          {games.length === 0 ? <p className="sat-small sat-muted">{isOthers ? 'Every game belongs to a group.' : 'Pick this group when you start a game, or under Game settings.'}</p> : (
             <div className="sat-flat felt-list">
               {games.map((g) => (
                 <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/close`)}>
@@ -88,7 +108,7 @@ export default function Group({ groupId }: { groupId: string }) {
           )}
         </section>
       </div>
-      {edit && <GroupSheet grp={grp} onClose={() => setEdit(false)} />}
+      {edit && !isOthers && <GroupSheet grp={grp} onClose={() => setEdit(false)} />}
     </div>
   );
 }

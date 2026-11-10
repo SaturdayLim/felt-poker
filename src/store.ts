@@ -70,7 +70,8 @@ interface State {
 
   saveGroup: (g: Group) => void;
   deleteGroup: (id: ID) => void;
-  settleGroup: (id: ID) => void;
+  /** Marks every open payment paid in the closed games of a group: the games tagged with it, or the `gameIds` given (games played by group members only count too). */
+  settleGroup: (id: ID, gameIds?: ID[]) => void;
 
   addPlayer: (name: string) => Player;
   /** Makes a new code for a player (the old one stops working) and marks it as issued. The caller shows or copies it once. */
@@ -173,12 +174,12 @@ export const useStore = create<State>()(
             groups: s.groups.filter((x) => x.id !== id),
             games: s.games.map((g) => (g.groupId === id ? { ...g, groupId: undefined } : g)),
           })),
-        settleGroup: (id) =>
+        settleGroup: (id, gameIds) =>
           set((s) => {
             const t = now();
             return {
               games: s.games.map((g) =>
-                g.groupId === id && g.status === 'closed' && g.transfers.some((x) => !x.resolved)
+                (gameIds ? gameIds.includes(g.id) : g.groupId === id) && g.status === 'closed' && g.transfers.some((x) => !x.resolved)
                   ? { ...g, transfers: g.transfers.map((x) => (x.resolved ? x : { ...x, resolved: true, resolvedAt: t })) }
                   : g),
             };

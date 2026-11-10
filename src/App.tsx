@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { SPLASH_KEY, useStore } from './store';
 import { applyTheme } from './theme';
 import { cleanLook, lookBg } from './lib/cards';
 import { applyPalette, cleanPalette } from './lib/palette';
-import { NAV_TABS, go, guardHistory, useRoute } from './router';
-import { bounceBack } from './lib/motion';
+import { NAV_TABS, go, goTab, guardHistory, tabPos, useRoute } from './router';
+import { installTabSwipe } from './lib/tabSwipe';
+import { flushSync } from 'react-dom';
+import { bounceBack, calm } from './lib/motion';
 import { FEATURES } from './lib/features';
 import { SlidePane, ToastHost } from './components/ui';
 import { PlayerHost } from './components/players';
@@ -45,8 +47,16 @@ export default function App() {
   const face = useStore((s) => lookBg(cleanLook(s.settings.cards)));
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
-  // a swipe back from the first screen bounces instead of leaving Felt for a blank page
-  useEffect(() => guardHistory(bounceBack), []);
+  // the static start shell (app/index.html) gives way to the real first screen in the same frame: same mark, same place
+  useLayoutEffect(() => { if (hydrated) document.getElementById('felt-boot')?.remove(); }, [hydrated]);
+  // a swipe back from the first screen never leaves Felt for a blank page: from the edge it moves to the tab on the left, or bounces
+  useEffect(() => guardHistory(() => {
+    const top = window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? '';
+    const i = NAV_TABS.indexOf(top === 'insights' ? 'players' : top);
+    if (i > 0 && document.querySelector('.felt-nav')) goTab(NAV_TABS[i - 1]); else bounceBack();
+  }), []);
+  // a drag across the page moves to the neighbouring tab, or bounces at Home and Settings
+  useEffect(() => installTabSwipe(), []);
   useEffect(() => { document.documentElement.style.setProperty('--felt-card-face', face); }, [face]);
   const palette = useStore((s) => s.settings.palette);
   useEffect(() => { applyPalette(cleanPalette(palette)); }, [palette, theme]);
@@ -121,7 +131,20 @@ export default function App() {
     return () => t.forEach((x) => window.clearTimeout(x));
   }, [hydrated]);
   if (!hydrated) return <div className="felt-app" />;
-  const pickRole = (k: 'host' | 'player') => { try { sessionStorage.setItem('felt-role', k); } catch { /* private mode */ } setRole(k); if (k === 'player') go('join'); };
+  // Host or Player: the Start view fades into the next screen (the Felt mark morphs into the Home banner mark), never a cut
+  const pickRole = (k: 'host' | 'player') => {
+    try { sessionStorage.setItem('felt-role', k); } catch { /* private mode */ }
+    const root = document.documentElement;
+    root.classList.add('felt-roleswap');
+    window.setTimeout(() => root.classList.remove('felt-roleswap'), 1000);
+    if (k === 'player') { go('join'); window.setTimeout(() => setRole(k), 600); return; }
+    const swap = () => flushSync(() => setRole(k));
+    if (document.startViewTransition && !calm()) {
+      const t = document.startViewTransition(swap);
+      t.ready.catch(() => undefined);
+      window.setTimeout(() => { try { t.skipTransition(); } catch { /* already done */ } }, 1500);
+    } else swap();
+  };
 
   let screen: JSX.Element;
   let nav = true;
@@ -152,7 +175,7 @@ export default function App() {
   const active = a === 'game' || a === 'new' ? 'games' : a === 'group' || a === 'insights' ? 'players' : a ?? '';
   return (
     <div className="felt-app felt-enter">
-      <SlidePane k={a === 'insights' ? 'players' : a ?? ''} i={NAV_TABS.indexOf(a === 'insights' ? 'players' : a ?? '')}>{screen}</SlidePane>
+      <SlidePane k={a === 'insights' ? 'players' : a ?? ''} i={tabPos(a ?? '')}>{screen}</SlidePane>
       {nav && <NavRail tabs={NAV} active={active} />}
       <PlayerHost />
       {role && <InstallPopup />}

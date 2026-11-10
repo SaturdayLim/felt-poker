@@ -19,3 +19,13 @@ html[data-calm] .felt-stops > [data-on="true"] { transition: none; }
 .felt-notebook:has(> .felt-ntab--view:nth-child(4)) { gap: 0; }
 .felt-notebook:has(> .felt-ntab--view:nth-child(4)) > .felt-ntab--view { flex: 0 0 auto; padding-inline: var(--sat-space-2); }
 .felt-notebook:has(> .felt-ntab--view:nth-child(4)) .felt-header-title { font-size: 0.9375rem; }
+
+/* Suit board in miniature (Settings, Cards): rows sit by their place in the order and slide when it changes. */
+.felt-miniboard-card { gap: var(--sat-space-2); }
+.felt-miniboard { --mb-h: 30px; --mb-gap: 4px; position: relative; height: calc(var(--mb-h) * 4 + var(--mb-gap) * 3); }
+.felt-miniboard-row { position: absolute; inset: 0 0 auto 0; height: var(--mb-h); display: grid; grid-template-columns: 18px repeat(13, minmax(0, 1fr)); gap: 2px; align-items: stretch;
+  transform: translateY(calc(var(--row) * (var(--mb-h) + var(--mb-gap)))); transition: transform 280ms cubic-bezier(0.23, 1, 0.32, 1); }
+.felt-miniboard-suit { display: grid; place-items: center; font-size: 15px; color: var(--suit); font-family: system-ui, sans-serif; filter: drop-shadow(0 0 1px var(--felt-card-face, #FBFCFC)); }
+.felt-miniboard-cell { display: grid; place-items: center; border-radius: 4px; font-size: 9.5px; font-weight: 600; color: var(--suit); letter-spacing: -0.02em;
+  background: color-mix(in srgb, var(--suit) 9%, var(--felt-card-face, #FBFCFC)); }
+html[data-calm] .felt-miniboard-row { transition: none; }

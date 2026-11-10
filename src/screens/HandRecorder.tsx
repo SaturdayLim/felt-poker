@@ -7,7 +7,7 @@ import { CardEntrySheet } from '../components/cardEntry';
 import { useRebuyOffer } from '../components/rebuy';
 import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
-import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush, useSwipeDown, SlidePane, DockPanel, WordButton } from '../components/ui';
+import { CardPickerGrid, Caption, Empty, Header, Help, Icon, PlayingCard, Toggle, num, toast, withUndo, TabPill, useDockPush, useSwipeDown, SlidePane, DockPanel, WordButton, NumericText } from '../components/ui';
 import { SPRING, calm, spring } from '../lib/motion';
 import { bestHand, cardText } from '../lib/cards';
 import { playerStatus, round2 } from '../lib/calc';
@@ -712,7 +712,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         </div>
         <div className="felt-rec-status" aria-live="polite">
           <span>{street && toAct && !readOnly ? <><b>{toAct}</b> to act</> : ''}</span>
-          <span>Pot <b className="sat-num">{units(extra ? recordedPot + extra : street ? potTotal(g, log, log.button, street) : potNow)}</b></span>
+          <span>Pot <b className="sat-num"><NumericText value={units(extra ? recordedPot + extra : street ? potTotal(g, log, log.button, street) : potNow)} /></b></span>
         </div>
         {street && street !== 'preflop' && (
           <div className="felt-rec-board sat-glass">

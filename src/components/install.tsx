@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Info, Sheet } from './ui';
+import { Sheet } from './ui';
 
 /* Install help. Felt opened in a browser tab on a phone that can run it gets one pop-up that says how to install it.
    The version limits are the ones of app/index.html: iOS 16.2 or later in Safari, or Chrome 111 or later on Android. */
@@ -77,16 +77,19 @@ export function InstallPopup() {
   );
 }
 
-/** The same steps as an info tip, for Settings, General. It lists the phone's own steps first. */
-export function InstallTip() {
+/** The steps for both phones, written out on the page (Settings, Info). The phone's own steps come first. */
+export function InstallGuide() {
   const own = installPlatform();
   const order: ('ios' | 'android')[] = own === 'android' ? ['android', 'ios'] : ['ios', 'android'];
   return (
-    <Info title="How to install">
+    <div className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-3)' }}>
       {order.map((k) => (
-        <span key={k} className="felt-tip-line"><b>{k === 'ios' ? 'iPhone (Safari)' : 'Android (Chrome)'}:</b> {STEPS[k].join(' ')}</span>
+        <div key={k} className="sat-stack" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+          <h3 className="sat-h3">{k === 'ios' ? 'iPhone (Safari)' : 'Android (Chrome)'}</h3>
+          <Steps platform={k} />
+        </div>
       ))}
-    </Info>
+    </div>
   );
 }
 

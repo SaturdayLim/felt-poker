@@ -1,7 +1,7 @@
 import { useStore, usePlayerName } from '../store';
 import { go } from '../router';
 import { PlayerName, openPlayer } from '../components/players';
-import { Delta, Empty, Header, Icon, SourceTip, ThemeCycle, useTick } from '../components/ui';
+import { Delta, Empty, Header, Icon, ThemeCycle, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
 import { figureDelta, gameLength, playMs, shortDate } from '../lib/format';
 import { filterGames, leaderboard, summaryFigure } from '../lib/stats';
@@ -45,7 +45,7 @@ export default function Home() {
         {board.length > 0 && (
           <section className="felt-section">
             <div className="sat-split">
-              <h2 className="sat-h3">Leaderboard <SourceTip>Felt game log ({allClosed.length} closed games). Net result in {showMoney ? currency : 'chips'}.</SourceTip></h2>
+              <h2 className="sat-h3">Leaderboard</h2>
               <a className="sat-small" href="#/players/board">Show all</a>
             </div>
             <div className="sat-glass-2 felt-list">

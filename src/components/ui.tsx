@@ -57,6 +57,13 @@ const paths: Record<string, ReactNode> = {
   chevron: <path d="m6 9 6 6 6-6" />,
   dark: <><path d="M3 10.5c2.4 3.1 5.4 4.6 9 4.6s6.6-1.5 9-4.6" /><path d="m5.6 13.4-1.7 2.2" /><path d="m9.6 14.8-.8 2.6" /><path d="m14.4 14.8.8 2.6" /><path d="m18.4 13.4 1.7 2.2" /></>,
   backspace: <><path d="M21 5H9.5L3 12l6.5 7H21a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" /><path d="m12.5 9.5 5 5" /><path d="m17.5 9.5-5 5" /></>,
+  lines: <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>,
+  sigma: <path d="M18 5H6.5l6 7-6 7H18" />,
+  chip: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4.2" /><path d="M12 3v3.6" /><path d="M12 17.4V21" /><path d="M3 12h3.6" /><path d="M17.4 12H21" /><path d="m5.6 5.6 2.5 2.5" /><path d="m15.9 15.9 2.5 2.5" /><path d="m18.4 5.6-2.5 2.5" /><path d="m8.1 15.9-2.5 2.5" /></>,
+  spade: <path d="M12 3c3 3.6 7 6 7 10a3.7 3.7 0 0 1-6.4 2.5c.1 1.8.7 3.2 1.9 4.5h-5c1.2-1.3 1.8-2.7 1.9-4.5A3.7 3.7 0 0 1 5 13c0-4 4-6.4 7-10z" />,
+  floppy: <><path d="M5 3h11l4 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M8 3v5h7V3" /><rect x="7" y="13" width="10" height="8" rx="1" /></>,
+  /* an info desk: a solid disc with the i cut out of it, unlike the thin outline of a tip */
+  desk: <><mask id="felt-desk-m"><rect width="24" height="24" fill="#fff" stroke="none" /><path d="M12 11v5.6" stroke="#000" strokeWidth="2.3" /><circle cx="12" cy="7.6" r="1.25" fill="#000" stroke="none" /></mask><circle cx="12" cy="12" r="9.5" fill="currentColor" stroke="none" mask="url(#felt-desk-m)" /></>,
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.6v.4" /></>,
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.9 4.9 1.4 1.4" /><path d="m17.7 17.7 1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m4.9 19.1 1.4-1.4" /><path d="m17.7 6.3 1.4-1.4" /></>,
   moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
@@ -113,15 +120,18 @@ export function FeltMark({ height = 32, full = false }: { height?: number; full?
 export function Header({ title, sub, back, right, brand, banner, children, tabs }: {
   title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean; children?: ReactNode;
   /** Views of the page as a row of notebook tabs (for example Players, Leaderboard, Stats). They take the place of the title tab. */
-  tabs?: { label: string; on: boolean; go: () => void }[];
+  tabs?: { label: string; on: boolean; go: () => void; icon?: string }[];
   /** A main tab: a banner row above the page. It holds the page name (or the brand with `brand`) left and the theme toggle right. */
   banner?: string;
 }) {
   const tabRow = tabs && (
     <div className="sat-header-bar felt-notebook" role="tablist" aria-label={banner ?? title}>
       {tabs.map((t) => (
-        <button key={t.label} type="button" role="tab" aria-selected={t.on} className={`felt-ntab felt-ntab--view ${t.on ? 'is-on' : ''}`} onClick={t.go}>
-          <span className="felt-header-title">{t.label}</span>
+        <button key={t.label} type="button" role="tab" aria-selected={t.on} aria-label={t.label} className={`felt-ntab felt-ntab--view ${t.icon ? 'felt-ntab--icon' : ''} ${t.on ? 'is-on' : ''}`} onClick={t.go}>
+          {t.icon && <span className="felt-ntab-ic"><Icon name={t.icon} size={20} /></span>}
+          {t.icon
+            ? <span className="felt-ntab-lab" aria-hidden={!t.on}><span className="felt-header-title">{t.label}</span></span>
+            : <span className="felt-header-title">{t.label}</span>}
         </button>
       ))}
       {right && !banner && <div className="felt-ntab-right">{right}</div>}
@@ -622,7 +632,7 @@ export function mixClip(a: string, b: string, q: number): string {
 }
 /** A sheet from the bottom. On a phone it always opens by sliding up and always leaves by sliding down: a swipe,
     a tap outside or a button. `edge` keeps the coral edge of the card button. */
-export function Sheet({ open, onClose, title, sub, children, edge, head, noClose, action }: {
+export function Sheet({ open, onClose, title, sub, children, edge, head, noClose, action, dismissRef }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
   /** No Close button: the swipe bar, a swipe down and a tap outside close it. */
   noClose?: boolean;
@@ -630,6 +640,8 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
   action?: ReactNode;
   /** Takes the place of the title, for example a name that can be edited in place. */
   head?: ReactNode;
+  /** Gives the caller a way to close the sheet with its usual slide down, then run something once it has gone. */
+  dismissRef?: { current: ((after?: () => void) => void) | null };
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const closing = useRef(onClose);
@@ -640,13 +652,13 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
   const fadeBackdrop = (d: HTMLDialogElement, from: number, to: number, ms: number) => {
     try { d.animate({ opacity: [from, to] }, { duration: ms, easing: 'linear', fill: 'forwards', pseudoElement: '::backdrop' }); } catch { /* an older phone: the backdrop does not fade */ }
   };
-  const dismiss = () => {
+  const dismiss = (after?: () => void) => {
     const d = ref.current;
     if (leaving.current) return;
-    if (!d?.animate || calm()) { closing.current(); return; }
+    if (!d?.animate || calm()) { closing.current(); after?.(); return; }
     leaving.current = true;
     fadeBackdrop(d, 1, 0, SPRING.sheetDown[0] * 1000);
-    const done = () => { leaving.current = false; closing.current(); };
+    const done = () => { leaving.current = false; closing.current(); after?.(); };
     // a sheet with a swipe bar always leaves the way a swipe takes it: down, however it was closed
     if (phone()) {
       const from = parseFloat(d.style.translate.split(' ')[1] ?? '') || 0, by = d.offsetHeight + 24 - from;
@@ -654,9 +666,10 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
       spring(d, (p) => ({ translate: `0 ${from + by * Math.min(p, 1)}px` }), SPRING.sheetDown, { fill: 'forwards', near: 0.02 })!.onfinish = done;
     } else d.animate({ opacity: [1, 0], transform: ['scale(1)', 'scale(.97)'] }, { duration: 240, easing: DRAWER, fill: 'forwards' }).onfinish = done;
   };
-  const dismissRef = useRef(dismiss);
-  dismissRef.current = dismiss;
-  useSwipeDown(ref, () => dismissRef.current(), open);
+  const dismissNow = useRef(dismiss);
+  dismissNow.current = dismiss;
+  if (dismissRef) dismissRef.current = dismiss;
+  useSwipeDown(ref, () => dismissNow.current(), open);
   useEffect(() => {
     const d = ref.current;
     if (!open || !d) return;
@@ -674,10 +687,10 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
         else d.animate({ opacity: [0, 1], transform: ['scale(.97)', 'scale(1)'] }, { duration: 320, easing: DRAWER });
       }
     }
-    const onCancel = (e: Event) => { e.preventDefault(); dismissRef.current(); };
+    const onCancel = (e: Event) => { e.preventDefault(); dismissNow.current(); };
     const onClick = (e: MouseEvent) => {
       const r = d.getBoundingClientRect();
-      if (e.target === d && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) dismissRef.current();
+      if (e.target === d && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) dismissNow.current();
     };
     d.addEventListener('cancel', onCancel);
     d.addEventListener('click', onClick);
@@ -694,7 +707,7 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
       <div className="sat-stack">
         <div className={`sat-split${action ? ' felt-sheet-head' : ''}`}>
           {head ?? <h2 className="sat-h3">{title}</h2>}
-          {action ?? (!noClose && <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={dismiss}>Close</button>)}
+          {action ?? (!noClose && <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={() => dismiss()}>Close</button>)}
         </div>
         {sub && <p className="sat-small sat-muted" style={{ marginTop: -8 }}>{sub}</p>}
         {children}
@@ -776,7 +789,10 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
   return (
     <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onMouseEnter={() => fine && setHover(true)} onMouseLeave={() => setHover(false)}>
       <button type="button" className="sat-tip-btn" aria-expanded={open} aria-label={title ? `About ${title.toLowerCase()}` : 'More information'}
-        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>i</button>
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
+        {/* drawn, not typed: a letter i leans and sits right of centre in its circle */}
+        <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><circle cx="5" cy="2.3" r="0.95" fill="currentColor" /><path d="M5 4.5v3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" /></svg>
+      </button>
       {mounted && createPortal(
         <span ref={(e) => { body.current = e; if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }} {...(hasPopover ? { popover: 'manual' } : {})} className="sat-tip-body felt-tip-float" role="tooltip" style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}>{children}</span>,
         (hasPopover ? null : wrap.current?.closest('dialog')) ?? document.body,
@@ -801,6 +817,52 @@ export function Help({ k }: { k: HelpKey }) {
 /** Standing rule: a figure's source is shown only as a tip, never as text on the page. */
 export function SourceTip({ children }: { children: ReactNode }) {
   return <Info title="Source">{children}</Info>;
+}
+
+/* ------------------------------- numeric text ------------------------------- */
+
+/** A figure that changes by rolling, like SwiftUI numericText: only the digits that changed move. The old digit rolls out and
+    the new one rolls in, upward when the number grows and downward when it falls (it counts down). Digits line up from the right,
+    so 99 to 100 rolls three places. Reduce Motion changes it at once. */
+export function NumericText({ value, className }: { value: string | number; className?: string }) {
+  const text = String(value);
+  const prev = useRef(text);
+  const box = useRef<HTMLSpanElement>(null);
+  const chars = [...text];
+  useLayoutEffect(() => {
+    const old = prev.current;
+    prev.current = text;
+    const el = box.current;
+    if (old === text || !el || calm() || !el.animate) return;
+    const n = (t: string) => parseFloat(t.replace(/[^0-9.\-]/g, ''));
+    const a = n(old), b = n(text);
+    // 1: the figure grew, so digits roll up; -1: it fell, so they roll down
+    const dir = Number.isNaN(a) || Number.isNaN(b) || b >= a ? 1 : -1;
+    const was = [...old];
+    const ease = 'cubic-bezier(0.23, 1, 0.32, 1)';
+    el.querySelectorAll<HTMLElement>('.felt-num-c').forEach((cell, i) => {
+      const right = chars.length - 1 - i;
+      const o = was[was.length - 1 - right];
+      if (o === chars[i]) return;
+      // the last digit moves first, the rest follow
+      const delay = right * 30;
+      cell.animate({ transform: [`translateY(${dir * 75}%)`, 'translateY(0)'], opacity: [0, 1], filter: ['blur(3px)', 'blur(0)'] }, { duration: 380, delay, easing: ease, fill: 'backwards' });
+      if (o === undefined) return;
+      const ghost = document.createElement('span');
+      ghost.className = 'felt-num-ghost';
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.textContent = o;
+      cell.appendChild(ghost);
+      const out = ghost.animate({ transform: ['translateY(0)', `translateY(${-dir * 75}%)`], opacity: [1, 0], filter: ['blur(0)', 'blur(3px)'] }, { duration: 300, delay, easing: ease, fill: 'both' });
+      out.onfinish = out.oncancel = () => ghost.remove();
+    });
+  }, [text]);
+  return (
+    <span ref={box} className={`felt-num ${className ?? ''}`}>
+      <span className="felt-num-sr">{text}</span>
+      {chars.map((c, i) => <span key={chars.length - 1 - i} className="felt-num-c" aria-hidden="true">{c}</span>)}
+    </span>
+  );
 }
 
 /* ------------------------------- captions and deltas ------------------------------- */

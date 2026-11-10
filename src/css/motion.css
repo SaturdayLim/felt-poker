@@ -81,3 +81,10 @@ html[data-calm] .felt-keypad-err.is-in { animation: none; }
 .felt-fab-icon[data-open="true"] .a { opacity: 0; rotate: 90deg; scale: 0.7; }
 .felt-fab-icon[data-open="true"] .b { opacity: 1; rotate: 0deg; scale: 1; }
 html[data-calm] .felt-fab-icon > span { transition: none; }
+.felt-boxes-cell.is-roll { color: var(--sat-muted); }
+
+/* Numeric text: only the changed digits roll (components/ui.tsx NumericText) */
+.felt-num { display: inline-flex; font-variant-numeric: tabular-nums; white-space: pre; }
+.felt-num-c { position: relative; display: inline-block; }
+.felt-num-ghost { position: absolute; left: 0; top: 0; pointer-events: none; }
+.felt-num-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

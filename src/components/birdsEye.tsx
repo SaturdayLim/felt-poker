@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { calm, spring, SPRING } from '../lib/motion';
 import { VCards } from './viewerLook';
+import { NumericText } from './ui';
 import type { NowSnapshot, PubSnapshot, StackLine } from '../live/snapshot';
 
 /* The table is drawn in a fixed 343 by 330 box. Seats are placed in that box and shown as percentages. */
@@ -126,7 +127,7 @@ export function BirdsEye({ pub, now: sent, stacks }: { pub: PubSnapshot; now: No
             <div className={`felt-bird-seat ${fold ? 'is-folded' : ''} ${idle ? 'is-idle' : ''} ${i === turn ? 'is-turn' : ''}`} style={pct(s.x, s.y)}
               aria-label={`Seat ${i + 1}, ${p.name}, ${word}${idle ? ', not in this hand' : ''}${fold ? ', folded' : ''}${i === turn ? ', to act' : ''}`}>
               <b className="felt-ellipsis">{p.name}</b>
-              <span className="felt-bird-stack sat-num">{stackText(stacks.find((x) => x.name === p.name))}</span>
+              <span className="felt-bird-stack sat-num"><NumericText value={stackText(stacks.find((x) => x.name === p.name))} /></span>
               {button === p.name && <span className="felt-bird-btn" aria-label="Button">D</span>}
             </div>
             <span className={`felt-bird-lamp felt-lamp--${light}`} style={pct(s.x, s.y - 24)} aria-hidden="true" />

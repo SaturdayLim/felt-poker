@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Game, Hand, HandLog } from '../types';
 import { bountyPay, bountyTotal, closeStreet, fillBefore, newBoxLog, openStreetBoxes, replayStreet, resolve, setAct } from './hand';
-import { addFlow, addStyle, cardsHelp, emptyFlow, emptyStyle, myHands, wonAt } from './style';
+import { addFlow, addStyle, cardsHelp, emptyFlow, emptyStyle, isDraw, myHands, strongOuts, wonAt } from './style';
 import { estimateStacks } from './stacks';
 
 // button Bel, SB Gab, BB Clar, then Nat, Ev, Nic act first preflop
@@ -99,6 +99,21 @@ describe('your hands', () => {
     const [h] = myHands([g], 'Bel');
     expect(h).toMatchObject({ pfr: true, aggressive: true, bluff: true, won: true, net: 21 });
     expect(myHands([g], 'Nat')).toEqual([]);
+  });
+});
+
+describe('bluff or semi-bluff', () => {
+  it('a flush draw has 9 outs and a made pair none: both are not bluffs', () => {
+    expect(strongOuts(['Ah', 'Kh'], ['2h', '7h', 'Tc'])).toBe(9);
+    expect(isDraw(['Ah', 'Kh'], ['2h', '7h', 'Tc'])).toBe(true);
+  });
+  it('two cards over the board count as a draw on the flop, but not on the river', () => {
+    expect(isDraw(['As', 'Kd'], ['7h', '5c', '2d'])).toBe(true);
+    expect(isDraw(['As', 'Kd'], ['7h', '5c', '2d', '9s', '3c'])).toBe(false);
+  });
+  it('seven-deuce on a king-queen-three board is a pure bluff', () => {
+    expect(strongOuts(['7s', '2d'], ['Kh', 'Qd', '3c'])).toBe(0);
+    expect(isDraw(['7s', '2d'], ['Kh', 'Qd', '3c'])).toBe(false);
   });
 });
 

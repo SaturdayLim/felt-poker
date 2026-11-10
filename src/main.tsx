@@ -9,6 +9,7 @@ import './styles.css';
 import './css/nav.css';
 import './css/motion.css';
 import './css/players.css';
+import './css/stats.css';
 import './css/chrome.css';
 import './css/review.css';
 import './css/recorder.css';

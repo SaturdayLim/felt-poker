@@ -6,14 +6,11 @@ Sources: the Fable advisor review (11 Nov 2026, IDs A1 to A25), agent reports fo
 
 ## Waiting for the owner
 
-- [ ] Theme toggle: CLAUDE.md says a 3-part toggle (phone, sun, moon); the code has a 2-state switch (A7). After one tap there is no way back to the phone setting.
 - [ ] "Units" as a Settings label conflicts with "Chips, not units" (owner named it; A8).
 - [ ] Results page (not the PNG): show the horizontal candle rows too? The page repeats "Results" in header and body (A19).
-- [ ] Sheets with a swipe bar still carry a Close button (Rebuy, Player code, viewer cards); the player card has none (A20). One rule for all?
 - [ ] Two game nets on Stats ("Net result +336" against "Net = +340 chips") with no note (A23).
 - [ ] Game captions differ by screen: "11 Nov'26 (6pax, 6 buy-in)", "Wednesday cash (11 Nov 2026)", "11 Nov 2026, 1 buy-in" (A25). The list caption uses " - ", which the copy rules ban.
 - [ ] CSV third file: the owner wrote "action log"; the file is the event ledger. Add a real action log CSV?
-- [ ] Full Action Log on Export ticks every hand by default with no Select all. Keep, add All/None, or start with none ticked?
 - [ ] Banner theme switch is 60 px wide, content switches 52 px.
 
 ## Not built

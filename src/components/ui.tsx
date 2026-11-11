@@ -678,10 +678,8 @@ function useSwipeSide(ref: RefObject<HTMLElement>, onSide: (side: -1 | 1) => voi
 
 /** A sheet from the bottom. On a phone it always opens by sliding up. It leaves by sliding down (a swipe down, a tap
     outside or a button) or to the side it was swiped. `edge` keeps the coral edge of the card button. */
-export function Sheet({ open, onClose, title, sub, children, edge, head, noClose, action, dismissRef }: {
+export function Sheet({ open, onClose, title, sub, children, edge, head, action, dismissRef }: {
   open: boolean; onClose: () => void; title?: string; sub?: string; children: ReactNode; edge?: boolean;
-  /** No Close button: the swipe bar, a swipe down and a tap outside close it. */
-  noClose?: boolean;
   /** The main button of the sheet (for example Save), top right and always in view. Leaving any other way does not save. */
   action?: ReactNode;
   /** Takes the place of the title, for example a name that can be edited in place. */
@@ -765,7 +763,8 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, noClose
       <div className="sat-stack">
         <div className={`sat-split${action ? ' felt-sheet-head' : ''}`}>
           {head ?? <h2 className="sat-h3">{title}</h2>}
-          {action ?? (!noClose && <button className="sat-btn sat-btn--sm felt-btn-raised" onClick={() => dismiss()}>Close</button>)}
+          {/* no Close button: the swipe bar, a swipe down, a sideways swipe and a tap outside close every sheet (owner, 11 Nov 2026) */}
+          {action}
         </div>
         {sub && <p className="sat-small sat-muted" style={{ marginTop: -8 }}>{sub}</p>}
         {children}

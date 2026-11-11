@@ -558,7 +558,7 @@ function EditGameSheet({ g, onClose }: { g: Game; onClose: () => void }) {
   };
   // Save sits top right and stays in view; a swipe down or a tap outside leaves without saving
   return (
-    <Sheet open onClose={onClose} title="Game settings" noClose
+    <Sheet open onClose={onClose} title="Game settings"
       action={<WordButton word="Saved" className="sat-btn sat-btn--primary sat-btn--sm" run={save}>Save</WordButton>}>
       <div className="sat-field"><label htmlFor="eg-n">Game name</label><input id="eg-n" className="sat-input" value={nm} onChange={(e) => setNm(e.target.value)} /></div>
       <div className="sat-grid" style={{ ['--sat-min' as string]: '110px', ['--sat-gap' as string]: 'var(--sat-space-3)' }}>

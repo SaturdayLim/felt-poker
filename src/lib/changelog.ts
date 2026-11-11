@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.7.2', date: '11 Nov 2026', notes: [
+    'Export, Full Action Log: All and None over the hand list. A tap on a preview image copies it.',
+    'Sheets have no Close button. A swipe down, a sideways swipe or a tap outside closes them.',
+  ] },
   { version: '1.7.1', date: '11 Nov 2026', notes: [
     'Export follows the new layout: Interactive Game Dashboard, Game summary snapshot, Full Action Log and Full Data, each with copy or share and an eye that grows its preview.',
     'Swiping between tabs: the header band, theme switch, New Game and the tab bar stay still. New Game is one shared button on Home and Games.',

@@ -63,7 +63,7 @@ function Fold({ open, children }: { open: boolean; children: React.ReactNode }) 
   return <div className="felt-fold-wrap" data-open={open} {...(open ? {} : { inert: '' })}><div className="felt-fold-inner">{children}</div></div>;
 }
 
-type Loaded = { imgs?: string[]; html?: string };
+type Loaded = { imgs?: string[]; files?: File[]; html?: string };
 type Pv = { from: Element; title: string; load: () => Promise<Loaded> };
 
 /** A preview grows out of the element that opened it (a clip, never a stretch), and leaves back into it.
@@ -154,7 +154,17 @@ function Preview({ pv, onClosed }: { pv: Pv; onClosed: () => void }) {
         <b className="felt-ellipsis">{pv.title}</b>
       </div>
       <div ref={body} className="felt-pv-body" data-html={c?.html !== undefined || undefined}>
-        {c?.imgs?.map((u, i) => <img key={u} src={u} alt={c.imgs!.length > 1 ? `${pv.title}, page ${i + 1} of ${c.imgs!.length}` : pv.title} draggable={false} />)}
+        {/* a tap on an image copies it (owner, 11 Nov 2026); the file is ready, so the copy runs inside the tap */}
+        {c?.imgs?.map((u, i) => {
+          const alt = c.imgs!.length > 1 ? `${pv.title}, page ${i + 1} of ${c.imgs!.length}` : pv.title;
+          const f = c.files?.[i];
+          return (
+            <button key={u} type="button" className="felt-pv-img" aria-label={`Copy image: ${alt}`} disabled={!f}
+              onClick={() => { if (f) copyLater('image/png', Promise.resolve(f)).then(() => toast('Image copied.'), () => toast('Copy was blocked on this phone.')); }}>
+              <img src={u} alt="" draggable={false} />
+            </button>
+          );
+        })}
         {c?.html !== undefined && <iframe title={pv.title} srcDoc={c.html} />}
         {!c && !failed && <div className="felt-skel" style={{ height: 240 }} aria-label="Building the preview" />}
       </div>
@@ -233,7 +243,7 @@ export default function Report({ gameId }: { gameId: string }) {
 
   const preview = (from: Element, title: string, load: () => Promise<Loaded>) => setPv({ from, title, load });
   const previewImgs = (e: React.MouseEvent, title: string, k: PngSet, hands?: ID[]) =>
-    preview(e.currentTarget, title, async () => ({ imgs: (await render(k, hands)).map((f) => URL.createObjectURL(f)) }));
+    preview(e.currentTarget, title, async () => { const files = await render(k, hands); return { files, imgs: files.map((f) => URL.createObjectURL(f)) }; });
   const previewHtml = (e: React.MouseEvent) =>
     preview(e.currentTarget, 'Interactive Game Dashboard', async () => ({ html: await (await makeHtmlReport(g, allPlayers, settings, { gameLog })).file.text() }));
 
@@ -348,6 +358,14 @@ export default function Report({ gameId }: { gameId: string }) {
             </Head>
             <Fold open={tier === 'log'}>
               {ready ? (
+                <>
+                <div className="felt-exp-sub felt-exp-allnone">
+                  <span className="sat-small sat-muted">{ticked.length} of {handIds.length} hands</span>
+                  <span className="felt-exp-end sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+                    <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" aria-disabled={ticked.length === handIds.length} onClick={() => setOff({})}>All</button>
+                    <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" aria-disabled={ticked.length === 0} onClick={() => setOff(Object.fromEntries(handIds.map((id) => [id, true])))}>None</button>
+                  </span>
+                </div>
                 <div className="felt-exp-hands" role="group" aria-label="Hands to include">
                   {g.hands.map((h) => (
                     <div key={h.id} className="felt-exp-sub">
@@ -356,6 +374,7 @@ export default function Report({ gameId }: { gameId: string }) {
                     </div>
                   ))}
                 </div>
+                </>
               ) : note('The images')}
             </Fold>
           </div>

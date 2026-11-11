@@ -300,7 +300,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
       : <div className="sat-flat sat-card felt-fig">{inner}{tip && <span className="felt-fig-tip"><Help k={tip} /></span>}</div>;
   };
   return (
-    <Sheet open noClose onClose={onClose} dismissRef={leave} title={p.name} head={<NameField p={p} />}>
+    <Sheet open onClose={onClose} dismissRef={leave} title={p.name} head={<NameField p={p} />}>
       <span ref={anchor} hidden />
       <CodeControl pid={p.id} label />
       <div className="felt-tiles">

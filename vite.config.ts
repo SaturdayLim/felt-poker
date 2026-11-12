@@ -21,8 +21,8 @@ export default defineConfig({
       scope: '../',
       includeAssets: ['favicon.svg', 'icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Felt — Home Game Tracker',
-        short_name: 'Felt',
+        name: 'Nightcap: Home Game Tracker',
+        short_name: 'Nightcap',
         description: 'Offline Texas Hold\'em home game tracker',
         start_url: './',
         scope: './',
@@ -50,7 +50,7 @@ export default defineConfig({
       transformIndexHtml: {
         order: 'post',
         handler: (html: string, ctx: { path: string }) =>
-          ctx.path.includes('/app/') ? html : html.replace('__FELT_VERSION__', version).replace('href="../manifest.webmanifest"', 'href="./manifest.webmanifest"'),
+          ctx.path.includes('/app/') ? html.replace('__FELT_VERSION__', version) : html.replace('href="../manifest.webmanifest"', 'href="./manifest.webmanifest"'),
       },
     },
   ],

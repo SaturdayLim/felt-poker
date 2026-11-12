@@ -12,9 +12,9 @@ const BOUNTY_WIN: { k: BountyRule['win']; label: string }[] = [
   { k: 'sole', label: 'Best hand' },
 ];
 const MIN_RAISE_TIP: Record<GameRules['minRaise'], string[]> = {
-  last: ['Last raise: raise by at least the biggest raise so far, and at least the BB (2, 4, 6, 8). Standard rule.', 'Felt refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
-  sb: ['SB steps: raise by at least the SB (2, 3, 4, 5).', 'Felt refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
-  double: ['Double: raise to at least double the bet (2, 4, 8, 16).', 'Felt refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
+  last: ['Last raise: raise by at least the biggest raise so far, and at least the BB (2, 4, 6, 8). Standard rule.', 'Nightcap refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
+  sb: ['SB steps: raise by at least the SB (2, 3, 4, 5).', 'Nightcap refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
+  double: ['Double: raise to at least double the bet (2, 4, 8, 16).', 'Nightcap refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
 };
 /** Info tip for the minimum raise: it explains only the setting this game uses. `value` is the key or the label text. */
 export function MinRaiseTip({ value }: { value: GameRules['minRaise'] | string }) {

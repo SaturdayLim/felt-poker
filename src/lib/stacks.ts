@@ -1,6 +1,6 @@
 /* Running stack estimate per player: buy-ins - wagers + pots won + chips returned +/- 2-7 bounties
    +/- chip moves (side games, tips), hand by hand.
-   Each estimate carries a spread (±chips) for what Felt could not see:
+   Each estimate carries a spread (±chips) for what Nightcap could not see:
    - hands logged street by street with every wager: exact, no spread
    - pot-count hands (wagers shared evenly per street): spread of 30% of the estimated wager
    - hands logged with pot and winner only: the pot is charged evenly to everyone still in the game,

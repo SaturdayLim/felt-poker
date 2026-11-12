@@ -1,6 +1,6 @@
-/* Motion for Felt: the choices are in docs/MOTION-LIST.md. Springs use the same maths as the Motion library
+/* Motion for Nightcap: the choices are in docs/MOTION-LIST.md. Springs use the same maths as the Motion library
    (visual duration and bounce), played as Web Animations keyframes, so they need no library and run on every phone
-   Felt supports. CSS transitions that must retarget use the same curves through --felt-* custom properties. */
+   Nightcap supports. CSS transitions that must retarget use the same curves through --felt-* custom properties. */
 
 import { haptic } from './haptics';
 

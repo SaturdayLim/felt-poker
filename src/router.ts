@@ -144,7 +144,7 @@ export function backPlain(fallback = '') {
 }
 
 /** Step Back when this session opened the screen from another one (the trail knows it); after a reload or a cold load the trail is
-    empty and history.length lies (Felt keeps spare entries), so go to the logical parent instead. */
+    empty and history.length lies (Nightcap keeps spare entries), so go to the logical parent instead. */
 export const backWay = (trailLength: number): 'history' | 'parent' => (trailLength > 0 ? 'history' : 'parent');
 
 /** The screen Back leads to from a sub page when the session has no trail, or undefined for a main tab. `closed` says whether
@@ -177,8 +177,8 @@ export function backTo(path: string) {
   else go(path, true);
 }
 
-/** Nothing behind or ahead of the first screen: a swipe from either edge must not leave Felt for a blank page, and must not
-    walk to a page that was open before. Felt keeps one spare history entry under the screen in view and one above it.
+/** Nothing behind or ahead of the first screen: a swipe from either edge must not leave Nightcap for a blank page, and must not
+    walk to a page that was open before. Nightcap keeps one spare history entry under the screen in view and one above it.
     A step onto either one puts the spares back, keeps the address of the screen in view (a spare carries the address it was
     made with, which would otherwise jump the page) and calls `onSwipe`: 'back' is the phone's back swipe (a finger moving
     right from the left edge), 'forward' the one from the right edge. */

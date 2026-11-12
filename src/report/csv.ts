@@ -2,7 +2,10 @@ import type { Game, ID } from '../types';
 import { handStats, hasCashedOut, playerResult, timePlayed } from '../lib/calc';
 import { bestHand } from '../lib/cards';
 import { STREETS, bountyPay, bountyTotal, contributions, inAtEnd, pfr, potTotal, vpip } from '../lib/hand';
-import { estimateStacks } from '../lib/stacks';
+import { estimateStacks, exactStacks } from '../lib/stacks';
+import { handSteps } from '../lib/replay';
+import { positionMap } from './logText';
+import { rowOrder } from '../lib/hand';
 import { fileDate } from '../lib/format';
 
 type NameFn = (id: ID) => string;
@@ -78,7 +81,8 @@ export function handsCsv(games: Game[], name: NameFn, potCoding: PotCoding = 'st
         return v ? `${name(s.playerId)}:${v.name}` : '';
       }).filter(Boolean).join('; ');
       rows.push([
-        g.id, g.name, day(g.startedAt), h.n, iso(h.at), h.dealerId ? name(h.dealerId) : '',
+        g.id, g.name, day(g.startedAt), h.n, iso(h.at), h.endedAt ? iso(h.endedAt) : '', h.endedAt ? Math.round((h.endedAt - h.at) / 1000) : '',
+        h.dealerId ? name(h.dealerId) : '', h.log ? h.log.dealt.length : '',
         h.pot, g.type === 'cash' ? +(h.pot * g.unitValue).toFixed(2) : '',
         h.winners.map((w) => name(w.playerId)).join('; '), h.winners.map((w) => `${name(w.playerId)}:${w.amount}`).join('; '),
         h.winners.length > 1 ? 1 : 0, board,
@@ -92,7 +96,6 @@ export function handsCsv(games: Game[], name: NameFn, potCoding: PotCoding = 'st
         h.log ? STREETS.filter((st) => h.log!.streets[st]).map((st) => `${st}:${inAtEnd(h.log!, st).map(name).join('/')}`).join('; ') : '',
         h.log?.runs ?? '',
         Object.entries(h.returned ?? {}).map(([p, a]) => `${name(p)}:${a}`).join('; '),
-        h.endedAt ? Math.round((h.endedAt - h.at) / 1000) : '',
         h.bounty ? `${name(h.bounty.playerId)}:${bountyTotal(h.bounty)}` : '',
         h.bounty ? h.bounty.payers.map((p) => `${name(p)}:${bountyPay(h.bounty!, p)}`).join('; ') : '',
         h.log ? Object.entries(contributions(g, h.log, h.log.button)).filter(([, v]) => v > 0).map(([p, v]) => `${name(p)}:${v}`).join('; ') : '',
@@ -104,11 +107,40 @@ export function handsCsv(games: Game[], name: NameFn, potCoding: PotCoding = 'st
     }
   }
   return toCsv([
-    'game_id', 'game', 'date', 'hand', 'time', 'button', 'pot_chips', 'pot_money', 'winners', 'winner_amounts',
+    'game_id', 'game', 'date', 'hand', 'start_time', 'end_time', 'duration_seconds', 'button', 'players_dealt', 'final_pot_chips', 'final_pot_money', 'winners', 'winner_amounts',
     'split', 'board', 'flop', 'turn', 'river', 'shown_cards', 'shown_hand_ranks', 'all_in', 'straddle', 'tags', 'note', 'pots',
-    'entry_mode', 'vpip_players', 'pfr_players', 'pot_by_street', 'in_by_street', 'runs', 'returned', 'seconds', 'bounty_27', 'bounty_27_paid_by',
+    'entry_mode', 'vpip_players', 'pfr_players', 'pot_by_street', 'in_by_street', 'runs', 'returned', 'bounty_27', 'bounty_27_paid_by',
     'chips_in_by_player', 'missed', 'partly_recorded', potCoding === 'street' ? 'pot_won_street' : 'pot_won_player',
   ], rows);
+}
+
+const ACT_WORD: Record<string, string> = { sb: 'post_sb', bb: 'post_bb', fold: 'fold', check: 'check', call: 'call', bet: 'bet', raise: 'raise', allin: 'all_in', straddle: 'straddle' };
+
+/** The action log: every action on the felt on its own row, in time order (blind posts first). `amount` is the player's
+    street total after the action and `chips_added` what that action put in, so a column sum gives the pot. */
+export function actionsCsv(games: Game[], name: NameFn): string {
+  const rows: unknown[][] = [];
+  for (const g of games) {
+    for (const h of g.hands) {
+      if (!h.log || h.missed) continue;
+      const stacks = exactStacks(g, h.n);
+      const steps = handSteps(g, h.log, stacks);
+      const pos = positionMap(rowOrder(g, h.log), h.log.button);
+      const left: Record<ID, number | undefined> = { ...stacks };
+      let pot = 0, seq = 0, streetSeq = 0, street = '';
+      for (const s of steps) {
+        if (s.street !== street) { street = s.street; streetSeq = 0; }
+        seq++; streetSeq++;
+        pot = Math.round((pot + s.add) * 100) / 100;
+        if (left[s.pid] !== undefined) left[s.pid] = Math.round((left[s.pid]! - s.add) * 100) / 100;
+        rows.push([
+          g.id, g.name, day(g.startedAt), h.n, seq, s.street, streetSeq, name(s.pid), pos[s.pid] ?? '', ACT_WORD[s.k] ?? s.k,
+          s.k === 'fold' || s.k === 'check' ? '' : s.to, s.add, pot, left[s.pid] ?? '', s.allin ? 1 : 0, s.dark ? 1 : 0,
+        ]);
+      }
+    }
+  }
+  return toCsv(['game_id', 'game', 'date', 'hand', 'seq', 'street', 'street_seq', 'player', 'position', 'action', 'amount', 'chips_added', 'pot_after', 'stack_after', 'all_in', 'dark'], rows);
 }
 
 export function ledgerCsv(games: Game[], name: NameFn): string {
@@ -136,7 +168,7 @@ export function ledgerCsv(games: Game[], name: NameFn): string {
 export const fileSafe = (s: string) => s.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Game';
 
 /** A file name that says what is inside: "<game name> - results - 2026-11-09.png". `what` is the content, for example
-    "results", "results and stats", "full game record", "game record" or "data (3 csv) players". No two outputs of one game share a name. */
+    "results", "results and stats", "full game record", "game record" or "data players". No two outputs of one game share a name. */
 export function outputName(g: Pick<Game, 'name' | 'startedAt'>, what: string, ext: string, part?: string) {
   return `${fileSafe(g.name)} - ${what}${part ? ` ${part}` : ''} - ${fileDate(g.startedAt)}.${ext}`;
 }

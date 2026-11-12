@@ -1,4 +1,4 @@
-/* Trial report model: every figure the trial report pages show, worked out from a Felt backup with the
+/* Trial report model: every figure the trial report pages show, worked out from a Nightcap backup with the
    app's own logic (src/lib). The backup holds the group's game data and stays in trial/ (git-ignored).
    All amounts are chips; the report never converts to money. */
 import type { Card, Game, HandLog, ID, Player, StreetName } from '../types';

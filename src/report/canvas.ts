@@ -206,7 +206,7 @@ export function dealerChip(ctx: Ctx, cx: number, cy: number, r = 14) {
   ctx.textBaseline = 'alphabetic';
 }
 
-/** Felt mark (two stacked chips) at (x, y) with the given height, in the mark colour. */
+/** Nightcap mark (two stacked chips) at (x, y) with the given height, in the mark colour. */
 export function feltMark(ctx: Ctx, x: number, y: number, h: number) {
   const s = h / 104;
   ctx.save();

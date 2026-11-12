@@ -1,0 +1,88 @@
+/* spectator: the table from above (src/screens/Spectator.tsx). Read from across a room: large type, high contrast.
+   Portrait on a phone, landscape on a TV or a wide window. Seats sit on an oval in percent of the table box, so one
+   layout serves both. Rail and felt colours are the bird's-eye view's (viewer.css). */
+
+.spx { --spx-fs: clamp(13px, 2.1vmin + 6px, 26px); padding-bottom: calc(var(--felt-safe-bottom, 0px) + var(--sat-space-4)); }
+.spx--alone { padding-top: calc(var(--felt-safe-top, 0px) + var(--sat-space-3)); max-width: none; }
+.spx-top { display: flex; align-items: center; min-height: 44px; padding: 0 var(--sat-space-2); }
+.spx-bar { display: flex; align-items: end; gap: var(--sat-space-3); margin: var(--sat-space-2) 0 var(--sat-space-3); }
+.spx-pick { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; max-width: 360px; }
+.spx-pick select { width: 100%; }
+
+/* the app column is 520 px for a phone: the table page takes the whole screen, so a TV gets a TV-sized table */
+.felt-app:has(.spx) { max-width: none; }
+.spx { max-width: 1600px; margin-inline: auto; }
+/* the table keeps its shape: as wide as the page, or as wide as the height left over allows */
+.spx-table { position: relative; width: min(100%, calc((100svh - 260px) * 4 / 5)); aspect-ratio: 4 / 5; margin-inline: auto; container-type: size; font-size: var(--spx-fs); }
+@media (orientation: landscape) and (min-width: 700px) { .spx-table { width: min(100%, calc((100svh - 290px) * 16 / 9)); aspect-ratio: 16 / 9; } }
+.spx-felt { position: absolute; inset: 9% 7%; border-radius: 50%; background: #1c6a4b; box-shadow: 0 0 0 clamp(6px, 1.6cqmin, 16px) #5c3a24, inset 0 2px 14px rgba(0,0,0,.45); }
+
+.spx-mid { position: absolute; inset: 30% 22%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(4px, 1.4cqmin, 14px); text-align: center; color: #eef6f1; pointer-events: none; }
+.spx-board { display: flex; gap: clamp(3px, 0.9cqmin, 10px); }
+.spx-slot { display: inline-block; }
+.spx-slot .felt-card.lg { width: clamp(28px, 9cqmin, 72px); height: clamp(40px, 12.6cqmin, 100px); border-radius: clamp(4px, 1cqmin, 9px); }
+.spx-slot .felt-card.lg .r { font-size: clamp(14px, 4.4cqmin, 36px); }
+.spx-slot .felt-card.lg .s { font-size: clamp(13px, 4cqmin, 32px); }
+.spx-slot .felt-card.empty { background: rgba(0,0,0,.18); border: 1.5px dashed rgba(255,255,255,.28); box-shadow: none; }
+.spx-pot { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px; }
+.spx-potchip { padding: .2em .7em; border-radius: 999px; background: rgba(0,0,0,.32); font-size: 1em; }
+.spx-potchip b { font-size: 1.15em; }
+.spx-caption { margin: 0; min-height: 1.3em; font-size: .95em; font-weight: 600; color: #fff; text-wrap: balance; }
+
+.spx-seat { position: absolute; transform: translate(-50%, -50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: clamp(64px, 17cqmin, 150px); max-width: clamp(80px, 21cqmin, 180px); padding: .35em .6em .4em; border-radius: 14px;
+  background: var(--sat-solid-2); border: 1.5px solid var(--sat-line-strong); color: var(--sat-text); text-align: center; line-height: 1.15;
+  transition: opacity 300ms var(--sat-ease), border-color 200ms var(--sat-ease), box-shadow 200ms var(--sat-ease), left 500ms var(--sat-ease), top 500ms var(--sat-ease); }
+.spx-name { max-width: 100%; font-size: 1em; }
+.spx-stack { font-size: .9em; color: var(--sat-muted); font-weight: 600; }
+.spx-seat.is-folded { opacity: .38; }
+.spx-seat.is-turn { border-color: var(--felt-coral, #ff5722); box-shadow: 0 0 0 4px rgba(255,87,34,.28); }
+.spx-seat.is-win { border-color: var(--sat-up, #2fae6b); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sat-up, #2fae6b) 30%, transparent); }
+.spx-tag { font-size: .7em; font-weight: 700; padding: 0 .5em; border-radius: 999px; background: var(--felt-coral, #ff5722); color: #fff; }
+.spx-won { font-size: .9em; font-weight: 700; color: var(--sat-up, #2fae6b); }
+
+.spx-hole { display: flex; gap: 2px; margin-top: -1.6em; margin-bottom: 2px; transition: opacity 300ms var(--sat-ease); }
+.spx-seat.is-folded .spx-hole { opacity: 0; }
+.spx-holecard { display: inline-block; }
+.spx-holecard .felt-card.sm { width: clamp(18px, 5cqmin, 40px); height: clamp(25px, 7cqmin, 56px); }
+.spx-holecard .felt-card.sm .r { font-size: clamp(10px, 2.6cqmin, 21px); }
+.spx-holecard .felt-card.sm .s { font-size: clamp(10px, 2.4cqmin, 19px); margin-top: 0; }
+
+.spx-bet { position: absolute; transform: translate(-50%, -50%); z-index: 1; display: inline-flex; align-items: center; gap: .35em; padding: .15em .6em .15em .25em; border-radius: 999px;
+  background: rgba(0,0,0,.55); color: #fff; font-weight: 700; font-size: .95em; white-space: nowrap; }
+.spx-bet[data-on="false"] { visibility: hidden; }
+.spx-chipdot { width: 1.05em; height: 1.05em; border-radius: 50%; flex: none;
+  background: radial-gradient(circle closest-side, var(--felt-blue, #0052cc) 0 55%, #fff 55% 66%, var(--felt-blue, #0052cc) 66%); box-shadow: 0 0 0 1px rgba(255,255,255,.5); }
+
+.spx-btn { position: absolute; transform: translate(-50%, -50%); z-index: 3; width: clamp(20px, 5cqmin, 40px); height: clamp(20px, 5cqmin, 40px); border-radius: 50%; display: grid; place-items: center;
+  background: #fbfcfc; color: #1c1e21; font-weight: 800; font-size: clamp(11px, 2.6cqmin, 20px); box-shadow: var(--felt-elev-1);
+  transition: left 600ms cubic-bezier(0.65, 0, 0.35, 1), top 600ms cubic-bezier(0.65, 0, 0.35, 1); }
+
+/* the scrubber: one stop per action, grouped by street; the stop for the step on show is the knob */
+.spx-scrub { display: flex; flex-direction: column; gap: var(--sat-space-3); margin-top: var(--sat-space-4); }
+.spx-track { display: flex; align-items: end; gap: var(--sat-space-3); overflow-x: auto; padding: 4px 4px 8px; scrollbar-width: thin; }
+.spx-group { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.spx-glabel { font-size: var(--sat-fs-caption); color: var(--sat-muted); font-weight: 600; }
+.spx-stops { display: flex; gap: 4px; padding: 4px 6px; border-radius: 999px; background: var(--sat-well); }
+.spx-stop { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; position: relative; cursor: pointer; flex: none; }
+.spx-stop::before { content: ''; position: absolute; inset: 9px; border-radius: 50%; background: var(--sat-line-strong); transition: background-color 160ms var(--sat-ease), transform 200ms var(--sat-ease); }
+.spx-stop.is-past::before { background: var(--sat-accent); }
+.spx-stop[aria-current="step"]::before { inset: 4px; background: var(--sat-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sat-accent) 30%, transparent); }
+.spx-stop--start { align-self: end; margin-bottom: 4px; }
+.spx-stop--result::before { border-radius: 4px; }
+.spx-ctrl { display: flex; align-items: center; gap: var(--sat-space-2); }
+.spx-ctrl .sat-iconbtn { width: 48px; height: 48px; }
+.spx-fwd svg { transform: scaleX(-1); }
+.spx-count { min-width: 64px; text-align: center; }
+.spx-live { margin-left: auto; gap: 8px; transition: opacity 200ms var(--sat-ease); }
+.spx-live[data-show="false"] { visibility: hidden; }
+.spx-live.is-on { opacity: .7; }
+.spx-livedot { width: 10px; height: 10px; border-radius: 50%; background: var(--felt-coral, #ff5722); }
+.spx-live.is-on .spx-livedot { animation: spx-pulse 1.6s ease-in-out infinite; }
+.spx-behind { min-width: 22px; padding: 0 6px; border-radius: 999px; background: var(--felt-coral, #ff5722); color: #fff; font-size: .8rem; }
+@keyframes spx-pulse { 50% { opacity: .35; } }
+
+/* Reduced motion: fades only, no travel */
+html[data-calm] .spx-seat, html[data-calm] .spx-btn { transition: opacity 150ms linear, border-color 150ms linear; }
+html[data-calm] .spx-live.is-on .spx-livedot { animation: none; }
+html[data-motion-off] .spx-seat, html[data-motion-off] .spx-btn, html[data-motion-off] .spx-hole { transition: none; }

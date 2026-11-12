@@ -1,6 +1,6 @@
 /* chrome: rules for this area. Loaded after styles.css (src/main.tsx). */
 
-/* Home: Felt is not a tab. The mark and the wordmark sit plain on the page: no tab, no page edge, no bar. */
+/* Home: Nightcap is not a tab. The mark and the wordmark sit plain on the page: no tab, no page edge, no bar. */
 .felt-header--brand .sat-header-bar.felt-brandbar { display: flex; align-items: center; gap: var(--sat-space-3); min-height: 52px;
   padding: 0 var(--sat-space-2) 0 var(--sat-space-3); border: 0; border-radius: 0; background: none; box-shadow: none; }
 .felt-brandbar .sat-brand { gap: var(--sat-space-2); margin-right: auto; }
@@ -57,7 +57,7 @@ html[data-theme="dark"] .felt-lamp--playing { color: #3ddc84; }
 .felt-banner-stack .felt-banner-title { flex: none; font-size: 1.375rem; }
 .felt-banner-sub { color: var(--sat-muted); font-size: var(--sat-fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* the Felt mark of the Home banner is where the Start view's mark lands (a shared element) */
+/* the Nightcap mark of the Home banner is where the Start view's mark lands (a shared element) */
 .felt-banner-brand .sat-mark { view-transition-name: felt-logo; }
 html[data-calm] .felt-banner-brand .sat-mark { view-transition-name: none; }
 

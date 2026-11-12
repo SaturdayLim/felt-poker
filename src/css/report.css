@@ -59,3 +59,8 @@ html[data-motion-off] .felt-exp-act, html[data-motion-off] .felt-exp-chev, html[
 .felt-exp .felt-fold-wrap:not([data-open="true"]) { visibility: hidden; transition: grid-template-rows 260ms var(--sat-ease), opacity 220ms var(--sat-ease), visibility 0s linear 260ms; }
 html[data-calm] .felt-exp .felt-fold-wrap:not([data-open="true"]) { transition: grid-template-rows 150ms linear, opacity 150ms linear, visibility 0s linear 150ms; }
 html[data-motion-off] .felt-exp .felt-fold-wrap, html[data-motion-off] .felt-exp .felt-fold-inner > * { transition: none; }
+
+/* Export row bodies (Fold in Report.tsx): the height is set on the element, so a shut row takes no room from the first frame. */
+.felt-xfold { overflow: hidden; }
+.felt-xfold[data-open="false"] { opacity: 0; visibility: hidden; transition: visibility 0s linear 260ms; }
+.felt-xfold-inner { display: flow-root; }

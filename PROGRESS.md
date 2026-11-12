@@ -1,6 +1,13 @@
-# Felt: progress
+# Nightcap: progress
 
-## Latest (13 Nov 2026): 1.7.4
+## Latest (13 Nov 2026): 1.8.0
+- Shipped: rename Felt to Nightcap (user text only; code names and storage keys stay), Table (spectator view), load screen inside the app page with a glide into the first screen, new mark (smaller chips, open S ends), rail dot fix, Export rows with explicit heights, four CSV files (action log added, hand start/end/duration/final pot).
+- Table: game page > Table tab, or the link button opens #/watch/<id> in a new window. Engine: src/lib/replay.ts (`handSteps`, `tableAt`, `resultAt`), tests in src/lib/replay.test.ts (66 real hands from the trial backups: wagers match `contributions`, end stacks match the next hand's stacks). The watch window never writes: store.ts skips IDB writes when WATCH; other windows post "saved" on BroadcastChannel nightcap-store and the watch window rehydrates. The live hand comes from the recorder draft (felt-draft-<id>, localStorage); `mine` is dropped on read.
+- Seen in the Browser pane (synthetic 4-player game built in the page, not owner data): side pot and split hand, hand won pre-flop, live follow across two tabs (draft and saved hand), Live with a behind count, scrubbing leaves the scorer data unchanged, 44 views with no private card in the DOM, the watch window cannot write IDB, TV layout at 1280 x 720.
+- Brief mismatch: the brief (spectator-view-brief.md) describes a single-file app (Nightcap.html, E.*, nightcap.v1, 10-game test set). This repo is the React app; the replay was built on the action boxes instead. No 10-game test set exists here.
+- Not built: cross-device spectating outside the live link (the live link and player view already cover other phones).
+
+## Earlier (13 Nov 2026): 1.7.4
 - Shipped: gap under the load screen and Start view on the iPhone Home Screen app, no stack figure for range stacks (recorder, player view), one search bar on Games and Players (game name and date modes on Players list players), Export opens with the first row and only that row open, action log with position first and one colour per player, gold S highlighted on the card back, game captions "Potato Day (1 Nov 2026)" with "4 Pax, 4 Buy-ins".
 - Built by agents (Sonnet). Owner rules of 13 Nov are in CLAUDE.md; open owner questions are in docs/CHECKLIST.md with their navigation paths.
 - Tab bar rail dots (owner item): not found. Two agents looked at the rail in Chromium and in Playwright WebKit at 3x and 6x, at rest and mid-roll, and saw no dots. The rail path now drops flat points and snaps depths under 0.25 px (navRail.tsx tidy). Owner to say when and where the dots show, best with an iPhone screenshot.

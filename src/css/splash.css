@@ -1,0 +1,55 @@
+/* splash: the load screen, drawn inside the app page (app/index.html) so it can morph into the first screen with no page change.
+   Timeline at the standard length (--k = 1): two grey chips drop one after the other (bottom 0, top 260ms), fade back to 22%
+   from 800 to 1300ms, the gold S draws around them 1000 to 1900ms and glows, the name settles 1500 to 2300ms.
+   Hand-over (the script in app/index.html): the mark and the name glide and shrink onto the first screen's mark and name
+   (Start view or the Home banner) while the splash background fades, so the two screens share one logo. Reduced motion:
+   the splash cross-fades in 150 ms with no travel. */
+
+#felt-splash { display: none; position: fixed; inset: 0; z-index: 9000; place-items: center; cursor: default; user-select: none; -webkit-user-select: none; overscroll-behavior: none; }
+html.felt-splash #felt-splash { display: grid; }
+html.felt-splash body { overflow: hidden; }
+#felt-splash .felt-splash-bg { position: absolute; inset: 0; background: var(--sat-bg); }
+#felt-splash .felt-splash-lockup { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--sat-space-5); }
+
+#felt-splash .felt-splash-mark { --sat-mark-h: 88px; overflow: visible; transform-origin: 0 0; }
+#felt-splash .felt-splash-mark path, #felt-splash .felt-splash-mark circle { vector-effect: none; stroke-width: 2.6px; }
+#felt-splash .disc { fill: var(--sat-muted); stroke: none; }
+#felt-splash .ring { fill: none; stroke: var(--sat-bg); stroke-width: 1.4px; opacity: 0.85; }
+#felt-splash .band path { stroke: var(--sat-bg); stroke-width: 5px; stroke-linecap: butt; }
+#felt-splash .chip { opacity: 0; animation: felt-drop calc(760ms * var(--k, 1)) linear both; }
+#felt-splash .chip-t { animation-delay: calc(260ms * var(--k, 1)); }
+#felt-splash .face { animation: felt-back calc(500ms * var(--k, 1)) ease-out calc(800ms * var(--k, 1)) forwards; }
+#felt-splash .s, #felt-splash .s-glow { stroke-dasharray: 1; stroke-dashoffset: 1; animation: felt-draw calc(900ms * var(--k, 1)) cubic-bezier(0.65, 0, 0.35, 1) calc(1000ms * var(--k, 1)) forwards; }
+#felt-splash .s-glow { stroke-width: 5.5px; opacity: 0.85; }
+
+#felt-splash .felt-splash-name { margin: 0; font-size: clamp(2.5rem, 9vw, 3.25rem); letter-spacing: 0.02em; transform-origin: 0 0; white-space: nowrap;
+  opacity: 0; animation: felt-settle calc(800ms * var(--k, 1)) var(--sat-ease) calc(1500ms * var(--k, 1)) forwards; }
+#felt-splash .felt-splash-version { position: fixed; right: calc(var(--sat-space-5) + env(safe-area-inset-right, 0px)); bottom: calc(var(--sat-space-5) + env(safe-area-inset-bottom, 0px));
+  font-size: var(--sat-fs-caption); color: var(--sat-muted); letter-spacing: 0.04em;
+  opacity: 0; animation: felt-fade calc(500ms * var(--k, 1)) var(--sat-ease) calc(1700ms * var(--k, 1)) forwards; }
+
+/* while the splash mark and name glide onto them, the first screen's own mark and name wait hidden, so only one shows */
+html.felt-landing .felt-start-mark .sat-mark, html.felt-landing .felt-start-mark .sat-wordmark,
+html.felt-landing .felt-banner-brand .sat-mark, html.felt-landing .felt-banner-brand .sat-wordmark { visibility: hidden; }
+/* the Start view wordmark arrives with the splash name: no second fade-in */
+html.felt-landing .felt-start-mark .sat-wordmark { animation: none; }
+
+@keyframes felt-draw { to { stroke-dashoffset: 0; } }
+@keyframes felt-fade { to { opacity: 1; } }
+@keyframes felt-drop {
+  0% { opacity: 0; transform: translateY(-110px); }
+  12% { opacity: 1; }
+  52% { opacity: 1; transform: translateY(5px); }
+  74% { transform: translateY(-2px); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes felt-back { to { opacity: 0.22; } }
+@keyframes felt-settle {
+  from { opacity: 0; letter-spacing: 0.24em; filter: blur(6px); transform: translateY(6px); }
+  to { opacity: 1; letter-spacing: 0.02em; filter: blur(0); transform: none; }
+}
+
+html[data-calm] #felt-splash .s, html[data-calm] #felt-splash .s-glow { stroke-dashoffset: 0; animation: none; }
+html[data-calm] #felt-splash .chip { opacity: 1; animation: none; }
+html[data-calm] #felt-splash .face { opacity: 0.22; animation: none; }
+html[data-calm] #felt-splash .felt-splash-name, html[data-calm] #felt-splash .felt-splash-version { opacity: 1; animation: none; }

@@ -90,7 +90,7 @@ export function Icon({ name, size, stroke = 2 }: { name: string; size?: number; 
 
 /* ------------------------------- brand ------------------------------- */
 
-/** Felt mark, small version: two stacked poker chips drawn as one S. Both rings of each chip open 65° beside the waist,
+/** Nightcap mark, small version: two stacked poker chips drawn as one S. Both rings of each chip open 65° beside the waist,
     lower right on the top chip and upper left on the bottom, and the ticks go, so the S stays clear at 16 px.
     The opening screen draws the full mark: src/brand/felt-mark.svg. */
 export function FeltMark({ height = 32, full = false }: { height?: number; full?: boolean }) {
@@ -99,16 +99,16 @@ export function FeltMark({ height = 32, full = false }: { height?: number; full?
     // over them, so the load screen hands over to it with no change of shape
     const chip = (cy: number, d: string) => (
       <g opacity={0.22}>
-        <circle cx={32} cy={cy} r={22.5} fill="var(--sat-muted)" stroke="none" />
-        <circle cx={32} cy={cy} r={15} stroke="var(--sat-bg)" strokeWidth={1.4} opacity={0.85} vectorEffect="none" />
+        <circle cx={32} cy={cy} r={18} fill="var(--sat-muted)" stroke="none" />
+        <circle cx={32} cy={cy} r={12} stroke="var(--sat-bg)" strokeWidth={1.4} opacity={0.85} vectorEffect="none" />
         <path d={d} style={{ stroke: 'var(--sat-bg)', strokeWidth: 5, strokeLinecap: 'butt', vectorEffect: 'none' }} />
       </g>
     );
     return (
       <svg className="sat-mark" style={{ ['--sat-mark-h' as string]: `${height}px` }} viewBox="-2 -2 68 104" aria-hidden="true">
-        {chip(26, 'M46.72 34.50 L51.49 37.25 M32.00 43.00 L32.00 48.50 M17.28 34.50 L12.51 37.25 M17.28 17.50 L12.51 14.75 M32.00 9.00 L32.00 3.50 M46.72 17.50 L51.49 14.75')}
-        {chip(74, 'M46.72 82.50 L51.49 85.25 M32.00 91.00 L32.00 96.50 M17.28 82.50 L12.51 85.25 M17.28 65.50 L12.51 62.75 M32.00 57.00 L32.00 51.50 M46.72 65.50 L51.49 62.75')}
-        <path d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
+        {chip(26, 'M43.78 32.80 L47.59 35.00 M32.00 39.60 L32.00 44.00 M20.22 32.80 L16.41 35.00 M20.22 19.20 L16.41 17.00 M32.00 12.40 L32.00 8.00 M43.78 19.20 L47.59 17.00')}
+        {chip(74, 'M43.78 80.80 L47.59 83.00 M32.00 87.60 L32.00 92.00 M20.22 80.80 L16.41 83.00 M20.22 67.20 L16.41 65.00 M32.00 60.40 L32.00 56.00 M43.78 67.20 L47.59 65.00')}
+        <path d="M52.78 14 A24 24 0 1 0 32 50 A24 24 0 1 1 11.22 86" />
       </svg>
     );
   }
@@ -219,14 +219,14 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs,
       </header>
     );
   }
-  // Home: Felt is not a tab. The mark and the wordmark sit plain on the page, with no tab and no page edge.
+  // Home: Nightcap is not a tab. The mark and the wordmark sit plain on the page, with no tab and no page edge.
   if (brand) {
     return (
       <header className="sat-header felt-header felt-header--brand">
         <div className="sat-header-bar felt-brandbar">
           <div className="sat-brand">
             <FeltMark />
-            <span className="sat-wordmark">Felt</span>
+            <span className="sat-wordmark">Nightcap</span>
           </div>
           {right && <div className="felt-brandbar-right">{right}</div>}
         </div>
@@ -287,7 +287,7 @@ export function TabPill() {
 
 
 /** An iOS push when `k` changes: the new screen slides in while a copy of the old one drifts 28% the other way and fades out. `i` gives the direction; a negative `i` means no slide.
-    This needs no browser feature, so it runs the same on every phone Felt supports. */
+    This needs no browser feature, so it runs the same on every phone Nightcap supports. */
 export class SlidePane extends Component<{ k: string; i: number; children: ReactNode }> {
   el = createRef<HTMLDivElement>();
   getSnapshotBeforeUpdate(prev: { k: string; i: number }) {
@@ -1100,7 +1100,7 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
 }
 
-/** A face-down card: the full Felt mark (two chips and the S) on ink, with one ice border. The mark is 40% of the card height
+/** A face-down card: the full Nightcap mark (two chips and the S) on ink, with one ice border. The mark is 40% of the card height
     (owner, 10 Nov 2026). Chips at 50%, the S gold and heavier as the highlight (owner, 12 Nov 2026). Sized in CSS from the card (.felt-cardback in styles.css), so it follows any card size. */
 export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
   return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark full height={size === 'lg' ? 28 : size === 'sm' ? 12.4 : 16} /></span>;

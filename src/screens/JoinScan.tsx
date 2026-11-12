@@ -22,7 +22,7 @@ export default function JoinScan() {
 
   const open = (t: string) => {
     const r = joinRoute(t);
-    if (!r) { toast('This is not a Felt game link.'); return; }
+    if (!r) { toast('This is not a Nightcap game link.'); return; }
     haptic(20);
     go(r);
   };

@@ -3,13 +3,16 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 import type { CashOut, Game, GameRules, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
 import { uid } from './lib/ids';
+import { WATCH, sayStored } from './lib/watch';
 import { newCode } from './lib/codes';
 import { cashOutUnits, defaultPayoutPercents, hasCashedOut, playerStatus, rebuildTransfers, round2, totalPotMoney } from './lib/calc';
 
+// The spectator window only reads: it never writes the store (src/lib/watch.ts). Every other window tells the
+// spectator windows after each write, so they follow within a moment.
 const idbStorage: StateStorage = {
   getItem: async (name) => (await idbGet<string>(name)) ?? null,
-  setItem: async (name, value) => { await idbSet(name, value); },
-  removeItem: async (name) => { await idbDel(name); },
+  setItem: async (name, value) => { if (WATCH) return; await idbSet(name, value); sayStored(); },
+  removeItem: async (name) => { if (WATCH) return; await idbDel(name); sayStored(); },
 };
 
 /** Opening screen length. 3s lets the logo draw (1.85s) and hold for about a second; splash screens

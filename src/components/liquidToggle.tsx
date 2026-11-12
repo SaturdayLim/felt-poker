@@ -12,7 +12,7 @@ const OMEGA = 16, ZETA = 0.5;
 const LAG_A = 0.045, LAG_B = 0.095;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** `plain`: no sun and moon, for a switch that is not the theme. Every switch in Felt moves the same way.
+/** `plain`: no sun and moon, for a switch that is not the theme. Every switch in Nightcap moves the same way.
     `icons`: two marks (drawn in a 24 x 24 box, stroked, no fill) that replace the sun and the moon: the first sits at the
     off end, the second at the on end. The chosen one rides on the knob. */
 export function LiquidToggle({ on, onChange, label, width = 60, plain = false, icons }: { on: boolean; onChange: (v: boolean) => void; label: string; width?: number; plain?: boolean; icons?: readonly [ReactNode, ReactNode] }) {

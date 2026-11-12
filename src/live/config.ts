@@ -1,4 +1,4 @@
-/* Firebase web config for the Felt live link (project felt-live). These values are public by design: the
+/* Firebase web config for the Nightcap live link (project felt-live). These values are public by design: the
    database rules in database.rules.json are the real boundary. Setup steps: docs/FIREBASE-SETUP.md. */
 export interface FirebaseConfig { apiKey: string; authDomain: string; databaseURL: string; projectId: string }
 

@@ -1,4 +1,4 @@
-/* Trial report pages (Game Summary, Players, Compare), built from a Felt backup with the app's own logic,
+/* Trial report pages (Game Summary, Players, Compare), built from a Nightcap backup with the app's own logic,
    CSS and chart parts, for a layout review before they go into the app. Data stays in trial/.
    Review rules: chips only (no money, no unit word); graphics before words; a number never runs straight
    into a word ("Flop (33)", "Bel: +78"); every tip line on its own line; legends where a colour is not
@@ -360,7 +360,7 @@ function PlayerLock({ p, box, onOpen }: { p: TrialPlayer; box: LockBox; onOpen: 
       <h2 className="sat-h2">{p.name}</h2>
       <p className="sat-small sat-muted">Enter player code to access player stats.</p>
       <div className="sat-field">
-        <label>Player code <Tip title="Player code" lines={['Each player has a 6-character code, in their player settings in Felt.', 'Only that code opens the page.', 'Lost code: ask the host for a new one.']} /></label>
+        <label>Player code <Tip title="Player code" lines={['Each player has a 6-character code, in their player settings in Nightcap.', 'Only that code opens the page.', 'Lost code: ask the host for a new one.']} /></label>
         <CodeBoxes onSubmit={go} autoFocus={false} />
       </div>
     </section>

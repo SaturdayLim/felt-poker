@@ -16,6 +16,8 @@ import './css/recorder.css';
 import './css/viewer.css';
 import './css/report.css';
 import './css/settings.css';
+import './css/splash.css';
+import './css/spectator.css';
 import { installMotion, installPresses } from './lib/motion';
 
 installMotion();

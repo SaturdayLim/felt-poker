@@ -30,7 +30,7 @@ function header(g: Game, tier: Tier): Block {
     h,
     draw: (ctx, y) => {
       feltMark(ctx, PAD, y + 64, 58);
-      text(ctx, 'Felt', PAD + 46, y + 108, font(400, 40, 'display'), C.text);
+      text(ctx, 'Nightcap', PAD + 46, y + 108, font(400, 40, 'display'), C.text);
       caption(ctx, `${TIER_LABEL[tier]} report`, W - PAD, y + 104, { align: 'right' });
       titleLines.forEach((l, i) => text(ctx, l, PAD, y + 214 + i * 86, font(400, 84, 'display'), C.text));
       text(ctx, subtitle(g), PAD, y + 214 + titleLines.length * 86 - 34, font(400, 26), C.muted, 'left', INNER);
@@ -55,7 +55,7 @@ function footer(g: Game, note: string): (page: number, pages: number) => Block {
     draw: (ctx, y) => {
       ctx.fillStyle = C.line;
       ctx.fillRect(PAD, y + 30, INNER, 2);
-      text(ctx, `Felt, ${dateLabel(g.startedAt)}. ${note}`, PAD, y + 76, font(400, 22), C.muted, 'left', INNER - 120);
+      text(ctx, `Nightcap, ${dateLabel(g.startedAt)}. ${note}`, PAD, y + 76, font(400, 22), C.muted, 'left', INNER - 120);
       if (pages > 1) text(ctx, `${page + 1} of ${pages}`, W - PAD, y + 76, font(500, 22, 'mono'), C.muted, 'right');
     },
   });
@@ -414,7 +414,7 @@ export function renderStandings(
     h: 300,
     draw: (ctx, y) => {
       feltMark(ctx, PAD, y + 64, 58);
-      text(ctx, 'Felt', PAD + 46, y + 108, font(400, 40, 'display'), C.text);
+      text(ctx, 'Nightcap', PAD + 46, y + 108, font(400, 40, 'display'), C.text);
       caption(ctx, 'Leaderboard', W - PAD, y + 104, { align: 'right' });
       text(ctx, 'Standings', PAD, y + 214, font(400, 88, 'display'), C.text);
       text(ctx, `${scope}, ${games.length} Games, ${board.length} Players`, PAD, y + 260, font(400, 26), C.muted, 'left', INNER);

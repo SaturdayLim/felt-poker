@@ -53,7 +53,7 @@ export function swipeCommits(dx: number, v: number, width: number): boolean {
 /* The banner shows both names while the finger drags: the title of the open tab fades out as the name of the tab beside it fades in.
    The band, the theme toggle and the tab bar do not move (the pages carry only their content). The ghost is a copy of the title
    placed where the title sits; a committed change takes it into the copy of the old page, which fades it out. */
-const NAMES: Record<string, string> = { '': 'Felt', games: 'Games', players: 'Players', settings: 'Settings' };
+const NAMES: Record<string, string> = { '': 'Nightcap', games: 'Games', players: 'Players', settings: 'Settings' };
 interface Ghost { el: HTMLElement; title: HTMLElement; name: string }
 let ghost: Ghost | null = null;
 const titleOf = (page: HTMLElement) => page.querySelector<HTMLElement>('.felt-header .felt-banner-brand, .felt-header .felt-banner-stack, .felt-header .felt-banner-title');
@@ -64,10 +64,10 @@ const setGhost = (page: HTMLElement, name: string | undefined, p: number) => {
   if (!title || !banner) return;
   if (!ghost) {
     const el = document.createElement('div');
-    el.className = name === 'Felt' ? 'felt-banner-ghost sat-wordmark' : 'felt-banner-ghost felt-banner-title';
+    el.className = name === 'Nightcap' ? 'felt-banner-ghost sat-wordmark' : 'felt-banner-ghost felt-banner-title';
     el.textContent = name;
     el.setAttribute('aria-hidden', 'true');
-    el.style.left = `${title.offsetLeft + (name === 'Felt' ? 30 : 0)}px`;
+    el.style.left = `${title.offsetLeft + (name === 'Nightcap' ? 30 : 0)}px`;
     banner.appendChild(el);
     ghost = { el, title, name };
   }

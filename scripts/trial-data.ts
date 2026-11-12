@@ -1,4 +1,4 @@
-/* Prints the trial report model for a Felt backup, for a quick check in the terminal.
+/* Prints the trial report model for a Nightcap backup, for a quick check in the terminal.
    Run: npx vite-node scripts/trial-data.ts trial/potato-backup.json */
 import { readFileSync } from 'node:fs';
 import { AWARD_LIST, buildModel } from '../src/report/model';

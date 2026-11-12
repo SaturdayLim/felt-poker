@@ -397,14 +397,14 @@ export function setImageTheme(theme: ReportTheme) {
   imageTheme = theme;
 }
 
-/** Image header: Felt mark, then the game title "Potato Day (1 Nov 2026)" and the subtitle "(1/2 * S$0.10 Cash)". */
+/** Image header: Nightcap mark, then the game title "Potato Day (1 Nov 2026)" and the subtitle "(1/2 * S$0.10 Cash)". */
 function imageHeader(m: TrialModel): Block {
   const lines = wrap(m.title, font(400, 62, 'display'), INNER).slice(0, 2);
   return {
     h: 190 + lines.length * 66,
     draw: (ctx, y) => {
       feltMark(ctx, PAD, y + 40, 48);
-      text(ctx, 'Felt', PAD + 42, y + 80, font(400, 34, 'display'), C.mark);
+      text(ctx, 'Nightcap', PAD + 42, y + 80, font(400, 34, 'display'), C.mark);
       lines.forEach((l, i) => text(ctx, l, PAD, y + 168 + i * 66, font(400, 62, 'display'), C.text));
       text(ctx, m.sub, PAD, y + 168 + lines.length * 66 - 22, font(400, 28), C.muted, 'left', INNER);
     },
@@ -420,7 +420,7 @@ export function composeImage(m: TrialModel, blocks: Block[], theme: ReportTheme)
   const [canvas] = paginate(all, {
     maxH: 1e7,
     top: () => ({ h: 0, draw: () => {} }),
-    footer: () => ({ h: 90, draw: (ctx, y) => { ctx.fillStyle = C.line; ctx.fillRect(PAD, y + 20, INNER, 2); text(ctx, 'Felt. Amounts are chips (1 chip = 1 small blind).', PAD, y + 62, font(400, 21), C.muted, 'left', INNER); } }),
+    footer: () => ({ h: 90, draw: (ctx, y) => { ctx.fillStyle = C.line; ctx.fillRect(PAD, y + 20, INNER, 2); text(ctx, 'Nightcap. Amounts are chips (1 chip = 1 small blind).', PAD, y + 62, font(400, 21), C.muted, 'left', INNER); } }),
     scale,
   });
   return canvas;

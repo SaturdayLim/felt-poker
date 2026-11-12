@@ -14,7 +14,7 @@ import { useResolvedTheme } from '../theme';
 import { CodeBoxes } from '../components/codeBoxes';
 import { FEATURES } from '../lib/features';
 import { codeMatches } from '../lib/codes';
-import { handsCsv, ledgerCsv, playersCsv } from '../report/csv';
+import { actionsCsv, handsCsv, ledgerCsv, playersCsv } from '../report/csv';
 import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
 import { useDragList } from '../components/dragList';
@@ -169,7 +169,7 @@ function General() {
   );
 }
 
-/** Info: the app version and update, and how to install Felt. Plain headings and text: nothing here hides in a tip. */
+/** Info: the app version and update, and how to install Nightcap. Plain headings and text: nothing here hides in a tip. */
 function InfoView() {
   /** Ask the service worker for a new build, then open the live site again so the phone downloads it.
       Data stays: it lives in this origin's storage, which the live site shares. */
@@ -208,7 +208,7 @@ function InfoView() {
 
       <section className="sat-glass sat-card sat-stack">
         <div className="sat-split"><h2 className="sat-h2">How to install</h2><InstallButton /></div>
-        <p className="sat-small sat-muted">Felt opens faster and works offline when it is on the home screen.</p>
+        <p className="sat-small sat-muted">Nightcap opens faster and works offline when it is on the home screen.</p>
         <InstallGuide />
       </section>
     </>
@@ -288,30 +288,31 @@ function DataView() {
 
   const backup = async () => {
     const data = exportBackup();
-    const f = textFile(JSON.stringify(data), `felt-backup-${fileDate()}.json`, 'application/json');
-    const r = await shareFiles([f], 'Felt backup');
+    const f = textFile(JSON.stringify(data), `nightcap-backup-${fileDate()}.json`, 'application/json');
+    const r = await shareFiles([f], 'Nightcap backup');
     if (r === 'downloaded') toast('Backup exported to Downloads');
     else if (r === 'shared') toast('Backup shared');
   };
   const restore = async (file: File) => {
     try {
       const data = JSON.parse(await file.text()) as BackupData;
-      if (data.app !== 'felt' || !Array.isArray(data.games) || !Array.isArray(data.players)) throw new Error('not a Felt backup');
+      if (data.app !== 'felt' || !Array.isArray(data.games) || !Array.isArray(data.players)) throw new Error('not a Nightcap backup');
       importBackup(data);
       toast(`Restored ${count(data.games.length, 'game')} and ${count(data.players.length, 'player')}`);
     } catch (e) {
-      toast(`Backup unable to load (${(e as Error).message}). Pick a felt-backup file.`);
+      toast(`Backup unable to load (${(e as Error).message}). Pick a Nightcap backup file.`);
     }
   };
   const exportAllCsv = async () => {
     const closed = games.filter((g) => g.status === 'closed').sort((a, b) => a.startedAt - b.startedAt);
     const d = fileDate();
     const r = await shareFiles([
-      textFile(playersCsv(closed, name), `felt-players-${d}.csv`),
-      textFile(handsCsv(closed, name), `felt-hands-${d}.csv`),
-      textFile(ledgerCsv(closed, name), `felt-ledger-${d}.csv`),
-    ], 'Felt data');
-    if (r === 'downloaded') toast('3 CSV files exported to Downloads');
+      textFile(playersCsv(closed, name), `nightcap-players-${d}.csv`),
+      textFile(handsCsv(closed, name), `nightcap-hands-${d}.csv`),
+      textFile(actionsCsv(closed, name), `nightcap-action-log-${d}.csv`),
+      textFile(ledgerCsv(closed, name), `nightcap-event-ledger-${d}.csv`),
+    ], 'Nightcap data');
+    if (r === 'downloaded') toast('4 CSV files exported to Downloads');
   };
 
   return (
@@ -348,7 +349,7 @@ function DataView() {
         </div>
         <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) restore(f); e.target.value = ''; }} />
-        <button className="sat-btn" onClick={exportAllCsv}><Icon name="file" /> Download all games (3 CSV files)</button>
+        <button className="sat-btn" onClick={exportAllCsv}><Icon name="file" /> Download all games (4 CSV files)</button>
         <button className="sat-btn sat-btn--ghost" style={{ color: 'var(--sat-neg)' }} onClick={() => {
           if (erase < 2) { setErase(erase + 1); toast(erase === 0 ? 'Tap 2 more times to erase all data' : 'Tap once more to erase all data for good'); return; }
           eraseAll();

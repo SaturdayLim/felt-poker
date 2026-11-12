@@ -18,7 +18,7 @@ export const effectivePairs = (h: Hand): Record<ID, Card[]> =>
   Object.fromEntries(Object.entries(fullPairs(h)).map(([p, c]) => [p, shownPair(h, p) ?? c]));
 
 /** Players whose cards for a hand cannot all be right: two players hold the same card, or a card is also on the
-    board or shown by another player. Felt tells each of them in private. A player's own shown cards always win over
+    board or shown by another player. Nightcap tells each of them in private. A player's own shown cards always win over
     that player's own entry, so a difference between the two is never a clash. */
 export function clashingPlayers(h: Hand): ID[] {
   const eff = effectivePairs(h);

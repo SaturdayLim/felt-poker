@@ -32,6 +32,8 @@ import JoinScan from './screens/JoinScan';
 import ReportLink from './screens/ReportLink';
 import { resumeSharing, watchGames } from './live/host';
 import { cleanReports } from './live/reportLink';
+import { WATCH } from './lib/watch';
+import Spectator from './screens/Spectator';
 
 const NAV = [
   { path: '', label: 'Home', icon: 'home' },
@@ -72,12 +74,13 @@ export default function App() {
   useEffect(() => { applyPalette(cleanPalette(palette)); }, [palette, shownTheme]);
   // live link: reconnect to rooms that were open, and publish changes to shared games
   useEffect(() => {
-    if (!hydrated) return;
+    // the spectator window only reads: no live room, no clean-up
+    if (!hydrated || WATCH) return;
     resumeSharing();
     cleanReports().catch(() => undefined);
     return watchGames();
   }, [hydrated]);
-  useEffect(() => { if (hydrated) try { localStorage.setItem(SPLASH_KEY, String(splashMs)); } catch { /* private mode */ } }, [hydrated, splashMs]);
+  useEffect(() => { if (hydrated && !WATCH) try { localStorage.setItem(SPLASH_KEY, String(splashMs)); } catch { /* private mode */ } }, [hydrated, splashMs]);
   // an open keyboard must not cover the field being typed in
   useEffect(() => {
     const vv = window.visualViewport;
@@ -141,7 +144,7 @@ export default function App() {
     return () => t.forEach((x) => window.clearTimeout(x));
   }, [hydrated]);
   if (!hydrated) return <div className="felt-app" />;
-  // Host or Player: the Start view fades into the next screen (the Felt mark morphs into the Home banner mark), never a cut
+  // Host or Player: the Start view fades into the next screen (the Nightcap mark morphs into the Home banner mark), never a cut
   const pickRole = (k: 'host' | 'player') => {
     try { sessionStorage.setItem('felt-role', k); } catch { /* private mode */ }
     const root = document.documentElement;
@@ -168,9 +171,11 @@ export default function App() {
     else if (c === 'close') screen = <CloseTable gameId={b} />;
     else if (c === 'settle') screen = <CloseTable gameId={b} view="settle" />;
     else if (c === 'report') screen = <Report gameId={b} />;
+    else if (c === 'table') screen = <Spectator gameId={b} />;
     else if (c === 'hands') screen = <GameLive gameId={b} initialTab="hands" />;
     else screen = <GameLive gameId={b} />;
   }
+  else if (a === 'watch' && b) { screen = <Spectator gameId={b} alone />; nav = false; }
   else if (a === 'join' && !b) { screen = <JoinScan />; nav = false; }
   else if (a === 'r' && b && c) { screen = <ReportLink id={b} reportKey={c} />; nav = false; }
   else if (a === 'join' && b) { screen = <Join key={`${b}/${c ?? ''}`} room={b} keyFromLink={c} />; nav = false; }
@@ -179,7 +184,7 @@ export default function App() {
   else if (a === 'players') screen = <Players view={b === 'board' ? 'board' : b === 'stats' ? 'stats' : 'list'} pid={c} />;
   else if (a === 'group' && b) screen = <Group groupId={b} />;
   else if (a === 'settings') screen = <Settings view={settingsView(b)} />;
-  // each time Felt opens: Host or Player first; a link to a game skips it
+  // each time Nightcap opens: Host or Player first; a link to a game skips it
   else if (!role) { screen = <Start onHost={() => pickRole('host')} onPlayer={() => pickRole('player')} />; nav = false; }
   else screen = <Home />;
 

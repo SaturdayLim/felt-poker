@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sheet } from './ui';
 
-/* Install help. Felt opened in a browser tab on a phone that can run it gets one pop-up that says how to install it.
+/* Install help. Nightcap opened in a browser tab on a phone that can run it gets one pop-up that says how to install it.
    The version limits are the ones of app/index.html: iOS 16.2 or later in Safari, or Chrome 111 or later on Android. */
 
 type Prompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
 
 export type Platform = 'ios' | 'android' | null;
 
-/** The phone Felt can install on, from the browser name and version. Null when it is neither. */
+/** The phone Nightcap can install on, from the browser name and version. Null when it is neither. */
 export function installPlatform(ua = navigator.userAgent): Platform {
   const ios = /iP(hone|ad|od)/.test(ua);
   if (ios) {
@@ -30,12 +30,12 @@ export function installPlatform(ua = navigator.userAgent): Platform {
   return null;
 }
 
-/** Felt runs as an installed app (home screen), not in a browser tab. */
+/** Nightcap runs as an installed app (home screen), not in a browser tab. */
 export const isStandalone = () => !!window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 const STEPS: Record<'ios' | 'android', string[]> = {
-  ios: ['Open Felt in Safari.', 'Tap the Share button.', 'Tap Add to Home Screen.', 'Tap Add.', 'Open Felt from the home screen.'],
-  android: ['Open Felt in Chrome.', 'Tap the menu button (three dots).', 'Tap Install app.', 'Tap Install.', 'Open Felt from the home screen.'],
+  ios: ['Open Nightcap in Safari.', 'Tap the Share button.', 'Tap Add to Home Screen.', 'Tap Add.', 'Open Nightcap from the home screen.'],
+  android: ['Open Nightcap in Chrome.', 'Tap the menu button (three dots).', 'Tap Install app.', 'Tap Install.', 'Open Nightcap from the home screen.'],
 };
 
 function useDeferred() {
@@ -68,8 +68,8 @@ export function InstallPopup() {
   if (!platform) return null;
   const close = () => { setOpen(false); try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* private mode */ } };
   return (
-    <Sheet open={open} onClose={close} title="Install Felt">
-      <p className="sat-small">Felt opens faster and works offline when it is on the home screen.</p>
+    <Sheet open={open} onClose={close} title="Install Nightcap">
+      <p className="sat-small">Nightcap opens faster and works offline when it is on the home screen.</p>
       {platform === 'android' && prompt
         ? <button type="button" className="sat-btn sat-btn--primary felt-install-btn" onClick={() => { void run(prompt); close(); }}>Install</button>
         : <Steps platform={platform} />}

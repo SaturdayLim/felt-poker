@@ -25,7 +25,7 @@ export default function Home() {
 
   return (
     <div className="felt-page">
-      <Header brand banner="Felt" right={<><button type="button" className="felt-joinbtn" data-press="select" onClick={() => go('join')} aria-label="Join a game with the camera"><Icon name="qr" /></button></>} />
+      <Header brand banner="Nightcap" right={<><button type="button" className="felt-joinbtn" data-press="select" onClick={() => go('join')} aria-label="Join a game with the camera"><Icon name="qr" /></button></>} />
       <div className="sat-stack">
         {live.map((g) => {
           const seated = g.playerIds.filter((p) => playerStatus(g, p) !== 'out').length;

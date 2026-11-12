@@ -1,4 +1,4 @@
-/* Felt layer on top of the Saturday Signature kit (src/saturday, loaded first in main.tsx).
+/* Nightcap layer on top of the Saturday Signature kit (src/saturday, loaded first in main.tsx).
    Standard parts use the kit classes (.sat-glass, .sat-btn, .sat-seg, .sat-chip, .sat-switch, .sat-tip,
    .sat-sheet, .sat-bottombar, .sat-table, ...). This file only adds what the kit does not have:
    the app shell, tab bar, playing cards, card picker, seat table and list rows.
@@ -12,7 +12,7 @@
   --felt-card-ink: #1C1E21;
   --felt-card-ice: #EBF1F5;
   --felt-card-blue: #0052CC;
-  /* The S of the card back: the gold of the load screen S (dark-theme --sat-mark of the Felt skin), fixed in both themes */
+  /* The S of the card back: the gold of the load screen S (dark-theme --sat-mark of the Nightcap skin), fixed in both themes */
   --felt-card-gold: #CDB98A;
 }
 
@@ -72,7 +72,7 @@ body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent
 .felt-nav a[aria-current="page"] .felt-rail-label { color: var(--sat-text); }
 
 /* The kit hides .sat-bottombar at 640px and up (desktop puts actions in the header).
-   Felt is a one-column phone app at every width, so keep the bar and centre it on the column. */
+   Nightcap is a one-column phone app at every width, so keep the bar and centre it on the column. */
 @media (min-width: 640px) {
   .felt-app .sat-bottombar { display: flex; gap: var(--sat-space-2); position: fixed; z-index: 45; padding: var(--sat-space-2); border-radius: var(--sat-radius-lg);
     left: 50%; transform: translateX(-50%); width: min(496px, calc(100vw - 24px)); bottom: calc(var(--sat-space-3) + var(--felt-safe-bottom)); }
@@ -158,7 +158,7 @@ dialog.sat-sheet, .sat-tip-body, .felt-toast { box-shadow: var(--felt-elev-3); }
 /* Reduced motion keeps a short cross-fade between screens: nothing cuts, nothing travels */
 html[data-calm]::view-transition-old(root), html[data-calm]::view-transition-new(root) { animation-duration: 150ms; }
 
-/* Host or Player: the Start view and the next screen cross-fade slowly, and the Felt mark glides from the Start view to the Home banner */
+/* Host or Player: the Start view and the next screen cross-fade slowly, and the Nightcap mark glides from the Start view to the Home banner */
 html.felt-roleswap::view-transition-old(root), html.felt-roleswap::view-transition-new(root) { animation-duration: 400ms; animation-timing-function: ease-in-out; }
 html.felt-roleswap::view-transition-new(felt-nav) { animation: felt-vt-in 400ms ease-out both; }
 ::view-transition-group(felt-logo) { animation-duration: 520ms; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
@@ -738,7 +738,7 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-tiles > * { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: var(--sat-space-3); min-width: 0; color: inherit; text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
 .felt-tiles b { font-size: 1.25rem; }
 
-/* Face-down card: white Felt mark on cobalt, gold trim */
+/* Face-down card: white Nightcap mark on cobalt, gold trim */
 /* Card back (card-design skill): ink field, one ice border about 4% of the height, gold S at 40% of the height, the highlight over chips at 50%. */
 .felt-card.felt-cardback { background: var(--felt-card-ink); --cb: 2px; border: var(--cb) solid var(--felt-card-ice); display: inline-grid; place-items: center; --sat-mark: var(--felt-card-gold); --sat-mark-stroke: 2.2px; }
 .felt-card.felt-cardback.lg { --cb: 3px; --sat-mark-stroke: 3px; }
@@ -1002,7 +1002,7 @@ html.felt-boot #felt-boot { display: block; }
 /* the wordmark is already there: the real Start view must not fade it in a second time */
 html.felt-boot .felt-start-mark .sat-wordmark { animation: none; }
 
-/* Start: Host or Player, the first view when Felt opens */
+/* Start: Host or Player, the first view when Nightcap opens */
 /* The wordmark and choices fade in on their own (opacity only, short). The app fade on first load runs at once here, so the two do not stack.
    The mark does not fade: it is the shared element that morphs from the load screen (view-transition-name felt-logo, see landing.css) */
 .felt-app:has(.felt-start-view) { animation-duration: 1ms; }

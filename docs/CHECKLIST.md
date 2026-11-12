@@ -7,8 +7,7 @@ Sources: the Fable advisor review (11 Nov 2026, IDs A1 to A25), agent reports fo
 ## Waiting for the owner
 
 - [ ] Players > Stats > a player (tap the name chip): two game nets with no note ("Net result +336" against "Net = +340 chips") (A23).
-- [ ] Games > a closed game > Results and settle up > Export > Full Data > Data tick: the owner wrote "action log" for the third CSV file; the file is the event ledger. Add a real action log CSV?
-- [ ] Any main tab > tab bar at the bottom: the small dots on the rail were not found in Chromium or WebKit (1.7.4). Do they show at rest or while the chip rolls, and on the line, in the pockets or round the chip? An iPhone screenshot settles it.
+- [ ] Any main tab > tab bar: the rail dots (1.8.0). The owner video showed stale stroke pixels at the old low points of the line while the chip rolled (iOS repaints a changed path in its fill box, not its stroke). Fixed by stretching the pocket box over the whole rail (navRail.tsx `fill`). Not seen on an iPhone yet.
 
 ## Answered by the owner (13 Nov 2026)
 
@@ -35,6 +34,10 @@ Sources: the Fable advisor review (11 Nov 2026, IDs A1 to A25), agent reports fo
 - [ ] `SourceTip` (ui.tsx) has no user, though CLAUDE.md keeps it.
 
 ## Not checked
+
+- [ ] 1.8.0 on a real iPhone: the load screen glide into the Start view (in-page now, no page change), the rail dots fix, Export rows shut on open (explicit heights now, no 0fr grid).
+- [ ] 1.8.0 Table: the chip slides, button glide and card flips frame by frame (the Browser pane clock stalls animations; end states only). A count-mode hand (totals only) on the Table. A run-it-twice hand shows run 1's board only.
+- [ ] 1.8.0 Table on a TV over a cast: only 1280 x 720 and 375 x 812 were seen.
 
 - [ ] A real iPhone: haptics, keyboard and sheets, camera scan, Safari back swipe, clipboard copy of the link and of images, the nav bar height at launch.
 - [ ] 1.7.3 on a real iPhone: nav bar after load screen and Host, native share sheet with more than 10 hand images, sheet swipes with a field focused, card back in Safari.

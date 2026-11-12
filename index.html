@@ -3,57 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <!-- Saturday Signature: theme before paint (stops a light flash on dark devices). Keep before the stylesheets. -->
-    <script>try{var t=localStorage.getItem('sat-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
-    <!-- Motion: full unless the phone asks for less. Settings, Motion can overrule the phone. -->
-    <script>try{var fm=localStorage.getItem('felt-motion');if(fm==='calm'||(fm!=='full'&&matchMedia('(prefers-reduced-motion: reduce)').matches))document.documentElement.setAttribute('data-calm','')}catch(e){}</script>
-    <!-- Opening screen length, set in the app (Settings, Opening screen). 0 = skip straight to the app. -->
-    <script>try{sessionStorage.setItem('felt-splashed','1')}catch(e){}var FELT_SPLASH_MS=3000;try{var m=localStorage.getItem('felt-splash-ms');if(m!==null&&!isNaN(+m))FELT_SPLASH_MS=+m}catch(e){}document.documentElement.style.setProperty('--k',FELT_SPLASH_MS/3000);if(FELT_SPLASH_MS<=0){document.documentElement.style.visibility='hidden';location.replace('./app/'+location.hash)}</script>
+    <!-- The site root opens the app at once. The load screen plays inside the app page (app/index.html), so it can morph into the first screen. -->
+    <script>location.replace('./app/' + location.hash)</script>
+    <style>html,body{margin:0;background:#1C1E21}@media (prefers-color-scheme: light){html,body{background:#EBF1F5}}</style>
     <meta name="theme-color" content="#1C1E21" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Felt" />
-    <meta name="description" content="Felt: an offline Texas Hold'em home game tracker." />
+    <meta name="apple-mobile-web-app-title" content="Nightcap" />
+    <meta name="description" content="Nightcap: an offline Texas Hold'em home game tracker." />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <title>Felt</title>
+    <title>Nightcap</title>
   </head>
-  <body class="sat">
-    <!-- Splash: two grey chips (six bands each) drop one after the other and fade back, then the gold S draws around them and glows. The name settles, then the page fades and hands over to the app.
-         Tap or press a key to skip. Length comes from FELT_SPLASH_MS above (default 3s). -->
-    <main class="felt-splash" aria-label="Felt is loading">
-      <div class="felt-splash-lockup">
-        <svg class="sat-mark felt-splash-mark" viewBox="-2 -2 68 104" aria-hidden="true">
-          <defs><filter id="felt-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4" /></filter></defs>
-          <!-- two whole chips drop in grey, bottom one first, then fade back so the S carries the frame -->
-          <g class="chip chip-b"><g class="face"><circle class="disc" cx="32" cy="74" r="22.5" /><circle class="ring" cx="32" cy="74" r="15" /><g class="band"><path d="M46.72 82.50 L51.49 85.25" /><path d="M32.00 91.00 L32.00 96.50" /><path d="M17.28 82.50 L12.51 85.25" /><path d="M17.28 65.50 L12.51 62.75" /><path d="M32.00 57.00 L32.00 51.50" /><path d="M46.72 65.50 L51.49 62.75" /></g></g></g>
-          <g class="chip chip-t"><g class="face"><circle class="disc" cx="32" cy="26" r="22.5" /><circle class="ring" cx="32" cy="26" r="15" /><g class="band"><path d="M46.72 34.50 L51.49 37.25" /><path d="M32.00 43.00 L32.00 48.50" /><path d="M17.28 34.50 L12.51 37.25" /><path d="M17.28 17.50 L12.51 14.75" /><path d="M32.00 9.00 L32.00 3.50" /><path d="M46.72 17.50 L51.49 14.75" /></g></g></g>
-          <!-- the gold S draws around the chips and glows (the blurred copy draws with it) -->
-          <path class="s-glow" pathLength="1" filter="url(#felt-glow)" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-          <path class="s" pathLength="1" d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43" />
-        </svg>
-        <h1 class="sat-wordmark felt-splash-name">Felt</h1>
-      </div>
-      <span class="felt-splash-version sat-mono">v__FELT_VERSION__</span>
-      <noscript><a class="felt-splash-skip" href="./app/">Open Felt</a></noscript>
-    </main>
-    <script>
-      (function () {
-        var reduce = document.documentElement.hasAttribute('data-calm');
-        var left = false;
-        function enter() {
-          if (left) return;
-          left = true;
-          document.body.classList.add('is-leaving');
-          // replace, not assign: Back from the app should not land on the splash again
-          setTimeout(function () { location.replace('./app/' + location.hash); }, reduce ? 0 : 420);
-        }
-        setTimeout(enter, reduce ? Math.min(1200, FELT_SPLASH_MS) : FELT_SPLASH_MS);
-        addEventListener('pointerdown', enter);
-        addEventListener('keydown', enter);
-      })();
-    </script>
-    <script type="module" src="/src/landing.ts"></script>
+  <body>
+    <noscript><a href="./app/">Open Nightcap</a></noscript>
   </body>
 </html>

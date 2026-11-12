@@ -364,7 +364,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const bountyPayers = bountyTo ? log.dealt.filter((p) => p !== bountyTo && !busted.includes(p) && !(st.bountyOff ?? []).includes(p)) : [];
   const bountyShort: Record<ID, number> = Object.fromEntries(bountyPayers.map((p) => [p, leftAfter(p)]).filter(([, l]) => l !== undefined && (l as number) < bountyAmt));
   const payOf = (p: ID) => bountyShort[p] ?? bountyAmt;
-  // A shown 7-2 gets a Pay bounty tag: pressed when the bounty is paid to it. Felt presses it when the
+  // A shown 7-2 gets a Pay bounty tag: pressed when the bounty is paid to it. Nightcap presses it when the
   // game's rule is met; the table can press it anyway, or clear it.
   const shown27 = (p: ID) => bountyOn && is27((st.shown[p] ?? []).filter(Boolean) as Card[], bountyRule.suited);
   const payTag = (p: ID) => (

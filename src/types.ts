@@ -77,11 +77,11 @@ export interface Act {
   k: 'call' | 'fold' | 'bet' | 'allin';
   /** Bet: the player's total wager on this street after the bet. */
   to?: number;
-  /** Filled in by Felt (a box skipped over): check, or fold when facing a bet. */
+  /** Filled in by Nightcap (a box skipped over): check, or fold when facing a bet. */
   d?: boolean;
   /** The bet this action answered. If an earlier change moves it, the action is dropped. */
   at?: number;
-  /** All-in logged at the lower end of a range stack: the real stack is unknown, so Felt asks for a count (needsCount). */
+  /** All-in logged at the lower end of a range stack: the real stack is unknown, so Nightcap asks for a count (needsCount). */
   est?: boolean;
   /** Acted in the dark (before seeing the cards). Preflop, a dark raise is a straddle. */
   dark?: boolean;

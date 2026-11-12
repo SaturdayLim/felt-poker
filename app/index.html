@@ -7,8 +7,9 @@
     <script>try{var t=localStorage.getItem('sat-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
     <!-- Motion: full unless the phone asks for less. Settings, Motion can overrule the phone. -->
     <script>try{var fm=localStorage.getItem('felt-motion');if(fm==='calm'||(fm!=='full'&&matchMedia('(prefers-reduced-motion: reduce)').matches))document.documentElement.setAttribute('data-calm','')}catch(e){}</script>
-    <!-- A launch that lands here directly (an icon saved from this page) still plays the opening screen once. A link with a route goes straight in. -->
-    <script>try{if(!sessionStorage.getItem('felt-splashed')&&(!location.hash||location.hash==='#/')&&localStorage.getItem('felt-splash-ms')!=='0'){document.documentElement.style.visibility='hidden';location.replace('../')}}catch(e){}</script>
+    <!-- Load screen: the first launch of a session with no route plays it here, over the app, so it can morph into the first screen.
+         Its length is set in the app (Settings, Animation speed); 0 skips it. --k scales the timeline. -->
+    <script>var FELT_SPLASH_MS=3000;try{var m=localStorage.getItem('felt-splash-ms');if(m!==null&&!isNaN(+m))FELT_SPLASH_MS=+m;if(!sessionStorage.getItem('felt-splashed')&&(!location.hash||location.hash==='#/')&&FELT_SPLASH_MS>0){document.documentElement.classList.add('felt-splash','felt-landing');document.documentElement.style.setProperty('--k',FELT_SPLASH_MS/3000)}sessionStorage.setItem('felt-splashed','1')}catch(e){}</script>
     <!-- A launch with no role chosen yet shows the Start view: its static copy below paints in the first frame, so the load screen's mark has a place to land. -->
     <script>try{if(!sessionStorage.getItem('felt-role')&&(!location.hash||location.hash==='#/'))document.documentElement.classList.add('felt-boot')}catch(e){}</script>
     <link rel="expect" href="#felt-boot" blocking="render" />
@@ -18,22 +19,107 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Felt" />
+    <meta name="apple-mobile-web-app-title" content="Nightcap" />
     <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
     <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
-    <title>Felt</title>
+    <title>Nightcap</title>
   </head>
   <body class="sat">
+    <!-- Load screen (src/css/splash.css): two grey chips (six bands each) drop one after the other and fade back, then the gold S
+         draws around them and glows, and the name settles. Tap or press a key to skip. The script below hands it over. -->
+    <div id="felt-splash" aria-label="Nightcap is loading">
+      <div class="felt-splash-bg"></div>
+      <div class="felt-splash-lockup">
+        <svg class="sat-mark felt-splash-mark" viewBox="-2 -2 68 104" aria-hidden="true">
+          <defs><filter id="felt-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4" /></filter></defs>
+          <!-- two whole chips drop in grey, bottom one first, then fade back so the S carries the frame -->
+          <g class="chip chip-b"><g class="face"><circle class="disc" cx="32" cy="74" r="18" /><circle class="ring" cx="32" cy="74" r="12" /><g class="band"><path d="M43.78 80.80 L47.59 83.00" /><path d="M32.00 87.60 L32.00 92.00" /><path d="M20.22 80.80 L16.41 83.00" /><path d="M20.22 67.20 L16.41 65.00" /><path d="M32.00 60.40 L32.00 56.00" /><path d="M43.78 67.20 L47.59 65.00" /></g></g></g>
+          <g class="chip chip-t"><g class="face"><circle class="disc" cx="32" cy="26" r="18" /><circle class="ring" cx="32" cy="26" r="12" /><g class="band"><path d="M43.78 32.80 L47.59 35.00" /><path d="M32.00 39.60 L32.00 44.00" /><path d="M20.22 32.80 L16.41 35.00" /><path d="M20.22 19.20 L16.41 17.00" /><path d="M32.00 12.40 L32.00 8.00" /><path d="M43.78 19.20 L47.59 17.00" /></g></g></g>
+          <!-- the gold S draws around the chips and glows (the blurred copy draws with it) -->
+          <path class="s-glow" pathLength="1" filter="url(#felt-glow)" d="M52.78 14 A24 24 0 1 0 32 50 A24 24 0 1 1 11.22 86" />
+          <path class="s" pathLength="1" d="M52.78 14 A24 24 0 1 0 32 50 A24 24 0 1 1 11.22 86" />
+        </svg>
+        <h1 class="sat-wordmark felt-splash-name">Nightcap</h1>
+      </div>
+      <span class="felt-splash-version sat-mono">v__FELT_VERSION__</span>
+    </div>
+    <script>
+      // Hand-over: once the length is up (or on a tap), the mark and the name glide and shrink onto the first screen's mark and
+      // name while the splash background fades. Reduced motion: a 150 ms cross-fade with no travel. Nothing cuts.
+      (function () {
+        var root = document.documentElement;
+        if (!root.classList.contains('felt-splash')) return;
+        var splash = document.getElementById('felt-splash');
+        var calm = root.hasAttribute('data-calm');
+        var left = false;
+        var EASE = 'cubic-bezier(0.65, 0, 0.35, 1)', MS = 560;
+        function target() {
+          var box = document.querySelector('#felt-boot .felt-start-mark') || document.querySelector('#root .felt-start-mark') || document.querySelector('#root .felt-banner-brand');
+          if (!box) return null;
+          var mark = box.querySelector('.sat-mark'), name = box.querySelector('.sat-wordmark');
+          if (!mark || !mark.getBoundingClientRect().width) return null;
+          return { mark: mark, name: name };
+        }
+        function fly(el, to, extra) {
+          var a = el.getBoundingClientRect(), b = to.getBoundingClientRect();
+          var s = b.height / a.height;
+          var from = getComputedStyle(el).opacity;
+          return el.animate([
+            { transform: 'translate(0px, 0px) scale(1)', opacity: from },
+            { transform: 'translate(' + (b.left - a.left) + 'px, ' + (b.top - a.top) + 'px) scale(' + s + ')', opacity: extra ? 1 : from }
+          ], { duration: MS, easing: EASE, fill: 'forwards' });
+        }
+        function done() {
+          root.classList.remove('felt-splash', 'felt-landing');
+          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        }
+        function hand(t) {
+          var bg = splash.querySelector('.felt-splash-bg'), ver = splash.querySelector('.felt-splash-version');
+          var mark = splash.querySelector('.felt-splash-mark'), name = splash.querySelector('.felt-splash-name');
+          if (calm || !t || !splash.animate) {
+            // no travel: the first screen's own mark shows under a fading splash
+            root.classList.remove('felt-landing');
+            var f = splash.animate ? splash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: calm ? 150 : 320, easing: 'ease-out', fill: 'forwards' }) : null;
+            if (f) f.onfinish = done; else done();
+            return;
+          }
+          // a build-up still running (a tap to skip) plays out fast during the glide
+          try { splash.getAnimations({ subtree: true }).forEach(function (x) { x.playbackRate = 4; }); } catch (e) { /* old browser */ }
+          var m = fly(mark, t.mark);
+          if (t.name) fly(name, t.name, true);
+          ver.animate([{ opacity: getComputedStyle(ver).opacity }, { opacity: 0 }], { duration: 200, easing: 'ease-in', fill: 'forwards' });
+          bg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MS, easing: 'ease-in-out', fill: 'forwards' });
+          m.onfinish = function () {
+            // the first screen's mark and name take over in the same place, then the splash goes
+            root.classList.remove('felt-landing');
+            requestAnimationFrame(done);
+          };
+        }
+        function enter() {
+          if (left) return;
+          left = true;
+          var t0 = performance.now();
+          // the first screen may still be drawing (a saved role opens Home): wait for its mark, up to 1.5 s, then fade
+          (function wait() {
+            var t = target();
+            if (t || performance.now() - t0 > 1500) hand(t); else requestAnimationFrame(wait);
+          })();
+        }
+        setTimeout(enter, calm ? Math.min(1200, FELT_SPLASH_MS) : FELT_SPLASH_MS);
+        splash.addEventListener('pointerdown', enter);
+        addEventListener('keydown', enter);
+      })();
+    </script>
     <div id="root"></div>
     <div id="felt-boot" aria-hidden="true">
       <div class="felt-page felt-start-view">
         <div class="felt-start-mark">
           <svg class="sat-mark" style="--sat-mark-h:64px" viewBox="-2 -2 68 104" aria-hidden="true">
-            <g opacity="0.22"><circle cx="32" cy="26" r="22.5" fill="var(--sat-muted)" stroke="none"/><circle cx="32" cy="26" r="15" stroke="var(--sat-bg)" stroke-width="1.4" opacity="0.85" vector-effect="none"/><path d="M46.72 34.50 L51.49 37.25 M32.00 43.00 L32.00 48.50 M17.28 34.50 L12.51 37.25 M17.28 17.50 L12.51 14.75 M32.00 9.00 L32.00 3.50 M46.72 17.50 L51.49 14.75" style="stroke:var(--sat-bg);stroke-width:5;stroke-linecap:butt;vector-effect:none"/></g>
-            <g opacity="0.22"><circle cx="32" cy="74" r="22.5" fill="var(--sat-muted)" stroke="none"/><circle cx="32" cy="74" r="15" stroke="var(--sat-bg)" stroke-width="1.4" opacity="0.85" vector-effect="none"/><path d="M46.72 82.50 L51.49 85.25 M32.00 91.00 L32.00 96.50 M17.28 82.50 L12.51 85.25 M17.28 65.50 L12.51 62.75 M32.00 57.00 L32.00 51.50 M46.72 65.50 L51.49 62.75" style="stroke:var(--sat-bg);stroke-width:5;stroke-linecap:butt;vector-effect:none"/></g>
-            <path d="M42.52 47.57 A24 24 0 1 0 32 50 A24 24 0 1 1 21.48 52.43"/>
+            <g opacity="0.22"><circle cx="32" cy="26" r="18" fill="var(--sat-muted)" stroke="none"/><circle cx="32" cy="26" r="12" stroke="var(--sat-bg)" stroke-width="1.4" opacity="0.85" vector-effect="none"/><path d="M43.78 32.80 L47.59 35.00 M32.00 39.60 L32.00 44.00 M20.22 32.80 L16.41 35.00 M20.22 19.20 L16.41 17.00 M32.00 12.40 L32.00 8.00 M43.78 19.20 L47.59 17.00" style="stroke:var(--sat-bg);stroke-width:5;stroke-linecap:butt;vector-effect:none"/></g>
+            <g opacity="0.22"><circle cx="32" cy="74" r="18" fill="var(--sat-muted)" stroke="none"/><circle cx="32" cy="74" r="12" stroke="var(--sat-bg)" stroke-width="1.4" opacity="0.85" vector-effect="none"/><path d="M43.78 80.80 L47.59 83.00 M32.00 87.60 L32.00 92.00 M20.22 80.80 L16.41 83.00 M20.22 67.20 L16.41 65.00 M32.00 60.40 L32.00 56.00 M43.78 67.20 L47.59 65.00" style="stroke:var(--sat-bg);stroke-width:5;stroke-linecap:butt;vector-effect:none"/></g>
+            <path d="M52.78 14 A24 24 0 1 0 32 50 A24 24 0 1 1 11.22 86"/>
           </svg>
-          <span class="sat-wordmark">Felt</span>
+          <span class="sat-wordmark">Nightcap</span>
         </div>
         <div class="felt-start-choices">
           <div class="felt-start-choice"><i></i><b>Host</b><span>Run the game and log hands on this phone.</span></div>
@@ -55,13 +141,13 @@
         var box = document.createElement('div');
         box.id = 'felt-floor';
         box.setAttribute('role', 'alertdialog');
-        box.setAttribute('aria-label', 'This phone cannot run Felt');
+        box.setAttribute('aria-label', 'This phone cannot run Nightcap');
         box.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#1C1E21;color:#EBF1F5;padding:32px 24px;font:16px/1.45 -apple-system,Roboto,sans-serif;overflow:auto';
         var line = function (tag, text, style) { var e = document.createElement(tag); e.textContent = text; e.style.cssText = style || 'margin:0 0 14px'; box.appendChild(e); return e; };
-        line('h1', 'This phone cannot run Felt', 'margin:0 0 14px;font-size:26px;line-height:1.2');
-        line('p', 'Felt needs iOS 16.2 or later, or Chrome 111 or later.');
+        line('h1', 'This phone cannot run Nightcap', 'margin:0 0 14px;font-size:26px;line-height:1.2');
+        line('p', 'Nightcap needs iOS 16.2 or later, or Chrome 111 or later.');
         line('p', 'This browser does not have: ' + missing.join(', ') + '.');
-        line('p', 'Update the phone, or open Felt on a newer phone.');
+        line('p', 'Update the phone, or open Nightcap on a newer phone.');
         var go = line('button', 'Open anyway', 'margin-top:10px;min-height:48px;padding:0 20px;border-radius:14px;border:1px solid #A7B1BD;background:none;color:inherit;font:inherit;font-weight:600');
         go.onclick = function () { box.parentNode.removeChild(box); };
         document.body.appendChild(box);

@@ -5,7 +5,7 @@ import { useGame, useStore, usePlayerName } from '../store';
 import { back, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, toast } from '../components/ui';
 import { loadReportFonts } from '../report/canvas';
-import { handsCsv, ledgerCsv, outputName, playersCsv, type PotCoding } from '../report/csv';
+import { actionsCsv, handsCsv, ledgerCsv, outputName, playersCsv, type PotCoding } from '../report/csv';
 import { PNG_SETS, renderPngParts, type PngSet } from '../report/pngSets';
 import { canvasToFile, shareFiles, textFile } from '../report/share';
 import { MIN_LOG_HANDS, MIN_REPORT_HANDS, logReady, makeHtmlReport, recordedHands, reportReady } from '../report/htmlReport';
@@ -21,7 +21,7 @@ const KEEP = { pot: 'felt-report-potcoding' };
 function readKept<T>(key: string, fallback: T): T { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; } }
 function keep(key: string, v: unknown) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode: the choice lasts for this visit only */ } }
 
-type ExpKey = 'expDashboard' | 'expActionLogTick' | 'expSnapshot' | 'expSummary' | 'expDetails' | 'expPlaystyle' | 'expLog' | 'expData' | 'expPlayers' | 'expHand' | 'expLedger';
+type ExpKey = 'expDashboard' | 'expActionLogTick' | 'expSnapshot' | 'expSummary' | 'expDetails' | 'expPlaystyle' | 'expLog' | 'expData' | 'expPlayers' | 'expHand' | 'expActions' | 'expLedger';
 const Tip = ({ k }: { k: ExpKey }) => <Help k={k} />;
 
 /** Copies inside the press: the clipboard call starts now and the data arrives later, which iOS Safari allows.
@@ -59,8 +59,27 @@ function ActBtn({ icon, label, onAct, disabled }: { icon: string; label: string;
 }
 
 /** A block that opens by growing (the same fold as the Players lists). */
+/** A row body that grows open under its head and shrinks shut. The height is set on the element (0 when shut, auto when open)
+    and animated from the measured size: iOS Safari did not collapse a 0fr grid row on the first layout, so every shut row
+    showed at full height, blank, until a tap laid it out again. Reduced motion: a 150 ms fade. Animation speed Off: no motion. */
 function Fold({ open, children }: { open: boolean; children: React.ReactNode }) {
-  return <div className="felt-fold-wrap" data-open={open} {...(open ? {} : { inert: '' })}><div className="felt-fold-inner">{children}</div></div>;
+  const el = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
+  useLayoutEffect(() => {
+    const e = el.current;
+    if (!e) return;
+    if (first.current) { first.current = false; e.style.height = open ? 'auto' : '0px'; return; }
+    const from = e.getBoundingClientRect().height;
+    e.style.height = open ? 'auto' : '0px';
+    const to = open ? e.getBoundingClientRect().height : 0;
+    e.getAnimations().forEach((a) => a.cancel());
+    if (motionOff() || from === to) return;
+    const ms = calm() ? 150 : 260;
+    e.animate(calm()
+      ? [{ height: `${to}px`, opacity: open ? 0 : 1 }, { height: `${to}px`, opacity: open ? 1 : 0 }]
+      : [{ height: `${from}px`, opacity: open ? 0 : 1 }, { height: `${to}px`, opacity: open ? 1 : 0 }], { duration: ms, easing: DRAWER });
+  }, [open]);
+  return <div ref={el} className="felt-xfold" data-open={open} {...(open ? {} : { inert: '' })}><div className="felt-xfold-inner">{children}</div></div>;
 }
 
 type Loaded = { imgs?: string[]; files?: File[]; html?: string };
@@ -204,7 +223,7 @@ function ReportBody({ g }: { g: NonNullable<ReturnType<typeof useGame>> }) {
   const [gameLog, setGameLog] = useState<boolean>(false);
   const [potCoding, setPotCoding] = useState<PotCoding>(() => (readKept<PotCoding>(KEEP.pot, 'street') === 'player' ? 'player' : 'street'));
   const [snap, setSnap] = useState<Record<Snap, boolean>>({ summary: false, detailed: false, playstyle: false });
-  const [csv, setCsv] = useState({ players: false, hand: false, data: false });
+  const [csv, setCsv] = useState({ players: false, hand: false, actions: false, data: false });
   /** Hands ticked in the Full Action Log; none is ticked by default. */
   const [on, setOn] = useState<Record<string, true>>({});
   const [pv, setPv] = useState<Pv | null>(null);
@@ -357,9 +376,10 @@ function ReportBody({ g }: { g: NonNullable<ReturnType<typeof useGame>> }) {
   const shareCsv = async () => {
     const list = [g];
     const files: File[] = [];
-    if (csv.players) files.push(textFile(playersCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'players')));
-    if (csv.hand) files.push(textFile(handsCsv(list, name, potCoding), outputName(g, 'data (3 csv)', 'csv', 'hands')));
-    if (csv.data) files.push(textFile(ledgerCsv(list, name), outputName(g, 'data (3 csv)', 'csv', 'ledger')));
+    if (csv.players) files.push(textFile(playersCsv(list, name), outputName(g, 'data', 'csv', 'players')));
+    if (csv.hand) files.push(textFile(handsCsv(list, name, potCoding), outputName(g, 'data', 'csv', 'hands')));
+    if (csv.actions) files.push(textFile(actionsCsv(list, name), outputName(g, 'data', 'csv', 'action log')));
+    if (csv.data) files.push(textFile(ledgerCsv(list, name), outputName(g, 'data', 'csv', 'event ledger')));
     if (!files.length) { toast('Tick at least 1 file.'); return false; }
     const r = await shareFiles(files, `${g.name} data`);
     if (r === 'downloaded') toast(`${files.length > 1 ? `${files.length} files` : 'File'} saved to Downloads`);
@@ -460,7 +480,7 @@ function ReportBody({ g }: { g: NonNullable<ReturnType<typeof useGame>> }) {
               </div>
             </Head>
             <Fold open={tier === 'csv'}>
-              {([['players', 'Players', 'expPlayers'], ['hand', 'Hand', 'expHand'], ['data', 'Data', 'expLedger']] as ['players' | 'hand' | 'data', string, ExpKey][]).map(([k, label, tip]) => (
+              {([['players', 'Players', 'expPlayers'], ['hand', 'Hands', 'expHand'], ['actions', 'Action log', 'expActions'], ['data', 'Event ledger', 'expLedger']] as ['players' | 'hand' | 'actions' | 'data', string, ExpKey][]).map(([k, label, tip]) => (
                 <div key={k}>
                   <div className="felt-exp-sub">
                     <label className="felt-exp-tick"><input type="checkbox" checked={csv[k]} aria-label={label} onChange={() => setCsv((s) => ({ ...s, [k]: !s[k] }))} /><span>{label}</span></label>

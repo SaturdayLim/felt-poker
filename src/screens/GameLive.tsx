@@ -58,7 +58,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const inPlayers = ordered.filter((p) => playerStatus(g, p) !== 'out');
   const outPlayers = ordered.filter((p) => playerStatus(g, p) === 'out');
   const est = estimateStacks(g);
-  // an all-in logged against a stack that was only a range: Felt asks for a count of that player
+  // an all-in logged against a stack that was only a range: Nightcap asks for a count of that player
   const toCount = needsCount(g);
   const nextN = (g.hands[g.hands.length - 1]?.n ?? 0) + 1;
   // Log hand needs somebody dealt in: playing, and not an exact stack of 0
@@ -95,7 +95,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   return (
     <div className="felt-page">
       <Header back={() => back(closed ? 'games' : '')} share="game" banner={g.name} onRename={(n) => st.updateGame(g.id, (x) => { x.name = n; })} sub={`${gameCaptionNarrow(g)}, ${g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}`}
-        tabs={[{ label: `Players ${closed ? ordered.length : inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }]}
+        tabs={[{ label: `Players ${closed ? ordered.length : inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }, { label: 'Table', on: false, go: () => go(`game/${g.id}/table`) }]}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>} />
 
       <SlidePane k={tab} i={tab === 'players' ? 0 : 1}>

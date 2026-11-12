@@ -1,5 +1,5 @@
 /* One mark per table award. Every mark sits on a 24 px grid, drawn as strokes only (round caps and joins, like the
-   Felt mark), so it takes the colour of the text around it (currentColor in HTML, one colour in the canvas image).
+   Nightcap mark), so it takes the colour of the text around it (currentColor in HTML, one colour in the canvas image).
    Two line weights keep a mark from crowding: `main` paths use `ICON_STROKE`, `detail` paths use the thinner
    `ICON_DETAIL`. Draw both with no fill. A mark sits with its visual centre at 12,12, unless it rests on a surface. */
 

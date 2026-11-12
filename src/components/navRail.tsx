@@ -87,7 +87,11 @@ export function tidy(pts: [number, number][]): [number, number][] {
   return flat.filter(([, d], i) => i === 0 || i === flat.length - 1 || d !== 0 || flat[i - 1][1] !== 0 || flat[i + 1][1] !== 0);
 }
 const line = (pts: [number, number][]) => tidy(pts).map(([x, d], i) => `${i ? 'L' : 'M'}${+x.toFixed(2)} ${(RAIL_Y + d).toFixed(2)}`).join(' ');
-const fill = (pts: [number, number][], w: number) => `${line(pts)} L${w} ${RAIL_Y} L0 ${RAIL_Y} Z`;
+// iOS WebKit repaints a changed path inside its fill box only, not its stroke: at each old low point the line left a dot
+// for a frame or more while the chip rolled. Two flat subpaths (no area, so they paint nothing) stretch the pocket box to
+// the whole rail, so every frame repaints all of it.
+const RAIL_H = RAIL_Y + TROUGH_D + 4;
+const fill = (pts: [number, number][], w: number) => `${line(pts)} L${w} ${RAIL_Y} L0 ${RAIL_Y} Z M-4 0 L${w + 4} 0 Z M-4 ${RAIL_H + 4} L${w + 4} ${RAIL_H + 4} Z`;
 
 /** The bottom inset, measured on a new element each time: iOS can keep a stale env() value on an element styled
     before the toolbar settled. The nav reads the result, capped at the iPhone home indicator. */
@@ -237,7 +241,7 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
   return (
     <nav ref={nav} className="felt-nav" aria-label="Main">
       <div ref={bar} className="felt-rail">
-        <svg className="felt-rail-line" width={w} height={RAIL_Y + TROUGH_D + 4} aria-hidden="true">
+        <svg className="felt-rail-line" width={w} height={RAIL_H} aria-hidden="true">
           {/* the pocket fills from nothing at the rail, so no flat edge crosses the icon in it */}
           <defs>
             <linearGradient id="felt-rail-well" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={RAIL_Y} y2={RAIL_Y + 12}>

@@ -12,6 +12,8 @@
   --felt-card-ink: #1C1E21;
   --felt-card-ice: #EBF1F5;
   --felt-card-blue: #0052CC;
+  /* The S of the card back: the gold of the load screen S (dark-theme --sat-mark of the Felt skin), fixed in both themes */
+  --felt-card-gold: #CDB98A;
 }
 
 /* iOS Home Screen app (status bar black-translucent, viewport-fit=cover): until the document is taller than the screen,
@@ -737,13 +739,13 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-tiles b { font-size: 1.25rem; }
 
 /* Face-down card: white Felt mark on cobalt, gold trim */
-/* Card back (card-design skill): ink field, one ice border about 4% of the height, blue S at 40% of the height. */
-.felt-card.felt-cardback { background: var(--felt-card-ink); --cb: 2px; border: var(--cb) solid var(--felt-card-ice); display: inline-grid; place-items: center; --sat-mark: var(--felt-card-blue); --sat-mark-stroke: 1.1px; }
-.felt-card.felt-cardback.lg { --cb: 3px; --sat-mark-stroke: 1.6px; }
-.felt-card.felt-cardback.sm { --cb: 1.5px; --sat-mark-stroke: 1px; }
+/* Card back (card-design skill): ink field, one ice border about 4% of the height, gold S at 40% of the height, the highlight over chips at 50%. */
+.felt-card.felt-cardback { background: var(--felt-card-ink); --cb: 2px; border: var(--cb) solid var(--felt-card-ice); display: inline-grid; place-items: center; --sat-mark: var(--felt-card-gold); --sat-mark-stroke: 2.2px; }
+.felt-card.felt-cardback.lg { --cb: 3px; --sat-mark-stroke: 3px; }
+.felt-card.felt-cardback.sm { --cb: 1.5px; --sat-mark-stroke: 1.8px; }
 /* the S is 40% of the card height at every size, also where a screen sets its own card size (owner, 10 Nov 2026) */
 /* Explicit size from the card box (container query units, iOS 16+), so Safari cannot collapse an auto-width SVG to 0.
-   The viewBox is 68 x 104. The chips are ice at 50% opacity on the ink field (the g rule below); the S stays blue. */
+   The viewBox is 68 x 104. The chips are ice at 50% opacity on the ink field (the g rule below); the S is gold and heavier, so it reads as the highlight. */
 .felt-card.felt-cardback { container-type: size; }
 .felt-card.felt-cardback > svg { flex: none; aspect-ratio: 68 / 104; height: 40%; width: auto; height: calc((100cqh + 2 * var(--cb)) * 0.4); width: calc((100cqh + 2 * var(--cb)) * 0.4 * 68 / 104); min-width: 0; --sat-muted: var(--felt-card-ice); --sat-bg: var(--felt-card-ink); }
 /* 0.5 here overrides FeltMark's own opacity={0.22} on each chip group (CSS beats the presentation attribute): chips read at 50% */

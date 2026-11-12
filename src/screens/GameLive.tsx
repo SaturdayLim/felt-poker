@@ -10,7 +10,7 @@ import { SeatPicker, CodeControl, PlayerName, openPlayer } from '../components/p
 import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
-import { buyInsEquivalent, dateLabel, duration, inBB, runningLabel, money, timeLabel, units } from '../lib/format';
+import { buyInsEquivalent, duration, gameCaptionNarrow, inBB, runningLabel, money, timeLabel, units } from '../lib/format';
 import { estimateStacks, needsCount, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
@@ -26,10 +26,6 @@ type SheetKind =
   | { k: 'count'; pid: ID }
   | { k: 'move' }
   | null;
-
-export function gameSubtitle(g: Game) {
-  return `${dateLabel(g.startedAt)}, ${g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}`;
-}
 
 /* Live game: two sub-pages.
    Players: one slim card per player, every part adjustable in place (name, seat by dragging, status light,
@@ -98,7 +94,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
   return (
     <div className="felt-page">
-      <Header back={() => back(closed ? 'games' : '')} share="game" banner={g.name} onRename={(n) => st.updateGame(g.id, (x) => { x.name = n; })} sub={gameSubtitle(g)}
+      <Header back={() => back(closed ? 'games' : '')} share="game" banner={g.name} onRename={(n) => st.updateGame(g.id, (x) => { x.name = n; })} sub={`${gameCaptionNarrow(g)}, ${g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}`}
         tabs={[{ label: `Players ${closed ? ordered.length : inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }]}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>} />
 

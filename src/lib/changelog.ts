@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.7.4', date: '13 Nov 2026', notes: [
+    'iPhone Home Screen app: the gap under the load screen and the Start view is fixed.',
+    'A player with a stack range shows no stack figure in the recorder and in the player view.',
+    'Games and Players share one search bar with the mode icon on both. On Players, the game name and date modes list the players of the matching games.',
+    'Export opens with the first row selected. Only the selected row is open, and every tick is off.',
+    'Action log: the position comes first, the name shows once per hand, each player keeps one colour, and folds show where they happen.',
+    'Card back: the gold S shows highlighted over the chips at 50%.',
+    'Game captions read "Potato Day (1 Nov 2026)" with "4 Pax, 4 Buy-ins" under it.',
+  ] },
   { version: '1.7.3', date: '12 Nov 2026', notes: [
     'iPhone Home Screen app: the tab bar sits at the screen edge on short pages too (Home, Players). It no longer floats above an empty strip after the load screen.',
     'Players and Games share one search bar. The typed text carries over. Ghost text: Player Name, Game Name, Date.',

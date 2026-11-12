@@ -281,7 +281,7 @@ function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
         {v.streets.map((st) => (
           <div key={st.street} className="trial-log-street">
             <div className="trial-log-head"><b>{st.street}</b>{st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}</div>
-            {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.lines.map((l, i) => <span key={i} className="trial-log-line">{l}</span>)}
+            {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => <span key={i} className="trial-log-line">{l.map((sg, k) => (sg.c === undefined ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c % 8) + 1})` }}>{sg.t}</span>))}</span>)}
           </div>
         ))}
         {v.shown.map((x) => (

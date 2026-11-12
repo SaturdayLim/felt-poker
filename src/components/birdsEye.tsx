@@ -3,6 +3,7 @@
    Seat 1 (the button) sits at the bottom centre of the long bottom side; the others follow clockwise. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { calm, spring, SPRING } from '../lib/motion';
+import { isRangeStack } from '../lib/stacks';
 import { VCards } from './viewerLook';
 import { NumericText } from './ui';
 import type { NowSnapshot, PubSnapshot, StackLine } from '../live/snapshot';
@@ -53,7 +54,8 @@ export function inFront(view: NowSnapshot['view']): { put: Record<string, number
 }
 
 const money = (n: number) => Math.round(n).toLocaleString('en-US');
-const stackText = (s?: StackLine) => (!s || s.stack === null ? '-' : `${s.spread ? '~' : ''}${money(s.stack)}`);
+/** A range stack shows no figure. */
+const stackText = (bb: number, s?: StackLine) => (!s || s.stack === null ? '-' : isRangeStack(s.spread, bb) ? '' : money(s.stack));
 
 /** A number that counts up (or down) to its new value. Reduced motion jumps. */
 function Count({ value }: { value: number }) {
@@ -127,7 +129,7 @@ export function BirdsEye({ pub, now: sent, stacks }: { pub: PubSnapshot; now: No
             <div className={`felt-bird-seat ${fold ? 'is-folded' : ''} ${idle ? 'is-idle' : ''} ${i === turn ? 'is-turn' : ''}`} style={pct(s.x, s.y)}
               aria-label={`Seat ${i + 1}, ${p.name}, ${word}${idle ? ', not in this hand' : ''}${fold ? ', folded' : ''}${i === turn ? ', to act' : ''}`}>
               <b className="felt-ellipsis">{p.name}</b>
-              <span className="felt-bird-stack sat-num"><NumericText value={stackText(stacks.find((x) => x.name === p.name))} /></span>
+              <span className="felt-bird-stack sat-num"><NumericText value={stackText(pub.game.bb, stacks.find((x) => x.name === p.name))} /></span>
               {button === p.name && <span className="felt-bird-btn" aria-label="Button">D</span>}
             </div>
             <span className={`felt-bird-lamp felt-lamp--${light}`} style={pct(s.x, s.y - 24)} aria-hidden="true" />

@@ -134,11 +134,24 @@ export function buyInsEquivalent(g: Game, totalUnits: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
-/** The caption of a closed game: "9 Nov'26 - Churchies (7pax, 10 buy-in)". The group is left out when there is none. */
+/** Game title: "Potato Day (1 Nov 2026)". The name stays as typed. */
+export function gameTitle(g: Pick<Game, 'name' | 'startedAt'>): string {
+  return `${g.name} (${dateLabel(g.startedAt)})`;
+}
+
+/** Buy-ins of a game: cash counts chips bought in default buy-ins (rebuys included), a tournament counts entries. */
+export function gameBuyIns(g: Game): number {
+  return g.type === 'cash' ? Number(buyInsEquivalent(g, g.buyIns.reduce((a, b) => a + b.amount, 0))) : g.buyIns.length;
+}
+
+/** Subtitle of a game: "4 Pax, 4 Buy-ins", with the group after the buy-ins: "7 Pax, 10 Buy-ins, Churchies". "1 Pax", "1 Buy-in". */
 export function gameCaption(g: Game, group?: string): string {
-  const d = new Date(g.startedAt);
-  const date = `${d.getDate()} ${d.toLocaleDateString('en-GB', { month: 'short' })}'${String(d.getFullYear()).slice(2)}`;
-  const n = g.type === 'cash' ? Number(buyInsEquivalent(g, g.buyIns.reduce((a, b) => a + b.amount, 0))) : g.buyIns.length;
-  const tail = `${g.playerIds.length}pax${g.type === 'cash' ? `, ${n} buy-in` : ''}`;
-  return group ? `${date} - ${group} (${tail})` : `${date} (${tail})`;
+  const n = gameBuyIns(g);
+  const tail = `${g.playerIds.length} Pax, ${n} ${n === 1 ? 'Buy-in' : 'Buy-ins'}`;
+  return group ? `${tail}, ${group}` : tail;
+}
+
+/** Narrow form, where the date does not fit in the title: "1 Nov 2026, 4 Pax, 4 Buy-ins". */
+export function gameCaptionNarrow(g: Game, group?: string): string {
+  return `${dateLabel(g.startedAt)}, ${gameCaption(g, group)}`;
 }

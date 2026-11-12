@@ -63,21 +63,16 @@ html.felt-has-sb .felt-sbar-gap { height: 44px; margin-bottom: 0; }
 .felt-sbar[data-open="false"] { transform: scale(0.96); opacity: 0; pointer-events: none; transition: transform 250ms cubic-bezier(0.65, 0, 0.35, 1), opacity 180ms ease-in; }
 .felt-sbar-field { position: relative; display: flex; align-items: center; height: 44px; border: 2px solid var(--sat-line-strong); border-radius: 10px; background: var(--sat-solid-2); transition: border-color 150ms var(--sat-ease); }
 .felt-sbar-field:focus-within { border-color: var(--sat-accent); }
-/* the mode icon: it is only on Games. On Players its room closes and it fades. */
-.felt-sbar-mode { position: relative; flex: none; width: 44px; height: 44px; margin-right: 8px; display: grid; place-items: center; color: var(--sat-text); overflow: hidden;
-  transition: width var(--sbar-ms, 600ms) cubic-bezier(0.65, 0, 0.35, 1), margin-right var(--sbar-ms, 600ms) cubic-bezier(0.65, 0, 0.35, 1), opacity var(--sbar-ms, 600ms) cubic-bezier(0.65, 0, 0.35, 1); }
-.felt-sbar[data-page="players"] .felt-sbar-mode { width: 8px; margin-right: 0; opacity: 0; pointer-events: none; }
-.felt-sbar[data-drag] .felt-sbar-mode { transition: none; width: calc(8px + 36px * var(--sbm, 1)); margin-right: calc(8px * var(--sbm, 1)); opacity: var(--sbm, 1); }
+/* the mode icon: the same on Games and Players. The bar never changes shape with the page. */
+.felt-sbar-mode { position: relative; flex: none; width: 44px; height: 44px; margin-right: 8px; display: grid; place-items: center; color: var(--sat-text); overflow: hidden; }
 .felt-sbar-ico { grid-area: 1 / 1; display: grid; place-items: center; opacity: 0; scale: .6; rotate: -40deg; filter: blur(2px);
   transition: opacity 220ms var(--sat-ease), scale 220ms var(--sat-ease), rotate 220ms var(--sat-ease), filter 220ms var(--sat-ease); }
 .felt-sbar-ico[data-on="true"] { opacity: 1; scale: 1; rotate: 0deg; filter: none; }
 .felt-sbar-text { position: relative; flex: 1; min-width: 0; height: 100%; }
 .felt-sbar-input, .felt-sbar-input:focus, .felt-sbar-input:focus-visible { width: 100%; height: 100%; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--sat-text); font-size: 16px; font-weight: 600; padding: 0 4px; -webkit-appearance: none; appearance: none; -webkit-tap-highlight-color: transparent; }
-.felt-sbar[data-page="players"] .felt-sbar-input { padding-left: 10px; }
 .felt-sbar-input::-webkit-search-cancel-button { display: none; }
 /* ghost text: one label per mode in one cell; they cross-fade with the icon, and all go once text is typed */
 .felt-sbar-ghost { position: absolute; inset: 0; display: grid; align-items: center; padding: 0 4px; pointer-events: none; color: var(--sat-muted); font-size: 16px; font-weight: 600; transition: opacity 150ms var(--sat-ease); }
-.felt-sbar[data-page="players"] .felt-sbar-ghost { padding-left: 10px; }
 .felt-sbar-ghost[data-hide="true"] { opacity: 0; }
 .felt-sbar-ghost > span { grid-area: 1 / 1; opacity: 0; white-space: nowrap; transition: opacity 220ms var(--sat-ease); }
 .felt-sbar-ghost > span[data-on="true"] { opacity: 1; }
@@ -96,7 +91,7 @@ html.felt-has-sb .felt-sbar-gap { height: 44px; margin-bottom: 0; }
 html[data-calm] .felt-sbar-list[data-open="false"] { transition: opacity 150ms linear; transform: none; }
 html[data-motion-off] .felt-sbar-list { transition: none; animation: none; }
 html[data-calm] .felt-sbar, html[data-calm] .felt-sbar[data-open="false"] { transition: opacity 150ms linear; transform: none; }
-html[data-calm] .felt-sbar-mode, html[data-calm] .felt-sbar-ghost > span, html[data-calm] .felt-sbar-ghost { transition: opacity 150ms linear, width 150ms linear; }
+html[data-calm] .felt-sbar-ghost > span, html[data-calm] .felt-sbar-ghost { transition: opacity 150ms linear, width 150ms linear; }
 html[data-calm] .felt-sbar-ico { transition: opacity 150ms linear; scale: 1; rotate: 0deg; filter: none; }
 html[data-calm] .felt-sbar-clear, html[data-calm] .felt-sbar-add { transition: opacity 150ms linear; }
 html[data-calm] .felt-sbar-gap, html[data-calm] .felt-sbar-list { transition: none; animation: none; }

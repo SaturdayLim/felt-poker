@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardPair, Empty, Header, Help, Icon, Info, NewItemsPill, NumericText, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { calm } from '../lib/motion';
+import { isRangeStack } from '../lib/stacks';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
 import { MinRaiseTip } from '../components/rules';
@@ -45,7 +46,8 @@ const ls = {
 };
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 const money = (n: number | null) => (n === null ? '-' : String(Math.round(n)));
-const stackText = (s?: StackLine) => (!s || s.stack === null ? '-' : `${s.spread ? '~' : ''}${money(s.stack)}`);
+/** A range stack shows no figure. */
+const stackText = (bb: number, s?: StackLine) => (!s || s.stack === null ? '-' : isRangeStack(s.spread, bb) ? '' : money(s.stack));
 /** A random id for this device, kept between visits. It says nothing about the player. */
 const deviceId = () => {
   let id = ls.get('felt-device');
@@ -461,7 +463,7 @@ function PlayersTab({ pub, stacks, me, button, onCount }: { pub: PubSnapshot; st
           return (
             <div key={p.id} className={`felt-seat ${p.id === me?.id ? 'is-me' : ''}`} style={{ left: `${50 + 38 * Math.cos(a)}%`, top: `${50 + 37 * Math.sin(a)}%` }}>
               <b className="felt-ellipsis">{p.name}</b>
-              <span className="felt-seat-stack sat-num"><NumericText value={stackText(stacks.find((s) => s.name === p.name))} /></span>
+              <span className="felt-seat-stack sat-num"><NumericText value={stackText(pub.game.bb, stacks.find((s) => s.name === p.name))} /></span>
               {button === p.name && <span className="felt-seat-btn" aria-label="Button">D</span>}
             </div>
           );

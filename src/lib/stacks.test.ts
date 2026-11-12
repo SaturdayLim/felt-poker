@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game, Hand } from '../types';
-import { bustedAfterSave, bustedPlayers, estimateStacks, needsCount, rebuyDefault, rebuyOffered, roomFrom, shoveAt, stackBounds, type StackEstimate } from './stacks';
+import { bustedAfterSave, bustedPlayers, estimateStacks, isRangeStack, needsCount, rebuyDefault, rebuyOffered, roomFrom, shoveAt, stackBounds, type StackEstimate } from './stacks';
 
 const bustHand = (bWins = 400): Hand => ({
   id: 'h1', n: 1, at: 10, endedAt: 20, pot: 400, winners: [{ playerId: 'B', amount: bWins }], board: [], shown: [],
@@ -90,6 +90,12 @@ describe('stackBounds and all-in room', () => {
   });
   it('a range floors the low end and ceils the high end to the big blind', () => {
     expect(stackBounds(game(), est(197.36, 33.1), 'A')).toEqual({ lo: 164, hi: 232 });
+  });
+  it('isRangeStack matches stackBounds: spread of half a big blind or more', () => {
+    expect(isRangeStack(0, 2)).toBe(false);
+    expect(isRangeStack(0.9, 2)).toBe(false);
+    expect(isRangeStack(1, 2)).toBe(true);
+    expect(isRangeStack(undefined, 2)).toBe(false);
   });
   it('never goes below 0', () => {
     expect(stackBounds(game(), est(10, 40), 'A')).toEqual({ lo: 0, hi: 50 });

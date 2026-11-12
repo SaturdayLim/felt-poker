@@ -135,6 +135,9 @@ export function stackBounds(g: Game, est: StackEstimate, p: ID): { lo: number; h
   return { lo, hi: Math.max(lo, Math.ceil((v + s) / step) * step) };
 }
 
+/** Is a stack a range? Same test as `stackBounds`: a spread of half a big blind or more. Screens show no figure for a range. */
+export const isRangeStack = (spread: number | undefined, bb: number): boolean => (spread ?? 0) >= (bb > 0 ? bb : 1) / 2;
+
 /** What a player can still put in on a street. Exact stack (the real figure, as is): `room` equals `high`. Range stack:
     `room` is the low end (floored), `high` the high end, `range` true. `spent` is what they put in on earlier streets. */
 export interface Room { room: number; high: number; range: boolean }
@@ -148,10 +151,10 @@ export function roomFrom(exact: number | undefined, bounds: { lo: number; hi: nu
     the high end of a range, the whole stack when exact. */
 export const shoveAt = (r: Room | undefined, amount: number): boolean => !!r && r.high > 0 && amount >= r.high;
 
-/** Stacks before hand n, only where the estimate is exact. All-ins resolve against these. */
+/** Stacks before hand n, only where the estimate is exact (a spread under half a big blind, as the player view reads it). All-ins resolve against these. */
 export function exactStacks(g: Game, n: number): Record<ID, number> {
   const est = estimateStacks(g, n);
-  return Object.fromEntries(Object.entries(est.stack).filter(([p, v]) => v !== undefined && !(est.spread[p] > 0))) as Record<ID, number>;
+  return Object.fromEntries(Object.entries(est.stack).filter(([p, v]) => v !== undefined && !isRangeStack(est.spread[p], g.bb))) as Record<ID, number>;
 }
 
 /** The hand's close: when a rebuy for it counts as "after the hand". */

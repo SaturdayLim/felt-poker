@@ -1101,7 +1101,7 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
 }
 
 /** A face-down card: the full Felt mark (two chips and the S) on ink, with one ice border. The mark is 40% of the card height
-    (owner, 10 Nov 2026), sized in CSS from the card (.felt-cardback in styles.css), so it follows any card size. */
+    (owner, 10 Nov 2026). Chips at 50%, the S gold and heavier as the highlight (owner, 12 Nov 2026). Sized in CSS from the card (.felt-cardback in styles.css), so it follows any card size. */
 export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
   return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark full height={size === 'lg' ? 28 : size === 'sm' ? 12.4 : 16} /></span>;
 }

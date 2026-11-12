@@ -3,7 +3,7 @@ import { go } from '../router';
 import { PlayerName, openPlayer } from '../components/players';
 import { Delta, Empty, Header, Icon, useTick } from '../components/ui';
 import { gameResults, playerStatus } from '../lib/calc';
-import { figureDelta, gameCaption, runningLabel, runningMs } from '../lib/format';
+import { figureDelta, gameCaptionNarrow, runningLabel, runningMs } from '../lib/format';
 import { filterGames, leaderboard, summaryFigure } from '../lib/stats';
 import { gameFigure } from '../lib/calc';
 import { FEATURES } from '../lib/features';
@@ -14,6 +14,7 @@ export default function Home() {
   useTick();
   const games = useStore((s) => s.games);
   const players = useStore((s) => s.players);
+  const groups = useStore((s) => s.groups);
   const currency = useStore((s) => s.settings.currency);
   const showMoney = useStore((s) => s.settings.showMoney);
   const name = usePlayerName();
@@ -69,8 +70,8 @@ export default function Home() {
                 return (
                   <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(`game/${g.id}/hands`)}>
                     <div className="felt-row-main">
-                      <div className="felt-row-title felt-ellipsis" data-game-title={g.id}>{g.name}</div>
-                      <div className="felt-row-sub">{gameCaption(g)}</div>
+                      <div className="felt-row-title felt-ellipsis"><span data-game-title={g.id} style={{ display: 'inline-block', verticalAlign: 'bottom', maxWidth: '100%' }}>{g.name}</span></div>
+                      <div className="felt-row-sub felt-ellipsis">{gameCaptionNarrow(g, groups.find((x) => x.id === g.groupId)?.name)}</div>
                     </div>
                     {top && <div className="felt-right"><div className="sat-small felt-ellipsis" style={{ maxWidth: 96 }}><PlayerName id={top.playerId} /></div><Delta {...figureDelta(gameFigure(g, top.playerId), showMoney)} /></div>}
                   </button>

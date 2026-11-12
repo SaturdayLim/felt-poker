@@ -4,10 +4,9 @@ import { useGame, useStore, usePlayerName, suggestPayouts } from '../store';
 import { back, backTo, go } from '../router';
 import { Avatar, Caption, Delta, Empty, Header, Help, Icon, Sheet, num, toast, withUndo } from '../components/ui';
 import { gameFigure, gameResults, payoutDiscrepancy, playerStatus, round2, tournamentPlace, totalPotMoney } from '../lib/calc';
-import { figureDelta, runningLabel, money, units } from '../lib/format';
+import { figureDelta, gameTitle, runningLabel, money, units } from '../lib/format';
 import { uid } from '../lib/ids';
 import type { Expense, Game, ID } from '../types';
-import { gameSubtitle } from './GameLive';
 
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
@@ -40,7 +39,7 @@ export default function CloseTable({ gameId, view = 'results' }: { gameId: strin
   return (
     <div className="felt-page">
       <Header back={() => (closed ? backTo(view === 'settle' ? `game/${g.id}/close` : `game/${g.id}/hands`) : back(`game/${g.id}`))} title={closed ? (view === 'settle' ? 'Settle Up' : 'Results') : g.type === 'cash' ? 'End Game' : 'End Tournament'}
-        sub={`${g.name}, ${gameSubtitle(g)}`}
+        sub={`${gameTitle(g)}, ${g.type === 'cash' ? `${g.sb}/${g.bb} Cash` : 'Tournament'}`}
         right={closed ? undefined : <button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => go(`game/${g.id}`)} aria-label="Open the game"><Icon name="cards" /></button>} />
 
       <div className="sat-stack" style={gap(5)}>

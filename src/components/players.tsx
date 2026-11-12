@@ -5,7 +5,7 @@ import { ALPHABET, newCode, showCode } from '../lib/codes';
 import { haptic } from '../lib/haptics';
 import { filterGames, playerSummary, summaryFigure } from '../lib/stats';
 import { gameFigure, gameResults } from '../lib/calc';
-import { dateLabel, figureDelta, figureNumber, figureUnit, money, units } from '../lib/format';
+import { figureDelta, gameTitle, figureNumber, figureUnit, money, units } from '../lib/format';
 import { go } from '../router';
 import type { Game, ID, Player } from '../types';
 
@@ -319,7 +319,7 @@ export function PlayerSheet({ p, onClose }: { p: Player; onClose: () => void }) 
                 return (
                   <button key={g.id} className="felt-row" onClick={() => open(g)}>
                     <span className="felt-row-main">
-                      <span className="felt-row-title felt-ellipsis">{g.name} ({dateLabel(g.startedAt)})</span>
+                      <span className="felt-row-title felt-ellipsis">{gameTitle(g)}</span>
                       <span className="felt-row-sub sat-num">Buy-in: {buyIn}</span>
                     </span>
                     <span className="felt-row-end sat-num">

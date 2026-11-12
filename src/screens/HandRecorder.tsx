@@ -681,13 +681,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     for (const p of log.dealt) if (estAllIn(log, p) && !(g.counts ?? []).some((c) => c.playerId === p && c.at >= log.startedAt)) out.add(p);
     return [...out];
   }, [g, log]);
-  // stacks that are only a range (whole chips, to the big blind): the name sub-line shows them
-  const ranges = useMemo(() => {
-    const out: Record<ID, { lo: number; hi: number }> = {};
-    if (!g || !stackNow) return out;
-    for (const p of g.playerIds) { const b = stackBounds(g, stackNow, p); if (b && b.lo !== b.hi && stackNow.spread[p] > 0) out[p] = b; }
-    return out;
-  }, [g, stackNow]);
   const selRoom = sel ? roomFor(sel.p) : undefined;
   const typedN = Number(typed);
   const minTo = selCell ? minRaiseTo(g, minRule, selCell.high, selCell.inc) : 0;
@@ -816,7 +809,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             {legacy ? (
               <p className="sat-small sat-muted">This hand was logged with the earlier recorder. {inAtEnd(log, street).length} players were still in after the {LABEL[street].toLowerCase()}, pot {units(potTotal(g, log, log.button, street))}.</p>
             ) : replay && (
-              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} ranges={ranges} counting={counting} name={name} onPick={readOnly ? () => {} : pickBox}
+              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} counting={counting} name={name} onPick={readOnly ? () => {} : pickBox}
                 shown={st.shown} namingFor={target?.kind === 'shown' ? target.p : null} onName={(p) => { if (readOnly) return; setSel(null); setTyped(''); setTarget({ kind: 'shown', p, ci: st.shown[p]?.[0] ? 1 : 0 }); }} />
             )}
           </>
@@ -1027,8 +1020,8 @@ function BoardRow({ board, to, lockedBefore, compact, isTarget, onTap }: {
 /** Rows from the small blind down to the button; columns are passes around the table, newest on the right.
     Grey boxes have nothing to decide. Players out of the hand stay as greyed rows. Amounts are street
     totals, so only a player's latest box stands; earlier boxes fade. C = call or check, F = fold. */
-function ActionTable({ g, log, street, replay, sel, stacks, ranges, counting, name, onPick, shown, namingFor, onName }: {
-  g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>; ranges: Record<ID, { lo: number; hi: number }>; counting: ID[];
+function ActionTable({ g, log, street, replay, sel, stacks, counting, name, onPick, shown, namingFor, onName }: {
+  g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>; counting: ID[];
   name: (id: ID) => string; onPick: (p: ID, r: number) => void; shown: Record<ID, (Card | null)[]>; namingFor: ID | null; onName: (p: ID) => void;
 }) {
   // a closed game is not being logged: a name opens the player card
@@ -1115,7 +1108,7 @@ function ActionTable({ g, log, street, replay, sel, stacks, ranges, counting, na
               const folded = gone || s.folded.includes(p);
               const left = stacks?.[p] !== undefined ? round2(stacks[p] - spentBefore(p) - (s.bets[p] ?? 0)) : undefined;
               const cards = (shown[p] ?? []).filter(Boolean) as Card[];
-              const sub = [tag(p), gone ? 'Folded' : counting.includes(p) && estAllIn(log, p) ? 'All-in, count chips' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : left === undefined && ranges[p] && !folded ? `~${units(Math.max(0, ranges[p].lo - spentBefore(p) - (s.bets[p] ?? 0)))}-${units(Math.max(0, ranges[p].hi - spentBefore(p) - (s.bets[p] ?? 0)))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
+              const sub = [tag(p), gone ? 'Folded' : counting.includes(p) && estAllIn(log, p) ? 'All-in, count chips' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
               return (
                 /* press and hold a name to enter the cards that player shows, on any street, before they are mucked */
                 <button key={p} type="button" className={`felt-acts-name ${folded ? 'is-folded' : ''} ${namingFor === p ? 'is-target' : ''}`} aria-label={`${name(p)}: press and hold to enter the cards they show`}

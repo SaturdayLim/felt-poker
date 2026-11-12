@@ -17,7 +17,7 @@ type Choice = 'html' | 'png' | 'log' | 'csv';
 type Snap = 'summary' | 'detailed' | 'playstyle';
 
 /** Choices kept on this phone (not in the game, not in a backup). */
-const KEEP = { gameLog: 'felt-report-gamelog', pot: 'felt-report-potcoding' };
+const KEEP = { pot: 'felt-report-potcoding' };
 function readKept<T>(key: string, fallback: T): T { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; } }
 function keep(key: string, v: unknown) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode: the choice lasts for this visit only */ } }
 
@@ -201,12 +201,12 @@ function ReportBody({ g }: { g: NonNullable<ReturnType<typeof useGame>> }) {
   const settings = useStore((s) => s.settings);
   const allPlayers = useStore((s) => s.players);
   const [tier, setTier] = useState<Choice>('html');
-  const [gameLog, setGameLog] = useState<boolean>(() => readKept(KEEP.gameLog, false));
+  const [gameLog, setGameLog] = useState<boolean>(false);
   const [potCoding, setPotCoding] = useState<PotCoding>(() => (readKept<PotCoding>(KEEP.pot, 'street') === 'player' ? 'player' : 'street'));
-  const [snap, setSnap] = useState<Record<Snap, boolean>>({ summary: true, detailed: true, playstyle: true });
-  const [csv, setCsv] = useState({ players: true, hand: true, data: true });
-  /** Hands left unticked in the Full Action Log; all are ticked by default. */
-  const [off, setOff] = useState<Record<string, true>>({});
+  const [snap, setSnap] = useState<Record<Snap, boolean>>({ summary: false, detailed: false, playstyle: false });
+  const [csv, setCsv] = useState({ players: false, hand: false, data: false });
+  /** Hands ticked in the Full Action Log; none is ticked by default. */
+  const [on, setOn] = useState<Record<string, true>>({});
   const [pv, setPv] = useState<Pv | null>(null);
   const [linkMade, setLinkMade] = useState<string | null>(() => (gameId ? reportLinkOf(gameId)?.link ?? null : null));
   const st = useStore();
@@ -226,9 +226,9 @@ function ReportBody({ g }: { g: NonNullable<ReturnType<typeof useGame>> }) {
   /** Only recorded hands: a missed hand or a hand with no log is never listed, ticked, previewed or shared. */
   const logHands = g.hands.filter((h) => !h.missed && h.log);
   const handIds = logHands.map((h) => h.id);
-  const ticked = handIds.filter((id) => !off[id]);
-  const tickHand = (id: string) => setOff((o) => { const n = { ...o }; if (n[id]) delete n[id]; else n[id] = true; return n; });
-  const toggleLog = () => { setGameLog(!gameLog); keep(KEEP.gameLog, !gameLog); };
+  const ticked = handIds.filter((id) => on[id]);
+  const tickHand = (id: string) => setOn((o) => { const n = { ...o }; if (n[id]) delete n[id]; else n[id] = true; return n; });
+  const toggleLog = () => setGameLog(!gameLog);
   const pickPot = (k: PotCoding) => { setPotCoding(k); keep(KEEP.pot, k); };
   const handLabel = (h: (typeof g.hands)[number]) => {
     const w = [...new Set(h.winners.map((x) => name(x.playerId)))];
@@ -435,14 +435,14 @@ function ReportBody({ g }: { g: NonNullable<ReturnType<typeof useGame>> }) {
                 <div className="felt-exp-sub felt-exp-allnone">
                   <span className="sat-small sat-muted">{ticked.length} of {handIds.length} hands</span>
                   <span className="felt-exp-end sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
-                    <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" aria-disabled={ticked.length === handIds.length} onClick={() => setOff({})}>All</button>
-                    <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" aria-disabled={ticked.length === 0} onClick={() => setOff(Object.fromEntries(handIds.map((id) => [id, true])))}>None</button>
+                    <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" aria-disabled={ticked.length === handIds.length} onClick={() => setOn(Object.fromEntries(handIds.map((id) => [id, true])))}>All</button>
+                    <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" aria-disabled={ticked.length === 0} onClick={() => setOn({})}>None</button>
                   </span>
                 </div>
                 <div className="felt-exp-hands" role="group" aria-label="Hands to include">
                   {logHands.map((h) => (
                     <div key={h.id} className="felt-exp-sub">
-                      <label className="felt-exp-tick"><input type="checkbox" checked={!off[h.id]} aria-label={handLabel(h)} onChange={() => tickHand(h.id)} /><span>{handLabel(h)}</span></label>
+                      <label className="felt-exp-tick"><input type="checkbox" checked={!!on[h.id]} aria-label={handLabel(h)} onChange={() => tickHand(h.id)} /><span>{handLabel(h)}</span></label>
                       <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-exp-ic felt-exp-end" aria-label={`Preview hand ${h.n}`} onClick={(e) => previewImgs(e, `Hand ${h.n}`, 'log', [h.id])}><Icon name="eye" size={20} /></button>
                     </div>
                   ))}

@@ -6,13 +6,13 @@ import { playerSummary, type PlayerSummary } from '../lib/stats';
 import { estimateStacks, exactStacks } from '../lib/stacks';
 import { STREETS, STREET_CARDS, rowOrder, bountyPay, bountyTotal, contributions, defaultAct, inAtEnd, replayStreet, pfr, takedown, vpip, wentToShowdown } from '../lib/hand';
 import { RANKS, bestHand } from '../lib/cards';
-import { dateLabel, money, runningMs } from '../lib/format';
+import { dateLabel, gameTitle, money, runningMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
 import type { Settings } from '../types';
 import { clashLevel, countedPairs, effectivePairs, privateOf, shownPair } from '../lib/clash';
 import { wonAt } from '../lib/style';
 import { playerResult, suggestTransfers } from '../lib/calc';
-import { positionMap, positionsFor, streetLines, type LogAct } from './logText';
+import { lineText, positionMap, positionsFor, streetLines, type LogAct, type LogLine } from './logText';
 
 /** A table position: BTN, SB, BB, then UTG, UTG+1 and so on round to HJ and CO (see `positionNames`). */
 export type Pos = string;
@@ -62,7 +62,11 @@ export interface TrialPlayer {
   locked?: boolean;
 }
 /** One street of the action log: the board so far and one line per action. */
-export interface LogStreet { street: string; cards: Card[]; lines: string[] }
+export interface LogStreet {
+  street: string; cards: Card[]; lines: string[];
+  /** The same lines in pieces: a position or name carries the colour index of its player (`LOG_COLORS`). */
+  segs: LogLine[];
+}
 /** One hand's full action log, as text: every action in time order, the cards shown and the result. */
 export interface HandView {
   n: number; pot: number; button: string; streets: LogStreet[];
@@ -156,11 +160,12 @@ export function handView(g: Game, h: Game['hands'][number], name: (id: ID) => st
   const L = h.log as HandLog;
   const streets: LogStreet[] = [];
   const pos = positionMap(rowOrder(g, L), L.button);
+  const named = new Set<string>(); // players already named in this hand's log
   const stacks = exactStacks(g, h.n); // the same stacks the host and the viewers replay with
   for (const st of STREETS) {
     const s = L.streets[st];
     if (!s) continue;
-    let lines: string[] = [];
+    let segs: LogLine[] = [];
     if (L.mode === 'bets' && s.acts) {
       const rp = replayStreet(g, L, st, stacks);
       const acts: LogAct[] = [];
@@ -171,24 +176,26 @@ export function handView(g: Game, h: Game['hands'][number], name: (id: ID) => st
           const a = c.act ?? (c.implied ? (s.partial ? { k: 'call' as const } : defaultAct(c.toCall)) : null);
           if (!a) continue;
           const dark = !!(a as { dark?: boolean }).dark;
-          const who = `${pos[p]} (${name(p)})`;
-          if (a.k === 'fold') acts.push({ who, k: 'fold', amount: 0 });
-          else if (st === 'preflop' && rp.straddles.includes(p) && c.canStraddle && c.act) acts.push({ who, k: 'straddle', amount: c.amount });
-          else if (a.k === 'allin' && c.amount <= c.high && c.high > 0) acts.push({ who, k: 'call', amount: c.amount, dark, allin: true, est: !!(a as { est?: boolean }).est });
-          else if (a.k === 'allin') acts.push({ who, k: 'allin', amount: c.amount, dark, est: !!(a as { est?: boolean }).est });
-          else if (c.amount > c.high) acts.push({ who, k: c.high > 0 ? 'raise' : 'bet', amount: c.amount, dark });
-          else if (c.toCall > 0) acts.push({ who, k: 'call', amount: c.amount, dark, allin: c.amount < c.high });
-          else acts.push({ who, k: 'check', amount: 0, dark });
+          const who = { pid: p, pos: pos[p] ?? '', name: name(p), c: g.playerIds.indexOf(p) < 0 ? undefined : g.playerIds.indexOf(p) };
+          if (a.k === 'fold') acts.push({ ...who, k: 'fold', amount: 0 });
+          else if (st === 'preflop' && rp.straddles.includes(p) && c.canStraddle && c.act) acts.push({ ...who, k: 'straddle', amount: c.amount });
+          else if (a.k === 'allin' && c.amount <= c.high && c.high > 0) acts.push({ ...who, k: 'call', amount: c.amount, dark, allin: true, est: !!(a as { est?: boolean }).est });
+          else if (a.k === 'allin') acts.push({ ...who, k: 'allin', amount: c.amount, dark, est: !!(a as { est?: boolean }).est });
+          else if (c.amount > c.high) acts.push({ ...who, k: c.high > 0 ? 'raise' : 'bet', amount: c.amount, dark });
+          else if (c.toCall > 0) acts.push({ ...who, k: 'call', amount: c.amount, dark, allin: c.amount < c.high });
+          else acts.push({ ...who, k: 'check', amount: 0, dark });
         }
       }
-      lines = streetLines(acts, inAtEnd(L, st).length);
+      segs = streetLines(acts, inAtEnd(L, st).length, named);
     } else {
       // an older log or a pot count: the wagers and the folds, without the order
-      for (const p of L.dealt) if (s.bets[p]) lines.push(`${name(p)} has ${s.bets[p]} in`);
-      for (const p of s.folded) lines.push(`${name(p)} folds`);
-      if (s.pot !== undefined) lines.push(`Pot counted: ${s.pot}`);
+      const old: string[] = [];
+      for (const p of L.dealt) if (s.bets[p]) old.push(`${name(p)} has ${s.bets[p]} in`);
+      for (const p of s.folded) old.push(`${name(p)} folds`);
+      if (s.pot !== undefined) old.push(`Pot counted: ${s.pot}`);
+      segs = old.map((t) => [{ t }]);
     }
-    streets.push({ street: STREET_LABEL[st], cards: h.board.slice(0, STREET_CARDS[st]), lines });
+    streets.push({ street: STREET_LABEL[st], cards: h.board.slice(0, STREET_CARDS[st]), lines: segs.map(lineText), segs });
   }
   const dec = STREET_LABEL[wonAt(L)];
   const result = h.winners.length
@@ -327,7 +334,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
   const bounties = hands.filter((h) => h.bounty).map((h) => ({ n: h.n, to: name(h.bounty!.playerId), total: bountyTotal(h.bounty!) }));
   return {
     game: g.name, date: dateLabel(g.startedAt),
-    title: `${g.name} (${dateLabel(g.startedAt)})`,
+    title: gameTitle(g),
     sub: `(${g.sb}/${g.bb} * ${money(g.unitValue, g.currency)} ${g.type === 'tournament' ? 'Tournament' : 'Cash'})`,
     positions, seatsN, log: opts.gameLog ? [...views.values()] : undefined,
     hands: hands.length, minutes: Math.round((runningMs(g) ?? 0) / 60000),

@@ -1,14 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
-import { Avatar, Caption, Delta, Disclose, Header, Icon, Toggle, SlidePane, toast } from '../components/ui';
+import { Avatar, Caption, Delta, Disclose, Header, Icon, Toggle, SlidePane } from '../components/ui';
 import Insights, { FilterBar } from './Insights';
-import { PlayerSheet, titleCase } from '../components/players';
+import { PlayerSheet } from '../components/players';
+import { gameMatches, playersMatching } from '../lib/searchFilter';
 import { filterGames, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { GroupSheet, OTHERS, gamesOfGroup, groupSettlement, othersGroup } from './Group';
 import { figureDelta } from '../lib/format';
 import { summaryFigure } from '../lib/stats';
-import { SearchGap, setSearch, usePlayersBar, useSearch } from '../components/searchHost';
+import { SearchGap, usePlayersBar, useSearch } from '../components/searchHost';
 import { toTop } from '../components/navRail';
 import type { Player } from '../types';
 
@@ -60,13 +61,12 @@ function PlayerList() {
   const games = useStore((s) => s.games);
   const currency = useStore((s) => s.settings.currency);
   const showMoney = useStore((s) => s.settings.showMoney);
-  const addPlayer = useStore((s) => s.addPlayer);
   const groups = useStore((s) => s.groups);
   const [newGroup, setNewGroup] = useState(false);
   const [edit, setEdit] = useState<Player | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   // the search bar is shared with Games (searchHost.tsx): its text is the filter here
-  const { text: q } = useSearch();
+  const { text: q, mode } = useSearch();
   const saveGroup = useStore((s) => s.saveGroup);
   // which lists are open: one tap opens or closes a list. Kept on this phone
   const [opened, setOpened] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('felt-players-open') ?? '[]'); } catch { return []; } });
@@ -77,20 +77,11 @@ function PlayerList() {
     return next;
   });
   const closed = filterGames(games, 'all', 'all');
-  const visible = players.filter((p) => showArchived || !p.archived);
-  const list = visible.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
+  // the bar's mode picks the rule: player names, or the players of the games that match a game name or a date (src/lib/searchFilter.ts)
+  const list = playersMatching(players.filter((p) => showArchived || !p.archived), games, mode, q);
   const others = othersGroup(groups, games.filter((g) => g.status === 'closed'));
 
-  const add = (raw: string) => {
-    const n = titleCase(raw);
-    if (!n) return;
-    if (players.some((p) => p.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already on the list. Use a different name.`); return; }
-    addPlayer(n);
-    setSearch({ text: '' });
-    toast(`${n} added to players.`);
-  };
-
-  usePlayersBar({ pick: setEdit, add });
+  usePlayersBar({ pick: setEdit });
 
   return (
     <>
@@ -110,7 +101,7 @@ function PlayerList() {
               <span className="felt-fold-chev" aria-hidden="true"><Icon name="chevron" size={18} /></span>
             </button>
             <FoldBody open={isOpen('all') || !!q}>{list.length === 0
-              ? <div className="felt-fold-body sat-small sat-muted">{q ? 'No player has that name.' : 'Add the people you play with. They are saved for every game.'}</div>
+              ? <div className="felt-fold-body sat-small sat-muted">{q ? (mode === 'person' ? 'No player has that name.' : (games.some((g) => gameMatches(g, mode, q, players)) ? 'No players to show.' : 'No game matches.')) : 'Add the people you play with. They are saved for every game.'}</div>
               : list.map((p) => {
                 const s = playerSummary(closed, p.id);
                 return (

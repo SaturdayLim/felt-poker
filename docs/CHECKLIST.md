@@ -6,13 +6,17 @@ Sources: the Fable advisor review (11 Nov 2026, IDs A1 to A25), agent reports fo
 
 ## Waiting for the owner
 
-- [ ] "Units" as a Settings label conflicts with "Chips, not units" (owner named it; A8).
-- [ ] Results page (not the PNG): show the horizontal candle rows too? The page repeats "Results" in header and body (A19).
-- [ ] Two game nets on Stats ("Net result +336" against "Net = +340 chips") with no note (A23).
-- [ ] Game captions differ by screen: "11 Nov'26 (6pax, 6 buy-in)", "Wednesday cash (11 Nov 2026)", "11 Nov 2026, 1 buy-in" (A25). The list caption uses " - ", which the copy rules ban.
-- [ ] CSV third file: the owner wrote "action log"; the file is the event ledger. Add a real action log CSV?
-- [ ] Banner theme switch is 60 px wide, content switches 52 px.
-- [ ] Card back chips: 50% opacity in code, 40% in the card-design skill (1.7.3). Pick one.
+- [ ] Players > Stats > a player (tap the name chip): two game nets with no note ("Net result +336" against "Net = +340 chips") (A23).
+- [ ] Games > a closed game > Results and settle up > Export > Full Data > Data tick: the owner wrote "action log" for the third CSV file; the file is the event ledger. Add a real action log CSV?
+- [ ] Any main tab > tab bar at the bottom: the small dots on the rail were not found in Chromium or WebKit (1.7.4). Do they show at rest or while the chip rolls, and on the line, in the pockets or round the chip? An iPhone screenshot settles it.
+
+## Answered by the owner (13 Nov 2026)
+
+- "Units" as a Settings label (A8): fine as it is.
+- Results page candle rows (A19): not needed.
+- Game captions (A25): built in 1.7.4.
+- Banner theme switch 60 px, content switches 52 px: accepted (CLAUDE.md).
+- Card back chips: 50%.
 
 ## Not built
 

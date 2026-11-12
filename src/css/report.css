@@ -54,3 +54,8 @@ html[data-motion-off] .felt-exp-act, html[data-motion-off] .felt-exp-chev, html[
 .felt-pv-img { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: copy; }
 .felt-pv-img + .felt-pv-img { margin-top: 12px; }
 .felt-pv-img > img { display: block; width: 100%; height: auto; }
+
+/* Closed rows leave the accessibility tree and the tab order once they have shrunk; Animation speed Off cuts. */
+.felt-exp .felt-fold-wrap:not([data-open="true"]) { visibility: hidden; transition: grid-template-rows 260ms var(--sat-ease), opacity 220ms var(--sat-ease), visibility 0s linear 260ms; }
+html[data-calm] .felt-exp .felt-fold-wrap:not([data-open="true"]) { transition: grid-template-rows 150ms linear, opacity 150ms linear, visibility 0s linear 150ms; }
+html[data-motion-off] .felt-exp .felt-fold-wrap, html[data-motion-off] .felt-exp .felt-fold-inner > * { transition: none; }

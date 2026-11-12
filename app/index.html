@@ -12,6 +12,8 @@
     <!-- A launch with no role chosen yet shows the Start view: its static copy below paints in the first frame, so the load screen's mark has a place to land. -->
     <script>try{if(!sessionStorage.getItem('felt-role')&&(!location.hash||location.hash==='#/'))document.documentElement.classList.add('felt-boot')}catch(e){}</script>
     <link rel="expect" href="#felt-boot" blocking="render" />
+    <!-- Home Screen app: the document is taller than the screen by the top inset from the first frame, so iOS does not lay the boot copy (fixed, inset 0) out short. Same rule as src/styles.css. -->
+    <style>html{min-height:calc(100% + env(safe-area-inset-top,0px))}</style>
     <meta name="theme-color" content="#1C1E21" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />

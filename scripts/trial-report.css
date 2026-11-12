@@ -3,6 +3,10 @@
 :root { --trial-s1: #2a78d6; --trial-s2: #eb6834; --trial-s3: #1baf7a; --trial-s4: #eda100; --trial-s5: #8a5bd6; --trial-s6: #d6477f; --trial-s7: #19a3b8; --trial-s8: #7a8794; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --trial-s1: #3987e5; --trial-s2: #d95926; --trial-s3: #199e70; --trial-s4: #c98500; --trial-s5: #9d74e6; --trial-s6: #e0609a; --trial-s7: #2fb6cb; --trial-s8: #93a0ac; } }
 :root[data-theme="dark"] { --trial-s1: #3987e5; --trial-s2: #d95926; --trial-s3: #199e70; --trial-s4: #c98500; --trial-s5: #9d74e6; --trial-s6: #e0609a; --trial-s7: #2fb6cb; --trial-s8: #93a0ac; }
+/* Player colours for the action log text (4.5:1 or more on the report backgrounds); same order as --trial-s, list in src/report/logText.ts */
+:root { --trial-t1: #1D5FB8; --trial-t2: #A83A08; --trial-t3: #12714D; --trial-t4: #7F5600; --trial-t5: #6B3FB5; --trial-t6: #B02A65; --trial-t7: #0E6E80; --trial-t8: #586470; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --trial-t1: #6AA6F2; --trial-t2: #F08A5A; --trial-t3: #4CC796; --trial-t4: #E4B040; --trial-t5: #B89AF2; --trial-t6: #F27FB0; --trial-t7: #4DCAE0; --trial-t8: #A9B5C2; } }
+:root[data-theme="dark"] { --trial-t1: #6AA6F2; --trial-t2: #F08A5A; --trial-t3: #4CC796; --trial-t4: #E4B040; --trial-t5: #B89AF2; --trial-t6: #F27FB0; --trial-t7: #4DCAE0; --trial-t8: #A9B5C2; }
 
 .trial { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; display: flex; flex-direction: column; gap: var(--sat-space-4); }
 .trial-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sat-space-3); }
@@ -180,6 +184,7 @@
 .trial-log-street { display: grid; gap: 2px; }
 .trial-log-head { display: flex; align-items: center; gap: 8px; font-size: var(--sat-fs-small); }
 .trial-log-line { font-size: var(--sat-fs-small); color: var(--sat-text); }
+.trial-pc { font-weight: 600; }
 /* starting-hand grid: each square is a stacked mix of fold (red), call (orange) and raise (green); it scrolls sideways at narrow widths */
 .trial-range-scroll { overflow-x: auto; }
 .trial-range { display: grid; gap: 2px; min-width: 460px; }

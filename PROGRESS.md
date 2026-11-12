@@ -1,6 +1,13 @@
 # Felt: progress
 
-## Latest (12 Nov 2026): 1.7.3
+## Latest (13 Nov 2026): 1.7.4
+- Shipped: gap under the load screen and Start view on the iPhone Home Screen app, no stack figure for range stacks (recorder, player view), one search bar on Games and Players (game name and date modes on Players list players), Export opens with the first row and only that row open, action log with position first and one colour per player, gold S highlighted on the card back, game captions "Potato Day (1 Nov 2026)" with "4 Pax, 4 Buy-ins".
+- Built by agents (Sonnet). Owner rules of 13 Nov are in CLAUDE.md; open owner questions are in docs/CHECKLIST.md with their navigation paths.
+- Tab bar rail dots (owner item): not found. Two agents looked at the rail in Chromium and in Playwright WebKit at 3x and 6x, at rest and mid-roll, and saw no dots. The rail path now drops flat points and snaps depths under 0.25 px (navRail.tsx tidy). Owner to say when and where the dots show, best with an iPhone screenshot.
+- Not seen: the player view with a range stack (code path only), the HTML dashboard Game Log in a browser (built template checked), the PNG title render, every fade and grow (the Browser pane clock does not run animations; end states and computed styles only), the iPhone gap fix (cannot show on desktop).
+- Check on a real iPhone: the load screen gap, the Start view, the card back gold S in Safari.
+
+## Earlier (12 Nov 2026): 1.7.3
 - Shipped: shared search bar (Players, Games), House rules preset in Game Defaults, keypad All-in merged into the Bet or Raise key, Export Share with image sets, new action log text and position names (src/report/logText.ts), rename in the header tab, tip and sheet fixes, toasts at the bottom (--felt-bottom-stack), full Felt mark on the card back, Settings scroll to top, trial report cross-fade, iPhone nav bar rule in src/styles.css.
 - Opus review found 17 faults; all fixed by seven agents (Sonnet and Haiku). Range stacks: All-in only at or above the high end of the range, logged at the floored low end with `est` (stackBounds, roomFrom, shoveAt in src/lib/stacks.ts); an est all-in reads "all-in for about N". Full Action Log uses only hands that are not missed and have a log; above 10 images the warning row draws the rest, then Share shares.
 - Not seen: fade frames of the search list, banner field and trial report (the Browser pane clock does not run animations; only timing and computed styles were read). Reduced motion in the trial report (CSS only). Card back at 31 and 54 px only on injected test cards (76 px is the only live size).

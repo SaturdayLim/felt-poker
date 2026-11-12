@@ -3,6 +3,7 @@
    chip) and renders at 2x, so it stays sharp when zoomed on a phone.
    Figures come from the report model (src/report/model.ts), so the images match the HTML report. All amounts are chips. */
 import type { HandView, TrialModel } from './model';
+import { logColor, type LogLine } from './logText';
 import {
   C, INNER, PAD, W, awardIcon, cardsRow, dealerChip, feltMark, font, paginate, panel, rrect, sectionTitle, setReportTheme,
   spacer, text, textWidth, wrap, type Block, type Ctx, type ReportTheme,
@@ -28,6 +29,7 @@ export const SEGMENTS: { k: SegmentKey; label: string; desc: string; on: boolean
 const LIGHT_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#c98500', '#8a5bd6', '#d6477f', '#19a3b8', '#7a8794'];
 const DARK_COLORS = ['#3987e5', '#d95926', '#199e70', '#e0a21a', '#9d74e6', '#e0609a', '#2fb6cb', '#93a0ac'];
 let colors = DARK_COLORS;
+let imageTheme: ReportTheme = 'dark';
 const colorOf = (m: TrialModel, who: string) => colors[Math.max(0, m.players.findIndex((p) => p.id === who || p.name === who)) % 8];
 const signed = (v: number) => `${v > 0 ? '+' : ''}${Math.round(v)}`;
 const tone = (v: number) => (v > 0 ? C.pos : v < 0 ? C.neg : C.muted);
@@ -304,6 +306,45 @@ function listBlocks(title: string, rows: { left: string; sub?: string; right: st
 
 const settle = (m: TrialModel) => listBlocks('Settle up', m.settle.map((t) => ({ left: `${t.from} pays ${t.to}`, right: String(t.amount) })), 'All square.');
 
+/** The font of a coloured (player) segment: weight 600, as the HTML log draws it (.trial-pc). */
+const playerFont = (f: string) => f.replace(/^\d+ /, '600 ');
+const segFont = (sg: LogLine[number], f: string) => (sg.c === undefined ? f : playerFont(f));
+
+/** Break a coloured line to fit `maxW`. A position or name stays in one piece. A ", " or " and " stays with the piece
+    before it, so a wrapped line never starts with a separator. `measure` is the text width (canvas by default). */
+export function wrapLine(line: LogLine, f: string, maxW: number, measure: (s: string, f: string) => number = textWidth): LogLine[] {
+  const pieces: LogLine = line.flatMap((sg) => (sg.c === undefined ? (sg.t.match(/\S+\s*|\s+/g) ?? []).map((t) => ({ t })) : [sg]));
+  const units: LogLine[] = [];
+  for (const pc of pieces) {
+    const word = pc.t.trim();
+    if (units.length && pc.c === undefined && (word === '' || word === ',' || word === 'and')) units[units.length - 1].push(pc);
+    else units.push([pc]);
+  }
+  const out: LogLine[] = [];
+  let cur: LogLine = [];
+  let curW = 0;
+  for (const u of units) {
+    const full = u.reduce((s, sg) => s + measure(sg.t, segFont(sg, f)), 0);
+    const last = u[u.length - 1];
+    const w = full - measure(last.t, segFont(last, f)) + measure(last.t.trimEnd(), segFont(last, f));
+    if (cur.length && curW + w > maxW) { out.push(cur); cur = []; curW = 0; }
+    cur.push(...u);
+    curW += full;
+  }
+  out.push(cur);
+  return out;
+}
+
+/** Draw a coloured line: the position and name in the player colour (weight 600), the rest in the text colour. */
+function drawLine(ctx: Ctx, line: LogLine, x: number, y: number, f: string) {
+  let cx = x;
+  for (const sg of line) {
+    const sf = segFont(sg, f);
+    text(ctx, sg.t, cx, y, sf, sg.c === undefined ? C.text : logColor(imageTheme, sg.c));
+    cx += textWidth(sg.t, sf);
+  }
+}
+
 /** The action log of the picked hands (every hand when `ns` is omitted), as text with the cards. */
 export function logBlocks(m: TrialModel, ns?: number[]): Block[] {
   const hands: HandView[] = (m.log ?? []).filter((v) => !ns || ns.includes(v.n));
@@ -311,7 +352,7 @@ export function logBlocks(m: TrialModel, ns?: number[]): Block[] {
   if (!hands.length) out.push({ h: 80, draw: (ctx, y) => text(ctx, 'No hands picked.', PAD, y + 46, font(400, 26), C.muted) });
   const tf = font(400, 23), W2 = INNER - 64;
   for (const v of hands) {
-    const sts = v.streets.map((st) => ({ st, lines: (st.lines.length ? st.lines : ['No action']).flatMap((l) => wrap(l, tf, W2)) }));
+    const sts = v.streets.map((st) => ({ st, lines: (st.segs.length ? st.segs : [[{ t: 'No action' }]]).flatMap((l) => wrapLine(l, tf, W2)) }));
     const res = wrap(v.result, font(600, 24), W2);
     const note = v.note ? wrap(v.note, tf, W2) : [];
     const shown = v.shown;
@@ -326,7 +367,7 @@ export function logBlocks(m: TrialModel, ns?: number[]): Block[] {
         text(ctx, s.st.street, x0, y + 38, font(600, 22), C.accentText);
         if (s.st.cards.length) cardsRow(ctx, x0 + 140, y + 8, s.st.cards, 30, 5);
         y += 62;
-        s.lines.forEach((l, i) => text(ctx, l, x0, y + 22 + i * 32, tf, C.text));
+        s.lines.forEach((l, i) => drawLine(ctx, l, x0, y + 22 + i * 32, tf));
         y += s.lines.length * 32 + 8;
       }
       for (const sh of shown) {
@@ -353,6 +394,7 @@ export function segmentBlocks(m: TrialModel, k: SegmentKey): Block[] { return BU
 export function setImageTheme(theme: ReportTheme) {
   setReportTheme(theme);
   colors = theme === 'light' ? LIGHT_COLORS : DARK_COLORS;
+  imageTheme = theme;
 }
 
 /** Image header: Felt mark, then the game title "Potato Day (1 Nov 2026)" and the subtitle "(1/2 * S$0.10 Cash)". */

@@ -79,7 +79,14 @@ function railPoints(w: number, pockets: number[], chip: { x: number; y: number }
   });
 }
 
-const line = (pts: [number, number][]) => pts.map(([x, d], i) => `${i ? 'L' : 'M'}${+x.toFixed(2)} ${(RAIL_Y + d).toFixed(2)}`).join(' ');
+/** One clean outline: depths under a quarter pixel are the rail itself (they only drew hairline bumps beside the pocket rims),
+    and a point inside a flat run (it and both neighbours at depth 0) is dropped, so a flat run is one segment, not hundreds of joins.
+    Curved runs keep every point: a collinearity test against the original neighbours let long chords form on gentle curves. */
+export function tidy(pts: [number, number][]): [number, number][] {
+  const flat = pts.map(([x, d]): [number, number] => [x, d < 0.25 ? 0 : d]);
+  return flat.filter(([, d], i) => i === 0 || i === flat.length - 1 || d !== 0 || flat[i - 1][1] !== 0 || flat[i + 1][1] !== 0);
+}
+const line = (pts: [number, number][]) => tidy(pts).map(([x, d], i) => `${i ? 'L' : 'M'}${+x.toFixed(2)} ${(RAIL_Y + d).toFixed(2)}`).join(' ');
 const fill = (pts: [number, number][], w: number) => `${line(pts)} L${w} ${RAIL_Y} L0 ${RAIL_Y} Z`;
 
 /** The bottom inset, measured on a new element each time: iOS can keep a stale env() value on an element styled

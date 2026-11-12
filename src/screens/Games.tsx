@@ -8,8 +8,9 @@ import { toTop } from '../components/navRail';
 import { Headline, StatRows } from '../components/statRows';
 import { TypeChips } from './Insights';
 import { gameFigure, gameResults, handStats, openTransfers, playerStatus } from '../lib/calc';
-import { gameCaption, figureDelta, oneDecimal, pct, runningLabel, runningMs, share } from '../lib/format';
+import { dateLabel, gameCaption, figureDelta, oneDecimal, pct, runningLabel, runningMs, share } from '../lib/format';
 import { groupTotals, handPace, type TypeFilter } from '../lib/stats';
+import { gameMatches } from '../lib/searchFilter';
 import { shrinkAway } from '../lib/motion';
 import { haptic } from '../lib/haptics';
 import type { Game } from '../types';
@@ -35,10 +36,7 @@ export default function Games({ player: arg }: { player?: string }) {
   const lastText = useRef(boxValue);
   useEffect(() => { if (lastText.current !== boxValue && who && boxValue !== who.name) go('games', true); lastText.current = boxValue; }, [boxValue]); // eslint-disable-line react-hooks/exhaustive-deps
   const byPlayer = !!who && boxValue === who.name;
-  const needle = byPlayer ? '' : norm(boxValue);
-  const nameOf = (id: string) => allPlayers.find((p) => p.id === id)?.name ?? '';
-  const hit = (g: Game) => !needle || (mode === 'person' ? g.playerIds.some((id) => norm(nameOf(id)).includes(needle))
-    : mode === 'game' ? norm(g.name).includes(needle) : dateWords(g.startedAt).some((w) => ` ${w}`.includes(` ${needle}`)));
+  const hit = (g: Game) => gameMatches(g, mode, byPlayer ? '' : boxValue, allPlayers);
   const list = games.filter((g) => (type === 'all' || g.type === type) && (!byPlayer || g.playerIds.includes(who!.id)) && hit(g)).sort((a, b) => b.startedAt - a.startedAt);
   const searching = !!boxValue;
   const liveNow = list.filter((g) => g.status === 'live');
@@ -87,7 +85,7 @@ export default function Games({ player: arg }: { player?: string }) {
                   <Grow key={g.id} open={rowOpen} initial={closed.first}><SwipeDelete label={`Delete ${g.name}`} onDelete={(row) => shrinkAway(row, () => { closed.drop(g.id); withUndo(`${g.name} deleted.`, () => useStore.getState().deleteGame(g.id)); })}>
                   <button className="felt-row" onClick={() => go(`game/${g.id}/hands`)}>
                     <div className="felt-row-main">
-                      <div className="felt-row-title felt-ellipsis" data-game-title={g.id}>{g.name}</div>
+                      <div className="felt-row-title felt-ellipsis"><span data-game-title={g.id} style={{ display: 'inline-block', verticalAlign: 'bottom', maxWidth: '100%' }}>{g.name}</span>{` (${dateLabel(g.startedAt)})`}</div>
                       <div className="felt-row-sub">{gameCaption(g, groupName(g))}</div>
                     </div>
                     {res[0] && (
@@ -151,15 +149,6 @@ function Grow({ open, initial = false, children }: { open: boolean; initial?: bo
     return () => cancelAnimationFrame(r);
   }, [open]);
   return <div className="felt-rowgrow" data-open={on} {...(on ? {} : { inert: '' })}><div className="felt-rowgrow-in">{children}</div></div>;
-}
-
-const norm = (t: string) => t.toLowerCase().replace(/[’']/g, ' ').replace(/\s+/g, ' ').trim();
-/** The date as the list shows it (9 Nov'26), in the ways a person types it: 9 Nov, Nov 2026, 2026. */
-function dateWords(at: number): string[] {
-  const d = new Date(at);
-  const day = d.getDate(), y = d.getFullYear();
-  const mon = d.toLocaleDateString('en-GB', { month: 'short' }), long = d.toLocaleDateString('en-GB', { month: 'long' });
-  return [`${day} ${mon} ${String(y).slice(2)}`, `${day} ${mon} ${y}`, `${day} ${long} ${y}`, `${day} ${mon}`, `${day} ${long}`, `${mon} ${y}`, `${long} ${y}`, `${y}`].map(norm);
 }
 
 /** A row that slides left to show Delete. A long swipe deletes at once; Undo puts the game back. */

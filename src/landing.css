@@ -9,7 +9,12 @@
 
 @view-transition { navigation: auto; }
 
-body.sat { overflow: hidden; }
+/* iOS Home Screen app (status bar black-translucent, viewport-fit=cover): until the document is taller than the screen, iOS
+   lays the page out in a viewport that is short by the top inset, so the version and skip link (fixed at the bottom) float
+   that far above the screen edge. The document is that much taller from the first frame; the page itself never scrolls
+   (overflow hidden, no rubber band). Same rule as src/styles.css. In a browser tab the inset is 0 and this changes nothing. */
+html { min-height: calc(100% + env(safe-area-inset-top, 0px)); }
+body.sat { overflow: hidden; overscroll-behavior: none; }
 
 .felt-splash { position: fixed; inset: 0; display: grid; place-items: center; cursor: default; user-select: none; -webkit-user-select: none; }
 .felt-splash-lockup { display: flex; flex-direction: column; align-items: center; gap: var(--sat-space-5); }

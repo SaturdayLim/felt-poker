@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { back, backTo, go } from '../router';
 import { Caption, Delta, Empty, Header, Help, Icon, Sheet, toast, withUndo } from '../components/ui';
 import { openTransfers, round2, suggestTransfers } from '../lib/calc';
-import { dateLabel, money, shortDate } from '../lib/format';
+import { dateLabel, gameCaption, money, shortDate } from '../lib/format';
 import { leaderboard } from '../lib/stats';
 import { uid } from '../lib/ids';
 import type { Game, Group as G, ID } from '../types';
@@ -100,7 +100,7 @@ export default function Group({ groupId }: { groupId: string }) {
             <div className="sat-flat felt-list">
               {games.map((g) => (
                 <button key={g.id} className="felt-row felt-row--slim" onClick={() => go(g.status === 'live' ? `game/${g.id}` : `game/${g.id}/hands`)}>
-                  <div className="felt-row-main"><div className="felt-row-title felt-ellipsis" data-game-title={g.id}>{g.name}</div><div className="felt-row-sub">{dateLabel(g.startedAt)}</div></div>
+                  <div className="felt-row-main"><div className="felt-row-title felt-ellipsis"><span data-game-title={g.id} style={{ display: 'inline-block', verticalAlign: 'bottom', maxWidth: '100%' }}>{g.name}</span>{` (${dateLabel(g.startedAt)})`}</div><div className="felt-row-sub">{gameCaption(g)}</div></div>
                   {g.status === 'live' ? <span className="sat-badge"><span className="felt-dot" />Live</span> : openTransfers(g).length ? <span className="sat-badge sat-badge--muted">{openTransfers(g).length} unpaid</span> : <span className="sat-small sat-muted">{shortDate(g.endedAt ?? g.startedAt)}</span>}
                 </button>
               ))}

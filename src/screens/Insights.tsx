@@ -8,7 +8,7 @@ import { myHands } from '../lib/style';
 import { BackToBack, CountBars, LineChart, SERIES_COLORS } from '../components/charts';
 import { gameFigure, playerResult } from '../lib/calc';
 import { FEATURES } from '../lib/features';
-import { chipsText, dateLabel, figureDelta, fileDate, money, oneDecimal, pct, plural, share, shortDate, units } from '../lib/format';
+import { chipsText, figureDelta, gameTitle, fileDate, money, oneDecimal, pct, plural, share, shortDate, units } from '../lib/format';
 import { cumulativeSeries, filterGames, leaderboard, playerSummary, type RangeFilter, type TypeFilter } from '../lib/stats';
 import { renderStandings } from '../report/reports';
 import { loadReportFonts } from '../report/canvas';
@@ -239,7 +239,7 @@ function PlayerStats({ games, board, selected, setPid, currency, name }: {
             const r = playerResult(g, selected);
             return (
               <button key={g.id} className="felt-row" onClick={() => go(`game/${g.id}/hands`)}>
-                <div className="felt-row-main"><div className="felt-row-title">{g.name}</div><div className="felt-row-sub">{dateLabel(g.startedAt)}, {r.buyIns} buy-in{r.buyIns === 1 ? '' : 's'}{r.place ? `, place ${r.place}` : ''}</div></div>
+                <div className="felt-row-main"><div className="felt-row-title felt-ellipsis">{gameTitle(g)}</div><div className="felt-row-sub">{r.buyIns} {r.buyIns === 1 ? 'Buy-in' : 'Buy-ins'}{r.place ? `, place ${r.place}` : ''}</div></div>
                 <Delta {...figureDelta(gameFigure(g, selected), showMoney)} />
               </button>
             );

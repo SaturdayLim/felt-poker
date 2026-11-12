@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chipsText, figureDelta, figureNumber, figureText, figureUnit, runningLabel, runningMs, type Figure } from './format';
+import { chipsText, figureDelta, figureNumber, figureText, figureUnit, gameCaption, gameCaptionNarrow, gameTitle, runningLabel, runningMs, type Figure } from './format';
 import type { Game } from '../types';
 
 const cash: Figure = { money: 14, chips: 7, currency: 'S$' };
@@ -99,5 +99,39 @@ describe('game time, one clock with the players', () => {
   it('hands per hour use this same span', () => {
     const g = { hands: [hand(0, 10 * min)], buyIns: [buy(0)], status: 'closed' as const, endedAt: 700 * min };
     expect(runningMs(g)).toBe(10 * min);
+  });
+});
+
+describe('game title and caption', () => {
+  const day = (y: number, m: number, d: number) => new Date(y, m - 1, d, 20).getTime();
+  const base = { name: 'Potato Day', type: 'cash', startedAt: day(2026, 11, 1), defaultBuyIn: 200, playerIds: ['a', 'b', 'c', 'd'], buyIns: [] as { amount: number }[] };
+  const game = (o: Record<string, unknown> = {}, buys = 4) => ({ ...base, buyIns: Array.from({ length: buys }, () => ({ amount: 200 })), ...o }) as unknown as Game;
+
+  it('title keeps the name as typed and the day without a leading zero', () => {
+    expect(gameTitle(game())).toBe('Potato Day (1 Nov 2026)');
+    expect(gameTitle(game({ name: 'friday night', startedAt: day(2026, 11, 12) }))).toBe('friday night (12 Nov 2026)');
+  });
+
+  it('caption counts pax and buy-ins, plural and singular', () => {
+    expect(gameCaption(game())).toBe('4 Pax, 4 Buy-ins');
+    expect(gameCaption(game({ playerIds: ['a'] }, 1))).toBe('1 Pax, 1 Buy-in');
+    expect(gameCaption(game({ playerIds: ['a', 'b'] }, 10))).toBe('2 Pax, 10 Buy-ins');
+  });
+
+  it('counts rebuys in default buy-ins', () => {
+    expect(gameCaption(game({ buyIns: [{ amount: 200 }, { amount: 400 }] }))).toBe('4 Pax, 3 Buy-ins');
+  });
+
+  it('puts the group after the buy-ins', () => {
+    expect(gameCaption(game({ playerIds: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] }, 10), 'Churchies')).toBe('7 Pax, 10 Buy-ins, Churchies');
+  });
+
+  it('narrow form puts the date first', () => {
+    expect(gameCaptionNarrow(game())).toBe('1 Nov 2026, 4 Pax, 4 Buy-ins');
+    expect(gameCaptionNarrow(game({ startedAt: day(2026, 11, 12) }), 'Churchies')).toBe('12 Nov 2026, 4 Pax, 4 Buy-ins, Churchies');
+  });
+
+  it('never uses the dash form', () => {
+    expect(gameCaption(game(), 'Churchies')).not.toContain(' - ');
   });
 });

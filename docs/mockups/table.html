@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en" class="opt-a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nightcap Table Options</title>
+<!-- Mockup only (owner review, 12 Nov 2026). Not part of the app build. Sample players and scripted hands: no game data.
+     One engine, three looks. The live hand is simulated: one action every 2 seconds. -->
+<style>
+  :root { --accent: #FF5722; --gold: #E9B84A; --ink: #1C1E21; --ice: #EBF1F5; --blue: #0052CC; --ease: cubic-bezier(.22,1,.36,1); }
+  .opt-a { --page: #10271d; --text: #f1f6f2; --muted: #a9c2b4; --felt: #1f7550; --felt-line: rgba(255,255,255,.16); --rail: #8a5c36; --rail-edge: #5f3d22;
+    --plate: #0c2118; --plate-text: #fff; --plate-muted: #a9c2b4; --panel: #173527; --line: rgba(255,255,255,.18);
+    --c1: #f4f1e8; --c2: #c8372d; --c3: #2d8a4e; --c4: #1c1e21; --c5: #6b3fa0; }
+  .opt-b { --page: #1C1E21; --text: #EBF1F5; --muted: #9aa5b1; --felt: #0b3d91; --felt-line: rgba(235,241,245,.22); --rail: #EBF1F5; --rail-edge: #c5d0da;
+    --plate: #EBF1F5; --plate-text: #1C1E21; --plate-muted: #56606b; --panel: #272a2e; --line: rgba(235,241,245,.2);
+    --c1: #EBF1F5; --c2: #0052CC; --c3: #FF5722; --c4: #1C1E21; --c5: #E9B84A; }
+  .opt-c { --page: #0d0e10; --text: #f2f3f5; --muted: #8d949c; --felt: #25282d; --felt-line: rgba(255,255,255,.1); --rail: #3b4047; --rail-edge: #17191c;
+    --plate: #17191c; --plate-text: #fff; --plate-muted: #9aa1a9; --panel: #17191c; --line: rgba(255,255,255,.16);
+    --c1: #e8eaed; --c2: #d2453a; --c3: #3d9a5f; --c4: #3a6fd8; --c5: #E9B84A; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page); color: var(--text); font: 15px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-user-select: none; user-select: none; }
+  body { min-height: 100svh; display: flex; flex-direction: column; transition: background-color 300ms; }
+  button, select, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:active { transform: scale(.96); }
+
+  /* mockup bar: not part of the design */
+  .mock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; padding-right: 150px; border-bottom: 1px dashed var(--line); }
+  .mock b { margin-right: 4px; }
+  @media (max-width: 620px) { .mock { flex-wrap: nowrap; overflow-x: auto; padding-right: 12px; } .mock button { flex: none; padding: 0 10px; } .mock b { display: none; } button.live { top: 62px; } }
+  .mock button { min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; }
+  .mock button[aria-pressed="true"] { background: var(--text); color: var(--page); border-color: var(--text); }
+
+  /* always on top: back to the live action */
+  .live { position: fixed; top: 8px; right: 12px; z-index: 50; min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); display: flex; align-items: center; gap: 8px; font-weight: 700;
+    transition: background-color 200ms, border-color 200ms; }
+  .live i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .live.on i { animation: pulse 1.6s ease-in-out infinite; }
+  .live.behind { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .live.behind i { background: #fff; }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  .stage { flex: 1; display: grid; place-items: center; padding: 44px 28px 52px; min-height: 0; }
+  .tb { position: relative; width: min(100%, calc((100svh - 285px) * 2)); aspect-ratio: 2 / 1; }
+  @media (orientation: portrait) { .tb { width: min(100%, calc((100svh - 350px) * 10 / 16)); aspect-ratio: 10 / 16; } .stage { padding: 40px 34px 50px; } }
+  /* the pill: a rail and the felt inside it */
+  .rail { position: absolute; inset: 0; border-radius: 9999px; background: var(--rail); box-shadow: 0 0 0 calc(var(--m) * .6) var(--rail-edge), 0 calc(var(--m) * 2) calc(var(--m) * 4) rgba(0,0,0,.4); }
+  .felt { position: absolute; inset: calc(var(--m) * 4.5); border-radius: 9999px; background: var(--felt); box-shadow: inset 0 calc(var(--m) * .6) calc(var(--m) * 2.4) rgba(0,0,0,.45); }
+  .felt::after { content: ''; position: absolute; inset: calc(var(--m) * 5); border-radius: 9999px; border: calc(var(--m) * .25) solid var(--felt-line); }
+  .opt-b .rail { box-shadow: 0 0 0 calc(var(--m) * .3) var(--rail-edge); }
+  .opt-b .felt { inset: calc(var(--m) * 2.2); }
+  .opt-c .felt { background: radial-gradient(ellipse at 50% 45%, #343941, var(--felt) 70%); }
+
+  .at { position: absolute; transform: translate(-50%, -50%); transition: left 450ms var(--ease), top 450ms var(--ease), opacity 300ms linear; }
+  .noanim .at, .noanim .at * { transition: none !important; }
+
+  /* cards */
+  .cd { --w: calc(var(--m) * 9.5); width: var(--w); height: calc(var(--w) * 1.4); border-radius: calc(var(--w) * .1); background: #fbfcfc; color: #1c1e21; display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 800; font-size: calc(var(--w) * .48); line-height: 1; box-shadow: 0 calc(var(--m) * .3) calc(var(--m) * .6) rgba(0,0,0,.35); flex: none; }
+  .cd span { font-size: .85em; margin-top: .06em; }
+  .cd.red { color: #c8372d; }
+  .cd.bk { background: var(--ink); border: calc(var(--w) * .06) solid var(--ice); }
+  .cd.bk svg { height: 46%; fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round; }
+  .cd.slot { background: rgba(0,0,0,.16); box-shadow: inset 0 calc(var(--m) * .25) calc(var(--m) * .5) rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.12); }
+  .board { display: flex; gap: calc(var(--m) * 1.1); }
+
+  /* seat: photo on the rail, name under it, button on the name */
+  .seat { width: 0; height: 0; z-index: 3; }
+  .av { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); width: calc(var(--m) * 13); height: calc(var(--m) * 13); border-radius: 50%; background: var(--hue); background-size: cover; background-position: center;
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: calc(var(--m) * 5); border: calc(var(--m) * .7) solid var(--plate); transition: border-color 200ms, box-shadow 200ms, filter 300ms, opacity 300ms; }
+  .plate { position: absolute; left: 0; top: calc(var(--m) * 5.2); transform: translateX(-50%); min-width: calc(var(--m) * 17); max-width: calc(var(--m) * 26); padding: calc(var(--m) * .7) calc(var(--m) * 2) calc(var(--m) * .8); border-radius: calc(var(--m) * 2);
+    background: var(--plate); color: var(--plate-text); text-align: center; font-size: max(11px, calc(var(--m) * 2.7)); line-height: 1.15; white-space: nowrap; transition: opacity 300ms; }
+  .plate b { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .plate small { display: block; font-size: .9em; color: var(--plate-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .plate .gain { color: var(--gold); font-weight: 800; }
+  .opt-b .plate .gain { color: #9a5b00; }
+  .dbtn { position: absolute; left: calc(var(--m) * -1.6); top: calc(var(--m) * -1.2); width: calc(var(--m) * 4.4); height: calc(var(--m) * 4.4); min-width: 18px; min-height: 18px; border-radius: 50%; background: var(--gold); color: #1c1e21; font-weight: 800; font-size: max(10px, calc(var(--m) * 2.4));
+    display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.5); transform: scale(0); transition: transform 300ms var(--ease); }
+  .seat.btn .dbtn { transform: scale(1); }
+  .seat.turn .av { border-color: var(--accent); box-shadow: 0 0 0 calc(var(--m) * .9) color-mix(in srgb, var(--accent) 35%, transparent); }
+  .seat.win .av { border-color: var(--gold); box-shadow: 0 0 0 calc(var(--m) * .9) color-mix(in srgb, var(--gold) 40%, transparent); }
+  .seat.out .av { filter: grayscale(1); opacity: .45; }
+  .seat.out .plate { opacity: .5; }
+  .tag { position: absolute; left: 0; top: calc(var(--m) * -8.4); transform: translateX(-50%); padding: 0 .6em; border-radius: 1em; background: var(--accent); color: #fff; font-weight: 800; font-size: max(10px, calc(var(--m) * 2.3)); white-space: nowrap; opacity: 0; transition: opacity 200ms; }
+  .seat.allin .tag { opacity: 1; }
+  /* option C: a square photo and a flat name tile */
+  .opt-c .av { border-radius: calc(var(--m) * 2); }
+  .opt-c .plate { border-radius: calc(var(--m) * .8); border: 1px solid var(--line); }
+  /* option B: the name is a paper tab */
+  .opt-b .plate { border-radius: calc(var(--m) * .6) calc(var(--m) * .6) calc(var(--m) * 2) calc(var(--m) * 2); }
+
+  .hole { display: flex; z-index: 2; }
+  .hole .cd { --w: calc(var(--m) * 5.6); }
+  .hole .cd + .cd { margin-left: calc(var(--m) * -2); transform: rotate(8deg); }
+  .hole .cd:first-child { transform: rotate(-6deg); }
+  .hole.up .cd { --w: calc(var(--m) * 7.4); margin-left: 0; transform: none; }
+  .hole.up .cd + .cd { margin-left: calc(var(--m) * .5); }
+  .hole.up { z-index: 4; }
+
+  /* chips: each column is one value; the count comes from the amount */
+  .chips { display: flex; align-items: flex-end; gap: calc(var(--m) * .4); }
+  .col { display: flex; flex-direction: column-reverse; }
+  .ch { --cw: calc(var(--m) * 3.3); width: var(--cw); height: calc(var(--cw) * .42); border-radius: 50%; background: var(--c); box-shadow: 0 calc(var(--cw) * .12) 0 color-mix(in srgb, var(--c) 62%, #000), inset 0 0 0 calc(var(--cw) * .1) color-mix(in srgb, var(--c) 80%, #fff); }
+  .ch + .ch { margin-bottom: calc(var(--cw) * -.28); }
+  .k1 { --c: var(--c1); } .k2 { --c: var(--c2); } .k3 { --c: var(--c3); } .k4 { --c: var(--c4); } .k5 { --c: var(--c5); }
+  /* option C: chips seen from straight above, in fanned rows */
+  .opt-c .col { flex-direction: row; }
+  .opt-c .ch { height: var(--cw); box-shadow: 0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 calc(var(--cw) * .14) color-mix(in srgb, var(--c) 70%, #fff); }
+  .opt-c .ch + .ch { margin-bottom: 0; margin-left: calc(var(--cw) * -.72); }
+  .opt-c .chips { flex-direction: column; align-items: flex-start; gap: calc(var(--m) * .3); }
+  .stk { z-index: 2; }
+  .bet, .pot, .fly { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .8); z-index: 2; }
+  .amt { padding: 0 .6em; border-radius: 1em; background: rgba(0,0,0,.5); color: #fff; font-weight: 700; font-size: max(11px, calc(var(--m) * 2.6)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pot .amt { font-size: max(12px, calc(var(--m) * 3)); }
+  .fly { z-index: 6; transition: left 800ms cubic-bezier(.65,0,.35,1), top 800ms cubic-bezier(.65,0,.35,1), opacity 250ms linear 650ms; }
+
+  /* under the table: the last action, then the controls */
+  .said { margin: 0; padding: 0 16px; min-height: 1.4em; text-align: center; font-size: clamp(15px, 2.4vmin, 24px); font-weight: 700; }
+  .ctl { display: grid; grid-template-columns: auto auto 1fr auto; align-items: end; gap: 10px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .ctl select { min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); max-width: 44vw; }
+  .ctl select option { color: #1c1e21; background: #fff; }
+  .step { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; }
+  .step:disabled { opacity: .35; }
+  .step svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .tl { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 4px; touch-action: pan-x; align-items: flex-end; }
+  .seg { flex: none; display: flex; flex-direction: column; gap: 4px; }
+  .seg > button { align-self: flex-start; border: 0; background: none; padding: 0 2px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .ticks { display: flex; height: 28px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+  .tk { width: 24px; height: 100%; border: 0; padding: 0; background: none; position: relative; flex: none; }
+  .tk::after { content: ''; position: absolute; left: 11px; top: 9px; bottom: 9px; width: 2px; border-radius: 1px; background: var(--muted); opacity: .5; }
+  .tk.past { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .tk.past::after { background: var(--accent); opacity: 1; }
+  .tk.cur::after { left: 5px; right: 5px; top: 5px; bottom: 5px; width: auto; border-radius: 50%; background: var(--accent); opacity: 1; box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 4px #fff; }
+  .tk:active { transform: none; }
+  @media (max-width: 620px) { .ctl { grid-template-columns: 1fr auto auto; } .tl { grid-column: 1 / -1; grid-row: 1; } }
+  .feed { display: none; margin: 4px auto 0; padding: 0 16px; list-style: none; color: var(--muted); font-size: 13px; text-align: center; }
+  .opt-c .feed { display: block; }
+
+  /* trial sign-in sheet */
+  .veil { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.55); display: grid; align-items: end; justify-items: center; opacity: 0; pointer-events: none; transition: opacity 250ms; }
+  .veil.open { opacity: 1; pointer-events: auto; }
+  .sheet { width: min(100%, 460px); background: #fbfcfc; color: #1c1e21; border-radius: 20px 20px 0 0; padding: 10px 20px calc(20px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform 350ms var(--ease); }
+  .veil.open .sheet { transform: none; }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: #c5d0da; margin: 0 auto 14px; }
+  .sheet h2 { margin: 0 0 4px; font-size: 20px; }
+  .sheet p { margin: 0 0 12px; color: #56606b; }
+  .sheet input[type=text] { width: 100%; min-height: 52px; border: 1.5px solid #c5d0da; border-radius: 12px; padding: 0 14px; font-size: 22px; letter-spacing: .3em; text-transform: uppercase; background: #fff; -webkit-user-select: text; user-select: text; }
+  .sheet input[type=text]:focus { outline: 0; border-color: var(--blue); }
+  .sheet .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .sheet .row button, .sheet label.pick { min-height: 48px; padding: 0 18px; border-radius: 12px; border: 1.5px solid #c5d0da; background: #fff; font-weight: 700; display: inline-flex; align-items: center; cursor: pointer; }
+  .sheet .row button.main { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .codes { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 13px; color: #56606b; }
+  .codes button { border: 0; background: none; padding: 4px 0; color: var(--blue); font-weight: 700; font-family: ui-monospace, Consolas, monospace; }
+  .err { color: #c8372d; min-height: 1.3em; margin: 6px 0 0; font-weight: 600; }
+  video, .shot { width: 180px; height: 180px; border-radius: 50%; object-fit: cover; background: #e2e8f0; display: block; margin: 0 auto; transform: scaleX(-1); }
+  .shot { transform: none; background-size: cover; background-position: center; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .at, .fly { transition: opacity 150ms linear !important; } .live.on i { animation: none; } }
+</style>
+</head>
+<body>
+<div class="mock">
+  <b>Mockup</b>
+  <button data-opt="a" aria-pressed="true">A Club</button>
+  <button data-opt="b" aria-pressed="false">B Nightcap</button>
+  <button data-opt="c" aria-pressed="false">C Broadcast</button>
+  <button id="signin">Player sign-in</button>
+</div>
+<button class="live on" id="live"><i></i><span>Live</span></button>
+
+<div class="stage"><div class="tb" id="tb"><div class="rail"></div><div class="felt"></div></div></div>
+<p class="said" id="said" aria-live="polite"></p>
+<ul class="feed" id="feed"></ul>
+<div class="ctl">
+  <select id="pick" aria-label="Hand"></select>
+  <button class="step" id="prev" aria-label="Back one action"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <div class="tl" id="tl" role="group" aria-label="Actions"></div>
+  <button class="step" id="next" aria-label="Forward one action"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+</div>
+
+<div class="veil" id="veil"><div class="sheet" role="dialog" aria-label="Player sign-in">
+  <div class="grab"></div>
+  <div id="s1">
+    <h2>Player sign-in</h2>
+    <p>Enter your player code.</p>
+    <input type="text" id="code" maxlength="6" autocomplete="off" autocapitalize="characters" aria-label="Player code">
+    <p class="err" id="err"></p>
+    <div class="row"><button class="main" id="go">Sign in</button></div>
+    <div class="codes" id="codes"></div>
+  </div>
+  <div id="s2" hidden>
+    <h2 id="hello"></h2>
+    <p>Add a photo for your seat. The table shows it to everyone who watches this game.</p>
+    <video id="vid" autoplay playsinline muted hidden></video>
+    <div class="shot" id="shot" hidden></div>
+    <p class="err" id="err2"></p>
+    <div class="row">
+      <button class="main" id="cam">Turn on camera</button>
+      <button class="main" id="snap" hidden>Take photo</button>
+      <label class="pick">Choose photo<input type="file" id="file" accept="image/*" hidden></label>
+      <button id="sample">Sample photo</button>
+      <button id="skip">No photo</button>
+      <button class="main" id="use" hidden>Use photo</button>
+    </div>
+  </div>
+</div></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const fig = (n) => Math.round(n).toLocaleString('en-US');
+
+/* ---------- sample data ---------- */
+const P = [
+  { id: 'nic', name: 'Nic', code: 'K7M2QX', hue: '#0052CC' }, { id: 'eve', name: 'Eve', code: 'R4T9BW', hue: '#b0413e' },
+  { id: 'mike', name: 'Mike', code: 'H3J8LD', hue: '#2d8a4e' }, { id: 'nat', name: 'Nat', code: 'P6C5ZN', hue: '#8a5cc2' },
+  { id: 'cat', name: 'Cat', code: 'W2F7VG', hue: '#c9772b' }, { id: 'ev', name: 'Everett', code: 'Y9S4AE', hue: '#2a8c95' },
+];
+const byId = Object.fromEntries(P.map((p) => [p.id, p]));
+const N = P.length;
+const photos = {};
+// positions count from the button: 0 BTN, 1 SB, 2 BB, 3 UTG ...
+const SCRIPTS = {
+  river: { board: ['Kh', '8s', '3d', 'Qc', '2s'], cards: { 3: ['Ad', 'Kc'], 5: ['Ks', 'Qd'] }, rank: [5, 3, 2, 0, 1, 4],
+    acts: [[3, 'r', 6], [4, 'f'], [5, 'c'], [0, 'c'], [1, 'f'], [2, 'c'], 'flop', [2, 'x'], [3, 'b', 12], [5, 'c'], [0, 'f'], [2, 'c'], 'turn', [2, 'x'], [3, 'x'], [5, 'b', 30], [2, 'f'], [3, 'c'], 'river', [3, 'x'], [5, 'b', 60], [3, 'c'], 'show'] },
+  take: { board: [], cards: {}, rank: [4], acts: [[3, 'f'], [4, 'r', 7], [5, 'f'], [0, 'f'], [1, 'f'], [2, 'f']] },
+  side: { board: ['Jc', '9h', '4s', '4d', 'Ah'], cards: { 3: ['Jd', 'Js'], 5: ['As', 'Th'], 2: ['Ac', 'Qh'] }, rank: [3, 2, 5, 0, 1, 4],
+    acts: [[3, 'r', 40], [4, 'f'], [5, 'c'], [0, 'f'], [1, 'f'], [2, 'c'], 'flop', [2, 'x'], [5, 'b', 50], [2, 'c'], 'turn', [2, 'x'], [5, 'x'], 'river', [2, 'b', 80], [5, 'c'], 'show'] },
+};
+const SEG = { preflop: 'Pre-flop', flop: 'Flop', turn: 'Turn', river: 'River', end: 'Showdown' };
+
+function build(key, btn, stacks, n) {
+  const sc = SCRIPTS[key], at = (i) => P[(btn + i) % N].id;
+  const steps = [{ t: 'act', p: at(1), k: 'sb', to: 1, seg: 'preflop' }, { t: 'act', p: at(2), k: 'bb', to: 2, seg: 'preflop' }];
+  let seg = 'preflop';
+  for (const a of sc.acts) {
+    if (a === 'show') steps.push({ t: 'show', seg: 'end' });
+    else if (typeof a === 'string') { seg = a; steps.push({ t: 'deal', street: a, seg }); }
+    else steps.push({ t: 'act', p: at(a[0]), k: a[1], to: a[2], seg });
+  }
+  steps.push({ t: 'win', seg: 'end' });
+  const cards = {}; for (const i in sc.cards) cards[at(+i)] = sc.cards[i];
+  return { n, key, button: at(0), steps, board: sc.board, cards, rank: sc.rank.map(at), start: { ...stacks }, showdown: sc.acts.includes('show') };
+}
+
+/** The table after k steps. Rebuilt from the steps each time: moving the cursor changes nothing. */
+function stateAt(h, k) {
+  const s = { stacks: { ...h.start }, bets: {}, contrib: {}, folded: new Set(), allin: new Set(), pot: 0, boardN: 0, shown: false, pays: null, won: {}, said: '', toAct: null, lines: [] };
+  const sweep = () => { for (const p in s.bets) s.pot += s.bets[p]; s.bets = {}; };
+  for (let i = 0; i < k && i < h.steps.length; i++) {
+    const st = h.steps[i];
+    if (st.t === 'deal') { sweep(); s.boardN = { flop: 3, turn: 4, river: 5 }[st.street]; s.said = SEG[st.street] + '.'; }
+    else if (st.t === 'show') { sweep(); s.shown = true; s.boardN = h.board.length; s.said = 'Showdown.'; }
+    else if (st.t === 'win') {
+      sweep(); s.pays = [];
+      const live = P.map((p) => p.id).filter((p) => !s.folded.has(p) && (s.contrib[p] || 0) > 0);
+      const levels = [...new Set(live.map((p) => s.contrib[p]))].sort((a, b) => a - b);
+      let prev = 0;
+      for (const L of levels) {
+        let amt = 0; for (const p in s.contrib) amt += Math.min(s.contrib[p], L) - Math.min(s.contrib[p], prev);
+        const elig = live.filter((p) => s.contrib[p] >= L), w = h.rank.find((p) => elig.includes(p));
+        const lastPay = s.pays[s.pays.length - 1];
+        if (lastPay && lastPay.p === w) lastPay.amt += amt; else s.pays.push({ p: w, amt });
+        prev = L;
+      }
+      for (const pay of s.pays) { s.stacks[pay.p] += pay.amt; s.won[pay.p] = (s.won[pay.p] || 0) + pay.amt; }
+      s.pot = 0;
+      s.said = s.pays.map((x, j) => `${byId[x.p].name} wins ${s.pays.length > 1 ? (j ? 'the side pot, ' : 'the main pot, ') : ''}${fig(x.amt)}`).join('. ') + '.';
+    } else {
+      const p = st.p, name = byId[p].name, had = s.bets[p] || 0, max = Math.max(0, ...Object.values(s.bets));
+      if (st.k === 'f') { s.folded.add(p); s.said = `${name} folds.`; }
+      else if (st.k === 'x') s.said = `${name} checks.`;
+      else {
+        const want = st.k === 'c' ? max : st.to, to = Math.min(want, had + s.stacks[p]), add = to - had;
+        s.stacks[p] -= add; s.bets[p] = to; s.contrib[p] = (s.contrib[p] || 0) + add;
+        const all = s.stacks[p] === 0; if (all) s.allin.add(p);
+        s.said = st.k === 'sb' ? `${name} posts SB ${fig(to)}.` : st.k === 'bb' ? `${name} posts BB ${fig(to)}.`
+          : all ? `${name} is all-in for ${fig(to)}.` : st.k === 'c' ? `${name} calls ${fig(to)}.` : st.k === 'b' ? `${name} bets ${fig(to)}.` : `${name} raises to ${fig(to)}.`;
+      }
+    }
+    s.lines.push(s.said);
+  }
+  const nx = h.steps[k];
+  if (nx && nx.t === 'act' && nx.k !== 'sb' && nx.k !== 'bb') s.toAct = nx.p;
+  return s;
+}
+
+/* ---------- chips from an amount ---------- */
+const DEN = [[500, 5], [100, 4], [25, 3], [5, 2], [1, 1]];
+function chipCols(amount) {
+  let rem = Math.round(amount), kept = 0; const cols = [];
+  for (const [d, k] of DEN) {
+    let n = Math.floor(rem / d);
+    if (n > 0 && d > 1 && kept < 2) { n -= 1; kept++; } // keep change, so a stack reads as a stack and not as two big chips
+    if (n > 0) { cols.push([k, n]); rem -= n * d; }
+  }
+  return cols;
+}
+function chipsHtml(amount) {
+  let h = '';
+  for (const [k, n] of chipCols(amount)) for (let left = n; left > 0; left -= 10) h += `<span class="col">${`<i class="ch k${k}"></i>`.repeat(Math.min(10, left))}</span>`;
+  return `<span class="chips">${h}</span>`;
+}
+
+/* ---------- cards ---------- */
+const SUIT = { s: '♠', h: '♥', d: '♦', c: '♣' };
+const S_PATH = 'M53.38 36.90 A24 24 0 1 0 32 50 A24 24 0 1 1 10.62 63.10';
+const cardUp = (c) => `<span class="cd ${c[1] === 'h' || c[1] === 'd' ? 'red' : ''}">${c[0] === 'T' ? '10' : c[0]}<span>${SUIT[c[1]]}</span></span>`;
+const cardBack = () => `<span class="cd bk"><svg viewBox="-4 -4 72 108"><path d="${S_PATH}"/></svg></span>`;
+function flip(e) { if (!anim) return; e.animate([{ transform: 'perspective(500px) rotateY(90deg)' }, { transform: 'perspective(500px) rotateY(0)' }], { duration: 340, easing: 'cubic-bezier(.22,1,.36,1)' }); }
+
+/* ---------- the pill ---------- */
+const tb = $('#tb');
+let W = 1, H = 1, M = 1;
+/** A point on a pill of w by h (inset d from the table edge), t of the way round from the bottom centre, clockwise seen from above. */
+function pill(t, d, along = 0) {
+  const w = W - 2 * d, h = H - 2 * d, r = Math.min(w, h) / 2, lh = w - 2 * r, lv = h - 2 * r, q = (Math.PI * r) / 2;
+  const parts = [['h', lh / 2, w / 2, h, -1], ['a', q, r, h - r, 90], ['v', lv, 0, h - r, -1], ['a', q, r, r, 180], ['h', lh, r, 0, 1], ['a', q, w - r, r, 270], ['v', lv, w, r, 1], ['a', q, w - r, h - r, 0], ['h', lh / 2, w - r, h, -1]];
+  const per = 2 * lh + 2 * lv + 4 * q; let dist = ((((t % 1) + 1) % 1) * per + along + per) % per, x = w / 2, y = h;
+  for (const [kind, len, a, b, c] of parts) {
+    if (dist <= len || kind === parts[8]) {
+      if (kind === 'h') { x = a + c * dist; y = b; } else if (kind === 'v') { x = a; y = b + c * dist; }
+      else { const ang = ((c + (dist / (q || 1)) * 90) * Math.PI) / 180; x = a + r * Math.cos(ang); y = b + r * Math.sin(ang); }
+      break;
+    }
+    dist -= len;
+  }
+  return { x: ((x + d) / W) * 100, y: ((y + d) / H) * 100 };
+}
+const put = (e, pt) => { e.style.left = pt.x + '%'; e.style.top = pt.y + '%'; };
+const POT = { x: 50, y: 64 }, BOARD = { x: 50, y: 46 };
+
+/* ---------- table parts (made once) ---------- */
+const ui = { seat: {}, hole: {}, stk: {}, bet: {}, pos: {} };
+const board = el('div', 'at board'); put(board, BOARD); tb.append(board);
+const pot = el('div', 'at pot'); put(pot, POT); tb.append(pot);
+P.forEach((p) => {
+  const seat = el('div', 'at seat', `<span class="tag">All-in</span><span class="av"></span><span class="plate"><span class="dbtn">D</span><b></b><small></small></span>`);
+  seat.style.setProperty('--hue', p.hue);
+  const hole = el('div', 'at hole'), stk = el('div', 'at stk'), bet = el('div', 'at bet'); bet.style.opacity = 0;
+  tb.append(hole, stk, bet, seat);
+  ui.seat[p.id] = seat; ui.hole[p.id] = hole; ui.stk[p.id] = stk; ui.bet[p.id] = bet;
+});
+function avatars() { P.forEach((p) => { const a = ui.seat[p.id].querySelector('.av'); a.style.backgroundImage = photos[p.id] ? `url("${photos[p.id]}")` : ''; a.textContent = photos[p.id] ? '' : p.name[0]; }); }
+function layout() {
+  W = tb.clientWidth; H = tb.clientHeight; M = Math.min(W, H) / 100; tb.style.setProperty('--m', M + 'px');
+  P.forEach((p, i) => {
+    const t = i / N;
+    ui.pos[p.id] = { seat: pill(t, M * 1), hole: pill(t, M * 9, M * 16.5), stk: pill(t, M * 9, M * -15), bet: pill(t, M * 28) };
+    put(ui.seat[p.id], ui.pos[p.id].seat); put(ui.hole[p.id], ui.pos[p.id].hole); put(ui.stk[p.id], ui.pos[p.id].stk);
+  });
+}
+
+/* ---------- state of the page ---------- */
+const done = [];
+let live = null, liveLen = 0, liveRest = 0, btn = 0;
+let pick = 'live', k = 0, follow = true, anim = false, shownKey = '';
+const cur = () => (pick === 'live' ? live : done.find((h) => h.n === pick));
+const lastOf = (h) => (h === live ? liveLen : h.steps.length);
+const had = { bets: {}, board: 0, up: {}, pays: false };
+
+function tween(e, to) {
+  const from = e._v ?? to; e._v = to; cancelAnimationFrame(e._raf);
+  if (!anim || from === to) { e.textContent = fig(to); return; }
+  const t0 = performance.now(); const run = (now) => { const f = Math.min(1, (now - t0) / 500); e.textContent = fig(from + (to - from) * f); if (f < 1) e._raf = requestAnimationFrame(run); }; run(t0);
+}
+
+function render() {
+  const h = cur(); if (!h) return;
+  const s = stateAt(h, k), key = h.n + '';
+  if (key !== shownKey) { anim = false; shownKey = key; had.board = 0; had.up = {}; had.bets = {}; }
+  tb.classList.toggle('noanim', !anim);
+  // board
+  if (board.children.length !== 5) board.innerHTML = '<span></span>'.repeat(5);
+  [...board.children].forEach((slot, i) => { const c = i < s.boardN ? h.board[i] : null, v = c || ''; if (slot._c !== v) { slot._c = v; slot.innerHTML = c ? cardUp(c) : '<span class="cd slot"></span>'; if (c) flip(slot.firstChild); } });
+  // seats
+  for (const p of P) {
+    const id = p.id, seat = ui.seat[id], out = s.folded.has(id), won = s.won[id] || 0;
+    seat.className = `at seat ${out ? 'out' : ''} ${s.toAct === id ? 'turn' : ''} ${s.allin.has(id) && !out && !s.pays ? 'allin' : ''} ${won ? 'win' : ''} ${h.button === id ? 'btn' : ''}`;
+    seat.querySelector('b').textContent = p.name;
+    const small = seat.querySelector('small');
+    if (!small.firstChild || small.firstChild.nodeType !== 1) small.innerHTML = '<span></span><span class="gain"></span>';
+    tween(small.firstChild, s.stacks[id]); small.lastChild.textContent = won ? `  +${fig(won)}` : '';
+    ui.stk[id].innerHTML = chipsHtml(s.stacks[id]);
+    // hole cards: face down; face up from the showdown when shown at the table; gone when folded
+    const hole = ui.hole[id], up = s.shown && !out && h.cards[id] ? h.cards[id].join('') : '';
+    if (hole._c !== up || !hole.firstChild) { hole._c = up; hole.innerHTML = up ? h.cards[id].map(cardUp).join('') : cardBack() + cardBack(); if (up) [...hole.children].forEach(flip); }
+    hole.classList.toggle('up', !!up);
+    hole.style.opacity = out ? 0 : 1;
+    put(hole, out ? { x: (ui.pos[id].hole.x + 50) / 2, y: (ui.pos[id].hole.y + 50) / 2 } : ui.pos[id].hole);
+    // the bet in front of the seat: out from the seat, then into the pot
+    const bet = ui.bet[id], amt = s.bets[id] || 0, was = had.bets[id] || 0;
+    if (amt > 0) {
+      bet.innerHTML = chipsHtml(amt) + `<span class="amt">${fig(amt)}</span>`;
+      if (!was && anim) { bet.style.transition = 'none'; put(bet, ui.pos[id].stk); bet.style.opacity = 0; void bet.offsetWidth; bet.style.transition = ''; }
+      put(bet, ui.pos[id].bet); bet.style.opacity = 1;
+    } else { if (was && anim) put(bet, POT); else put(bet, ui.pos[id].bet); bet.style.opacity = 0; }
+    had.bets[id] = amt;
+  }
+  // pot, and its move to the winner
+  pot.innerHTML = s.pot > 0 ? chipsHtml(s.pot) + `<span class="amt">Pot ${fig(s.pot)}</span>` : '';
+  tb.querySelectorAll('.fly').forEach((f) => f.remove());
+  if (s.pays && !had.pays && anim) s.pays.forEach((pay, j) => {
+    const f = el('div', 'at fly', chipsHtml(pay.amt) + `<span class="amt">${fig(pay.amt)}</span>`); put(f, { x: POT.x + (j - (s.pays.length - 1) / 2) * 12, y: POT.y }); tb.append(f);
+    setTimeout(() => { put(f, ui.pos[pay.p].stk); f.style.opacity = 0; }, 350 + j * 500);
+    setTimeout(() => f.remove(), 1700 + j * 500);
+  });
+  had.pays = !!s.pays;
+  $('#said').textContent = s.said || (h === live ? 'Waiting for the first action.' : `Hand ${h.n}.`);
+  $('#feed').innerHTML = s.lines.slice(-4, -1).map((l) => `<li>${l}</li>`).join('');
+  timeline(h); liveBtn(); picker();
+  $('#prev').disabled = k <= 0; $('#next').disabled = k >= lastOf(h);
+}
+
+/* ---------- timeline: one tick per action, one block per street ---------- */
+function timeline(h) {
+  const tl = $('#tl'), last = lastOf(h), sig = h.n + ':' + last;
+  if (tl._sig !== sig) {
+    tl._sig = sig; tl.innerHTML = '';
+    const start = el('div', 'seg', `<button data-k="0">Start</button><div class="ticks"><button class="tk" data-k="0" aria-label="Before the first action"></button></div>`); tl.append(start);
+    let seg = null, box = null;
+    h.steps.slice(0, last).forEach((st, i) => {
+      const name = st.seg === 'end' && !h.showdown ? 'Result' : SEG[st.seg];
+      if (st.seg !== seg) { seg = st.seg; const g = el('div', 'seg', `<button data-k="${i + 1}">${name}</button><div class="ticks"></div>`); tl.append(g); box = g.lastChild; }
+      const b = el('button', 'tk'); b.dataset.k = i + 1; b.setAttribute('aria-label', `Step ${i + 1}`); box.append(b);
+    });
+  }
+  tl.querySelectorAll('.tk').forEach((b) => { const v = +b.dataset.k; b.classList.toggle('past', v < k); b.classList.toggle('cur', v === k); if (v === k) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  const c = tl.querySelector('.cur'); if (c && !dragging) { const r = c.getBoundingClientRect(), t = tl.getBoundingClientRect(); if (r.left < t.left || r.right > t.right) tl.scrollLeft += r.left - t.left - t.width / 2; }
+}
+let dragging = false;
+function seek(e) { const t = document.elementFromPoint(e.clientX, e.clientY); const b = t && t.closest('[data-k]'); if (b && $('#tl').contains(b)) moveTo(+b.dataset.k, 'jump'); }
+$('#tl').addEventListener('pointerdown', (e) => { dragging = true; seek(e); });
+window.addEventListener('pointermove', (e) => { if (dragging && e.buttons) seek(e); });
+window.addEventListener('pointerup', () => { dragging = false; });
+
+function moveTo(to, how) {
+  const h = cur(), last = lastOf(h), v = Math.max(0, Math.min(last, to));
+  anim = how !== 'jump' && Math.abs(v - k) === 1 && v > k;
+  k = v; follow = pick === 'live' && k === last; render();
+}
+function goLive() { pick = 'live'; follow = true; anim = false; k = liveLen; render(); }
+function liveBtn() {
+  const b = $('#live'), behind = pick === 'live' ? liveLen - k : -1;
+  b.className = 'live ' + (follow ? 'on' : 'behind');
+  b.lastChild.textContent = follow ? 'Live' : behind > 0 ? `Live, ${behind} behind` : 'Go to live';
+  b.setAttribute('aria-label', follow ? 'Live' : 'Go to the live action');
+}
+function picker() {
+  const sel = $('#pick'), sig = live.n + ':' + done.length;
+  if (sel._sig !== sig) {
+    sel._sig = sig;
+    sel.innerHTML = `<option value="live">Hand ${live.n} (live)</option>` + [...done].reverse().map((h) => { const s = stateAt(h, h.steps.length); return `<option value="${h.n}">Hand ${h.n} (${[...new Set(s.pays.map((x) => byId[x.p].name))].join(' and ')})</option>`; }).join('');
+  }
+  sel.value = pick;
+}
+$('#pick').addEventListener('change', (e) => { const v = e.target.value; if (v === 'live') return goLive(); pick = +v; follow = false; anim = false; k = 0; render(); });
+$('#prev').addEventListener('click', () => moveTo(k - 1));
+$('#next').addEventListener('click', () => moveTo(k + 1));
+$('#live').addEventListener('click', goLive);
+window.addEventListener('keydown', (e) => { if ($('#veil').classList.contains('open')) return; if (e.key === 'ArrowLeft') moveTo(k - 1); else if (e.key === 'ArrowRight') moveTo(k + 1); else if (e.key.toLowerCase() === 'l') goLive(); });
+
+/* ---------- the simulated live game ---------- */
+const CYCLE = ['river', 'take', 'side'];
+function nextLive() {
+  const stacks = live ? stateAt(live, live.steps.length).stacks : stateAt(done[done.length - 1], 99).stacks;
+  if (live) done.push(live);
+  for (const p in stacks) if (stacks[p] <= 0) stacks[p] = 200; // a bust player buys back in
+  btn = (btn + 1) % N;
+  live = build(CYCLE[(done.length - 2) % 3], btn, stacks, done.length + 1); liveLen = 2; liveRest = 0;
+}
+function tick() {
+  if (liveLen < live.steps.length) liveLen++;
+  else if (++liveRest >= 3) { const was = live; nextLive(); if (pick === 'live' && !follow) { pick = was.n; } else if (pick === 'live') { k = liveLen; anim = false; render(); return; } }
+  if (pick === 'live' && follow) { anim = k === liveLen - 1; k = liveLen; }
+  else anim = false;
+  if (pick === 'live' && follow) render(); else { timeline(cur()); liveBtn(); picker(); }
+}
+
+/* ---------- options ---------- */
+document.querySelectorAll('[data-opt]').forEach((b) => b.addEventListener('click', () => {
+  document.documentElement.className = 'opt-' + b.dataset.opt;
+  document.querySelectorAll('[data-opt]').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  anim = false; render();
+}));
+
+/* ---------- trial sign-in with a seat photo ---------- */
+let me = null, stream = null, shotUrl = '';
+const veil = $('#veil');
+function openSheet() { $('#s1').hidden = false; $('#s2').hidden = true; $('#code').value = ''; $('#err').textContent = ''; veil.classList.add('open'); setTimeout(() => $('#code').focus(), 350); }
+function closeSheet() { veil.classList.remove('open'); stopCam(); }
+function stopCam() { if (stream) stream.getTracks().forEach((t) => t.stop()); stream = null; $('#vid').hidden = true; $('#snap').hidden = true; }
+$('#codes').innerHTML = 'Trial codes: ' + P.map((p) => `<span>${p.name} <button data-code="${p.code}">${p.code}</button></span>`).join('');
+$('#codes').addEventListener('click', (e) => { const c = e.target.dataset.code; if (c) { $('#code').value = c; $('#err').textContent = ''; } });
+$('#signin').addEventListener('click', openSheet);
+veil.addEventListener('click', (e) => { if (e.target === veil) closeSheet(); });
+function signIn() {
+  const c = $('#code').value.trim().toUpperCase(); me = P.find((p) => p.code === c);
+  if (!me) { $('#err').textContent = 'No player has this code.'; return; }
+  $('#s1').hidden = true; $('#s2').hidden = false; $('#hello').textContent = `Signed in as ${me.name}`; $('#err2').textContent = '';
+  $('#shot').hidden = true; $('#use').hidden = true; $('#cam').hidden = false; shotUrl = '';
+}
+$('#go').addEventListener('click', signIn);
+$('#code').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn(); });
+function square(src, sw, sh) { const c = document.createElement('canvas'); c.width = c.height = 192; const side = Math.min(sw, sh); c.getContext('2d').drawImage(src, (sw - side) / 2, (sh - side) / 2, side, side, 0, 0, 192, 192); return c.toDataURL('image/jpeg', 0.8); }
+function preview(url) { shotUrl = url; stopCam(); $('#shot').style.backgroundImage = `url("${url}")`; $('#shot').hidden = false; $('#use').hidden = false; $('#cam').hidden = true; }
+$('#cam').addEventListener('click', async () => {
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } }); $('#vid').srcObject = stream; $('#vid').hidden = false; $('#shot').hidden = true; $('#snap').hidden = false; $('#cam').hidden = true; $('#err2').textContent = ''; }
+  catch { $('#err2').textContent = 'The camera is off or blocked. Choose a photo.'; }
+});
+$('#snap').addEventListener('click', () => { const v = $('#vid'); preview(square(v, v.videoWidth, v.videoHeight)); });
+$('#file').addEventListener('change', (e) => { const f = e.target.files[0]; if (!f) return; const img = new Image(); img.onload = () => { preview(square(img, img.naturalWidth, img.naturalHeight)); URL.revokeObjectURL(img.src); }; img.src = URL.createObjectURL(f); e.target.value = ''; });
+$('#sample').addEventListener('click', () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="${me.hue}"/><circle cx="48" cy="40" r="19" fill="#f1c9a5"/><path d="M12 96c2-24 18-34 36-34s34 10 36 34z" fill="#1c1e21"/><path d="M29 36c2-16 12-20 20-20s18 5 19 20c-8-8-28-10-39 0z" fill="#3b2a1e"/></svg>`;
+  preview('data:image/svg+xml,' + encodeURIComponent(svg));
+});
+$('#use').addEventListener('click', () => { photos[me.id] = shotUrl; avatars(); closeSheet(); });
+$('#skip').addEventListener('click', () => { delete photos[me.id]; avatars(); closeSheet(); });
+
+/* ---------- start ---------- */
+const s0 = Object.fromEntries(P.map((p) => [p.id, 200])); s0[P[3].id] = 40; // one short stack, so hand 1 has a side pot
+done.push(build('side', 0, s0, 1));
+btn = 1; done.push(build('take', 1, stateAt(done[0], 99).stacks, 2));
+nextLive();
+layout(); avatars(); k = liveLen; render();
+new ResizeObserver(() => { layout(); anim = false; render(); }).observe(tb);
+setInterval(tick, 2000);
+</script>
+</body>
+</html>

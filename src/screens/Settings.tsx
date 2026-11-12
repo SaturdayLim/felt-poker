@@ -184,6 +184,8 @@ function InfoView() {
       toast('No connection. Connect to the internet and try again.');
       return;
     }
+    // an update opens Nightcap again from the load screen: forget that this session saw it and picked Host or Player
+    try { sessionStorage.removeItem('felt-splashed'); sessionStorage.removeItem('felt-role'); } catch { /* private mode */ }
     site.searchParams.set('u', String(Date.now()));
     location.replace(site.href);
   };

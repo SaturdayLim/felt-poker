@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.1', date: '13 Nov 2026', notes: [
+    'The mark: the S covers more of each circle.',
+    'App update: Check for update opens Nightcap again from the load screen.',
+  ] },
   { version: '1.8.0', date: '13 Nov 2026', notes: [
     'Felt is now Nightcap. Saved games, players and settings stay as they are.',
     'Table: a new tab on the game page shows the table from above for a TV, a tablet or a second window. It follows the hand in play and replays any finished hand, one action at a time. It never changes the record.',

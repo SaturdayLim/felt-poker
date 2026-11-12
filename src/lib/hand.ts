@@ -725,9 +725,19 @@ export function partlyRecorded(g: Game, log: HandLog, stacks?: Record<ID, number
   return last !== 'river' && inAtEnd(log, last).length > 1 && !actionClosed(log, last);
 }
 
-/** The player went all-in with the amount typed in: that amount was their whole stack. */
+/** An all-in logged against a stack that was only a range: `to` is the lower end of the range, not the real stack.
+    (Stored on the Act as `est`.) */
+export const isEstAllIn = (a: Act | null | undefined): boolean => a?.k === 'allin' && !!a.est;
+
+/** The player went all-in with the amount typed in: that amount was their whole stack.
+    An all-in logged at the lower end of a range (`est`) does not count: the stack is still unknown. */
 export function typedAllIn(log: HandLog, p: ID): boolean {
-  return Object.values(log.streets).some((s) => s?.acts?.[p]?.some((a) => a?.k === 'allin' && a.to !== undefined));
+  return Object.values(log.streets).some((s) => s?.acts?.[p]?.some((a) => a?.k === 'allin' && a.to !== undefined && !isEstAllIn(a)));
+}
+
+/** The player has an all-in in this hand logged at the lower end of a range stack. */
+export function estAllIn(log: HandLog, p: ID): boolean {
+  return Object.values(log.streets).some((s) => s?.acts?.[p]?.some((a) => isEstAllIn(a)));
 }
 
 /** Any action typed into a box yet (defaults included)? */

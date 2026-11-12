@@ -16,9 +16,9 @@ import { uid } from '../lib/ids';
 import { haptic } from '../lib/haptics';
 import {
   NOT_SHOWN, STREETS, STREET_CARDS, actionClosed, blinds, bountyWinner, closeStreet, contributions, is27, minRaiseTo, dropAfter, fillBefore, finalists, hasActs, inAtEnd, inAtStart,
-  isTakedown, newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, switchRuns, unknownBoxes, type Replay,
+  isTakedown, newBoxLog, openStreetBoxes, partlyRecorded, potTotal, replayStreet, resolve, rowOrder, setAct, showdownOrder, switchRuns, unknownBoxes, estAllIn, type Replay,
 } from '../lib/hand';
-import { bustedAfterSave, estimateStacks, exactStacks } from '../lib/stacks';
+import { bustedAfterSave, estimateStacks, exactStacks, needsCount, roomFrom, type Room, shoveAt, stackBounds } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import type { Act, Card, Game, Hand, HandLog, ID, StreetName } from '../types';
 
@@ -238,11 +238,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   const { minRaise: minRule, bounty27: bountyRule } = g ? gameRules(g, settings) : settings;
   const [dark, setDark] = useState(false);
   const [raiseErr, setRaiseErr] = useState<number | null>(null);
-  // All-in with the stack only a range: the keypad asks for the amount (it was the whole stack)
-  const [allInAsk, setAllInAsk] = useState(false);
   const dock = useDockPush();
   const panelOpen = !!target || !!sel;
-  useSwipeDown(dock, () => { setTarget(null); setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false); }, panelOpen);
+  useSwipeDown(dock, () => { setTarget(null); setSel(null); setTyped(''); setDark(false); setRaiseErr(null); }, panelOpen);
   // a card picker that opens under the finger must not take the second tap of a double tap
   const pickerAt = useRef(0);
   useEffect(() => { if (target) pickerAt.current = Date.now(); }, [!!target]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -303,7 +301,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
       if (!keypadOpen.current || !t || t.closest('.felt-keypad, .felt-box, .felt-acts-bar, .sat-tip, .sat-tip-body, .felt-mine, .felt-rec-board')) return;
       e.preventDefault();
       e.stopPropagation();
-      setSel(null); setTyped(''); setDark(false); setRaiseErr(null); setAllInAsk(false);
+      setSel(null); setTyped(''); setDark(false); setRaiseErr(null);
     };
     document.addEventListener('click', onClick, true);
     return () => document.removeEventListener('click', onClick, true);
@@ -483,7 +481,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     if (!street) return;
     setDark(false);
     setRaiseErr(null);
-    setAllInAsk(false);
     let l = setAct(g, log, street, p, r, a, stacks);
     let ended = st.ended;
     if (l.streets[street]?.at && (inAtEnd(l, street).length <= 1 || actionClosed(l, street))) { l = dropAfter(l, street); ended = true; }
@@ -499,7 +496,6 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     setTyped('');
     setDark(false);
     setRaiseErr(null);
-    setAllInAsk(false);
     // a box further on than the next one: the boxes before it take their defaults
     if (!c.act && !c.implied && replay.next && (replay.next.p !== p || replay.next.r !== r)) {
       const l = fillBefore(g, log, street, p, r, stacks);
@@ -663,18 +659,58 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   keypadOpen.current = !target && !!selCell;
   const darkOn = selCell?.act ? !!selCell.act.dark : dark;
   const mark = (a: Act): Act => (darkOn && street !== 'preflop' ? { ...a, dark: true } : a);
-  // chips the player can still put in on this street (when the stack is known exactly)
-  const roomFor = (p: ID) => (stacks?.[p] === undefined || !street ? undefined
-    : round2(stacks[p] - STREETS.slice(0, STREETS.indexOf(street)).reduce((a, x) => a + (log.streets[x]?.bets[p] ?? 0), 0)));
+  // chips the player can still put in on this street, as whole chips. Exact stack: the real figure (`room` = `high`).
+  // Stack that is a range: `room` is the low end and `high` the high end (`range` is true). Only a wager at or above
+  // `high` is an all-in; it is logged at the low end and flagged for a count. A smaller wager stays a plain wager.
+  const stackNow = useMemo(() => (g ? estimateStacks(g, existing?.n ?? nNew) : null), [g?.hands, g?.counts, g?.buyIns, g?.cashOuts, g?.moves, g?.playerIds, g?.bb, existing?.n, nNew]); // eslint-disable-line react-hooks/exhaustive-deps
+  const roomFor = (p: ID): Room | undefined => {
+    if (!street || !stackNow) return undefined;
+    const spent = STREETS.slice(0, STREETS.indexOf(street)).reduce((a, x) => a + (log.streets[x]?.bets[p] ?? 0), 0);
+    return roomFrom(stacks?.[p], stackBounds(g, stackNow, p), spent);
+  };
+  /** An all-in for the chips left, never more. Against a range it is the low end, flagged with `est`. */
+  const allInAct = (p: ID, ri: Room): Act => {
+    const a: Act = { k: 'allin', to: ri.room };
+    if (ri.range) { a.est = true; toast(`Count ${name(p)}'s chips.`); }
+    return a;
+  };
+  // players whose all-in sits at the low end of a range and who gave no count since (saved hands, plus this hand before its first save)
+  const counting = useMemo(() => {
+    if (!g) return [] as ID[];
+    const out = new Set(needsCount(g));
+    for (const p of log.dealt) if (estAllIn(log, p) && !(g.counts ?? []).some((c) => c.playerId === p && c.at >= log.startedAt)) out.add(p);
+    return [...out];
+  }, [g, log]);
+  // stacks that are only a range (whole chips, to the big blind): the name sub-line shows them
+  const ranges = useMemo(() => {
+    const out: Record<ID, { lo: number; hi: number }> = {};
+    if (!g || !stackNow) return out;
+    for (const p of g.playerIds) { const b = stackBounds(g, stackNow, p); if (b && b.lo !== b.hi && stackNow.spread[p] > 0) out[p] = b; }
+    return out;
+  }, [g, stackNow]);
+  const selRoom = sel ? roomFor(sel.p) : undefined;
+  const typedN = Number(typed);
   const minTo = selCell ? minRaiseTo(g, minRule, selCell.high, selCell.inc) : 0;
+  /** The Bet or Raise key says All-in: the amount it will log (the typed total, else the minimum raise) is at or
+      above the most the player can put in. */
+  const shoves = !!selCell?.canRaise && shoveAt(selRoom, typedN > 0 ? typedN : minTo);
   /** An amount no higher than the bet is a call (C). A raise under the house minimum is refused,
       unless it puts the player all-in; the keypad then offers the call or the minimum raise. */
   const commitBet = (v = Number(typed)) => {
     if (!sel || !selCell || !(v > 0)) return;
-    if (v <= selCell.high || !selCell.canRaise) { act(sel.p, sel.r, mark({ k: 'call' })); return; }
-    const rm = roomFor(sel.p);
-    if (v < minTo && !(rm !== undefined && v >= rm)) { setRaiseErr(minTo); return; }
+    const ri = roomFor(sel.p);
+    if (v <= selCell.high || !selCell.canRaise) { callAct(); return; }
+    if (ri && shoveAt(ri, v)) { act(sel.p, sel.r, mark(allInAct(sel.p, ri))); return; }
+    if (v < minTo) { setRaiseErr(minTo); return; }
     act(sel.p, sel.r, mark({ k: 'bet', to: v }));
+  };
+  /** Call. When the amount owed is at or above the most the player can put in, it is an all-in call: an exact
+      stack caps it in the replay; a range stack logs the low end, flagged for a count. */
+  const callAct = () => {
+    if (!sel || !selCell) return;
+    const ri = roomFor(sel.p);
+    if (ri?.range && ri.high > 0 && selCell.toCall > 0 && selCell.amount + selCell.toCall >= ri.high) { act(sel.p, sel.r, mark(allInAct(sel.p, ri))); return; }
+    act(sel.p, sel.r, mark({ k: 'call' }));
   };
   // Preflop the toggle is Straddle: first to act only (or next after straddles), at the minimum raise.
   // After the flop it is Dark: a mark only.
@@ -780,7 +816,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
             {legacy ? (
               <p className="sat-small sat-muted">This hand was logged with the earlier recorder. {inAtEnd(log, street).length} players were still in after the {LABEL[street].toLowerCase()}, pot {units(potTotal(g, log, log.button, street))}.</p>
             ) : replay && (
-              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} name={name} onPick={readOnly ? () => {} : pickBox}
+              <ActionTable g={g} log={log} street={street} replay={replay} sel={sel} stacks={stacks} ranges={ranges} counting={counting} name={name} onPick={readOnly ? () => {} : pickBox}
                 shown={st.shown} namingFor={target?.kind === 'shown' ? target.p : null} onName={(p) => { if (readOnly) return; setSel(null); setTyped(''); setTarget({ kind: 'shown', p, ci: st.shown[p]?.[0] ? 1 : 0 }); }} />
             )}
           </>
@@ -819,7 +855,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         )}
         <DockPanel k={target ? 'picker' : replay && selCell && sel ? 'keypad' : ''}>
         {target ? (
-          <div className="felt-picker-wrap">
+          <div className="felt-picker-wrap felt-dock-in">
             <div className="sat-split">
               <Caption>{targetLabel(target, name)}</Caption>
               <span className="sat-cluster" style={gap(1)}>
@@ -833,13 +869,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
         ) : replay && selCell && sel ? (
           <Keypad who={name(sel.p)} toCall={selCell.toCall} filled={!!selCell.act} typed={typed} setTyped={(v) => { setTyped(v); setRaiseErr(null); }} isRaise={selCell.high > 0}
             dark={darkOn} darkLabel={isPre ? 'Straddle' : 'Dark'} darkEnabled={isPre ? selCell.canStraddle && selCell.canRaise : true} canRaise={selCell.canRaise}
-            onDark={toggleDark} minErr={raiseErr} minTo={minTo} allInAsk={allInAsk}
-            onCall={() => act(sel.p, sel.r, mark({ k: 'call' }))} onFold={() => act(sel.p, sel.r, mark({ k: 'fold' }))}
-            onAllIn={() => {
-              if (!typed && roomFor(sel.p) === undefined) { setAllInAsk(true); return; }
-              act(sel.p, sel.r, mark({ k: 'allin', to: typed ? Number(typed) : undefined }));
-            }}
-            onClear={() => act(sel.p, sel.r, null)} onOk={() => (allInAsk ? Number(typed) > 0 && act(sel.p, sel.r, mark({ k: 'allin', to: Number(typed) })) : commitBet(typed ? Number(typed) : minTo))} onMin={() => commitBet(minTo)} />
+            onDark={toggleDark} minErr={raiseErr} minTo={minTo} shove={shoves}
+            onCall={callAct} onFold={() => act(sel.p, sel.r, mark({ k: 'fold' }))}
+            onClear={() => act(sel.p, sel.r, null)} onOk={() => commitBet(typed ? Number(typed) : minTo)} onMin={() => commitBet(minTo)} />
         ) : null}
         </DockPanel>
         {readOnly ? (
@@ -995,8 +1027,8 @@ function BoardRow({ board, to, lockedBefore, compact, isTarget, onTap }: {
 /** Rows from the small blind down to the button; columns are passes around the table, newest on the right.
     Grey boxes have nothing to decide. Players out of the hand stay as greyed rows. Amounts are street
     totals, so only a player's latest box stands; earlier boxes fade. C = call or check, F = fold. */
-function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown, namingFor, onName }: {
-  g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>;
+function ActionTable({ g, log, street, replay, sel, stacks, ranges, counting, name, onPick, shown, namingFor, onName }: {
+  g: Game; log: HandLog; street: StreetName; replay: Replay; sel: Sel; stacks?: Record<ID, number>; ranges: Record<ID, { lo: number; hi: number }>; counting: ID[];
   name: (id: ID) => string; onPick: (p: ID, r: number) => void; shown: Record<ID, (Card | null)[]>; namingFor: ID | null; onName: (p: ID) => void;
 }) {
   // a closed game is not being logged: a name opens the player card
@@ -1083,7 +1115,7 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
               const folded = gone || s.folded.includes(p);
               const left = stacks?.[p] !== undefined ? round2(stacks[p] - spentBefore(p) - (s.bets[p] ?? 0)) : undefined;
               const cards = (shown[p] ?? []).filter(Boolean) as Card[];
-              const sub = [tag(p), gone ? 'Folded' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
+              const sub = [tag(p), gone ? 'Folded' : counting.includes(p) && estAllIn(log, p) ? 'All-in, count chips' : !canAct && log.allInAt?.[p] ? 'All-in' : left !== undefined && !folded ? `${units(Math.max(0, left))}` : left === undefined && ranges[p] && !folded ? `~${units(Math.max(0, ranges[p].lo - spentBefore(p) - (s.bets[p] ?? 0)))}-${units(Math.max(0, ranges[p].hi - spentBefore(p) - (s.bets[p] ?? 0)))}` : '', street === 'preflop' && replay.straddles.includes(p) ? 'Straddle' : '', cards.map(cardText).join(' ')].filter(Boolean).join(', ');
               return (
                 /* press and hold a name to enter the cards that player shows, on any street, before they are mucked */
                 <button key={p} type="button" className={`felt-acts-name ${folded ? 'is-folded' : ''} ${namingFor === p ? 'is-target' : ''}`} aria-label={`${name(p)}: press and hold to enter the cards they show`}
@@ -1137,15 +1169,21 @@ function ActionTable({ g, log, street, replay, sel, stacks, name, onPick, shown,
   );
 }
 
-/** Choices for the selected box: Call (Check when nothing is owed), Fold, All-in, or an amount (the street
-    total they bet or raised to). The boxes show these as C, F and the number. The amount has its own field
-    with a backspace key inside it. Straddle (preflop, first to act only) or Dark (after the flop) marks a
-    blind action. Raising is greyed out when nobody else is left to answer it. A raise under the house
-    minimum shows the minimum, with the call and the minimum raise as one-tap fixes. */
-function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel, darkEnabled, canRaise: canRaiseIn, onDark, minErr, minTo, allInAsk, onCall, onFold, onAllIn, onClear, onOk, onMin }: {
+/** Choices for the selected box: Call (Check when nothing is owed), Fold, or an amount (the street total they bet
+    or raised to). The Bet or Raise key says All-in when the typed amount is at or above the chips the player has
+    left; a press then logs an all-in for the chips left. The boxes show these as C, F, the number and All-in. The
+    amount has its own field with a backspace key inside it. Straddle (preflop, first to act only) or Dark (after
+    the flop) marks a blind action. Raising is greyed out when nobody else is left to answer it. A raise under the
+    house minimum shows the minimum, with the call and the minimum raise as one-tap fixes. */
+/** A key word that changes in place: the faces share one cell (the widest sets the size) and cross-fade. */
+function KeyWord({ word, all }: { word: string; all: string[] }) {
+  return <span className="felt-lb felt-keyword">{all.map((w) => <span key={w} className="felt-lb-face" data-on={w === word} aria-hidden={w !== word}>{w}</span>)}</span>;
+}
+
+function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel, darkEnabled, canRaise, onDark, minErr, minTo, shove, onCall, onFold, onClear, onOk, onMin }: {
   who: string; toCall: number; filled: boolean; typed: string; setTyped: (v: string) => void; isRaise: boolean;
-  dark: boolean; darkLabel: string; darkEnabled: boolean; canRaise: boolean; onDark: () => void; minErr: number | null; minTo: number; allInAsk: boolean;
-  onCall: () => void; onFold: () => void; onAllIn: () => void; onClear: () => void; onOk: () => void; onMin: () => void;
+  dark: boolean; darkLabel: string; darkEnabled: boolean; canRaise: boolean; onDark: () => void; minErr: number | null; minTo: number; shove: boolean;
+  onCall: () => void; onFold: () => void; onClear: () => void; onOk: () => void; onMin: () => void;
 }) {
   const press = (k: string) => setTyped((typed + k).replace(/^0+(?=\d)/, '').slice(0, 6));
   // a tap on the amount box brings no keyboard: the number pad lights up, an orange trail runs round it, so the eye goes there
@@ -1153,24 +1191,23 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
   const nudged = useRef<number>();
   const pointAtPad = () => { window.clearTimeout(nudged.current); setNudge((n) => n + 1); nudged.current = window.setTimeout(() => setNudge(0), 1100); };
   useEffect(() => () => window.clearTimeout(nudged.current), []);
-  // asking for an all-in amount: the digits stay on even when nobody is left to raise
-  const canRaise = canRaiseIn || allInAsk;
-  const verb = allInAsk ? 'All-in' : isRaise ? 'Raise' : 'Bet';
-  const callLabel = toCall ? 'Call' : 'Check';
+  const verb = shove ? 'All-in' : isRaise ? 'Raise' : 'Bet';
+  const callWord = toCall ? 'Call' : 'Check';
   return (
-    <div className="felt-keypad" role="group" aria-label={`Action for ${who}`}>
-      {filled && <div className="felt-keypad-head"><button type="button" className="felt-keypad-clear" onClick={onClear}>Clear</button></div>}
+    <div className="felt-keypad felt-dock-in" role="group" aria-label={`Action for ${who}`}>
+      <div className={`felt-keypad-headwrap ${filled ? 'is-open' : ''}`} aria-hidden={!filled}>
+        <div className="felt-keypad-head"><button type="button" className="felt-keypad-clear" tabIndex={filled ? 0 : -1} onClick={onClear}>Clear</button></div>
+      </div>
       <div className="felt-keypad-quick">
-        <button type="button" className={!typed && !filled ? 'is-default' : undefined} onClick={onCall}>{callLabel}</button>
+        <button type="button" className={!typed && !filled ? 'is-default' : undefined} onClick={onCall}><KeyWord word={callWord} all={['Call', 'Check']} /></button>
         <button type="button" onClick={onFold}>Fold</button>
-        <button type="button" onClick={onAllIn} disabled={!canRaise && !toCall}>All-in</button>
       </div>
       {/* amount first: it stays in view with its error under it, so the number being fixed never disappears.
           Each tip sits in its own 44 px lane beside the element it explains, so no tip target covers a key. */}
       <div className={`felt-keypad-amount ${canRaise ? '' : 'is-off'}`}>
         <div className="felt-keypad-line felt-tipped">
           <div className={`felt-keypad-field ${typed ? 'has-value' : ''} ${minErr !== null ? 'is-invalid' : ''}`} aria-live="polite" onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) pointAtPad(); }}>
-            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || (allInAsk ? <span className="felt-keypad-min">Type the all-in amount</span> : <span className="felt-keypad-ghost">{units(minTo)}</span>)}</span>
+            <span className="felt-keypad-val sat-num">{!canRaise ? <span className="felt-keypad-min">Nobody left to raise</span> : typed || <span className="felt-keypad-ghost">{units(minTo)}</span>}</span>
             <button type="button" className="felt-keypad-bs" aria-label="Delete last digit" disabled={!typed || !canRaise} onClick={() => setTyped(typed.slice(0, -1))}><Icon name="backspace" size={22} stroke={1.8} /></button>
           </div>
           <span className="felt-keypad-tip"><Help k="raiseBox" /></span>
@@ -1178,7 +1215,7 @@ function Keypad({ who, toCall, filled, typed, setTyped, isRaise, dark, darkLabel
         <div className="felt-keypad-line felt-keypad-line--act felt-tipped">
           <button type="button" className="felt-keypad-dark" aria-pressed={dark} disabled={!darkEnabled} onClick={onDark}><Icon name="dark" size={16} stroke={2} /> {darkLabel}</button>
           <span className="felt-keypad-tip"><Help k={darkLabel === 'Straddle' ? 'straddle' : 'dark'} /></span>
-          <button type="button" className={`felt-keypad-ok ${typed ? 'is-ready' : ''}`} aria-disabled={!canRaise || (allInAsk && !typed)} disabled={!canRaise} onClick={onOk}>{verb}</button>
+          <button type="button" className={`felt-keypad-ok ${typed ? 'is-ready' : ''}`} aria-disabled={!canRaise} disabled={!canRaise} onClick={onOk}><KeyWord word={verb} all={['Bet', 'Raise', 'All-in']} /></button>
         </div>
       </div>
       {minErr !== null && (

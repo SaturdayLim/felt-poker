@@ -176,7 +176,6 @@
 /* a row with an action log under it */
 .trial-row-wrap { display: grid; }
 .trial-log { padding: 0 var(--sat-space-3) var(--sat-space-2); }
-.trial-log > summary { cursor: pointer; font-size: var(--sat-fs-small); color: var(--sat-muted); min-height: 32px; display: flex; align-items: center; }
 .trial-log-body { display: grid; gap: var(--sat-space-2); padding: var(--sat-space-1) 0; }
 .trial-log-street { display: grid; gap: 2px; }
 .trial-log-head { display: flex; align-items: center; gap: 8px; font-size: var(--sat-fs-small); }
@@ -190,3 +189,76 @@
 .trial-range-cell > span { font-size: 9px; font-weight: 700; color: #fff; text-shadow: 0 0 3px rgba(0, 0, 0, 0.7); }
 .trial-range-cell.is-none > span { color: var(--sat-muted); text-shadow: none; font-weight: 500; }
 .trial-range-cell.is-sel { outline: 2px solid var(--sat-text); outline-offset: 1px; }
+
+/* ---- motion ----
+   Press 100-200 ms; a block opening 240 ms; a tab or player change 320 ms; a hover tip 120 ms.
+   Only opacity, transform, scale and grid-template-rows move. Reduced motion: every change is a 150 ms fade, no travel. */
+.trial { --trial-travel: 10px; --trial-ease: cubic-bezier(0.2, 0.8, 0.2, 1); --trial-open: 240ms; --trial-page: 320ms; }
+@keyframes trial-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes trial-shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+/* tab or player change: old view out 120 ms, new view in 200 ms, no travel */
+.trial-view, .trial-fade, .trial-swap { animation: trial-fade 200ms var(--trial-ease) both; }
+.trial-swapwrap { transition: opacity 120ms var(--trial-ease); }
+.trial-swapwrap.is-out { opacity: 0; pointer-events: none; }
+
+/* controls say what they do: pointer, pressed, keyboard focus */
+.trial button:not(:disabled), .trial summary { cursor: pointer; }
+.trial button { transition-property: color, background-color, border-color, opacity, scale; }
+.trial button:not(:disabled):active { scale: 0.97; }
+.trial .trial-range-cell:active { scale: 0.88; }
+.trial :focus-visible { outline: 2px solid var(--sat-accent); outline-offset: 2px; border-radius: 6px; }
+.trial .trial-range-cell:focus-visible { outline-offset: 1px; border-radius: 3px; }
+.trial-th-btn { min-height: 44px; min-width: 44px; padding: 0 6px; text-decoration: underline; text-decoration-color: var(--sat-line-strong); text-underline-offset: 4px; }
+.trial-th-btn:hover { text-decoration-color: currentColor; }
+.trial-chips { gap: var(--sat-space-2); }
+.trial .sat-chip { min-height: 44px; }
+.trial-head .sat-seg > button { min-height: 44px; min-width: 44px; justify-content: center; }
+.trial .sat-btn { min-height: 44px; }
+
+/* tab bar: one mark slides to the open tab */
+.trial-tabs { position: relative; }
+.trial-tabs > button { position: relative; z-index: 1; min-height: 44px; min-width: 0; padding: 0 2px; background: none; border-color: transparent; box-shadow: none; }
+.trial-tabs > button[aria-checked="true"] { background: none; border-color: transparent; box-shadow: none; }
+.trial-tabs-mark { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px - (var(--n) - 1) * 2px) / var(--n)); border-radius: calc(var(--sat-radius-sm) - 3px);
+  background: var(--sat-glass-2); border: 1px solid var(--sat-glass-edge); box-shadow: var(--felt-elev-1), inset 0 1px 0 var(--sat-glass-hi);
+  transform: translateX(calc(var(--i) * (100% + 2px))); transition: transform var(--trial-page) var(--trial-ease); }
+@media (max-width: 360px) { .trial-tabs > button { font-size: 0.75rem; } }
+
+/* a block that opens grows from its row; the arrow turns with it */
+.trial-grow { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--trial-open) var(--trial-ease), opacity var(--trial-open) var(--trial-ease); }
+.trial-grow > div { overflow: hidden; min-height: 0; }
+.trial-award.is-open .trial-grow, .trial-log.is-open .trial-grow { grid-template-rows: 1fr; opacity: 1; }
+.trial-chev { transition: transform var(--trial-open) var(--trial-ease); }
+.trial-log.is-open .trial-chev { transform: rotate(180deg); }
+.trial-award-head { transition: background-color 150ms var(--trial-ease); }
+@media (hover: hover) and (pointer: fine) { .trial-award-head:hover, .trial-log-toggle:hover { background: var(--sat-hover); } }
+.trial-award { overflow: hidden; }
+.trial-log { padding: 0 var(--sat-space-3); }
+.trial-log-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); width: 100%; min-height: 44px; border: 0; background: none; font: inherit; font-size: var(--sat-fs-small); color: var(--sat-muted); text-align: left; padding: 0; }
+.trial-log-body { padding-bottom: var(--sat-space-2); }
+
+/* hover tips fade, they do not blink */
+.trial-tip { opacity: 0; transition: opacity 120ms var(--trial-ease); }
+.trial-tip.is-on { opacity: 1; }
+.trial-chart rect { transition: opacity 120ms var(--trial-ease); }
+
+/* heatmap selection and focus */
+.trial-range-cell { outline: 2px solid transparent; outline-offset: 1px; transition: outline-color 150ms var(--trial-ease), scale 120ms var(--trial-ease); }
+.trial-range-cell.is-sel { outline-color: var(--sat-text); }
+
+/* lock: fades out on a right code; a wrong code shakes the field and the reason fades in */
+.trial-lock { transition: opacity 200ms var(--trial-ease); }
+.trial-lock.is-leaving { opacity: 0; pointer-events: none; }
+.trial-lock .felt-boxes.is-bad { animation: trial-shake 320ms var(--trial-ease); }
+.trial-lock .felt-boxes-cell { transition: border-color 150ms var(--trial-ease); }
+.trial-lock .felt-boxes-err.is-on { transition: opacity 150ms var(--trial-ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .trial { --trial-travel: 0px; --trial-open: 150ms; --trial-page: 150ms; }
+  .trial *, .trial *::before, .trial *::after { transition-duration: 150ms !important; animation-duration: 150ms !important; scroll-behavior: auto !important; }
+  @keyframes trial-shake { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .trial-tabs-mark { display: none; }
+  .trial-tabs > button[aria-checked="true"] { background: var(--sat-glass-2); border-color: var(--sat-glass-edge); box-shadow: 0 1px 3px rgba(0,0,0,0.12), inset 0 1px 0 var(--sat-glass-hi); }
+  .trial-grow { transition-property: opacity; }
+  .trial button:not(:disabled):active, .trial .trial-range-cell:active { scale: 1; }
+}

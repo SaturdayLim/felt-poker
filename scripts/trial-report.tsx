@@ -30,6 +30,9 @@ interface ReportFile { model: TrialModel; locks: Record<string, LockBox> }
 const TAB_LABEL: Record<View, string> = { summary: 'Summary', players: 'Players', compare: 'Compare', settings: 'Settings', log: 'Game Log' };
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 const signed = (v: number) => `${v > 0 ? '+' : ''}${units(Math.round(v))}`;
+const REDUCED = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+/** Hides closed content from the keyboard and screen readers (React 18 has no inert prop). */
+const inertWhen = (on: boolean) => (on ? ({ inert: '' } as object) : {});
 const tone = (v: number) => (v > 0 ? 'felt-up' : v < 0 ? 'felt-down' : '');
 
 /** Info tip with one line per entry (standing rule: separate lines, never one run-on paragraph). */
@@ -38,23 +41,37 @@ function Tip({ title, lines }: { title: string; lines: string[] }) {
 }
 
 function App() {
-  const [m, setM] = useState<TrialModel | null>(null);
-  const [locks, setLocks] = useState<Record<string, LockBox> | null>(null);
+  const inline = useRef<ReportFile | null | undefined>(undefined);
+  if (inline.current === undefined) { const t = document.getElementById('felt-report')?.textContent; inline.current = t ? (JSON.parse(t) as ReportFile) : null; }
+  const [m, setM] = useState<TrialModel | null>(inline.current?.model ?? null);
+  const [locks, setLocks] = useState<Record<string, LockBox> | null>(inline.current?.locks ?? null);
   const [err, setErr] = useState('');
   const [view, setView] = useState<View>('summary');
   const [pid, setPid] = useState<string | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => (document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'));
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  // a tab or player change cross-fades: the old view fades out (120 ms), then the new one fades in (200 ms)
+  const [shown, setShown] = useState<{ view: View; pid: string | null }>({ view, pid });
+  const [out, setOut] = useState(false);
+  const want = { view, pid: view === 'players' ? pid : null };
+  const same = shown.view === want.view && (shown.view !== 'players' || shown.pid === want.pid);
   useEffect(() => {
-    const inline = document.getElementById('felt-report')?.textContent;
-    if (inline) { const r = JSON.parse(inline) as ReportFile; setM(r.model); setLocks(r.locks); return; }
+    if (same) { setOut(false); return; }
+    setOut(true);
+    const t = window.setTimeout(() => { setShown(want); setOut(false); }, REDUCED() ? 150 : 120);
+    return () => window.clearTimeout(t);
+  }, [view, pid]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (inline.current) return;
     const src = new URLSearchParams(location.search).get('src') ?? '/trial/potato-backup.json';
     fetch(src).then((r) => r.json()).then((b) => (b.model ? (setM(b.model), setLocks(b.locks)) : setM(buildModel(b)))).catch((e) => setErr(String(e)));
   }, []);
   if (err) return <p className="sat-small">Report unable to load: {err}</p>;
   if (!m) return <p className="sat-small sat-muted" style={{ padding: 16 }}>Loading the report.</p>;
+  const tabs = ['summary', 'players', 'compare', 'settings', ...(m.log ? ['log'] : [])] as View[];
   const sel = m.players.find((p) => p.id === pid) ?? [...m.players].sort((a, b) => b.net - a.net)[0];
-  const open = (id: string) => { setPid(id); setView('players'); window.scrollTo(0, 0); };
+  const selShown = m.players.find((p) => p.id === shown.pid) ?? sel;
+  const open = (id: string) => { setPid(id); setView('players'); window.scrollTo({ top: 0, behavior: REDUCED() ? 'auto' : 'smooth' }); };
   const unlocked = (p: TrialPlayer) => setM({ ...m, players: m.players.map((x) => (x.id === p.id ? { ...p, locked: false } : x)) });
   return (
     <div className="felt-app">
@@ -65,25 +82,31 @@ function App() {
             <small className="sat-muted">{m.date}, {m.hands} {m.hands === 1 ? 'hand' : 'hands'}, {m.minutes} min</small>
           </div>
           <div className="sat-seg" role="radiogroup" aria-label="Theme">
-            <button role="radio" aria-checked={theme === 'dark'} aria-label="Dark" onClick={() => setTheme('dark')}><Icon name="moon" size={16} /></button>
-            <button role="radio" aria-checked={theme === 'light'} aria-label="Light" onClick={() => setTheme('light')}><Icon name="sun" size={16} /></button>
+            <button type="button" role="radio" aria-checked={theme === 'dark'} aria-label="Dark" onClick={() => setTheme('dark')}><Icon name="moon" size={16} /></button>
+            <button type="button" role="radio" aria-checked={theme === 'light'} aria-label="Light" onClick={() => setTheme('light')}><Icon name="sun" size={16} /></button>
           </div>
         </header>
-        <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="Report">
-          {(['summary', 'players', 'compare', 'settings', ...(m.log ? ['log'] : [])] as View[]).map((v) => (
-            <button key={v} role="radio" aria-checked={view === v} onClick={() => setView(v)}>{TAB_LABEL[v]}</button>
+        <div className="sat-seg sat-seg--block trial-tabs" role="radiogroup" aria-label="Report" style={{ ['--n' as string]: tabs.length, ['--i' as string]: Math.max(0, tabs.indexOf(view)) }}>
+          <span className="trial-tabs-mark" aria-hidden="true" />
+          {tabs.map((v) => (
+            <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => setView(v)}>{TAB_LABEL[v]}</button>
           ))}
         </div>
-        {view === 'summary' && <Summary m={m} onPlayer={open} />}
-        {view === 'players' && (
-          <>
-            <PlayerChips m={m} p={sel} setPid={setPid} />
-            {sel.locked && locks?.[sel.id] ? <PlayerLock p={sel} box={locks[sel.id]} onOpen={unlocked} /> : <PlayerView m={m} p={sel} />}
-          </>
-        )}
-        {view === 'compare' && <Compare m={m} onPlayer={open} />}
-        {view === 'settings' && <Settings m={m} />}
-        {view === 'log' && m.log && <GameLog m={m} />}
+        {/* the content fades out, swaps, then fades in (the key restarts the fade) */}
+        <div className={`trial-swapwrap ${out ? 'is-out' : ''}`} {...inertWhen(out)}>
+          {shown.view === 'summary' && <div key="summary" className="trial-view"><Summary m={m} onPlayer={open} /></div>}
+          {shown.view === 'players' && (
+            <div key="players" className="trial-view sat-stack" style={gap(4)}>
+              <PlayerChips m={m} p={sel} setPid={setPid} />
+              <div key={`${selShown.id}${selShown.locked ? 'L' : ''}`} className="trial-fade sat-stack" style={gap(4)}>
+                {selShown.locked && locks?.[selShown.id] ? <PlayerLock p={selShown} box={locks[selShown.id]} onOpen={unlocked} /> : <PlayerView m={m} p={selShown} />}
+              </div>
+            </div>
+          )}
+          {shown.view === 'compare' && <div key="compare" className="trial-view"><Compare m={m} onPlayer={open} /></div>}
+          {shown.view === 'settings' && <div key="settings" className="trial-view"><Settings m={m} /></div>}
+          {shown.view === 'log' && m.log && <div key="log" className="trial-view"><GameLog m={m} /></div>}
+        </div>
       </div>
     </div>
   );
@@ -132,7 +155,7 @@ function AwardCard({ m, a, showWho = true }: { m: TrialModel; a: Award; showWho?
         <span className="trial-award-title"><b>{a.title}</b>{showWho && <span className="sat-muted">{who}</span>}</span>
         <span className="trial-chev" aria-hidden="true"><Icon name="chevron" size={16} /></span>
       </button>
-      {open && <p className="trial-award-body">{a.detail}</p>}
+      <div className="trial-grow"><div><p className="trial-award-body" {...inertWhen(!open)}>{a.detail}</p></div></div>
     </div>
   );
 }
@@ -248,10 +271,13 @@ function Settings({ m }: { m: TrialModel }) {
 
 /** One hand's action log: a dropdown with every action in time order, the cards shown and the result. */
 function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <details className="trial-log">
-      <summary>{label ?? 'Action log'}</summary>
-      <div className="trial-log-body">
+    <div className={`trial-log ${open ? 'is-open' : ''}`}>
+      <button type="button" className="trial-log-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span>{label ?? 'Action log'}</span><span className="trial-chev" aria-hidden="true"><Icon name="chevron" size={16} /></span>
+      </button>
+      <div className="trial-grow" {...inertWhen(!open)}><div><div className="trial-log-body">
         {v.streets.map((st) => (
           <div key={st.street} className="trial-log-street">
             <div className="trial-log-head"><b>{st.street}</b>{st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}</div>
@@ -263,8 +289,8 @@ function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
         ))}
         <span className="sat-small"><b>{v.result}</b></span>
         {v.note && <span className="sat-small sat-muted">{v.note}</span>}
-      </div>
-    </details>
+      </div></div></div>
+    </div>
   );
 }
 
@@ -291,7 +317,7 @@ function CopyButton({ text }: { text: string }) {
     catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
     setDone(true); setTimeout(() => setDone(false), 1800);
   };
-  return <button type="button" className="sat-btn" onClick={copy}><Icon name="file" /> {done ? 'Copied' : 'Copy payments'}</button>;
+  return <button type="button" className="sat-btn" onClick={copy}><Icon name="file" /> <span key={String(done)} className="trial-swap" aria-live="polite">{done ? 'Copied' : 'Copy payments'}</span></button>;
 }
 
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] ?? 0; };
@@ -302,7 +328,7 @@ function PlayerChips({ m, p, setPid }: { m: TrialModel; p: TrialPlayer; setPid: 
   return (
     <div className="trial-chips" role="radiogroup" aria-label="Player">
       {m.players.map((x) => (
-        <button key={x.id} className="sat-chip" role="radio" aria-checked={x.id === p.id} aria-pressed={x.id === p.id} onClick={() => setPid(x.id)}>
+        <button key={x.id} type="button" className="sat-chip" role="radio" aria-checked={x.id === p.id} aria-pressed={x.id === p.id} onClick={() => setPid(x.id)}>
           <Dot m={m} id={x.id} />{x.name}{x.locked && <LockMark />}
         </button>
       ))}
@@ -319,11 +345,18 @@ const LockMark = () => (
 
 /** A locked player page: the player types the code the host sent them. A wrong code opens nothing. */
 function PlayerLock({ p, box, onOpen }: { p: TrialPlayer; box: LockBox; onOpen: (p: TrialPlayer) => void }) {
+  const [leaving, setLeaving] = useState(false);
   const go = async (code: string) => {
-    try { onOpen(await unlock<TrialPlayer>(box, code)); return true; } catch { return false; }
+    try {
+      const data = await unlock<TrialPlayer>(box, code);
+      // the lock fades out, then the page fades in (the new page mounts with the view fade)
+      setLeaving(true);
+      window.setTimeout(() => onOpen(data), REDUCED() ? 150 : 200);
+      return true;
+    } catch { return false; }
   };
   return (
-    <section className="sat-glass sat-card sat-stack trial-lock" style={gap(3)}>
+    <section className={`sat-glass sat-card sat-stack trial-lock ${leaving ? 'is-leaving' : ''}`} style={gap(3)}>
       <h2 className="sat-h2">{p.name}</h2>
       <p className="sat-small sat-muted">Enter player code to access player stats.</p>
       <div className="sat-field">
@@ -487,7 +520,7 @@ function HandRecord({ p }: { p: TrialPlayer }) {
           </div>
         ))}
       </div></div>
-      <p className="sat-small" aria-live="polite">{sel ? (cur ? `${sel}: ${cur.fold} fold, ${cur.call} call or check, ${cur.raise} raise.` : `${sel}: never dealt.`) : 'Tap a square for the counts.'}</p>
+      <p key={sel ?? ''} className="sat-small trial-swap" aria-live="polite">{sel ? (cur ? `${sel}: ${cur.fold} fold, ${cur.call} call or check, ${cur.raise} raise.` : `${sel}: never dealt.`) : 'Tap a square for the counts.'}</p>
       <div className="sat-stack" style={gap(2)}>
         <b className="sat-small">How a hand could have gone differently</b>
         {p.advice.length === 0
@@ -573,7 +606,9 @@ function Scale({ m, p, label, lo, hi, min, max, unit = '', you, avg, target, tip
 function StackChart({ m, focus }: { m: TrialModel; focus?: TrialPlayer }) {
   const W = 360, H = 210, L = 34, R = 74, T = 10, B = 24;
   const ref = useRef<SVGSVGElement>(null);
-  const [hover, setHover] = useState<number | null>(null);
+  const [hover, setHoverNow] = useState<number | null>(null);
+  const [last, setLast] = useState(0);
+  const setHover = (i: number | null) => { setHoverNow(i); if (i !== null) setLast(i); };
   const n = m.players[0].dev.length;
   const all = m.players.flatMap((p) => p.dev);
   const lo = Math.floor(Math.min(0, ...all) / 50) * 50, hi = Math.ceil(Math.max(0, ...all) / 50) * 50;
@@ -634,12 +669,10 @@ function StackChart({ m, focus }: { m: TrialModel; focus?: TrialPlayer }) {
           </g>
         )}
       </svg>
-      {hover !== null && (
-        <div className="trial-tip" style={{ left: `${Math.min(80, Math.max(20, (x(hover) / W) * 100))}%` }}>
-          <b>{hover === 0 ? 'Start' : `Hand #${hover}`}</b>
-          {[...m.players].sort((a, b) => b.dev[hover] - a.dev[hover]).map((p) => <span key={p.id}><Dot m={m} id={p.id} />{p.name}: {signed(p.dev[hover])}</span>)}
-        </div>
-      )}
+      <div className={`trial-tip ${hover !== null ? 'is-on' : ''}`} aria-hidden="true" style={{ left: `${Math.min(80, Math.max(20, (x(last) / W) * 100))}%` }}>
+        <b>{last === 0 ? 'Start' : `Hand #${last}`}</b>
+        {[...m.players].sort((a, b) => b.dev[last] - a.dev[last]).map((p) => <span key={p.id}><Dot m={m} id={p.id} />{p.name}: {signed(p.dev[last])}</span>)}
+      </div>
     </div>
   );
 }
@@ -710,8 +743,10 @@ function Pips({ label, hint, hit, total, bad }: { label: string; hint: string; h
 function PotBars({ m }: { m: TrialModel }) {
   const W = 360, H = 120, B = 16, max = Math.max(...m.pots.map((p) => p.pot));
   const bw = W / m.pots.length;
-  const [hover, setHover] = useState<number | null>(null);
-  const h = hover !== null ? m.pots[hover] : null;
+  const [hover, setHoverNow] = useState<number | null>(null);
+  const [last, setLast] = useState(0);
+  const setHover = (i: number | null) => { setHoverNow(i); if (i !== null) setLast(i); };
+  const h = m.pots[last];
   return (
     <div className="trial-chart">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Pot of each hand" onPointerLeave={() => setHover(null)}>
@@ -727,7 +762,7 @@ function PotBars({ m }: { m: TrialModel }) {
         })}
         {[1, 10, 20, m.pots.length].map((n) => <text key={n} x={(n - 0.5) * bw} y={H - 3} className="trial-axis" textAnchor="middle">{n}</text>)}
       </svg>
-      {h && <div className="trial-tip" style={{ left: `${Math.min(80, Math.max(20, ((hover! + 0.5) / m.pots.length) * 100))}%` }}><b>Hand #{h.n}: {h.pot}</b><span>{h.winners.join(' and ')}</span></div>}
+      {h && <div className={`trial-tip ${hover !== null ? 'is-on' : ''}`} aria-hidden="true" style={{ left: `${Math.min(80, Math.max(20, ((last + 0.5) / m.pots.length) * 100))}%` }}><b>Hand #{h.n}: {h.pot}</b><span>{h.winners.join(' and ')}</span></div>}
     </div>
   );
 }

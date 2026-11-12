@@ -1,5 +1,18 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.7.3', date: '12 Nov 2026', notes: [
+    'iPhone Home Screen app: the tab bar sits at the screen edge on short pages too (Home, Players). It no longer floats above an empty strip after the load screen.',
+    'Players and Games share one search bar. The typed text carries over. Ghost text: Player Name, Game Name, Date.',
+    'Settings, Game Defaults has House rules (minimum raise and the 7-2 bounty). A new game starts with them, not with the rules of the last game. New Game still changes them for one game.',
+    'Keypad: the All-in key is gone. The Bet or Raise key says All-in when the number is at or above the chips the player has left. With a stack range, Felt logs the all-in at the low end and asks for a count.',
+    'Export: Share opens the share sheet with one image per part and one image per hand. Felt asks first above 10 images. The Full Action Log works from 1 hand.',
+    'Action log text: positions with names, one sentence per line, calls and checks grouped, folds once per street. Position names: BTN, SB, BB, UTG, UTG+1, MP, LJ, HJ, CO.',
+    'A tap on the game name renames it in place. A swipe up cancels. A sheet no longer moves while you type in it.',
+    'Messages show at the bottom, above the buttons. A tip closes on a tap outside. The card back shows the chips and the S.',
+    'Settings: a new view opens at the top. A press on the open tab scrolls to the top, on every page.',
+    'Dashboard file: tabs, player pages, the lock, awards and the action log move instead of cutting.',
+    'Join a game: "Scan the host QR to connect".',
+  ] },
   { version: '1.7.2', date: '11 Nov 2026', notes: [
     'Export, Full Action Log: All and None over the hand list. A tap on a preview image copies it.',
     'Sheets have no Close button. A swipe down, a sideways swipe or a tap outside closes them.',

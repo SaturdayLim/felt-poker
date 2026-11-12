@@ -3,6 +3,8 @@ import { useStore } from '../store';
 import { go } from '../router';
 import { PlayerName } from '../components/players';
 import { Delta, Empty, Header, Icon, SlidePane, withUndo } from '../components/ui';
+import { SearchGap, setSearch, useSearch } from '../components/searchHost';
+import { toTop } from '../components/navRail';
 import { Headline, StatRows } from '../components/statRows';
 import { TypeChips } from './Insights';
 import { gameFigure, gameResults, handStats, openTransfers, playerStatus } from '../lib/calc';
@@ -25,16 +27,19 @@ export default function Games({ player: arg }: { player?: string }) {
   const showMoney = useStore((s) => s.settings.showMoney);
   const allPlayers = useStore((s) => s.players);
   const [type, setType] = useState<TypeFilter>('all');
-  const [mode, setMode] = useState<SearchMode>('person');
-  const [typed, setTyped] = useState<string | null>(null);
-  // a player filter from the player card shows in the box as person mode
-  useEffect(() => { if (player) { setMode('person'); setTyped(null); } }, [player]);
-  const boxValue = typed ?? who?.name ?? '';
-  const needle = typed === null ? '' : norm(typed);
+  // the search bar is shared with Players (searchHost.tsx): its text and mode live there
+  const { text: boxValue, mode } = useSearch();
+  // a player filter from the player card shows in the bar as that name, in player mode
+  useEffect(() => { if (who) setSearch({ mode: 'person', text: who.name }); }, [player, who?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  // typing something else drops the player filter
+  const lastText = useRef(boxValue);
+  useEffect(() => { if (lastText.current !== boxValue && who && boxValue !== who.name) go('games', true); lastText.current = boxValue; }, [boxValue]); // eslint-disable-line react-hooks/exhaustive-deps
+  const byPlayer = !!who && boxValue === who.name;
+  const needle = byPlayer ? '' : norm(boxValue);
   const nameOf = (id: string) => allPlayers.find((p) => p.id === id)?.name ?? '';
   const hit = (g: Game) => !needle || (mode === 'person' ? g.playerIds.some((id) => norm(nameOf(id)).includes(needle))
     : mode === 'game' ? norm(g.name).includes(needle) : dateWords(g.startedAt).some((w) => ` ${w}`.includes(` ${needle}`)));
-  const list = games.filter((g) => (type === 'all' || g.type === type) && (!who || g.playerIds.includes(who.id)) && hit(g)).sort((a, b) => b.startedAt - a.startedAt);
+  const list = games.filter((g) => (type === 'all' || g.type === type) && (!byPlayer || g.playerIds.includes(who!.id)) && hit(g)).sort((a, b) => b.startedAt - a.startedAt);
   const searching = !!boxValue;
   const liveNow = list.filter((g) => g.status === 'live');
   const closedNow = list.filter((g) => g.status === 'closed');
@@ -47,12 +52,12 @@ export default function Games({ player: arg }: { player?: string }) {
 
   return (
     <div className="felt-page">
-      <Header banner="Games" tabs={[{ label: 'Game list', icon: 'lines', on: !stats, go: () => go('games', true) }, { label: 'Stats', icon: 'sigma', on: stats, go: () => go('games/stats', true) }]} />
+      <Header banner="Games" tabs={[{ label: 'Game list', icon: 'lines', on: !stats, go: () => (stats ? go('games', true) : toTop()) }, { label: 'Stats', icon: 'sigma', on: stats, go: () => (stats ? toTop() : go('games/stats', true)) }]} />
       <div className="sat-stack">
+        <SearchGap />
         <TypeChips type={type} setType={setType} />
         <SlidePane k={stats ? 'stats' : 'list'} i={stats ? 1 : 0}>
         {stats ? <GameStats games={closedNow} /> : <div className="sat-stack">
-        <GameSearch mode={mode} setMode={(m) => { setMode(m); if (who) go('games', true); setTyped(''); }} value={boxValue} onChange={(v) => { if (who) go('games', true); setTyped(v); }} />
         {showEmpty && <Grow open={list.length === 0}>{emptyNode.current}</Grow>}
 
         {live.rows.length > 0 && (
@@ -148,12 +153,6 @@ function Grow({ open, initial = false, children }: { open: boolean; initial?: bo
   return <div className="felt-rowgrow" data-open={on} {...(on ? {} : { inert: '' })}><div className="felt-rowgrow-in">{children}</div></div>;
 }
 
-type SearchMode = 'person' | 'game' | 'date';
-const MODES: { id: SearchMode; icon: string; label: string; holder: string }[] = [
-  { id: 'person', icon: 'person', label: 'Search by player name', holder: 'Search players' },
-  { id: 'game', icon: 'book', label: 'Search by game name', holder: 'Search games' },
-  { id: 'date', icon: 'calendar', label: 'Search by date', holder: 'Search dates' },
-];
 const norm = (t: string) => t.toLowerCase().replace(/[’']/g, ' ').replace(/\s+/g, ' ').trim();
 /** The date as the list shows it (9 Nov'26), in the ways a person types it: 9 Nov, Nov 2026, 2026. */
 function dateWords(at: number): string[] {
@@ -161,21 +160,6 @@ function dateWords(at: number): string[] {
   const day = d.getDate(), y = d.getFullYear();
   const mon = d.toLocaleDateString('en-GB', { month: 'short' }), long = d.toLocaleDateString('en-GB', { month: 'long' });
   return [`${day} ${mon} ${String(y).slice(2)}`, `${day} ${mon} ${y}`, `${day} ${long} ${y}`, `${day} ${mon}`, `${day} ${long}`, `${mon} ${y}`, `${long} ${y}`, `${y}`].map(norm);
-}
-
-/** One search box over the game list. The icon at its left cycles player, game and date; the three icons cross-fade, no cut. */
-function GameSearch({ mode, setMode, value, onChange }: { mode: SearchMode; setMode: (m: SearchMode) => void; value: string; onChange: (v: string) => void }) {
-  const cur = MODES.find((m) => m.id === mode)!;
-  const next = MODES[(MODES.indexOf(cur) + 1) % MODES.length];
-  return (
-    <div className="felt-gsearch" role="search">
-      <button type="button" className="felt-gsearch-mode" data-press="select" aria-label={`${cur.label}. Tap for ${next.label.toLowerCase()}`} onClick={() => setMode(next.id)}>
-        {MODES.map((m) => <span key={m.id} className="felt-gsearch-ico" data-on={m.id === mode}><Icon name={m.icon} size={20} /></span>)}
-      </button>
-      <input className="felt-gsearch-input" type="search" inputMode="search" enterKeyHint="search" autoComplete="off" aria-label={cur.holder} placeholder={cur.holder} value={value} onChange={(e) => onChange(e.target.value)} />
-      <button type="button" className="felt-gsearch-clear" data-press="none" data-on={!!value} aria-label="Clear search" tabIndex={value ? 0 : -1} onClick={() => onChange('')}><Icon name="close" size={14} stroke={2.4} /></button>
-    </div>
-  );
 }
 
 /** A row that slides left to show Delete. A long swipe deletes at once; Undo puts the game back. */

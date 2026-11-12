@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Game, Hand, HandLog } from '../types';
+import type { Act, Game, Hand, HandLog } from '../types';
 import { handStats } from './calc';
-import { isTakedown, bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, switchRuns, takedown, tapPlayer, typeBet, vpip, wentToShowdown } from './hand';
+import { estAllIn, typedAllIn, isTakedown, bountyQualifiers, bountyWinner, is27, lostChips, minRaiseTo, partlyRecorded, unknownBoxes, actionClosed, closeStreet, contributions, fillBefore, finalists, inAtEnd, inAtStart, newBoxLog, newLog, openStreet, openStreetBoxes, pfr, potTotal, replayStreet, resolve, rowOrder, setAct, setStreetPot, streetOrder, switchRuns, takedown, tapPlayer, typeBet, vpip, wentToShowdown } from './hand';
 
 const ids = ['CY', 'Edwin', 'Mike', 'Fabian', 'Everett'];
 const game = () => ({
@@ -265,6 +265,43 @@ describe('action boxes', () => {
     log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'allin' }, st);
     expect(log.streets.preflop!.bets.Nat).toBe(50);
     expect(log.allInAt?.Nat).toBe('preflop');
+  });
+
+  it('an all-in logged for exactly the stack, or with a typed number above it, takes the stack and no more', () => {
+    const g = g6();
+    const st = { ...stacks, Nat: 50 };
+    let log = newBoxLog(g, six, 'Bel', st);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'allin', to: 50 }, st); // typed equal to the stack
+    expect(log.streets.preflop!.bets.Nat).toBe(50);
+    expect(log.allInAt?.Nat).toBe('preflop');
+    let log2 = newBoxLog(g, six, 'Bel', st);
+    log2 = setAct(g, log2, 'preflop', 'Nat', 0, { k: 'allin', to: 999 }, st); // typed above the stack
+    expect(log2.streets.preflop!.bets.Nat).toBe(50);
+  });
+
+  it('a call for less than the bet is an all-in call capped at the stack', () => {
+    const g = g6();
+    const st = { ...stacks, Ev: 30 };
+    let log = newBoxLog(g, six, 'Bel', st);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'bet', to: 100 }, st);
+    log = setAct(g, log, 'preflop', 'Ev', 0, { k: 'call' }, st);
+    expect(log.streets.preflop!.bets.Ev).toBe(30);
+    expect(log.allInAt?.Ev).toBe('preflop');
+  });
+
+  it('a range stack: the all-in is logged at the amount given (the lower end) and is flagged, not treated as the stack', () => {
+    const g = g6();
+    const st = { ...stacks } as Record<string, number>;
+    delete st.Nat; // the stack is a range: no exact figure
+    let log = newBoxLog(g, six, 'Bel', st);
+    log = setAct(g, log, 'preflop', 'Nat', 0, { k: 'allin', to: 80, est: true } as Act, st);
+    expect(log.streets.preflop!.bets.Nat).toBe(80);
+    expect(log.allInAt?.Nat).toBe('preflop');
+    expect(estAllIn(log, 'Nat')).toBe(true);
+    expect(typedAllIn(log, 'Nat')).toBe(false);
+    const typed = setAct(g, newBoxLog(g, six, 'Bel', st), 'preflop', 'Nat', 0, { k: 'allin', to: 80 }, st);
+    expect(estAllIn(typed, 'Nat')).toBe(false);
+    expect(typedAllIn(typed, 'Nat')).toBe(true);
   });
 
   it('only the latest box of a player stands; earlier ones are marked past', () => {

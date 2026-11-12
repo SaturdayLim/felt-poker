@@ -15,7 +15,7 @@
    - clocking out: the stack resets to 0 (the count is real) */
 import type { Game, Hand, ID } from '../types';
 import { playerStatus, round2 } from './calc';
-import { bountyPay, bountyTotal, contributions, finalists, typedAllIn } from './hand';
+import { bountyPay, bountyTotal, contributions, estAllIn, finalists, typedAllIn } from './hand';
 
 export interface StackEstimate {
   /** Chips in front of each player (best guess). */
@@ -118,13 +118,35 @@ export function estimateStacks(g: Game, beforeN?: number): StackEstimate {
 export function stackLabel(g: Game, est: StackEstimate, p: ID): string | null {
   const v = est.stack[p];
   if (v === undefined || playerStatus(g, p) === 'out') return null;
+  const b = stackBounds(g, est, p)!;
+  if (b.lo === b.hi) return b.lo.toLocaleString('en-US');
+  return `~${b.lo.toLocaleString('en-US')}-${b.hi.toLocaleString('en-US')}`;
+}
+
+/** The whole-chip ends of a stack estimate, rounded as `stackLabel` shows them (to the big blind, never below 0).
+    An exact stack, or a spread under half a big blind, has one end for both. */
+export function stackBounds(g: Game, est: StackEstimate, p: ID): { lo: number; hi: number } | undefined {
+  const v = est.stack[p];
+  if (v === undefined) return undefined;
   const s = est.spread[p] ?? 0;
   const step = g.bb > 0 ? g.bb : 1;
-  if (s < step / 2) return Math.round(Math.max(0, v)).toLocaleString('en-US');
+  if (s < step / 2) { const x = Math.round(Math.max(0, v)); return { lo: x, hi: x }; }
   const lo = Math.max(0, Math.floor((v - s) / step) * step);
-  const hi = Math.max(lo, Math.ceil((v + s) / step) * step);
-  return `~${lo.toLocaleString('en-US')}-${hi.toLocaleString('en-US')}`;
+  return { lo, hi: Math.max(lo, Math.ceil((v + s) / step) * step) };
 }
+
+/** What a player can still put in on a street. Exact stack (the real figure, as is): `room` equals `high`. Range stack:
+    `room` is the low end (floored), `high` the high end, `range` true. `spent` is what they put in on earlier streets. */
+export interface Room { room: number; high: number; range: boolean }
+export function roomFrom(exact: number | undefined, bounds: { lo: number; hi: number } | undefined, spent: number): Room | undefined {
+  if (exact !== undefined) { const r = Math.max(0, round2(exact - spent)); return { room: r, high: r, range: false }; }
+  if (!bounds || bounds.lo === bounds.hi) return undefined;
+  return { room: Math.max(0, Math.floor(bounds.lo - spent)), high: Math.max(0, Math.floor(bounds.hi - spent)), range: true };
+}
+
+/** Is a wager of `amount` (a street total) an all-in? Only at or above the most the player can put in:
+    the high end of a range, the whole stack when exact. */
+export const shoveAt = (r: Room | undefined, amount: number): boolean => !!r && r.high > 0 && amount >= r.high;
 
 /** Stacks before hand n, only where the estimate is exact. All-ins resolve against these. */
 export function exactStacks(g: Game, n: number): Record<ID, number> {
@@ -164,4 +186,21 @@ export function rebuyOffered(g: Game, hand: Hand, pid: ID): boolean {
 export function bustedAfterSave(g: Game, hand: Hand): ID[] {
   if (g.hands.some((h) => h.id !== hand.id && h.n > hand.n)) return [];
   return bustedPlayers(g, hand).filter((p) => rebuyOffered(g, hand, p));
+}
+
+/** Players who need a chip count: their latest all-in was logged against a range stack (at the lower end of the
+    range), and no count (tap the stack, End game count) came after that hand closed. Cash-outs and a later
+    exact all-in do not clear it, only a count does. The recorder and the game page show the flag; nothing blocks. */
+export function needsCount(g: Game): ID[] {
+  const out: ID[] = [];
+  for (const p of g.playerIds) {
+    let at: number | undefined;
+    for (const h of g.hands) {
+      if (h.missed || !h.log || !estAllIn(h.log, p)) continue;
+      at = Math.max(at ?? 0, handClose(h));
+    }
+    if (at === undefined) continue;
+    if (!(g.counts ?? []).some((c) => c.playerId === p && c.at >= at!)) out.push(p);
+  }
+  return out;
 }

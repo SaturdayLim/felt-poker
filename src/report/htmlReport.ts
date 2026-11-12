@@ -9,6 +9,8 @@ import { outputName } from './csv';
 
 /** A game needs this many recorded hands before the report has anything to show. */
 export const MIN_REPORT_HANDS = 3;
+/** The Full Action Log and its images work from 1 recorded hand. */
+export const MIN_LOG_HANDS = 1;
 export const DATA_MARKER = '<!--FELT_REPORT_DATA-->';
 
 export interface ReportFile { model: TrialModel; locks: Record<string, LockBox> }
@@ -16,6 +18,8 @@ export interface PlayerCode { id: string; name: string; code: string }
 
 export const recordedHands = (g: Game) => g.hands.filter((h) => !h.missed && h.log).length;
 export const reportReady = (g: Game) => g.status === 'closed' && recordedHands(g) >= MIN_REPORT_HANDS;
+
+export const logReady = (g: Game) => g.status === 'closed' && recordedHands(g) >= MIN_LOG_HANDS;
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

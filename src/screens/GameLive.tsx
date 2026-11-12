@@ -11,7 +11,7 @@ import {
   buyInCount, buyInUnits, cashOutUnits, hasCashedOut, playerStatus, timePlayed, totalBuyInUnits, totalPotMoney, tournamentPlace,
 } from '../lib/calc';
 import { buyInsEquivalent, dateLabel, duration, inBB, runningLabel, money, timeLabel, units } from '../lib/format';
-import { estimateStacks, stackLabel } from '../lib/stacks';
+import { estimateStacks, needsCount, stackLabel } from '../lib/stacks';
 import { gameRules } from '../lib/rules';
 import { RulesFields } from '../components/rules';
 import { LiveRow } from '../components/live';
@@ -62,6 +62,8 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
   const inPlayers = ordered.filter((p) => playerStatus(g, p) !== 'out');
   const outPlayers = ordered.filter((p) => playerStatus(g, p) === 'out');
   const est = estimateStacks(g);
+  // an all-in logged against a stack that was only a range: Felt asks for a count of that player
+  const toCount = needsCount(g);
   const nextN = (g.hands[g.hands.length - 1]?.n ?? 0) + 1;
   // Log hand needs somebody dealt in: playing, and not an exact stack of 0
   const dealtIn = ordered.some((p) => playerStatus(g, p) === 'playing' && !(est.stack[p] === 0 && !(est.spread[p] > 0)));
@@ -96,7 +98,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
 
   return (
     <div className="felt-page">
-      <Header back={() => back(closed ? 'games' : '')} share="game" banner={g.name} sub={gameSubtitle(g)}
+      <Header back={() => back(closed ? 'games' : '')} share="game" banner={g.name} onRename={(n) => st.updateGame(g.id, (x) => { x.name = n; })} sub={gameSubtitle(g)}
         tabs={[{ label: `Players ${closed ? ordered.length : inPlayers.length}`, on: tab === 'players', go: () => setTab('players') }, { label: `Hands ${g.hands.length}`, on: tab === 'hands', go: () => setTab('hands') }]}
         right={<button className="sat-btn sat-btn--ghost sat-iconbtn" onClick={() => setSheet({ k: 'edit' })} aria-label="Game settings"><Icon name="more" /></button>} />
 
@@ -131,7 +133,7 @@ export default function GameLive({ gameId, initialTab = 'players' }: { gameId: s
               <PlayerCard key={pid} g={g} pid={pid} name={name(pid)} stack={null}
                 onLight={(v) => onLight(pid, v)} onRebuy={() => rebuy(pid)} onBuyIns={() => setSheet({ k: 'buyins', pid })} />
             )) : <SeatList g={g} ids={inPlayers} render={(pid, handle) => (
-              <PlayerCard key={pid} g={g} pid={pid} name={name(pid)} handle={handle} stack={stackLabel(g, est, pid)}
+              <PlayerCard key={pid} g={g} pid={pid} name={name(pid)} handle={handle} stack={stackLabel(g, est, pid)} countAsk={toCount.includes(pid)}
                 onLight={(v) => onLight(pid, v)} onRebuy={() => rebuy(pid)} onBuyIns={() => setSheet({ k: 'buyins', pid })} onCount={() => setSheet({ k: 'count', pid })} />
             )} />}
             {!closed && <AddPlayerCard g={g} />}
@@ -218,9 +220,9 @@ function SeatList({ g, ids, disabled, render }: { g: Game; ids: ID[]; disabled?:
 
 /* ------------------------------- player card ------------------------------- */
 
-function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, onCount }: {
+function PlayerCard({ g, pid, name, handle, stack, countAsk, onLight, onRebuy, onBuyIns, onCount }: {
   g: Game; pid: ID; name: string; handle?: Handle; stack: string | null;
-  onLight: (v: Light) => void; onRebuy: () => void; onBuyIns: () => void; onCount?: () => void;
+  countAsk?: boolean; onLight: (v: Light) => void; onRebuy: () => void; onBuyIns: () => void; onCount?: () => void;
 }) {
   const isCash = g.type === 'cash';
   const status = playerStatus(g, pid);
@@ -253,7 +255,7 @@ function PlayerCard({ g, pid, name, handle, stack, onLight, onRebuy, onBuyIns, o
           {stack !== null && status !== 'out' && (
             <span className="felt-stat">
               {onCount && !closed
-                ? <button type="button" className="felt-stat-btn" onClick={onCount} aria-label={`Stack ${stack}. Tap to count ${name}'s chips`}>Stack <b className="sat-num"><NumericText value={stack} /></b></button>
+                ? <button type="button" className={`felt-stat-btn ${countAsk ? 'is-ask' : ''}`} onClick={onCount} aria-label={`Stack ${stack}. ${countAsk ? 'Count needed. ' : ''}Tap to count ${name}'s chips`}>{countAsk ? 'Count' : 'Stack'} <b className="sat-num"><NumericText value={stack} /></b></button>
                 : <>Stack <b className="sat-num"><NumericText value={stack} /></b></>}
             </span>
           )}

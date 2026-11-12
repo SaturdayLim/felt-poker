@@ -311,7 +311,7 @@ export function logBlocks(m: TrialModel, ns?: number[]): Block[] {
   if (!hands.length) out.push({ h: 80, draw: (ctx, y) => text(ctx, 'No hands picked.', PAD, y + 46, font(400, 26), C.muted) });
   const tf = font(400, 23), W2 = INNER - 64;
   for (const v of hands) {
-    const sts = v.streets.map((st) => ({ st, lines: wrap(st.lines.join(', ') || 'No action', tf, W2) }));
+    const sts = v.streets.map((st) => ({ st, lines: (st.lines.length ? st.lines : ['No action']).flatMap((l) => wrap(l, tf, W2)) }));
     const res = wrap(v.result, font(600, 24), W2);
     const note = v.note ? wrap(v.note, tf, W2) : [];
     const shown = v.shown;

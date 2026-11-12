@@ -5,6 +5,7 @@ import { calm, navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed }
 import { haptic } from '../lib/haptics';
 import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, Toggle, num, paths, toast, useCardLook, useRankOrder } from '../components/ui';
 import { LiquidToggle } from '../components/liquidToggle';
+import { toTop } from '../components/navRail';
 import { InstallButton, InstallGuide } from '../components/install';
 import { CardPlayground } from '../components/cardTest';
 import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor, orderedRanks } from '../lib/cards';
@@ -18,6 +19,7 @@ import { shareFiles, textFile } from '../report/share';
 import { CHANGELOG } from '../lib/changelog';
 import { useDragList } from '../components/dragList';
 import { fileDate, money } from '../lib/format';
+import { RulesFields } from '../components/rules';
 import type { CardLook, Markers, Settings as S, SuitKey } from '../types';
 
 export type SettingsView = 'general' | 'defaults' | 'cards' | 'data' | 'info';
@@ -129,7 +131,7 @@ const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` }
 export default function Settings({ view = 'general' }: { view?: SettingsView }) {
   return (
     <div className="felt-page">
-      <Header banner="Settings" tabs={VIEWS.map((v) => ({ label: v.label, icon: v.icon, on: view === v.k, go: () => go(v.path, true) }))} />
+      <Header banner="Settings" tabs={VIEWS.map((v) => ({ label: v.label, icon: v.icon, on: view === v.k, go: () => (view === v.k ? toTop() : go(v.path, true)) }))} />
       <div className="sat-stack">
         <SlidePane k={view} i={VIEWS.findIndex((v) => v.k === view)}>
           <div className="sat-stack" style={gap(6)}>
@@ -251,6 +253,8 @@ function GameDefaults() {
           <Toggle on={settings.checkCards !== false} onChange={(v) => update({ checkCards: v })} label="Check hidden cards" />
         </div>
       </div>
+      <div className="sat-split"><h2 className="sat-h3">House rules</h2><Help k="rulesPreset" /></div>
+      <RulesFields rules={{ minRaise: settings.minRaise, bounty27: settings.bounty27 }} onChange={(r) => update({ minRaise: r.minRaise, bounty27: r.bounty27 })} idPrefix="s" />
     </section>
   );
 }

@@ -135,7 +135,8 @@ describe('positions', () => {
   it('names every seat', () => {
     expect(positionNames(4)).toEqual(['BTN', 'SB', 'BB', 'UTG']);
     expect(positionNames(6)).toEqual(['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO']);
-    expect(positionNames(8)).toEqual(['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'HJ', 'CO']);
+    expect(positionNames(9)).toEqual(['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'MP', 'LJ', 'HJ', 'CO']);
+    expect(positionNames(8)).toEqual(['BTN', 'SB', 'BB', 'UTG', 'MP', 'LJ', 'HJ', 'CO']);
     expect(new Set(positionNames(9)).size).toBe(9);
   });
 });

@@ -123,9 +123,53 @@ export function FeltMark({ height = 32, full = false }: { height?: number; full?
 
 /* ------------------------------- header ------------------------------- */
 
+/** The banner name. With `onRename` a tap turns it into a text field in the tab, in place. Enter or leaving the field saves;
+    Escape or a swipe up on the tab keeps the old name. The h1 stays, so the shared-element glide of the name still works. */
+function BannerTitle({ banner, share, onRename }: { banner: string; share?: 'game'; onRename?: (name: string) => void }) {
+  const [edit, setEdit] = useState(false);
+  const [text, setText] = useState(banner);
+  const input = useRef<HTMLInputElement>(null);
+  const skip = useRef(false);
+  const startY = useRef<number | null>(null);
+  useEffect(() => { if (!edit) setText(banner); }, [banner, edit]);
+  useEffect(() => { if (edit) { input.current?.focus(); input.current?.select(); } }, [edit]);
+  // the page can leave while the field has focus (a route change): the typed name is saved then, not lost
+  const latest = useRef({ edit, text, banner, onRename });
+  latest.current = { edit, text, banner, onRename };
+  useEffect(() => () => {
+    const l = latest.current, n = l.text.trim();
+    if (l.edit && !skip.current && l.onRename && n && n !== l.banner) l.onRename(n);
+  }, []);
+  if (!onRename) return <h1 className="felt-banner-title" data-share={share}>{banner}</h1>;
+  const finish = (save: boolean) => {
+    if (!edit) return;
+    setEdit(false);
+    const n = text.trim();
+    if (!save || n === banner) { setText(banner); return; }
+    if (!n) { toast('Enter a name for the game.'); setText(banner); return; }
+    onRename(n);
+  };
+  const cancel = () => { skip.current = true; setText(banner); input.current?.blur(); };
+  return (
+    <h1 className={`felt-banner-title is-renamable${edit ? ' is-editing' : ''}`} data-share={share} role={edit ? undefined : 'button'} tabIndex={edit ? undefined : 0}
+      aria-label={edit ? undefined : `${banner}. Tap to rename`}
+      onClick={() => { if (!edit) { skip.current = false; setEdit(true); } }}
+      onKeyDown={(e) => { if (!edit && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); skip.current = false; setEdit(true); } }}
+      onTouchStart={(e) => { startY.current = e.touches[0].clientY; }}
+      onTouchMove={(e) => { if (edit && startY.current !== null && startY.current - e.touches[0].clientY > 24) { startY.current = null; cancel(); } }}>
+      {edit ? (
+        <input ref={input} className="felt-banner-edit" aria-label="Game name" value={text} maxLength={60} autoComplete="off" spellCheck={false} enterKeyHint="done"
+          onChange={(e) => setText(e.target.value.replace(/[\r\n\t]/g, ' '))}
+          onBlur={() => { if (skip.current) { skip.current = false; setEdit(false); return; } finish(true); }}
+          onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') input.current?.blur(); if (e.key === 'Escape') cancel(); }} />
+      ) : banner}
+    </h1>
+  );
+}
+
 /** Sticky header, drawn as the tab of a notebook page: the title (and Back) sit in a tab that stands up from the
     page edge, a line across the screen. Actions sit on the edge to the right of the tab. */
-export function Header({ title, sub, back, right, brand, banner, children, tabs, share }: {
+export function Header({ title, sub, back, right, brand, banner, children, tabs, share, onRename }: {
   title?: string; sub?: string; back?: () => void; right?: ReactNode; brand?: boolean; children?: ReactNode;
   /** Views of the page as a row of notebook tabs (for example Players, Leaderboard, Stats). They take the place of the title tab. */
   tabs?: { label: string; on: boolean; go: () => void; icon?: string }[];
@@ -133,6 +177,8 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs,
   banner?: string;
   /** The title is shared with the page it came from (a game's name in a list): the two morph on a page change. */
   share?: 'game';
+  /** The banner name turns into a text field on a tap (a game's name). Enter or leaving the field saves the trimmed name; an empty name is refused. */
+  onRename?: (name: string) => void;
 }) {
   const tabRow = tabs && (
     <div className="sat-header-bar felt-notebook" role="tablist" aria-label={banner ?? title}>
@@ -155,8 +201,8 @@ export function Header({ title, sub, back, right, brand, banner, children, tabs,
           {brand
             ? <div className="sat-brand felt-banner-brand"><FeltMark full height={34} /><span className="sat-wordmark">{banner}</span></div>
             : sub
-              ? <div className="felt-banner-stack"><h1 className="felt-banner-title" data-share={share}>{banner}</h1><small className="felt-banner-sub">{sub}</small></div>
-              : <h1 className="felt-banner-title" data-share={share}>{banner}</h1>}
+              ? <div className="felt-banner-stack"><BannerTitle banner={banner} share={share} onRename={onRename} /><small className="felt-banner-sub">{sub}</small></div>
+              : <BannerTitle banner={banner} share={share} onRename={onRename} />}
           {/* a main tab: the theme toggle is one shared control in App (ThemeHost), so this banner keeps only a slot for it */}
           <div className="felt-banner-right">{back ? right ?? <ThemeToggle /> : <>{right}<span className="felt-toggle-slot" aria-hidden="true" /></>}</div>
         </div>
@@ -330,6 +376,10 @@ export class DockPanel extends Component<{ k: string; children: ReactNode }> {
   render() { return this.props.k ? <div ref={this.el} className="felt-dock-panel">{this.props.children}</div> : null; }
 }
 
+const FIELD = 'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]), textarea, select, [contenteditable]:not([contenteditable="false"])';
+/** True while a text field inside the panel has focus (the keyboard is open): a swipe must not move the sheet then. */
+const fieldFocused = (el: HTMLElement) => { const a = document.activeElement; return !!a && a !== el && el.contains(a) && a.matches(FIELD); };
+
 /** Swipe down on a panel that opens from the bottom closes it, and the page behind does not scroll.
     Inside a scrolling panel the swipe scrolls first and closes only from the top. */
 export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, on = true) {
@@ -347,7 +397,7 @@ export function useSwipeDown(ref: RefObject<HTMLElement>, onClose: () => void, o
     };
     const start = (e: TouchEvent) => {
       const free = (e.target as HTMLElement).closest?.('input, textarea, select, [contenteditable], [data-drag-row], .felt-keypad, .felt-picker, .felt-hold, [data-noswipe]');
-      s = e.touches.length === 1 && !free ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), drag: false } : null;
+      s = e.touches.length === 1 && !free && !fieldFocused(el) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), drag: false } : null;
     };
     const move = (e: TouchEvent) => {
       if (!s) return;
@@ -637,8 +687,8 @@ function useSwipeSide(ref: RefObject<HTMLElement>, onSide: (side: -1 | 1) => voi
       return false;
     };
     const start = (e: TouchEvent) => {
-      const free = (e.target as HTMLElement).closest?.('input[type="range"], input[type="color"], textarea, [data-drag-row]');
-      s = e.touches.length === 1 && !free && !sideScroller(e.target) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), mode: null } : null;
+      const free = (e.target as HTMLElement).closest?.('input, textarea, select, [contenteditable], [data-drag-row]');
+      s = e.touches.length === 1 && !free && !fieldFocused(el) && !sideScroller(e.target) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), mode: null } : null;
     };
     const move = (e: TouchEvent) => {
       if (!s || s.mode === 'y') return;
@@ -730,6 +780,8 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, action,
     if (!open || !d) return;
     if (!d.open) {
       d.showModal();
+      // every open info tip closes when a sheet opens, also a second sheet over a first
+      window.dispatchEvent(new Event('felt-sheet-open'));
       // a name edited in place must not take the focus on open: the keyboard would rise every time
       const act = document.activeElement as HTMLElement | null;
       if (act?.matches('.felt-name-edit')) act.blur();
@@ -793,7 +845,6 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
   const show = open || hover;
   // the tip stays mounted a moment after closing, so it can fade
   const [mounted, setMounted] = useState(false);
-  const fine = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
   const place = () => {
     const btn = wrap.current?.getBoundingClientRect();
     const b = body.current?.getBoundingClientRect();
@@ -811,9 +862,11 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
     if (!show) {
       if (!mounted) return;
       const el = body.current;
-      if (!el?.animate || calm()) { setMounted(false); setPos(null); return; }
-      el.animate({ opacity: [1, 0], scale: [1, 0.97] }, { duration: 120, easing: 'ease-out', fill: 'forwards' });
-      const t = window.setTimeout(() => { setMounted(false); setPos(null); }, 120);
+      if (!el?.animate || document.documentElement.hasAttribute('data-motion-off')) { setMounted(false); setPos(null); return; }
+      // Reduced motion: a plain 150 ms fade, no travel
+      const ms = calm() ? 150 : 120;
+      el.animate(calm() ? { opacity: [1, 0] } : { opacity: [1, 0], scale: [1, 0.97] }, { duration: ms, easing: calm() ? 'linear' : 'ease-out', fill: 'forwards' });
+      const t = window.setTimeout(() => { setMounted(false); setPos(null); }, ms);
       return () => window.clearTimeout(t);
     }
     setMounted(true);
@@ -835,16 +888,33 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
   }, [show, mounted]);
   useEffect(() => {
     if (!show) return;
-    const onDoc = (e: MouseEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); setHover(false); } };
+    const shut = () => { setOpen(false); setHover(false); };
+    // capture-phase pointerdown on window: no handler can stop it. The tap goes on and presses what is under it.
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (wrap.current?.contains(t) || body.current?.contains(t)) return;
+      shut();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') shut(); };
     const onScroll = () => place();
-    document.addEventListener('click', onDoc);
+    // a sheet that opens (the page gets felt-sheet-open) and a route change take the tip away
+    window.addEventListener('felt-sheet-open', shut);
+    window.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('hashchange', shut);
+    window.addEventListener('popstate', shut);
     document.addEventListener('keydown', onKey);
     window.addEventListener('scroll', onScroll, true);
-    return () => { document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey); window.removeEventListener('scroll', onScroll, true); };
+    return () => {
+      window.removeEventListener('felt-sheet-open', shut);
+      window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('hashchange', shut);
+      window.removeEventListener('popstate', shut);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+    };
   }, [show]);
   return (
-    <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onMouseEnter={() => fine && setHover(true)} onMouseLeave={() => setHover(false)}>
+    <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHover(true); }} onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHover(false); }}>
       <button type="button" className="sat-tip-btn" aria-expanded={open} aria-label={title ? `About ${title.toLowerCase()}` : 'More information'}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
         {/* drawn, not typed: a letter i leans and sits right of centre in its circle */}
@@ -1030,9 +1100,10 @@ export function PlayingCard({ card, size, target, onClick, placeholder }: {
   return <span className={cls} aria-label={card ? cardText(card) : undefined}>{inner}</span>;
 }
 
-/** A face-down card: the blue S on ink, with one ice border. The S is 40% of the card height (70, 40, 31 px; owner, 10 Nov 2026). */
+/** A face-down card: the full Felt mark (two chips and the S) on ink, with one ice border. The mark is 40% of the card height
+    (owner, 10 Nov 2026), sized in CSS from the card (.felt-cardback in styles.css), so it follows any card size. */
 export function CardBack({ size }: { size?: 'sm' | 'lg' }) {
-  return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark height={size === 'lg' ? 28 : size === 'sm' ? 12.4 : 16} /></span>;
+  return <span className={`felt-card felt-cardback ${size ?? ''}`} aria-hidden="true"><FeltMark full height={size === 'lg' ? 28 : size === 'sm' ? 12.4 : 16} /></span>;
 }
 
 /** One etched box split down the middle (Nil), or two face-down cards (Filled). */
@@ -1106,6 +1177,39 @@ export function withUndo(msg: string, run: () => void) {
   toast(msg, { label: 'Undo', run: () => useStore.setState({ games, groups }) });
 }
 
+/** Bottom elements a message must stay clear of. Each one counts only while it shows. The recorder dock (keypad, picker) and the
+    floating card button are in it. */
+const BOTTOM_ITEMS = '.sat-bottombar, .felt-nav, .felt-ng[data-open="true"], .felt-rec-dock, .felt-fab, .felt-logbtn';
+/** Measures the top edge of what sits at the bottom of the screen (or the keyboard, whichever is higher) and sets one CSS
+    variable, --felt-bottom-stack, in px from the bottom of the screen. While a sheet is open only the keyboard counts: the
+    messages sit at the sheet bottom. Measured on each message, on resize, on keyboard changes and every 250 ms while one shows. */
+function useBottomStack(active: boolean, listKey: unknown) {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (!active) return;
+    const measure = () => {
+      const vh = window.innerHeight;
+      const kb = parseFloat(root.style.getPropertyValue('--felt-kb')) || 0;
+      let stack = kb;
+      if (!document.querySelector('dialog[open]')) {
+        document.querySelectorAll<HTMLElement>(BOTTOM_ITEMS).forEach((n) => {
+          const r = n.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1 || r.top < vh * 0.3 || r.top >= vh) return;
+          const cs = getComputedStyle(n);
+          if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) < 0.05) return;
+          stack = Math.max(stack, vh - r.top);
+        });
+      }
+      root.style.setProperty('--felt-bottom-stack', `${Math.round(stack)}px`);
+    };
+    measure();
+    const i = window.setInterval(measure, 250);
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    return () => { window.clearInterval(i); window.removeEventListener('resize', measure); window.visualViewport?.removeEventListener('resize', measure); };
+  }, [active, listKey]);
+}
+
 let toastSeq = 0;
 interface ToastItem { id: number; msg: string; action?: ToastAction; until?: number }
 
@@ -1150,14 +1254,16 @@ export function ToastHost() {
     };
     return () => { toastListener = null; };
   }, []);
-  // each new message arrives with a spring: down from the top of the screen, up from the sheet edge inside a sheet
+  // the space the messages leave at the bottom, measured from the real elements (--felt-bottom-stack)
+  useBottomStack(list.length > 0, list);
+  // each new message arrives with a spring: up from below the screen edge (inside a sheet, up from the sheet edge)
   const seen = useRef(new Set<number>());
   useLayoutEffect(() => {
     for (const t of list) {
       if (seen.current.has(t.id)) continue;
       seen.current.add(t.id);
       const e = document.querySelector<HTMLElement>(`[data-toast="${t.id}"]`);
-      if (e && !calm()) spring(e, (p) => ({ translate: `0 ${(e.closest('.felt-toasts--sheet') ? 40 : -40) * (1 - p)}px`, opacity: String(Math.min(1, p * 2)) }), SPRING.toast);
+      if (e && !calm()) spring(e, (p) => ({ translate: `0 ${48 * (1 - p)}px`, opacity: String(Math.min(1, p * 2)) }), SPRING.toast);
     }
   }, [list]);
   if (!list.length) return null;

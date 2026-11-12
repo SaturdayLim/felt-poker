@@ -81,6 +81,8 @@ export interface Act {
   d?: boolean;
   /** The bet this action answered. If an earlier change moves it, the action is dropped. */
   at?: number;
+  /** All-in logged at the lower end of a range stack: the real stack is unknown, so Felt asks for a count (needsCount). */
+  est?: boolean;
   /** Acted in the dark (before seeing the cards). Preflop, a dark raise is a straddle. */
   dark?: boolean;
 }
@@ -332,6 +334,9 @@ export interface Settings {
   /** Fallback rules for games created before rules were set per game (see Game.rules). */
   minRaise: GameRules['minRaise'];
   bounty27: BountyRule;
+  /** True once these settings have been through the House rules preset (1.7.3). Older data had no screen for the preset and
+      cash games always started with the 7-2 bounty on, so data without this mark loads with the bounty on. */
+  rulesPreset?: boolean;
   /** How the recorder takes wagers: per-player bets, or the pot counted each street. */
   entryMode: 'bets' | 'count';
   currency: string;

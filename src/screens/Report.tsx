@@ -6,9 +6,9 @@ import { back, go } from '../router';
 import { Caption, Empty, Header, Help, Icon, toast } from '../components/ui';
 import { loadReportFonts } from '../report/canvas';
 import { handsCsv, ledgerCsv, outputName, playersCsv, type PotCoding } from '../report/csv';
-import { PNG_SETS, renderPngSetPages, type PngSet } from '../report/pngSets';
+import { PNG_SETS, renderPngParts, type PngSet } from '../report/pngSets';
 import { canvasToFile, shareFiles, textFile } from '../report/share';
-import { MIN_REPORT_HANDS, makeHtmlReport, recordedHands, reportReady } from '../report/htmlReport';
+import { MIN_LOG_HANDS, MIN_REPORT_HANDS, logReady, makeHtmlReport, recordedHands, reportReady } from '../report/htmlReport';
 import { useResolvedTheme } from '../theme';
 import { calm, DRAWER, motionOff } from '../lib/motion';
 import type { ID } from '../types';
@@ -35,7 +35,7 @@ function copyLater(type: 'text/plain' | 'image/png', data: Promise<Blob>): Promi
 }
 
 /** An icon button. A copy button shows a check for a moment when the copy is done. */
-function ActBtn({ icon, label, onAct, disabled }: { icon: string; label: string; onAct: () => Promise<boolean | void> | void; disabled?: boolean }) {
+function ActBtn({ icon, label, onAct, disabled }: { icon: string; label: string; onAct: () => Promise<boolean | void> | boolean | void; disabled?: boolean }) {
   const [phase, setPhase] = useState<'idle' | 'wait' | 'done'>('idle');
   const timer = useRef(0);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -156,7 +156,7 @@ function Preview({ pv, onClosed }: { pv: Pv; onClosed: () => void }) {
       <div ref={body} className="felt-pv-body" data-html={c?.html !== undefined || undefined}>
         {/* a tap on an image copies it (owner, 11 Nov 2026); the file is ready, so the copy runs inside the tap */}
         {c?.imgs?.map((u, i) => {
-          const alt = c.imgs!.length > 1 ? `${pv.title}, page ${i + 1} of ${c.imgs!.length}` : pv.title;
+          const alt = c.imgs!.length > 1 ? `${pv.title}, image ${i + 1} of ${c.imgs!.length}` : pv.title;
           const f = c.files?.[i];
           return (
             <button key={u} type="button" className="felt-pv-img" aria-label={`Copy image: ${alt}`} disabled={!f}
@@ -174,7 +174,7 @@ function Preview({ pv, onClosed }: { pv: Pv; onClosed: () => void }) {
 function Head({ k, tier, setTier, label, tip, children }: { k: Choice; tier: Choice; setTier: (k: Choice) => void; label: string; tip: ExpKey; children?: React.ReactNode }) {
   return (
     <div className="felt-exp-head" onClick={() => setTier(k)}>
-      <button type="button" role="radio" aria-checked={tier === k} className="felt-exp-radio" onClick={(e) => { e.stopPropagation(); setTier(k); }}>
+      <button type="button" role="radio" aria-checked={tier === k} aria-label={label} className="felt-exp-radio" onClick={(e) => { e.stopPropagation(); setTier(k); }}>
         <span className="felt-choice-dot" aria-hidden="true" />
         <span>{label}</span>
       </button>
@@ -186,6 +186,15 @@ function Head({ k, tier, setTier, label, tip, children }: { k: Choice; tier: Cho
 
 export default function Report({ gameId }: { gameId: string }) {
   const g = useGame(gameId);
+  if (!g) return <div className="felt-page"><Header back={() => go('')} title="Export" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
+  return <ReportBody g={g} />;
+}
+
+/** More images than this ask first: Share and Cancel. */
+const WARN_IMAGES = 10;
+
+function ReportBody({ g }: { g: NonNullable<ReturnType<typeof useGame>> }) {
+  const gameId = g.id;
   const name = usePlayerName();
   const pref = useStore((s) => s.settings.theme);
   const appTheme = useResolvedTheme(pref);
@@ -202,13 +211,21 @@ export default function Report({ gameId }: { gameId: string }) {
   const [linkMade, setLinkMade] = useState<string | null>(() => (gameId ? reportLinkOf(gameId)?.link ?? null : null));
   const st = useStore();
   const imgCache = useRef(new Map<string, Promise<File[]>>());
-  useEffect(() => { imgCache.current.clear(); }, [g, appTheme]);
-
-  if (!g) return <div className="felt-page"><Header back={() => go('')} title="Export" /><Empty title="Game not found">It may have been deleted.</Empty></div>;
+  /** Files already drawn. A press that shares reads from here, so navigator.share runs inside the press. */
+  const done = useRef(new Map<string, File[]>());
+  const [, bump] = useState(0);
+  const [ask, setAsk] = useState<{ tier: Choice; n: number } | null>(null);
+  /** The warning row is drawing the rest of the images. A new token cancels the loop. */
+  const [drawing, setDrawing] = useState(false);
+  const drawRun = useRef(0);
+  useEffect(() => { imgCache.current.clear(); done.current.clear(); bump((x) => x + 1); }, [g, appTheme]);
 
   const ready = reportReady(g);
+  const lReady = logReady(g);
   const noCode = allPlayers.filter((p) => g.playerIds.includes(p.id) && !p.codeIssued);
-  const handIds = g.hands.map((h) => h.id);
+  /** Only recorded hands: a missed hand or a hand with no log is never listed, ticked, previewed or shared. */
+  const logHands = g.hands.filter((h) => !h.missed && h.log);
+  const handIds = logHands.map((h) => h.id);
   const ticked = handIds.filter((id) => !off[id]);
   const tickHand = (id: string) => setOff((o) => { const n = { ...o }; if (n[id]) delete n[id]; else n[id] = true; return n; });
   const toggleLog = () => { setGameLog(!gameLog); keep(KEEP.gameLog, !gameLog); };
@@ -223,23 +240,50 @@ export default function Report({ gameId }: { gameId: string }) {
     const key = `${k}|${hands?.join(',') ?? ''}`;
     let p = imgCache.current.get(key);
     if (!p) {
+      const cache = imgCache.current, fin = done.current;
       p = (async () => {
         await loadReportFonts();
-        const pages = await renderPngSetPages(g, k, { players: allPlayers, settings, name, theme: appTheme, ...(hands ? { hands } : {}) });
-        const label = (PNG_SETS.find((x) => x.k === k) ?? PNG_SETS[0]).label.toLowerCase();
+        const parts = await renderPngParts(g, k, { players: allPlayers, settings, name, theme: appTheme, ...(hands ? { hands } : {}) });
+        const label = k === 'log' ? 'action log' : (PNG_SETS.find((x) => x.k === k) ?? PNG_SETS[0]).label.toLowerCase();
         const out: File[] = [];
-        for (let i = 0; i < pages.length; i++) {
-          const c = pages[i];
-          out.push(await canvasToFile(c, outputName(g, label, 'png', pages.length > 1 ? `(page ${i + 1} of ${pages.length})` : undefined)));
+        for (const { canvas: c, part } of parts) {
+          out.push(await canvasToFile(c, outputName(g, label, 'png', part)));
           c.width = 0; c.height = 0; // free canvas memory on iOS
         }
         return out;
       })();
-      imgCache.current.set(key, p);
-      p.catch(() => imgCache.current.delete(key));
+      cache.set(key, p);
+      p.then((f) => { if (cache === imgCache.current) { fin.set(key, f); bump((x) => x + 1); } }, () => cache.delete(key));
     }
     return p;
   };
+
+  /** The jobs behind the picked images: one per snapshot set (3 parts each), or one per ticked hand. */
+  type Job = [PngSet, ID[]?];
+  const snapJobs = (): Job[] => (['summary', 'detailed', 'playstyle'] as Snap[]).filter((k) => snap[k]).map((k) => [k]);
+  const logJobs = (): Job[] => ticked.map((id) => ['log', [id]] as Job);
+  const keyOf = ([k, h]: Job) => `${k}|${h?.join(',') ?? ''}`;
+  const readyFiles = (jobs: Job[]): File[] | null => {
+    const out: File[] = [];
+    for (const j of jobs) { const f = done.current.get(keyOf(j)); if (!f) return null; out.push(...f); }
+    return out;
+  };
+  /** Images in one job: a snapshot set is 3 images, a hand is 1. */
+  const imgsOf = (j: Job) => (j[0] === 'log' ? 1 : 3);
+  const countImgs = (jobs: Job[]) => jobs.reduce((n, j) => n + imgsOf(j), 0);
+  /** The first jobs that fit in WARN_IMAGES: the only ones drawn before a press. */
+  const firstJobs = (jobs: Job[]): Job[] => { const out: Job[] = []; let n = 0; for (const j of jobs) { n += imgsOf(j); if (n > WARN_IMAGES) break; out.push(j); } return out; };
+  const snapKey = tier === 'png' && ready ? firstJobs(snapJobs()).map(keyOf).join(';') : '';
+  const logKey = tier === 'log' && lReady ? firstJobs(logJobs()).map(keyOf).join(';') : '';
+  // draw the images before the press: when a part or hand is ticked and when a row opens
+  useEffect(() => {
+    if (!snapKey && !logKey) return;
+    let dead = false;
+    const jobs = firstJobs(snapKey ? snapJobs() : logJobs());
+    (async () => { for (const j of jobs) { if (dead) return; try { await render(j[0], j[1]); } catch { /* the press says so */ } } })();
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapKey, logKey, g, appTheme]);
 
   const preview = (from: Element, title: string, load: () => Promise<Loaded>) => setPv({ from, title, load });
   const previewImgs = (e: React.MouseEvent, title: string, k: PngSet, hands?: ID[]) =>
@@ -260,27 +304,55 @@ export default function Report({ gameId }: { gameId: string }) {
     );
   };
 
-  /** Copies the first image; the phone clipboard holds one. The others go to the share sheet. */
-  const copyImages = (jobs: Promise<File[]>[]): Promise<boolean> => {
-    const first = jobs[0].then((f) => f[0]);
-    const rest = Promise.all(jobs).then((all) => all.flat().slice(1));
-    return copyLater('image/png', first).then(async () => {
-      const r = await rest;
-      if (!r.length) { toast('Image copied.'); return true; }
-      toast(`First image copied. The clipboard holds 1 image, so Felt shares the other ${r.length}.`);
-      const res = await shareFiles(r, `${g.name} images`);
-      if (res === 'downloaded') toast(`${r.length > 1 ? `${r.length} images` : 'Image'} saved to Downloads`);
-      return true;
-    }, () => { toast('Copy was blocked on this phone. Use the share button on a single image instead.'); return false; });
+  /** Draws every job one after the other, for the warning row. */
+  const drawAll = async (jobs: Job[]) => {
+    const run = ++drawRun.current;
+    setDrawing(true);
+    for (const j of jobs) {
+      if (run !== drawRun.current) return;
+      try { await render(j[0], j[1]); } catch { /* the row stays; the next press tries again */ }
+    }
+    if (run === drawRun.current) setDrawing(false);
   };
-  const copySnaps = () => {
-    const keys = (['summary', 'detailed', 'playstyle'] as Snap[]).filter((k) => snap[k]);
-    if (!keys.length) { toast('Tick at least 1 image.'); return Promise.resolve(false); }
-    return copyImages(keys.map((k) => render(k)));
+  const drawnImgs = (jobs: Job[]) => jobs.reduce((n, j) => n + (done.current.get(keyOf(j))?.length ?? 0), 0);
+
+  /** Shares every image as its own file with the phone share sheet. navigator.share only runs inside a press, with
+      files that are drawn already. Above WARN_IMAGES the first press opens the warning row, the row press draws the
+      rest, and a second press on Share in the row shares. */
+  const sendImages = (jobs: Job[], empty: string, where: Choice, confirmed = false): Promise<boolean> | boolean => {
+    if (!jobs.length) { toast(empty); return false; }
+    const n = countImgs(jobs);
+    if (n > WARN_IMAGES && !confirmed) { setAsk({ tier: where, n }); return false; }
+    const files = readyFiles(jobs);
+    if (!files) {
+      if (confirmed) { if (!drawing) void drawAll(jobs); return false; }
+      jobs.forEach((j) => { render(j[0], j[1]).catch(() => {}); });
+      toast('The images are still being drawn. Press Share again in a moment.');
+      return false;
+    }
+    setAsk(null);
+    return shareFiles(files, g.name).then((r) => {
+      if (r === 'downloaded') toast(`${files.length > 1 ? `${files.length} images` : 'Image'} saved to Downloads`);
+      return r !== 'cancelled';
+    });
   };
-  const copyLog = () => {
-    if (!ticked.length) { toast('Tick at least 1 hand.'); return Promise.resolve(false); }
-    return copyImages([render('log', ticked)]);
+  const shareSnaps = () => sendImages(snapJobs(), 'Tick at least 1 image.', 'png');
+  const shareLog = () => sendImages(logJobs(), 'Tick at least 1 hand.', 'log');
+  const warnRow = (where: Choice, jobs: () => Job[], empty: string) => {
+    const list = ask?.tier === where ? jobs() : [];
+    const n = countImgs(list), have = drawnImgs(list);
+    const isReady = list.length > 0 && readyFiles(list) !== null;
+    return (
+      <Fold open={ask?.tier === where}>
+        <div className="felt-exp-note felt-exp-warn" role="alert">
+          <span className="sat-small">{drawing && !isReady ? `Drawing ${have} of ${n}` : isReady ? `${n} images are ready.` : `This shares ${n} images.`}</span>
+          <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>
+            <button type="button" className="sat-btn sat-btn--sm" aria-disabled={drawing && !isReady} onClick={() => { if (drawing && !isReady) return; void sendImages(jobs(), empty, where, true); }}>Share</button>
+            <button type="button" className="sat-btn sat-btn--ghost sat-btn--sm" onClick={() => { drawRun.current++; setDrawing(false); setAsk(null); }}>Cancel</button>
+          </span>
+        </div>
+      </Fold>
+    );
   };
   const shareCsv = async () => {
     const list = [g];
@@ -294,7 +366,7 @@ export default function Report({ gameId }: { gameId: string }) {
     return r !== 'cancelled';
   };
 
-  const note = (what: string) => <div className="felt-exp-note sat-small">{what} needs a closed game with at least {MIN_REPORT_HANDS} recorded hands. This game has {recordedHands(g)}.</div>;
+  const note = (what: string, min = MIN_REPORT_HANDS) => <div className="felt-exp-note sat-small">{what} needs a closed game with at least {min} recorded {min === 1 ? 'hand' : 'hands'}. This game has {recordedHands(g)}.</div>;
 
 
   return (
@@ -333,7 +405,7 @@ export default function Report({ gameId }: { gameId: string }) {
           <div className="felt-exp-opt">
             <Head tier={tier} setTier={setTier} k="png" label="Game summary snapshot" tip="expSnapshot">
               <div className="felt-exp-act" data-on={tier === 'png' && ready} {...(tier === 'png' && ready ? {} : { inert: '' })}>
-                <ActBtn icon="copy" label="Copy images" onAct={copySnaps} />
+                <ActBtn icon="share" label="Share images" onAct={shareSnaps} />
               </div>
             </Head>
             <Fold open={tier === 'png'}>
@@ -346,18 +418,19 @@ export default function Report({ gameId }: { gameId: string }) {
                   </div>
                 ))
               ) : note('The images')}
+              {ready && warnRow('png', snapJobs, 'Tick at least 1 image.')}
             </Fold>
           </div>
 
           <div className="felt-exp-opt">
             <Head tier={tier} setTier={setTier} k="log" label="Full Action Log" tip="expLog">
-              <div className="felt-exp-act" data-on={tier === 'log' && ready} {...(tier === 'log' && ready ? {} : { inert: '' })}>
-                <ActBtn icon="copy" label="Copy ticked hands" onAct={copyLog} />
+              <div className="felt-exp-act" data-on={tier === 'log' && lReady} {...(tier === 'log' && lReady ? {} : { inert: '' })}>
+                <ActBtn icon="share" label="Share ticked hands" onAct={shareLog} />
               </div>
               <span className="felt-exp-chev" data-open={tier === 'log'} aria-hidden="true"><Icon name="chevron" size={18} /></span>
             </Head>
             <Fold open={tier === 'log'}>
-              {ready ? (
+              {lReady ? (
                 <>
                 <div className="felt-exp-sub felt-exp-allnone">
                   <span className="sat-small sat-muted">{ticked.length} of {handIds.length} hands</span>
@@ -367,15 +440,16 @@ export default function Report({ gameId }: { gameId: string }) {
                   </span>
                 </div>
                 <div className="felt-exp-hands" role="group" aria-label="Hands to include">
-                  {g.hands.map((h) => (
+                  {logHands.map((h) => (
                     <div key={h.id} className="felt-exp-sub">
                       <label className="felt-exp-tick"><input type="checkbox" checked={!off[h.id]} aria-label={handLabel(h)} onChange={() => tickHand(h.id)} /><span>{handLabel(h)}</span></label>
                       <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn felt-exp-ic felt-exp-end" aria-label={`Preview hand ${h.n}`} onClick={(e) => previewImgs(e, `Hand ${h.n}`, 'log', [h.id])}><Icon name="eye" size={20} /></button>
                     </div>
                   ))}
                 </div>
+                {warnRow('log', logJobs, 'Tick at least 1 hand.')}
                 </>
-              ) : note('The images')}
+              ) : note('The images', MIN_LOG_HANDS)}
             </Fold>
           </div>
 

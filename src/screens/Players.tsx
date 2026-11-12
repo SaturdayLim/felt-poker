@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { go } from '../router';
 import { Avatar, Caption, Delta, Disclose, Header, Icon, Toggle, SlidePane, toast } from '../components/ui';
@@ -8,6 +8,8 @@ import { filterGames, playerSummary, type RangeFilter, type TypeFilter } from '.
 import { GroupSheet, OTHERS, gamesOfGroup, groupSettlement, othersGroup } from './Group';
 import { figureDelta } from '../lib/format';
 import { summaryFigure } from '../lib/stats';
+import { SearchGap, setSearch, usePlayersBar, useSearch } from '../components/searchHost';
+import { toTop } from '../components/navRail';
 import type { Player } from '../types';
 
 export type PlayersView = 'list' | 'board' | 'stats';
@@ -25,8 +27,9 @@ export default function Players({ view = 'list', pid }: { view?: PlayersView; pi
   const [range, setRange] = useState<RangeFilter>('all');
   return (
     <div className="felt-page">
-      <Header banner="Players" tabs={VIEWS.map((v) => ({ label: v.label, icon: v.icon, on: view === v.k, go: () => go(v.path, true) }))} />
+      <Header banner="Players" tabs={VIEWS.map((v) => ({ label: v.label, icon: v.icon, on: view === v.k, go: () => (view === v.k ? toTop() : go(v.path, true)) }))} />
       <div className="sat-stack">
+        <SearchGap />
         <div className="felt-filter-slot" data-open={view !== 'list'}>
           <Disclose open={view !== 'list'}>
             <div className="felt-filter-pad"><FilterBar type={type} setType={setType} range={range} setRange={setRange} /></div>
@@ -52,50 +55,6 @@ function FoldBody({ open, children }: { open: boolean; children: ReactNode }) {
   );
 }
 
-/** Search and add in one box. A tap in the empty box lists every player, A to Z; typing narrows the list. When no player has
-    the typed name, the search icon turns into a plus, and it adds that name. */
-function PlayerFinder({ players, q, setQ, onPick, onAdd }: { players: Player[]; q: string; setQ: (v: string) => void; onPick: (p: Player) => void; onAdd: (name: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  const term = q.trim().toLowerCase();
-  const matches = players.filter((p) => p.name.toLowerCase().includes(term)).sort((a, b) => a.name.localeCompare(b.name));
-  const adding = term !== '' && matches.length === 0;
-  const pick = (p: Player) => { setOpen(false); setQ(''); input.current?.blur(); onPick(p); };
-  const act = () => {
-    if (adding) { onAdd(q); input.current?.focus(); return; }
-    input.current?.focus();
-    setOpen(true);
-  };
-  return (
-    <div className="felt-finder">
-      <div className="felt-finder-row">
-        <input ref={input} className="sat-input" role="combobox" aria-expanded={open} aria-controls="felt-finder-list" aria-label="Search or add player" placeholder="Search or add player" value={q} autoComplete="off" enterKeyHint="done"
-          onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => window.setTimeout(() => setOpen(false), 120)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') { setOpen(false); input.current?.blur(); }
-            if (e.key !== 'Enter') return;
-            e.preventDefault();
-            if (adding) onAdd(q);
-            else { const exact = matches.find((p) => p.name.toLowerCase() === term) ?? (matches.length === 1 ? matches[0] : undefined); if (exact) pick(exact); }
-          }} />
-        <button type="button" className={`sat-btn sat-iconbtn felt-finder-btn ${adding ? 'sat-btn--primary' : ''}`} data-mode={adding ? 'add' : 'search'} aria-label={adding ? `Add ${titleCase(q)}` : 'Search players'}
-          onMouseDown={(e) => e.preventDefault()} onClick={act}>
-          <span className="felt-finder-ic"><span className="felt-finder-search"><Icon name="search" size={20} /></span><span className="felt-finder-plus"><Icon name="plus" size={20} /></span></span>
-        </button>
-      </div>
-      {open && !adding && matches.length > 0 && (
-        <div id="felt-finder-list" className="felt-finder-list felt-finder-list--in" role="listbox" onMouseDown={(e) => e.preventDefault()}>
-          {matches.map((p) => (
-            <button key={p.id} type="button" role="option" aria-selected="false" className={`felt-finder-item ${p.archived ? 'is-hidden' : ''}`} onClick={() => pick(p)}>
-              <Avatar name={p.name} size="sm" /><span>{p.name}{p.archived ? ' (hidden)' : ''}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PlayerList() {
   const players = useStore((s) => s.players);
   const games = useStore((s) => s.games);
@@ -106,7 +65,8 @@ function PlayerList() {
   const [newGroup, setNewGroup] = useState(false);
   const [edit, setEdit] = useState<Player | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [q, setQ] = useState('');
+  // the search bar is shared with Games (searchHost.tsx): its text is the filter here
+  const { text: q } = useSearch();
   const saveGroup = useStore((s) => s.saveGroup);
   // which lists are open: one tap opens or closes a list. Kept on this phone
   const [opened, setOpened] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('felt-players-open') ?? '[]'); } catch { return []; } });
@@ -126,14 +86,15 @@ function PlayerList() {
     if (!n) return;
     if (players.some((p) => p.name.toLowerCase() === n.toLowerCase())) { toast(`${n} is already on the list. Use a different name.`); return; }
     addPlayer(n);
-    setQ('');
+    setSearch({ text: '' });
     toast(`${n} added to players.`);
   };
+
+  usePlayersBar({ pick: setEdit, add });
 
   return (
     <>
       <div className="sat-stack">
-        <PlayerFinder players={players} q={q} setQ={setQ} onPick={setEdit} onAdd={add} />
         {players.some((p) => p.archived) && (
           <div className="sat-switch-row">
             <span>Show hidden players ({players.filter((p) => p.archived).length})</span>

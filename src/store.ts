@@ -22,7 +22,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
   splashMs: SPLASH_DEFAULT,
   minRaise: 'last',
-  bounty27: { on: false, win: 'shown', suited: false, amount: 10 },
+  bounty27: { on: true, win: 'shown', suited: false, amount: 10 },
+  rulesPreset: true,
   entryMode: 'bets',
   currency: 'S$',
   unitValue: 0.1,
@@ -137,6 +138,15 @@ function resumeFromCashOut(g: Game, playerId: ID, t: number): number {
 }
 
 /** Hands saved with `mine` (the phone owner's cards) move into `private`. */
+/** Games saved before rules were set per game read their rules from the settings. Before the House rules preset (1.7.3)
+    those settings had no screen and the bounty was off. Data without the preset mark gets those rules written into each
+    such game, so a later change of the preset never rewrites an old game. */
+function keepOldRules(games: Game[], old: Partial<Settings> | undefined): Game[] {
+  if (old?.rulesPreset || !games.some((g) => !g.rules)) return games;
+  const rules = { minRaise: old?.minRaise ?? 'last', bounty27: { on: false, win: 'shown' as const, suited: false, amount: 10, ...(old?.bounty27 ?? {}) } };
+  return games.map((g) => (g.rules ? g : { ...g, rules }));
+}
+
 function withPrivate(games: Game[]): Game[] {
   if (!games.some((g) => g.hands.some((h) => h.mine))) return games;
   return games.map((g) => ({
@@ -401,9 +411,9 @@ export const useStore = create<State>()(
         importBackup: (data) =>
           set((s) => ({
             players: withCodes(data.players, data.games),
-            games: withPrivate(data.games),
+            games: keepOldRules(withPrivate(data.games), data.settings),
             groups: data.groups ?? [],
-            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, palette: s.settings.palette, showMoney: s.settings.showMoney, toastMode: s.settings.toastMode, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}) } },
+            settings: { ...DEFAULT_SETTINGS, ...data.settings, theme: s.settings.theme, splashMs: s.settings.splashMs, me: s.settings.me, cards: s.settings.cards, palette: s.settings.palette, showMoney: s.settings.showMoney, toastMode: s.settings.toastMode, markers: { ...DEFAULT_SETTINGS.markers, ...(data.settings?.markers ?? {}) }, bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(data.settings?.bounty27 ?? {}), ...(data.settings?.rulesPreset ? {} : { on: true }) }, rulesPreset: true },
           })),
         exportBackup: () => {
           const s = get();
@@ -423,7 +433,7 @@ export const useStore = create<State>()(
           ...current,
           ...p,
           players: withCodes(p.players ?? current.players, p.games ?? current.games),
-          games: withPrivate(p.games ?? current.games),
+          games: keepOldRules(withPrivate(p.games ?? current.games), p.settings),
           groups: p.groups ?? [],
           settings: {
             ...DEFAULT_SETTINGS,
@@ -431,7 +441,9 @@ export const useStore = create<State>()(
             // 'system' was the name for 'auto' before the Saturday Signature reskin
             theme: (p.settings?.theme as string) === 'system' || !p.settings?.theme ? 'auto' : p.settings.theme,
             markers: { ...DEFAULT_SETTINGS.markers, ...(p.settings?.markers ?? {}) },
-            bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(p.settings?.bounty27 ?? {}) },
+            // data from before the preset had a screen: cash games always started with the bounty on, so it stays on
+            bounty27: { ...DEFAULT_SETTINGS.bounty27, ...(p.settings?.bounty27 ?? {}), ...(p.settings?.rulesPreset ? {} : { on: true }) },
+            rulesPreset: true,
           },
         };
       },

@@ -10,8 +10,8 @@ description: Felt playing card design rules. Use when drawing or changing a card
 - Finish: matte, with a fine paper grain and no shine.
 - Field: ink `#1C1E21`.
 - Border: one line of ice `#EBF1F5`, about 4% of the card height (3 px at 70, 2 px at 40, 1.5 px at 31). No inner keyline.
-- Monogram: the small S logo in blue `#0052CC`, centred. Its height is 20% of the card height (14, 8 and 6 px).
-- Use the small logo (`FeltMark`), which reads as an S at every size.
+- Mark: the full Felt mark (two chips and the S), centred. The S is blue `#0052CC`; the chips are ice at 40% strength. Its height is 40% of the card height (28, 16 and 12.4 px) at every size, set in CSS from the card box.
+- Use `FeltMark full`. Give the SVG an explicit size (container units plus aspect-ratio), never `width: auto` alone: Safari can collapse it.
 - Corners: radius about 6% of the card height.
 - Proportion: 5 wide by 7 high.
 
@@ -21,7 +21,7 @@ Show samples first: the full card, the load screen, and the sizes in the app (ca
 
 ## Picked back (4 Nov 2026)
 
-Ink field, one ice border, blue S at 20%. Built in `CardBack` (src/components/ui.tsx) and `.felt-cardback` (src/styles.css).
+Ink field, one ice border, full mark (chips and S) at 40% (owner, 12 Nov 2026: the back shows the chips and the S). Built in `CardBack` (src/components/ui.tsx) and `.felt-cardback` (src/styles.css).
 
 ## Live cards and empty places
 

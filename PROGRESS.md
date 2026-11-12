@@ -1,6 +1,13 @@
 # Felt: progress
 
-## Latest (11 Nov 2026): 1.7.1
+## Latest (12 Nov 2026): 1.7.3
+- Shipped: shared search bar (Players, Games), House rules preset in Game Defaults, keypad All-in merged into the Bet or Raise key, Export Share with image sets, new action log text and position names (src/report/logText.ts), rename in the header tab, tip and sheet fixes, toasts at the bottom (--felt-bottom-stack), full Felt mark on the card back, Settings scroll to top, trial report cross-fade, iPhone nav bar rule in src/styles.css.
+- Opus review found 17 faults; all fixed by seven agents (Sonnet and Haiku). Range stacks: All-in only at or above the high end of the range, logged at the floored low end with `est` (stackBounds, roomFrom, shoveAt in src/lib/stacks.ts); an est all-in reads "all-in for about N". Full Action Log uses only hands that are not missed and have a log; above 10 images the warning row draws the rest, then Share shares.
+- Not seen: fade frames of the search list, banner field and trial report (the Browser pane clock does not run animations; only timing and computed styles were read). Reduced motion in the trial report (CSS only). Card back at 31 and 54 px only on injected test cards (76 px is the only live size).
+- Check on a real iPhone: the nav bar height after the load screen and Host; the native share sheet with 10 and more images; sheet swipes with a field focused; the card back in Safari (chips and the S).
+- Owner to pick: chip opacity on the card back is 50% in code, 40% in .claude/skills/card-design/SKILL.md.
+
+## Earlier (11 Nov 2026): 1.7.1
 - Owner list built by four Sonnet builders (Export to mockup, shared swipe chrome and one New Game, run switch bug, Settings ranks and suit swatches), then a Fable advisor reviewed the whole app (IDs A1 to A25) and four fix agents closed A1 to A24 and cleaned duplicates and dead code.
 - Open gaps, owner questions and untested areas: docs/CHECKLIST.md. Start there.
 - Watch: two meanings of one class name broke layout once (.felt-grow). Check computed styles after any CSS merge.

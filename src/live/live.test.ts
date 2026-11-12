@@ -4,6 +4,7 @@ import { mockDriver } from './mock';
 import { buildNow, buildPub, buildView, standings, viewText } from './snapshot';
 import { newBoxLog, replayStreet, setAct } from '../lib/hand';
 import { lock, unlock } from '../report/lock';
+import { handView } from '../report/model';
 import type { Game, Player } from '../types';
 
 const game = (): Game => ({
@@ -116,6 +117,19 @@ describe('host and viewer read the same hand', () => {
     expect(last('Everett')).toMatchObject({ kind: 'allin', t: '47' });
     expect(last('Bel')).toMatchObject({ t: 'C' });
     expect(rows.some((r) => r.folded)).toBe(false);
+  });
+  it('an estimated all-in reads "about" on the viewer line and in the report text, and a call for less is a call all-in', () => {
+    const g = { ...game(), hands: [], buyIns: [{ id: 'x', playerId: 'a', amount: 197, at: 1 }, { id: 'y', playerId: 'b', amount: 30, at: 1 }] } as ReturnType<typeof game>;
+    const stacks = { a: 197, b: 30 };
+    let log = newBoxLog(g, ['a', 'b'], 'a', stacks);
+    log = setAct(g, log, 'preflop', 'a', 1, { k: 'allin', est: true }, stacks);
+    log = setAct(g, log, 'preflop', 'b', 1, { k: 'allin' }, stacks);
+    log = { ...log, streets: { ...log.streets, preflop: { ...log.streets.preflop!, at: 5 } } };
+    const v = buildView(g, log, [], (p) => (p === 'a' ? 'Everett' : 'Bel'), { winners: [], shown: [] });
+    expect(v.streets[0].lines.some((l) => l.includes('all-in to about 197'))).toBe(true);
+    const hv = handView(g, { ...game().hands[0], log } as Game['hands'][number], (p) => (p === 'a' ? 'Everett' : 'Bel'));
+    expect(hv.streets[0].lines).toContain('BTN (Everett) is all-in for about 197.');
+    expect(hv.streets[0].lines).toContain('BB (Bel) calls all-in for 30.');
   });
   it('more than one run gives one board per run', () => {
     const g = game();

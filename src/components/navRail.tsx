@@ -13,6 +13,10 @@ import { NAV_DRAG, type NavDrag } from '../lib/tabSwipe';
    way under the chip wherever it is, in a smooth trough with no corner, so the line never touches the chip. At rest
    the trough is the pocket itself. The pocket fill follows the same surface. Reduce Motion moves it at once. */
 
+/** A press on a tab that is already open scrolls the page to the top: smooth, instant with Animation speed Off or Reduced motion. */
+export const toTop = () => window.scrollTo({ top: 0, behavior: calm() || document.documentElement.hasAttribute('data-motion-off') ? 'auto' : 'smooth' });
+const topTab = () => { const t = window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? ''; return t === 'insights' ? 'players' : t; };
+
 export interface NavTab { path: string; label: string; icon: string }
 
 const CHIP = 44, R = CHIP / 2, RAIL_Y = 24, POCKET = 50, PR = POCKET / 2;
@@ -240,7 +244,7 @@ export function NavRail({ tabs, active }: { tabs: NavTab[]; active: string }) {
         <span ref={chip} className="felt-chip" aria-hidden="true" style={{ top: RAIL_Y - R, opacity: 0 }} />
         {tabs.map((t) => (
           <a key={t.path} href={`#/${t.path}`} aria-current={active === t.path ? 'page' : undefined}
-            onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); goTab(t.path); }}>
+            onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); if (topTab() === t.path) toTop(); else goTab(t.path); }}>
             <span className="felt-rail-icon"><Icon name={t.icon} /></span>
             <span className="felt-rail-label">{t.label}</span>
           </a>

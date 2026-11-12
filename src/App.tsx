@@ -11,6 +11,7 @@ import { FEATURES } from './lib/features';
 import { SlidePane, ToastHost } from './components/ui';
 import { PlayerHost } from './components/players';
 import { NavRail, NewGameFab, ThemeHost } from './components/navRail';
+import { SearchHost, type SearchPage } from './components/searchHost';
 import Home from './screens/Home';
 import Games from './screens/Games';
 import NewGame from './screens/NewGame';
@@ -47,6 +48,9 @@ export default function App() {
   const face = useStore((s) => lookBg(cleanLook(s.settings.cards)));
   const r = useRoute();
   useEffect(() => { if (hydrated) applyTheme(theme); }, [hydrated, theme]);
+  // a field with focus when the tab or the view changes lets go, so the keyboard goes down and the tab bar comes back
+  const pageKey = `${r[0] ?? ''}:${r[0] === 'games' ? (r[1] === 'stats' ? 's' : 'l') : r[0] === 'players' ? (r[1] === 'board' || r[1] === 'stats' ? r[1] : 'l') : ''}`;
+  useEffect(() => { const el = document.activeElement as HTMLElement | null; if (el?.matches?.('input, textarea, select, [contenteditable]')) el.blur(); }, [pageKey]);
   // the static start shell (app/index.html) gives way to the real first screen in the same frame: same mark, same place
   useLayoutEffect(() => { if (hydrated) document.getElementById('felt-boot')?.remove(); }, [hydrated]);
   // the phone's back swipe (finger moving right) moves to the tab on the left and the forward swipe to the tab on the right (like a drag across the page); at Settings and Home they bounce
@@ -179,12 +183,15 @@ export default function App() {
   else if (!role) { screen = <Start onHost={() => pickRole('host')} onPlayer={() => pickRole('player')} />; nav = false; }
   else screen = <Home />;
 
+  // the shared search bar shows on the Games list and the Players list only
+  const searchPage: SearchPage = !nav || !role ? null : a === 'games' && b !== 'stats' ? 'games' : a === 'players' && b !== 'board' && b !== 'stats' ? 'players' : null;
   const active = a === 'game' || a === 'new' ? 'games' : a === 'group' || a === 'insights' ? 'players' : a ?? '';
   return (
     <div className="felt-app felt-enter">
       <SlidePane k={a === 'insights' ? 'players' : a ?? ''} i={tabPos(a ?? '')}>{screen}</SlidePane>
       {nav && <NavRail tabs={NAV} active={active} />}
       <ThemeHost show={nav && !!role && Number.isInteger(tabPos(a ?? ''))} />
+      <SearchHost page={searchPage} />
       <NewGameFab show={nav && !!role && (a === undefined || a === 'games')} />
       <PlayerHost />
       {role && <InstallPopup />}

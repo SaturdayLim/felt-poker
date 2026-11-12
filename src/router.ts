@@ -81,8 +81,8 @@ export function useRoute(): string[] {
       const a = tabPos(top(e.oldURL)), b = tabPos(top(e.newURL));
       // between main tabs the screen slides (SlidePane in App.tsx)
       if (a >= 0 && b >= 0 && a !== b) { plainNext = false; const y = scrollFor(); flushSync(() => setParts(read())); window.scrollTo(0, y); return; }
-      // a view inside the same tab (Players, Leaderboard, Stats) slides inside the tab
-      if (a >= 0 && a === b) { plainNext = false; const y = wentBack ? scrollFor() : -1; flushSync(() => setParts(read())); if (y >= 0) window.scrollTo(0, y); return; }
+      // a view inside the same tab (Players, Leaderboard, Stats, Settings views) slides inside the tab and opens at the top; a step Back returns to the old place
+      if (a >= 0 && a === b) { plainNext = false; const y = scrollFor(); flushSync(() => setParts(read())); window.scrollTo(0, y); return; }
       const y = scrollFor();
       const apply = () => { flushSync(() => setParts(read())); window.scrollTo(0, y); };
       if (plainNext) { plainNext = false; apply(); return; }

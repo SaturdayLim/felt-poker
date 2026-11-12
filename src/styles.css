@@ -8,8 +8,17 @@
   --felt-nav-h: 64px;
   --felt-safe-top: env(safe-area-inset-top, 0px);
   --felt-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Card back colours: fixed in both themes (card-design skill), never the theme's ink or ice or blue */
+  --felt-card-ink: #1C1E21;
+  --felt-card-ice: #EBF1F5;
+  --felt-card-blue: #0052CC;
 }
 
+/* iOS Home Screen app (status bar black-translucent, viewport-fit=cover): until the document is taller than the screen,
+   iOS lays the page out in a viewport that is short by the top inset, so a fixed bar at bottom: 0 floats that far above
+   the screen edge (seen on Home and Players with little content; Settings, which is tall, was always right). The document
+   is that much taller from the first frame. In a browser tab the inset is 0 and this changes nothing. */
+html { min-height: calc(100% + env(safe-area-inset-top, 0px)); }
 body.sat { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
 .felt-app { max-width: 520px; margin: 0 auto; min-height: 100dvh; overflow-x: clip; }
 /* Arrival from the splash (index.html): fade in once, when the store has loaded. Same-origin page
@@ -105,7 +114,8 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 
 .felt-empty { padding: var(--sat-space-6) var(--sat-space-5); display: flex; flex-direction: column; gap: var(--sat-space-2); align-items: flex-start; }
 
-.felt-toasts { position: fixed; left: 50%; right: auto; top: calc(var(--felt-safe-top) + var(--sat-space-3)); margin: 0; padding: 0; border: 0; background: none; overflow: visible; color: inherit; transform: translateX(-50%); bottom: auto; z-index: 80;
+.felt-toasts { position: fixed; left: 50%; right: auto; top: auto; bottom: calc(max(var(--felt-bottom-stack, 0px), var(--felt-safe-bottom)) + var(--sat-space-3)); margin: 0; padding: 0; border: 0; background: none; overflow: visible; color: inherit; transform: translateX(-50%); z-index: 80;
+  transition: bottom 220ms cubic-bezier(0.23, 1, 0.32, 1);
   display: flex; flex-direction: column; align-items: center; gap: var(--sat-space-2); max-width: calc(100vw - 32px); width: max-content; pointer-events: none; }
 .felt-toasts > * { pointer-events: auto; }
 .felt-toast { display: flex; align-items: center; gap: var(--sat-space-3);
@@ -267,7 +277,17 @@ button.felt-acts-name.is-target { outline: 2px solid var(--sat-focus); outline-o
 .felt-scan-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 /* camera off or still asking: the page background, never a black screen */
 .felt-scan.is-off { background: transparent; color: var(--sat-text); }
-.felt-scan.is-off .felt-scan-video { visibility: hidden; }
+.felt-scan-video { transition: opacity 250ms ease; }
+.felt-scan.is-off .felt-scan-video { opacity: 0; }
+/* camera off and camera on cross-fade (standard 250 ms; Reduced motion 150 ms; Animation speed Off cuts) */
+.felt-scan { transition: background-color 250ms ease, color 250ms ease; }
+.felt-scan-ask, .felt-scan-frame, .felt-scan-cap > span { transition: opacity 250ms ease; }
+.felt-scan-ask[data-on="false"], .felt-scan-frame[data-on="false"] { opacity: 0; pointer-events: none; }
+.felt-scan-cap { display: grid !important; }
+.felt-scan-cap > span { grid-area: 1 / 1; }
+.felt-scan-cap > span[data-on="false"] { opacity: 0; }
+html[data-calm] .felt-scan, html[data-calm] .felt-scan-video, html[data-calm] .felt-scan-ask, html[data-calm] .felt-scan-frame, html[data-calm] .felt-scan-cap > span { transition-duration: 150ms; transition-timing-function: linear; }
+html[data-motion-off] .felt-scan, html[data-motion-off] .felt-scan-video, html[data-motion-off] .felt-scan-ask, html[data-motion-off] .felt-scan-frame, html[data-motion-off] .felt-scan-cap > span { transition: none; }
 .felt-scan-ask { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; }
 .felt-scan-ask .sat-btn { gap: var(--sat-space-2); }
 /* the panels are kit glass, which is light in the light theme: text follows the theme, not the dark camera behind */
@@ -627,6 +647,8 @@ fieldset.felt-setup:disabled { opacity: 0.5; }
 .felt-paytag-wrap { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
 .felt-paytag[aria-pressed="false"] { color: var(--sat-muted); }
 .felt-toasts--sheet { position: sticky; left: auto; transform: none; top: auto; bottom: 0; margin-top: var(--sat-space-3); }
+html[data-calm] .felt-toasts { transition-duration: 150ms; transition-timing-function: linear; }
+html[data-motion-off] .felt-toasts { transition: none; }
 .felt-toast-act { border: 0; background: none; font: inherit; font-weight: 700; color: var(--sat-accent-text); padding: 4px 2px; cursor: pointer; }
 /* keypad open: everything but the keypad and the action boxes is greyed out; a tap there closes the keypad */
 .felt-recorder.has-keypad .felt-rec-status, .felt-recorder.has-keypad .felt-fab, .felt-recorder.has-keypad .felt-rec-bar, .felt-recorder.has-keypad .felt-dock-actions, .felt-recorder.has-keypad .sat-header-bar,
@@ -715,12 +737,17 @@ fieldset.felt-review { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .felt-tiles b { font-size: 1.25rem; }
 
 /* Face-down card: white Felt mark on cobalt, gold trim */
-/* Card back (card-design skill): ink field, one ice border about 4% of the height, blue S at 20% of the height. */
-.felt-card.felt-cardback { background: #1c1e21; border: 2px solid #ebf1f5; display: inline-grid; place-items: center; --sat-mark: #0052cc; --sat-mark-stroke: 1.1px; }
-.felt-card.felt-cardback.lg { border-width: 3px; --sat-mark-stroke: 1.6px; }
-.felt-card.felt-cardback.sm { border-width: 1.5px; --sat-mark-stroke: 1px; }
+/* Card back (card-design skill): ink field, one ice border about 4% of the height, blue S at 40% of the height. */
+.felt-card.felt-cardback { background: var(--felt-card-ink); --cb: 2px; border: var(--cb) solid var(--felt-card-ice); display: inline-grid; place-items: center; --sat-mark: var(--felt-card-blue); --sat-mark-stroke: 1.1px; }
+.felt-card.felt-cardback.lg { --cb: 3px; --sat-mark-stroke: 1.6px; }
+.felt-card.felt-cardback.sm { --cb: 1.5px; --sat-mark-stroke: 1px; }
 /* the S is 40% of the card height at every size, also where a screen sets its own card size (owner, 10 Nov 2026) */
-.felt-card.felt-cardback > svg { height: 40%; width: auto; }
+/* Explicit size from the card box (container query units, iOS 16+), so Safari cannot collapse an auto-width SVG to 0.
+   The viewBox is 68 x 104. The chips are ice at 50% opacity on the ink field (the g rule below); the S stays blue. */
+.felt-card.felt-cardback { container-type: size; }
+.felt-card.felt-cardback > svg { flex: none; aspect-ratio: 68 / 104; height: 40%; width: auto; height: calc((100cqh + 2 * var(--cb)) * 0.4); width: calc((100cqh + 2 * var(--cb)) * 0.4 * 68 / 104); min-width: 0; --sat-muted: var(--felt-card-ice); --sat-bg: var(--felt-card-ink); }
+/* 0.5 here overrides FeltMark's own opacity={0.22} on each chip group (CSS beats the presentation attribute): chips read at 50% */
+.felt-card.felt-cardback > svg g { opacity: 0.5; }
 /* 2-7 rules as one group in the player view */
 .felt-rule-group { margin-top: var(--sat-space-1);  }
 .felt-rule-cap { display: flex; align-items: center; gap: 4px; padding: var(--sat-space-3) 0 var(--sat-space-1); }

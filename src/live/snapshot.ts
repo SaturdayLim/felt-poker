@@ -8,6 +8,7 @@ import { bestHand } from '../lib/cards';
 import { contributions, finalists, hasActs, NOT_SHOWN, potTotal, replayStreet, rowOrder, STREETS, wentToShowdown } from '../lib/hand';
 import { units } from '../lib/format';
 import { rulesList } from '../report/model';
+import { positionMap } from '../report/logText';
 import type { HandLog } from '../types';
 
 export interface ViewShown { name: string; cards: Card[]; rank: string }
@@ -98,23 +99,14 @@ export function buildPub(g: Game, players: Player[], settings?: Settings, at = D
 
 const STAGE: Record<string, string> = { setup: 'Setup', preflop: 'Pre-flop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Showdown' };
 
-/** Position names by table size: rows run from the small blind to the button. */
-function positions(order: ID[]): Record<ID, string> {
-  const n = order.length, out: Record<ID, string> = {};
-  order.forEach((p, i) => {
-    out[p] = n === 2 ? (i === 0 ? 'BTN' : 'BB')
-      : i === n - 1 ? 'BTN' : i === 0 ? 'SB' : i === 1 ? 'BB'
-      : i === n - 2 && n >= 5 ? 'CO' : i === n - 3 && n >= 6 ? 'HJ'
-      : i === 2 ? 'UTG' : i === 3 ? 'UTG+1' : 'MP';
-  });
-  return out;
-}
+/** Position names by table size (one rule for the whole app, see `positionMap`): rows run from the small blind to the button. */
+const positions = positionMap;
 
 const cellKind = (a: { k: string } | null, post: boolean) => (post ? 'post' : a?.k ?? 'off');
 
 /** One hand as viewers read it: lines for the action log, boxes for the play-by-play view. Public facts only. */
 export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) => string, end?: { winners: { name: string; amount: number }[]; shown: ViewShown[]; mucked?: string[] }, shownNow?: ViewShown[], n?: number): HandView {
-  const order = rowOrder(g, log), pos = positions(order);
+  const order = rowOrder(g, log), pos = positions(order, log.button);
   // the same stacks the host records with: an all-in key has no amount of its own
   const stacks = n === undefined ? undefined : exactStacks(g, n);
   const multi = (log.runs ?? 1) > 1 && log.runFrom !== undefined;
@@ -146,7 +138,7 @@ export function buildView(g: Game, log: HandLog, board: Card[], name: (id: ID) =
           const text = a.k === 'fold' ? 'folds'
             : a.k === 'call' ? (c.toCall > 0 ? `calls to ${units(c.amount)}` : 'checks')
             : street === 'preflop' && rp.straddles.includes(p) && c.act ? `straddles to ${units(c.amount)}`
-            : a.k === 'allin' ? `all-in to ${units(c.amount)}${dark}`
+            : a.k === 'allin' ? `all-in to ${(a as { est?: boolean }).est ? 'about ' : ''}${units(c.amount)}${dark}`
             : c.high > 0 ? `raises to ${units(c.amount)}${dark}` : `bets ${units(c.amount)}${dark}`;
           lines.push(`${who(p)}, ${units(before)}) ${text}`);
           put[p] = c.amount;

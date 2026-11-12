@@ -11,7 +11,8 @@
 .felt-exp-head { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 56px; padding: var(--sat-space-2) var(--sat-space-2) var(--sat-space-2) var(--exp-in); cursor: pointer; transition: background-color var(--sat-dur-fast) var(--sat-ease); }
 @media (hover: hover) and (pointer: fine) { .felt-exp-head:hover { background: var(--sat-hover); } }
 .felt-exp-radio { display: flex; align-items: center; gap: var(--sat-space-3); flex: 0 1 auto; min-width: 0; padding: 0; background: none; border: 0; font: inherit; font-size: .9rem; font-weight: 600; text-align: left; color: inherit; cursor: pointer; }
-.felt-exp-radio > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.felt-exp-radio > span:last-child { min-width: 0; overflow-wrap: anywhere; line-height: 1.2; }
+.felt-exp-warn { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .felt-exp-radio[aria-checked="true"] .felt-choice-dot { border: 5px solid var(--sat-accent); }
 .felt-exp-act { margin-left: auto; display: flex; align-items: center; gap: var(--sat-space-1); opacity: 0; visibility: hidden; transition: opacity 200ms var(--sat-ease), visibility 0s linear 200ms; }
 .felt-exp-act[data-on="true"] { opacity: 1; visibility: visible; transition-delay: 0s; }
@@ -51,4 +52,5 @@ html[data-motion-off] .felt-exp-act, html[data-motion-off] .felt-exp-chev, html[
 /* Full Action Log: All and None over the hand list; preview images are buttons that copy on a tap */
 .felt-exp-allnone { min-height: 44px; }
 .felt-pv-img { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: copy; }
+.felt-pv-img + .felt-pv-img { margin-top: 12px; }
 .felt-pv-img > img { display: block; width: 100%; height: auto; }

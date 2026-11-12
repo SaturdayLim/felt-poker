@@ -83,13 +83,18 @@ export default function JoinScan() {
         <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Back" onClick={() => back('')}><Icon name="back" /></button>
         <div className="felt-grow">
           <h1 className="felt-scan-title">Join a game</h1>
-          <small>{state === 'off' ? 'Camera is off. Turn on the camera, or paste the link.' : 'Point the camera at the QR on the host phone'}</small>
+          {/* both lines stay mounted and cross-fade, so the words never cut */}
+          <small className="felt-scan-cap">
+            <span data-on={state !== 'off'}>Scan the host QR to connect</span>
+            <span data-on={state === 'off'}>Camera is off. Turn on the camera, or paste the link.</span>
+          </small>
         </div>
         {torch !== null && <button type="button" className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Flashlight" aria-pressed={torch} onClick={flip}><Icon name="bolt" /></button>}
       </div>
-      {state === 'off' ? (
-        <div className="felt-scan-ask"><button type="button" className="sat-btn sat-btn--lg" onClick={() => setAsk((x) => x + 1)}><Icon name="camera" /> Turn on camera</button></div>
-      ) : <div className="felt-scan-frame" aria-hidden="true"><i /><i /><i /><i /></div>}
+      <div className="felt-scan-ask" data-on={state === 'off'} aria-hidden={state !== 'off'} {...({ inert: state === 'off' ? undefined : '' } as object)}>
+        <button type="button" className="sat-btn sat-btn--lg" onClick={() => setAsk((x) => x + 1)}><Icon name="camera" /> Turn on camera</button>
+      </div>
+      <div className="felt-scan-frame" data-on={state !== 'off'} aria-hidden="true"><i /><i /><i /><i /></div>
       <div className="felt-scan-dock sat-glass-2">
         <div className="felt-scan-paste">
           <input className="sat-input" aria-label="Paste the link" placeholder="Paste the link" value={text} autoComplete="off" autoCapitalize="off" spellCheck={false}

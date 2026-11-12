@@ -65,3 +65,15 @@ html[data-calm] .felt-banner-brand .sat-mark { view-transition-name: none; }
 .felt-banner { position: relative; }
 .felt-banner-ghost { position: absolute; top: 50%; translate: 0 -50%; flex: none; width: auto; max-width: 60%; pointer-events: none; }
 .felt-banner-ghost.sat-wordmark { font-size: 1.75rem; }
+
+/* A game name renamed in place in the header (tap the name). Only the outer border changes on focus. */
+.felt-banner-title.is-renamable { cursor: text; }
+.felt-banner-title.is-renamable:focus-visible { outline: none; }
+.felt-banner-edit { display: block; width: 100%; min-width: 0; box-sizing: border-box; margin: -4px 0 -4px -8px; width: calc(100% + 8px); padding: 4px 8px; border: 1px solid var(--sat-line); border-radius: var(--sat-radius-sm); background: var(--sat-well); color: inherit; font: inherit; letter-spacing: inherit; line-height: inherit; text-overflow: ellipsis; outline: none; transition: border-color var(--sat-dur-fast) var(--sat-ease); }
+.felt-banner-edit:focus { outline: none; border-color: var(--sat-focus); }
+@keyframes felt-banner-edit-in { from { opacity: 0; } to { opacity: 1; } }
+.felt-banner-edit { animation: felt-banner-edit-in 160ms var(--sat-ease) both; }
+html[data-calm] .felt-banner-edit { animation-duration: 150ms; animation-timing-function: linear; }
+html[data-motion-off] .felt-banner-edit { transition: none; animation: none; }
+/* A player whose all-in was logged against a stack range: the stack reads "Count" in the warning colour until a count is saved */
+.felt-stat-btn.is-ask { color: var(--sat-warn); font-weight: 600; transition: color var(--sat-dur-base) var(--sat-ease); }

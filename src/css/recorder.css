@@ -24,3 +24,20 @@
 /* The orange card button stands 72 px above the dock (60 px and a 12 px gap): the page keeps that much room so
    the last control, such as Change on the result card, rests clear of it. */
 .felt-recorder { padding-bottom: calc(var(--felt-safe-bottom) + var(--felt-dock-h, 358px) + 32px + 72px); }
+
+/* All-in lives on the Bet or Raise key: the quick row has two keys. */
+.felt-keypad .felt-keypad-quick { grid-template-columns: repeat(2, 1fr); }
+/* A key word changes in place: faces cross-fade (felt-lb-face), the key keeps its size. */
+.felt-keyword { min-width: 3.5em; }
+/* Clear row: always mounted, it grows in and out so the keys never jump. The 6 px gap closes with it. */
+.felt-keypad-headwrap { display: grid; grid-template-rows: 0fr; margin-bottom: -6px; opacity: 0;
+  transition: grid-template-rows var(--felt-cross-ms, 240ms) var(--felt-cross, ease-out), margin-bottom var(--felt-cross-ms, 240ms) var(--felt-cross, ease-out), opacity var(--felt-cross-ms, 240ms) var(--felt-cross, ease-out); }
+.felt-keypad-headwrap.is-open { grid-template-rows: 1fr; margin-bottom: 0; opacity: 1; }
+.felt-keypad-headwrap > .felt-keypad-head { overflow: hidden; min-height: 0; }
+/* Keypad and card picker swap in the dock: the new one fades up, no cut. */
+.felt-dock-in { animation: felt-dock-in var(--felt-cross-ms, 220ms) var(--felt-cross, ease-out) backwards; }
+@keyframes felt-dock-in { from { opacity: 0; transform: translateY(6px); } }
+html[data-calm] .felt-dock-in { animation: felt-dock-fade 150ms ease-out backwards; }
+@keyframes felt-dock-fade { from { opacity: 0; } }
+html[data-motion-off] .felt-dock-in, html[data-motion-off] .felt-keypad-headwrap { animation: none; transition: none; }
+html[data-calm] .felt-keypad-headwrap { transition-duration: 150ms; }

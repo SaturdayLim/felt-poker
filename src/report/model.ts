@@ -3,8 +3,8 @@
    All amounts are chips; the report never converts to money. */
 import type { Card, Game, HandLog, ID, Player, StreetName } from '../types';
 import { playerSummary, type PlayerSummary } from '../lib/stats';
-import { estimateStacks } from '../lib/stacks';
-import { STREETS, STREET_CARDS, actingOrder, bountyPay, bountyTotal, contributions, defaultAct, inAtEnd, replayStreet, pfr, takedown, vpip, wentToShowdown } from '../lib/hand';
+import { estimateStacks, exactStacks } from '../lib/stacks';
+import { STREETS, STREET_CARDS, rowOrder, bountyPay, bountyTotal, contributions, defaultAct, inAtEnd, replayStreet, pfr, takedown, vpip, wentToShowdown } from '../lib/hand';
 import { RANKS, bestHand } from '../lib/cards';
 import { dateLabel, money, runningMs } from '../lib/format';
 import { gameRules } from '../lib/rules';
@@ -12,6 +12,7 @@ import type { Settings } from '../types';
 import { clashLevel, countedPairs, effectivePairs, privateOf, shownPair } from '../lib/clash';
 import { wonAt } from '../lib/style';
 import { playerResult, suggestTransfers } from '../lib/calc';
+import { positionMap, positionsFor, streetLines, type LogAct } from './logText';
 
 /** A table position: BTN, SB, BB, then UTG, UTG+1 and so on round to HJ and CO (see `positionNames`). */
 export type Pos = string;
@@ -122,19 +123,10 @@ export function targetFor(n: number): TrialModel['target'] {
   return { vpip: v[Math.min(6, Math.max(2, n))] ?? 21, af: 2.5 };
 }
 
-/** Position names for a table of `n` seats, button first: BTN, SB, BB, then from the deepest seat to the cutoff. */
+/** Position names for a table of `n` seats, button first: BTN, SB, BB, then the rest (see `positionsFor`). */
 export function positionNames(n: number): Pos[] {
-  const seats = Math.max(4, n);
-  const out: Pos[] = ['BTN', 'SB', 'BB'];
-  for (let d = seats - 3; d >= 1; d--) out.push(posAt(d, seats));
-  return out;
-}
-/** The name for a seat `d` places before the button (1 = cutoff). */
-function posAt(d: number, n: number): Pos {
-  if (d === n - 3) return 'UTG';
-  if (d === 1) return 'CO';
-  if (d === 2) return 'HJ';
-  return `UTG+${n - 3 - d}`;
+  const names = positionsFor(Math.max(3, n));
+  return ['BTN', ...names.slice(0, -1)];
 }
 
 /** A hand type as the grid shows it: AA, AKs (suited), AKo (offsuit), high card first. */
@@ -163,28 +155,33 @@ const trash = (c: string) => c.endsWith('o') && RANKS.indexOf(c[0]) >= 4 && RANK
 export function handView(g: Game, h: Game['hands'][number], name: (id: ID) => string): HandView {
   const L = h.log as HandLog;
   const streets: LogStreet[] = [];
+  const pos = positionMap(rowOrder(g, L), L.button);
+  const stacks = exactStacks(g, h.n); // the same stacks the host and the viewers replay with
   for (const st of STREETS) {
     const s = L.streets[st];
     if (!s) continue;
-    const lines: string[] = [];
+    let lines: string[] = [];
     if (L.mode === 'bets' && s.acts) {
-      const rp = replayStreet(g, L, st);
+      const rp = replayStreet(g, L, st, stacks);
+      const acts: LogAct[] = [];
       for (let r = 0; r < rp.cols; r++) {
         for (const p of rp.order) {
           const c = rp.cells[p]?.[r];
-          if (!c) continue;
-          if (c.post) { lines.push(`${name(p)} posts ${c.amount}`); continue; }
-          if (!c.needed) continue;
+          if (!c || c.post || !c.needed) continue;
           const a = c.act ?? (c.implied ? (s.partial ? { k: 'call' as const } : defaultAct(c.toCall)) : null);
           if (!a) continue;
-          const dark = (a as { dark?: boolean }).dark ? ' (dark)' : '';
-          if (a.k === 'fold') lines.push(`${name(p)} folds`);
-          else if (a.k === 'allin') lines.push(`${name(p)} is all-in for ${c.amount}${dark}`);
-          else if (c.amount > c.high) lines.push(`${name(p)} ${c.high > 0 ? 'raises to' : 'bets'} ${c.amount}${dark}`);
-          else if (c.toCall > 0) lines.push(`${name(p)} calls ${c.toCall}${dark}`);
-          else lines.push(`${name(p)} checks${dark}`);
+          const dark = !!(a as { dark?: boolean }).dark;
+          const who = `${pos[p]} (${name(p)})`;
+          if (a.k === 'fold') acts.push({ who, k: 'fold', amount: 0 });
+          else if (st === 'preflop' && rp.straddles.includes(p) && c.canStraddle && c.act) acts.push({ who, k: 'straddle', amount: c.amount });
+          else if (a.k === 'allin' && c.amount <= c.high && c.high > 0) acts.push({ who, k: 'call', amount: c.amount, dark, allin: true, est: !!(a as { est?: boolean }).est });
+          else if (a.k === 'allin') acts.push({ who, k: 'allin', amount: c.amount, dark, est: !!(a as { est?: boolean }).est });
+          else if (c.amount > c.high) acts.push({ who, k: c.high > 0 ? 'raise' : 'bet', amount: c.amount, dark });
+          else if (c.toCall > 0) acts.push({ who, k: 'call', amount: c.amount, dark, allin: c.amount < c.high });
+          else acts.push({ who, k: 'check', amount: 0, dark });
         }
       }
+      lines = streetLines(acts, inAtEnd(L, st).length);
     } else {
       // an older log or a pot count: the wagers and the folds, without the order
       for (const p of L.dealt) if (s.bets[p]) lines.push(`${name(p)} has ${s.bets[p]} in`);
@@ -212,17 +209,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
   // every seat the game had: the highest seat number used, never fewer than the players
   const seatsN = Math.max(4, g.playerIds.length, ...Object.values(g.seats ?? {}));
   const positions = positionNames(seatsN);
-  const pos = (h: (typeof hands)[number], p: ID): Pos => {
-    if (p === h.log!.button) return 'BTN';
-    const order = actingOrder(g, h.log!.dealt, h.log!.button);
-    const i = order.indexOf(p);
-    if (i === 0) return 'SB';
-    if (i === 1) return 'BB';
-    // seats before the button: the last one before it is the cutoff (the button's own place ends the order)
-    const btnIn = order.includes(h.log!.button ?? '');
-    const d = order.length - 1 - i + (btnIn ? 0 : 1);
-    return posAt(Math.max(1, Math.min(d, seatsN - 3)), seatsN);
-  };
+  const pos = (h: (typeof hands)[number], p: ID): Pos => positionMap(rowOrder(g, h.log!), h.log!.button)[p] ?? 'BB';
   const views = new Map<number, HandView>(hands.map((h) => [h.n, handView(g, h, name)]));
   const zero = (): Record<Pos, number> => Object.fromEntries(positions.map((k) => [k, 0]));
 

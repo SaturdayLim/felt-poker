@@ -13,9 +13,8 @@ export default function NewGame({ type }: { type: GameType }) {
   const players = useStore((x) => x.players).filter((p) => !p.archived);
   const createGame = useStore((x) => x.createGame);
   const groups = useStore((x) => x.groups);
-  const games = useStore((x) => x.games);
-  // house rules start from the last game of this type (7-2 bounty: on for cash, off for tournaments)
-  const [rules, setRules] = useState(() => rulesForNew(games, type, s));
+  // house rules start from the Settings preset (Game Defaults), not from the last game
+  const [rules, setRules] = useState(() => rulesForNew(type, s));
   const [groupId, setGroupId] = useState<ID | undefined>(undefined);
 
   const day = new Date().toLocaleDateString('en-GB', { weekday: 'long' });

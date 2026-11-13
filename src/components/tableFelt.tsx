@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { createPortal } from 'react-dom';
 import { CardBack, PlayingCard } from './ui';
 import { calm, motionOff } from '../lib/motion';
+import { haptic } from '../lib/haptics';
 import { FELT_HUES, chipCols, chipSvg, feltAt, feltFig, seatSpots, type FeltHand, type FeltSeg, type Pt } from '../lib/felt';
 import type { Card } from '../types';
 
@@ -242,8 +243,28 @@ export function TablePage({ hands, live, idle, canLive, onBack, corner, me }: { 
   const groups: { seg: FeltSeg; ks: number[] }[] = [];
   hand.steps.forEach((st, i) => { const g = groups[groups.length - 1]; if (g && g.seg === st.seg) g.ks.push(i + 1); else groups.push({ seg: st.seg, ks: [i + 1] }); });
   const track = useRef<HTMLDivElement>(null);
+  /* The timeline (owner, 13 Nov 2026): a tap on a stop shows that step; a quick swipe scrolls the timeline; a press held for
+     250 ms picks the stop under the finger, and a drag while still holding scrubs through the hand. */
   const drag = useRef(false);
-  const seek = (e: React.PointerEvent) => { const b = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-k]'); if (b && track.current?.contains(b)) moveTo(Number(b.dataset.k)); };
+  const hold = useRef<{ x: number; y: number; t: number; moved: boolean; id: number } | null>(null);
+  const seek = (x: number, y: number) => { const b = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>('[data-k]'); if (b && track.current?.contains(b)) moveTo(Number(b.dataset.k)); };
+  const endHold = () => { if (hold.current) window.clearTimeout(hold.current.t); hold.current = null; drag.current = false; track.current?.classList.remove('is-scrub'); };
+  const onDown = (e: React.PointerEvent) => {
+    endHold();
+    const x = e.clientX, y = e.clientY;
+    hold.current = { x, y, moved: false, id: e.pointerId, t: window.setTimeout(() => {
+      if (!hold.current || hold.current.moved) return;
+      drag.current = true; track.current?.classList.add('is-scrub'); haptic(); seek(x, y);
+      try { track.current?.setPointerCapture(e.pointerId); } catch { /* the pointer is gone */ }
+    }, 250) };
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const h = hold.current;
+    if (!h) return;
+    if (drag.current) { e.preventDefault(); seek(e.clientX, e.clientY); return; }
+    if (Math.hypot(e.clientX - h.x, e.clientY - h.y) > 8) { h.moved = true; window.clearTimeout(h.t); }
+  };
+  const onUp = (e: React.PointerEvent) => { const h = hold.current; if (h && !h.moved && !drag.current) seek(e.clientX, e.clientY); endHold(); };
   useEffect(() => {
     const t = track.current, c = t?.querySelector<HTMLElement>('[aria-current="step"]');
     if (!t || !c || drag.current) return;
@@ -272,7 +293,7 @@ export function TablePage({ hands, live, idle, canLive, onBack, corner, me }: { 
           </select>
         )}
         <div ref={track} className="tfp-track" role="group" aria-label="Actions"
-          onPointerDown={(e) => { drag.current = true; seek(e); }} onPointerMove={(e) => { if (drag.current && e.buttons) seek(e); }} onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={endHold} onContextMenu={(e) => e.preventDefault()}>
           {last > 0 && <div className="tfp-seg"><em>Start</em><button type="button" data-k={0} className="tfp-stop" aria-current={k === 0 ? 'step' : undefined} aria-label="Before the first action" /></div>}
           {groups.map((g, gi) => (
             <div key={gi} className="tfp-seg">

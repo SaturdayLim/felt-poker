@@ -11,15 +11,36 @@ const BOUNTY_WIN: { k: BountyRule['win']; label: string }[] = [
   { k: 'won', label: 'Winning' },
   { k: 'sole', label: 'Best hand' },
 ];
-const MIN_RAISE_TIP: Record<GameRules['minRaise'], string[]> = {
-  last: ['Last raise: raise by at least the biggest raise so far, and at least the BB (2, 4, 6, 8). Standard rule.', 'Nightcap refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
-  sb: ['SB steps: raise by at least the SB (2, 3, 4, 5).', 'Nightcap refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
-  double: ['Double: raise to at least double the bet (2, 4, 8, 16).', 'Nightcap refuses a smaller raise, except an all-in. It then offers the call or the minimum raise.'],
+/* Each tip explains only the option that is selected now, in one line (owner, 13 Nov 2026). */
+const MIN_RAISE_TIP: Record<GameRules['minRaise'], string> = {
+  last: 'Last raise: raise by at least the last raise on this street.',
+  sb: 'SB steps: raise by at least 1 SB.',
+  double: 'Double: raise to at least double the bet.',
+};
+const BOUNTY_WIN_TIP: Record<BountyRule['win'], string> = {
+  shown: 'Revealed: the player shows 7-2, win or lose.',
+  won: 'Winning: the player wins chips from a pot with 7-2.',
+  sole: 'Best hand: the 7-2 is the best hand, or the last hand left.',
+};
+const BOUNTY_HAND_TIP = {
+  off: 'Offsuit only: the 7 and the 2 have different suits.',
+  suited: 'Suited allowed: a 7 and a 2 of the same suit also count.',
 };
 /** Info tip for the minimum raise: it explains only the setting this game uses. `value` is the key or the label text. */
 export function MinRaiseTip({ value }: { value: GameRules['minRaise'] | string }) {
   const k = (MIN_RAISE.find((o) => o.k === value || o.label === value)?.k ?? 'last');
-  return <Info title="Minimum raise">{MIN_RAISE_TIP[k].map((t, i) => <span key={i} className="felt-tip-line">{t}</span>)}</Info>;
+  return <Info title="Minimum raise">{MIN_RAISE_TIP[k]}</Info>;
+}
+/** Info tip for the 7-2 win condition: the selected option only. `value` is the key or the text of the rules list
+    (Revealed at showdown, Winning the pot, Best hand). */
+export function BountyWinTip({ value }: { value: BountyRule['win'] | string }) {
+  const k = BOUNTY_WIN.find((o) => o.k === value || value.startsWith(o.label))?.k ?? 'shown';
+  return <Info title="Win condition">{BOUNTY_WIN_TIP[k]}</Info>;
+}
+/** Info tip for the 7-2 hand: the selected option only. `value` is the switch or the text of the rules list. */
+export function BountyHandTip({ value }: { value: boolean | string }) {
+  const suited = value === true || value === 'Suited allowed';
+  return <Info title="7-2 hand">{suited ? BOUNTY_HAND_TIP.suited : BOUNTY_HAND_TIP.off}</Info>;
 }
 const gap = (n: number) => ({ ['--sat-gap' as string]: `var(--sat-space-${n})` });
 
@@ -48,14 +69,14 @@ export function RulesFields({ rules, onChange, players, idPrefix }: {
         <Disclose open={bounty.on}>
           <div className="sat-stack felt-bounty-set" style={{ ...gap(3), paddingTop: 'var(--sat-space-3)' }}>
             <div className="sat-stack" style={gap(2)}>
-              <Caption tip="bountyWin">Win condition</Caption>
+              <Caption>Win condition <BountyWinTip value={bounty.win} /></Caption>
               <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="7-2 win condition">
                 <TabPill />
                 {BOUNTY_WIN.map((o) => <button key={o.k} type="button" role="radio" aria-checked={bounty.win === o.k} onClick={() => setBounty({ win: o.k })}>{o.label}</button>)}
               </div>
             </div>
             <div className="sat-stack" style={gap(2)}>
-              <Caption tip="bountyHand">Hand</Caption>
+              <Caption>Hand <BountyHandTip value={bounty.suited} /></Caption>
               <div className="sat-seg sat-seg--block" role="radiogroup" aria-label="7-2 hand">
                 <TabPill />
                 <button type="button" role="radio" aria-checked={!bounty.suited} onClick={() => setBounty({ suited: false })}>Offsuit only</button>

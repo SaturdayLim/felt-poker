@@ -30,6 +30,9 @@
 /* the timeline: plain, with no accent. Past stops are light; the stop on show is a white knob. */
 .tfp-track { flex: 1; min-width: 0; display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; }
 .tfp-track::-webkit-scrollbar { display: none; }
+/* scrubbing: the timeline holds still under the finger */
+.tfp-track.is-scrub { touch-action: none; overflow-x: hidden; }
+.tfp-track.is-scrub .tfp-stop[aria-current="step"]::after { transform: scale(1.35); }
 .tfp-seg { flex: none; position: relative; display: flex; height: 38px; border-radius: 6px; background: #1c1e21; border: 1px solid rgba(235,241,245,.14); overflow: hidden; }
 .tfp-seg em { position: absolute; left: 5px; top: 2px; font: 600 9.5px var(--sat-font-ui, sans-serif); font-style: normal; color: #97a1ac; pointer-events: none; white-space: nowrap; }
 .tfp-stop { width: 20px; min-width: 20px; height: 100%; border: 0; padding: 0; background: none; position: relative; }

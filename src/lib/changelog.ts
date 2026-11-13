@@ -1,5 +1,14 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.5', date: '13 Nov 2026', notes: [
+    'Table: one rule places every seat the same, seen from its own chair. Hole cards lie in front of the photo, committed chips past them, the dealer button at the front left corner of the cards, the stack on the left of the player.',
+    'Table timeline: a tap shows a step. A quick swipe scrolls the timeline. Press and hold, then drag, to move through the hand.',
+    'Player view: the views are icons that open out to their title: Action, Hands, Players, Game Settings and Card Settings.',
+    'Player view: the Action tip says what Action is.',
+    'Player code boxes: no text bar in the first box. The pulsing box shows where the next character goes.',
+    'Minimum raise and 7-2 tips explain only the option in use.',
+    'Hands list: the pot figure uses the same type as the row.',
+  ] },
   { version: '1.8.4', date: '13 Nov 2026', notes: [
     'Table: each table size, 2 to 10 players, has its own places for stacks, hole cards, committed chips and the dealer button.',
     'Table: committed chips show the amount alone. All-in stays on the player.',

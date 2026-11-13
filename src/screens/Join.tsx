@@ -2,12 +2,12 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CardPair, PlayingCard, useCardLook, Empty, Header, Help, Icon, Info, NewItemsPill, NumericText, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
+import { CardPair, PlayingCard, useCardLook, Empty, Header, Help, Icon, NewItemsPill, NumericText, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { calm } from '../lib/motion';
 import { isRangeStack } from '../lib/stacks';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
-import { MinRaiseTip } from '../components/rules';
+import { BountyHandTip, BountyWinTip, MinRaiseTip } from '../components/rules';
 import { ViewerTable } from '../components/viewerTable';
 import type { FeltMe } from '../components/tableFelt';
 import { FELT_HUES, type FeltHand } from '../lib/felt';
@@ -35,8 +35,12 @@ const loggedOf = (me: Me): Record<number, Card[]> => Array.isArray(me.logged) ? 
 /** Red: a card contradicts the table, and the hand is left out of stats. Blue: it only matches another hidden entry. */
 const WHY: Record<string, string> = { board: 'A card is also on the board.', shown: 'Another player showed a card you logged.', entry: 'Another player logged a card you logged.' };
 const levelOf = (why: string[] = []) => (why.includes('board') || why.includes('shown') ? 'red' : why.length ? 'blue' : null);
-type Tab = 'action' | 'settings' | 'hands' | 'players';
-const TABS: { k: Tab; label: string }[] = [{ k: 'action', label: 'Action' }, { k: 'hands', label: 'Hands' }, { k: 'players', label: 'Players' }, { k: 'settings', label: 'Settings' }];
+type Tab = 'action' | 'hands' | 'players' | 'game' | 'cards';
+/* Each view is one icon; the open one opens out to its title, as on the host pages (owner, 13 Nov 2026). */
+const TABS: { k: Tab; label: string; icon: string }[] = [
+  { k: 'action', label: 'Action', icon: 'book' }, { k: 'hands', label: 'Hands', icon: 'cards' }, { k: 'players', label: 'Players', icon: 'person' },
+  { k: 'game', label: 'Game Settings', icon: 'chip' }, { k: 'cards', label: 'Card Settings', icon: 'spade' },
+];
 
 const ss = {
   get: (k: string) => { try { return sessionStorage.getItem(k); } catch { return null; } },
@@ -58,7 +62,8 @@ const deviceId = () => {
   return id;
 };
 const PotLine = ({ h }: { h: PubSnapshot['hands'][number] }) => (
-  <span className="sat-small sat-muted felt-frame-cap"><span className="sat-num">Pot: {money(h.pot)}</span> - {/* one winner with the whole pot: the amount would repeat the pot, so only the name shows */}{h.winners.length === 1 && Math.round(h.winners[0].amount) === Math.round(h.pot) ? h.winners[0].name : h.winners.map((w) => `${w.name} (${money(w.amount)})`).join(', ') || 'No winner recorded'}</span>
+  // the pot figure keeps the digits of the row (no even-width digits: the Geist tabular 1 has a foot and reads as a serif)
+  <span className="sat-small sat-muted felt-frame-cap"><span>Pot: {money(h.pot)}</span> -{/* one winner with the whole pot: the amount would repeat the pot, so only the name shows */}{h.winners.length === 1 && Math.round(h.winners[0].amount) === Math.round(h.pot) ? h.winners[0].name : h.winners.map((w) => `${w.name} (${money(w.amount)})`).join(', ') || 'No winner recorded'}</span>
 );
 /** Every run of the board, when the rest of the board ran more than once. */
 const RunBoards = ({ runs, size }: { runs: NonNullable<HandView['runs']>; size?: 'sm' }) => (
@@ -207,12 +212,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
   return (
     <div className={`felt-page ${big}`}>
-      <Header title={pub.game.name} sub={me ? me.name : `Live, ${pub.hands.length} ${pub.hands.length === 1 ? 'hand' : 'hands'}`}>
-        <div className="felt-tabs sat-glass felt-join-tabs" role="tablist" aria-label="Live game">
-          <TabPill />
-          {TABS.map((t) => <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => setTab(t.k)}>{t.label}</button>)}
-        </div>
-      </Header>
+      <Header banner={pub.game.name} sub={me ? me.name : `Live, ${pub.hands.length} ${pub.hands.length === 1 ? 'hand' : 'hands'}`}
+        tabs={TABS.map((t) => ({ label: t.label, icon: t.icon, on: tab === t.k, go: () => (tab === t.k ? window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }) : setTab(t.k)) }))} />
 
       <SlidePane k={tab} i={TABS.findIndex((t) => t.k === tab)}>
       <div className="sat-stack" style={gap(3)}>
@@ -221,7 +222,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
           onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
-        {tab === 'settings' && <><ViewerLookSettings /><Rules pub={pub} /></>}
+        {tab === 'game' && <Rules pub={pub} />}
+        {tab === 'cards' && <ViewerLookSettings />}
       </div>
       </SlidePane>
 
@@ -340,13 +342,7 @@ function ActionLog({ stacks, now: sent, hands, blinds, onFlag, tablePub, tableCo
           <button type="button" role="radio" aria-checked={!table} onClick={() => pick(false)}>List</button>
           <button type="button" role="radio" aria-checked={table} onClick={() => pick(true)}>Table</button>
         </div>
-        <Info title="Table view">
-          <span style={{ display: 'block' }}>List shows the action as text.</span>
-          <span style={{ display: 'block' }}>Table shows the table from above, on its side. Turn the phone to read it.</span>
-          <span style={{ display: 'block' }}>The player to act is lit. A folded player fades.</span>
-          <span style={{ display: 'block' }}>Hole cards stay face down. They turn face up only when shown at the table.</span>
-          <span style={{ display: 'block' }}>The timeline replays a hand, one action for each stop. Live goes back to the hand in play.</span>
-        </Info>
+        <Help k="viewerAction" />
       </div>
       {table && <ViewerTable pub={tablePub} now={sent} stacks={stacks} onBack={() => pick(false)} corner={tableCorner} me={tableMe} />}
       {!table && <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />}
@@ -519,7 +515,7 @@ function SendCount({ onCount }: { onCount: (chips: number) => Promise<void> }) {
 const B27_NAME: Record<string, string> = { win: 'Win condition', hand: 'Hand', amount: 'Bounty (chips)' };
 
 function Rules({ pub }: { pub: PubSnapshot }) {
-  const row = (r: PubSnapshot['rules'][number], label = r.label) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{label}{r.tip === 'minRaise' ? <MinRaiseTip value={r.value} /> : r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>;
+  const row = (r: PubSnapshot['rules'][number], label = r.label) => <div key={r.label} className="felt-row"><span className="felt-row-main sat-cluster" style={gap(1)}>{label}{r.tip === 'minRaise' ? <MinRaiseTip value={r.value} /> : r.tip === 'bountyWin' ? <BountyWinTip value={r.value} /> : r.tip === 'bountyHand' ? <BountyHandTip value={r.value} /> : r.tip && <Help k={r.tip as HelpKey} />}</span><span className="sat-small" style={{ textAlign: 'right' }}>{r.value}</span></div>;
   const is27 = (r: PubSnapshot['rules'][number]) => /^7-2 (win|hand|amount)$/.test(r.label);
   const b27 = pub.rules.filter(is27);
   return (

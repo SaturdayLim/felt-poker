@@ -345,7 +345,11 @@ html[data-motion-off] .felt-scan, html[data-motion-off] .felt-scan-video, html[d
 .felt-boxes-cell { height: 56px; display: grid; place-items: center; border-radius: var(--sat-radius-sm); border: 1.5px solid var(--sat-line-strong); background: var(--sat-well); font-family: var(--sat-font-mono, monospace); font-size: 1.375rem; font-weight: 700; }
 .felt-boxes-cell.is-next { border-color: var(--sat-accent); }
 .felt-boxes.is-bad .felt-boxes-cell { border-color: var(--sat-neg); }
-.felt-boxes-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+/* The pulsing box is the only mark of where the next character goes. iOS draws the text caret and the selection in
+   their own layer, which opacity 0 does not hide: so the caret, the text, the selection and the focus line are all cleared. */
+.felt-boxes-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; caret-color: transparent; color: transparent; background: transparent; outline: none; box-shadow: none; -webkit-tap-highlight-color: transparent; }
+.felt-boxes-input:focus, .felt-boxes-input:focus-visible { outline: none; box-shadow: none; }
+.felt-boxes-input::selection { background: transparent; color: transparent; }
 .felt-boxes-err { min-height: 1.25em; font-size: var(--sat-fs-small); color: var(--sat-neg); opacity: 0; transition: opacity 500ms var(--sat-ease) 500ms; }
 .felt-boxes-err.is-on { opacity: 1; transition: none; }
 .felt-skel { border-radius: var(--sat-radius-md); background: linear-gradient(100deg, var(--sat-well) 40%, var(--sat-line) 50%, var(--sat-well) 60%); background-size: 200% 100%; animation: felt-skel 1.3s linear infinite; }

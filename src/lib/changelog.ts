@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.3', date: '13 Nov 2026', notes: [
+    'Player view, Table: the card button opens out into your cards for the hand on show, in the same direction as the table. A player who has not logged on gets the code boxes there.',
+    'Player view, Table: tap your own photo to choose a colour or take a photo. Everyone at the table sees it.',
+    'Table: a seat on the south edge keeps its chips on its west.',
+    'A row in a sheet shows no focus line on a touch screen.',
+  ] },
   { version: '1.8.2', date: '13 Nov 2026', notes: [
     'Table: a new layout, on its side for a phone. Each photo sits on the rail with the name, the stack and the last action under it.',
     'Table: hole cards and chips stay beside their own player. Committed chips sit past the cards. Folded cards go to the muck beside the board.',

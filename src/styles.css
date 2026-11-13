@@ -836,6 +836,8 @@ html[data-calm] .felt-qr-pop, html[data-calm] .felt-qr-pop::backdrop { animation
 /* A row with a second control at its end: the row is one button, the flag sits beside it */
 .felt-row.felt-row--flag { padding-block: 0; gap: var(--sat-space-2); }
 .felt-row-hit { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sat-space-3); min-height: 56px; padding: var(--sat-space-3) 0; text-align: left; color: inherit; background: none; border: 0; font: inherit; }
+/* a touch screen shows no focus line on a row: the first row of a sheet takes the focus when the sheet opens, and it must not light up */
+@media (pointer: coarse) { .sat .felt-row-hit:focus-visible { outline: none; } }
 /* Hidden cards that cannot be right: a small ! after the cards. Red = contradicts the table, blue = another entry */
 .felt-flag { flex: none; position: relative; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 800 13px/1 var(--sat-font-ui); color: #fff; border: 0; }
 .felt-flag::after { content: ''; position: absolute; inset: -11px; }

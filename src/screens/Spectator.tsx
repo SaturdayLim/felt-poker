@@ -63,9 +63,11 @@ export default function Spectator({ gameId, alone = false }: { gameId: string; a
 function SpectatorBody({ g, alone }: { g: Game; alone: boolean }) {
   const name = usePlayerName();
   const live = useLive(g);
-  const names = g.playerIds.map(name).join('|');
+  const people = useStore((s) => s.players);
+  // names and looks: a change in either redraws the hands
+  const names = g.playerIds.map((id) => { const p = people.find((x) => x.id === id); return `${p?.name}/${p?.look?.hue}/${p?.look?.photo?.length}`; }).join('|');
   // seats in table order; a player keeps one colour through the game
-  const seats = (ids: ID[]) => [...ids].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99)).map((id) => ({ id, name: name(id), hue: Math.max(0, g.playerIds.indexOf(id)) % FELT_HUES.length }));
+  const seats = (ids: ID[]) => [...ids].sort((a, b) => (g.seats[a] ?? 99) - (g.seats[b] ?? 99)).map((id) => { const look = people.find((p) => p.id === id)?.look; return { id, name: name(id), hue: look?.hue ?? Math.max(0, g.playerIds.indexOf(id)) % FELT_HUES.length, photo: look?.photo }; });
 
   const hands: FeltHand[] = useMemo(() => g.hands.filter((h) => h.log && !h.missed).map((h) => {
     const log = h.log!, start = exactStacks(g, h.n), board = (h.board ?? []).filter(Boolean) as Card[];

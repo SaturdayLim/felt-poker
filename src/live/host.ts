@@ -2,7 +2,7 @@
    enter and the flags they send, and deletes the room when sharing stops. Runs on the host phone only. */
 import { clashHands, clashWhy, effectivePairs } from '../lib/clash';
 import type { NowSnapshot as Now } from './snapshot';
-import type { Card, Game, ID } from '../types';
+import type { Card, Game, ID, PlayerLook } from '../types';
 import { useStore } from '../store';
 import { toast } from '../components/ui';
 import { lock, unlock, type LockBox } from '../report/lock';
@@ -137,6 +137,8 @@ export async function dropInbox(gameId: ID, pid: ID, n: number) {
 }
 
 const CARD = /^[AKQJT98765432][shdc]$/;
+/** A player photo: a small JPEG as a data URL, nothing else. */
+const PHOTO = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 
 async function applyInbox(s: Session) {
   const g = game(s.gameId);
@@ -155,6 +157,24 @@ async function applyInbox(s: Session) {
         useStore.getState().updateGame(s.gameId, (x) => { x.claimed = { ...(x.claimed ?? {}), [pid]: { chips: chips!, at: Date.now() } }; });
         toast(`${players.find((p) => p.id === pid)?.name ?? 'A player'} sent a chip count of ${chips}.`);
         await s.driver.set(s.room, `inbox/${pid}/count`, null);
+        continue;
+      }
+      // the look the player chose for the Table (colour, photo): kept on the player, and the next snapshot carries it
+      if (n === 'look') {
+        const fid = `${pid}/look/${(box as LockBox).data?.slice(0, 16)}`;
+        if (s.failed.has(fid)) continue;
+        s.failed.add(fid); // each box is read once, right or wrong
+        const code = players.find((p) => p.id === pid)?.code;
+        try {
+          const v = code ? await unlock<{ hue?: unknown; photo?: unknown }>(box as LockBox, code) : null;
+          if (v) {
+            const look: PlayerLook = {};
+            if (typeof v.hue === 'number' && Number.isInteger(v.hue) && v.hue >= 0 && v.hue < 10) look.hue = v.hue;
+            if (typeof v.photo === 'string' && PHOTO.test(v.photo) && v.photo.length <= 16000) look.photo = v.photo;
+            useStore.getState().setPlayerLook(pid, look);
+            await s.driver.set(s.room, `inbox/${pid}/look`, null);
+          }
+        } catch { /* wrong code or damaged entry */ }
         continue;
       }
       const id = `${pid}/${n}/${(box as LockBox).data?.slice(0, 16)}`;

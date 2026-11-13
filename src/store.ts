@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
-import type { CashOut, Game, GameRules, GameType, Group, Hand, ID, Player, PlayerStatus, Settings } from './types';
+import type { CashOut, Game, GameRules, GameType, Group, Hand, ID, Player, PlayerLook, PlayerStatus, Settings } from './types';
 import { uid } from './lib/ids';
 import { WATCH, sayStored } from './lib/watch';
 import { newCode } from './lib/codes';
@@ -82,6 +82,7 @@ interface State {
   issueCode: (id: ID, code?: string) => string;
   revealCode: (id: ID) => void;
   renamePlayer: (id: ID, name: string) => void;
+  setPlayerLook: (id: ID, look: PlayerLook) => void;
   setPlayerArchived: (id: ID, archived: boolean) => void;
   deletePlayer: (id: ID) => boolean;
 
@@ -213,6 +214,7 @@ export const useStore = create<State>()(
         revealCode: (id) => set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, codeIssued: true } : p)) })),
         renamePlayer: (id, name) =>
           set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, name: name.trim() } : p)) })),
+        setPlayerLook: (id, look) => set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, look } : p)) })),
         setPlayerArchived: (id, archived) =>
           set((s) => ({ players: s.players.map((p) => (p.id === id ? { ...p, archived } : p)) })),
         deletePlayer: (id) => {

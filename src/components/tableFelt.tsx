@@ -69,7 +69,11 @@ function Fly({ amount, bb, from, to, wait, animate }: { amount: number; bb: numb
   return <span ref={el} className="tf-at tf-fly" style={{ left: to.x, top: to.y }} aria-hidden="true"><Chips amount={amount} bb={bb} max={3} /><span className="tf-amt">{feltFig(amount)}</span></span>;
 }
 
-export function TableFelt({ hand, k, animate }: { hand: FeltHand; k: number; animate: boolean }) {
+/** `me` is the viewer's own seat: a tap on that photo opens `me.panel` beside it (photo and colour). */
+export interface FeltMe { id: string; panel: (close: () => void) => ReactNode }
+
+export function TableFelt({ hand, k, animate, me }: { hand: FeltHand; k: number; animate: boolean; me?: FeltMe }) {
+  const [mine, setMine] = useState(false);
   const area = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0, left: 0, top: 0 });
   // the table takes the height or the width left, whichever is less: photos reach above it, names and actions below it
@@ -143,6 +147,7 @@ export function TableFelt({ hand, k, animate }: { hand: FeltHand; k: number; ani
             const cols = stack !== undefined && stack > 0 ? chipCols(stack, hand.bb, 4) : [];
             const order = s.folded.indexOf(p.id);
             const hole = out ? { x: muck.x + (((i * 37) % 9) - 4) * M * 0.7, y: muck.y + (((i * 53) % 7) - 3) * M * 0.7, rot: ((i * 67) % 140) - 70 } : up ? { ...sp.hole, rot: 0 } : sp.hole;
+            const own = me?.id === p.id;
             return (
               <div key={p.id} className={`tf-player ${state}`} style={{ ['--hue' as string]: hue[p.id] }}>
                 <span className="tf-stack">
@@ -158,7 +163,9 @@ export function TableFelt({ hand, k, animate }: { hand: FeltHand; k: number; ani
                 {inHand && <Bet amount={s.bets[p.id] ?? 0} allin={all} bb={hand.bb} from={sp.stack(0)} at={sp.bet} pot={pots} animate={animate} />}
                 <div className="tf-at tf-seat" style={{ left: sp.seat.x, top: sp.seat.y }}
                   aria-label={`${p.name}${stack !== undefined ? `, ${feltFig(stack)} chips` : ''}${out ? ', folded' : ''}${idle ? ', not in this hand' : ''}${all ? ', all-in' : ''}${lit === i ? ', to act' : ''}`}>
-                  <span className="tf-av">{FACE}</span>
+                  {own
+                    ? <button type="button" className="tf-av tf-av--me" aria-label="Change your photo and colour" aria-expanded={mine} onClick={() => setMine((v) => !v)} style={p.photo ? { backgroundImage: `url("${p.photo}")` } : undefined}>{!p.photo && FACE}</button>
+                    : <span className="tf-av" style={p.photo ? { backgroundImage: `url("${p.photo}")` } : undefined}>{!p.photo && FACE}</span>}
                   <span className="tf-tag">
                     <b>{p.name}</b>
                     <small>{stack === undefined ? '' : feltFig(stack)}{won > 0 && <span className="tf-gain"> +{feltFig(won)}</span>}</small>
@@ -168,6 +175,19 @@ export function TableFelt({ hand, k, animate }: { hand: FeltHand; k: number; ani
               </div>
             );
           })}
+          {/* your own look: it opens out of your photo, above it for a lower seat and under it for an upper seat */}
+          {me && mine && (() => {
+            const i = hand.players.findIndex((p) => p.id === me.id);
+            if (i < 0) return null;
+            const q = spots[i].seat, under = q.y < box.h / 2, half = 118;
+            const x = Math.max(half + 8 - box.left, Math.min(box.w + box.left - half - 8, q.x));
+            return (
+              <>
+                <button type="button" className="tf-veil" aria-label="Close" onClick={() => setMine(false)} />
+                <div className="tf-mine" data-under={under} style={{ left: x, top: under ? q.y + M * 7 : q.y - M * 7, ['--ox' as string]: `${q.x - x + half}px` }}>{me.panel(() => setMine(false))}</div>
+              </>
+            );
+          })()}
         </section>
       )}
     </div>
@@ -182,7 +202,7 @@ const Arrow = ({ flip }: { flip?: boolean }) => <svg viewBox="0 0 24 24" aria-hi
 /** The table screen. `hands` are the finished hands, oldest first; `live` is the hand in play; `idle` is the table with no hand.
     Live follows the hand in play and each new hand. The timeline and the arrows move a cursor over the hand on show: that never
     changes the record. `corner` is the one button at the bottom right (log on, add own hand). */
-export function TablePage({ hands, live, idle, canLive, onBack, corner }: { hands: FeltHand[]; live: FeltHand | null; idle: FeltHand; canLive: boolean; onBack?: () => void; corner?: ReactNode }) {
+export function TablePage({ hands, live, idle, canLive, onBack, corner, me }: { hands: FeltHand[]; live: FeltHand | null; idle: FeltHand; canLive: boolean; onBack?: () => void; corner?: ReactNode | ((hand: FeltHand) => ReactNode); me?: FeltMe }) {
   const lastDone = hands[hands.length - 1];
   const [pick, setPick] = useState<'live' | number>(() => (canLive || !lastDone ? 'live' : lastDone.n));
   // the step on show; null follows the end of the hand
@@ -242,7 +262,7 @@ export function TablePage({ hands, live, idle, canLive, onBack, corner }: { hand
             <i aria-hidden="true" />Live{behind > 0 && <span className="tfp-behind">{behind}</span>}
           </button>
         )}
-        <TableFelt hand={hand} k={k} animate={animate} />
+        <TableFelt hand={hand} k={k} animate={animate} me={me} />
       </div>
       <div className="tfp-bar">
         {(canLive || hands.length > 0) && (
@@ -265,7 +285,7 @@ export function TablePage({ hands, live, idle, canLive, onBack, corner }: { hand
           <button type="button" className="tfp-round" aria-label="Back one action" disabled={k <= 0} onClick={() => moveTo(k - 1)}><Arrow /></button>
           <button type="button" className="tfp-round" aria-label="Forward one action" disabled={k >= last} onClick={() => moveTo(k + 1)}><Arrow flip /></button>
         </>}
-        {corner}
+        {typeof corner === 'function' ? corner(hand) : corner}
       </div>
     </div>,
     document.body,

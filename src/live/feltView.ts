@@ -39,8 +39,8 @@ export function viewActions(view: HandView): FeltAction[] {
 
 /** Seats in table order; a player keeps the colour the host's Table gives them (their place in the game's player list). */
 function seats(pub: PubSnapshot, only?: string[]): FeltPlayer[] {
-  const all = pub.players.map((p, i) => ({ id: p.name, name: p.name, hue: i % FELT_HUES.length, seat: p.seat })).sort((a, b) => a.seat - b.seat);
-  const list: FeltPlayer[] = (only ? all.filter((p) => only.includes(p.id)) : all).map(({ id, name, hue }) => ({ id, name, hue }));
+  const all = pub.players.map((p, i) => ({ id: p.name, name: p.name, hue: p.hue ?? i % FELT_HUES.length, photo: p.photo, seat: p.seat })).sort((a, b) => a.seat - b.seat);
+  const list: FeltPlayer[] = (only ? all.filter((p) => only.includes(p.id)) : all).map(({ id, name, hue, photo }) => ({ id, name, hue, photo }));
   // a player who has left the game since still sits in the hands they played
   for (const nm of only ?? []) if (!list.some((p) => p.id === nm)) list.push({ id: nm, name: nm, hue: 8 });
   return list;

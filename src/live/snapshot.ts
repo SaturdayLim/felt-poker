@@ -35,7 +35,8 @@ export interface PubSnapshot {
   game: { name: string; type: string; sb: number; bb: number; status: string; startedAt: number };
   rules: { label: string; value: string; tip?: string }[];
   /** `status` is the host's status light: playing, away or out. Older snapshots lack it. */
-  players: { id: ID; name: string; seat: number; status?: PlayerStatus }[];
+  /** `hue` and `photo`: the look the player chose for the Table (Player.look). */
+  players: { id: ID; name: string; seat: number; status?: PlayerStatus; hue?: number; photo?: string }[];
   standings: Standing[];
   button: string | null;
   hands: PubHand[];
@@ -77,7 +78,7 @@ export function buildPub(g: Game, players: Player[], settings?: Settings, at = D
     v: 1,
     game: { name: g.name, type: g.type, sb: g.sb, bb: g.bb, status: g.status, startedAt: g.startedAt },
     rules: rulesList(g, settings),
-    players: g.playerIds.map((id) => ({ id, name: name(id), seat: g.seats[id] ?? 99, status: playerStatus(g, id) })),
+    players: g.playerIds.map((id) => { const look = players.find((p) => p.id === id)?.look; return { id, name: name(id), seat: g.seats[id] ?? 99, status: playerStatus(g, id), ...(look?.hue !== undefined ? { hue: look.hue } : {}), ...(look?.photo ? { photo: look.photo } : {}) }; }),
     standings: standings(g),
     button: (() => { const last = [...g.hands].reverse().find((h) => h.log?.button)?.log?.button; return last ? name(last) : null; })(),
     hands: g.hands.filter((h) => !h.missed && h.log).map((h) => {

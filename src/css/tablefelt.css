@@ -138,3 +138,45 @@ html[data-calm] .tf-at, html[data-calm] .tf-dealer { transition: opacity 150ms l
 html[data-calm] .tf-flip, html[data-calm] .tfp-live.is-on { animation: none; }
 html[data-motion-off] .tf-at, html[data-motion-off] .tf-dealer, html[data-motion-off] .tf-player, html[data-motion-off] .tf-av { transition: none; }
 html[data-motion-off] .tf-flip, html[data-motion-off] .tfp-live.is-on { animation: none; }
+
+/* ---------- the card button's panel: it opens out of the button, in the table's own direction ---------- */
+.tfc { position: relative; flex: none; display: grid; }
+.tfc-veil, .tf-veil { position: fixed; inset: -100vmax; z-index: 30; border: 0; padding: 0; background: rgba(0,0,0,.35); cursor: default; }
+.tf-veil { background: transparent; }
+.tfc > .tfp-fab { position: relative; z-index: 32; }
+.tfc-panel { position: absolute; right: 0; bottom: 0; z-index: 31; width: min(440px, calc(100vmax - 40px)); padding: 12px 12px 60px; border-radius: 16px 16px 26px 16px; background: #1c1e21; border: 1px solid rgba(235,241,245,.18); box-shadow: var(--felt-elev-3);
+  display: flex; flex-direction: column; gap: 8px; color: #ebf1f5; clip-path: circle(0px at calc(100% - 23px) calc(100% - 23px)); visibility: hidden; pointer-events: none;
+  transition: clip-path 280ms cubic-bezier(.22,1,.36,1), visibility 0s linear 280ms; }
+.tfc-panel[data-open="true"] { clip-path: circle(150% at calc(100% - 23px) calc(100% - 23px)); visibility: visible; pointer-events: auto; transition: clip-path 320ms cubic-bezier(.22,1,.36,1); }
+.tfc-title { font-size: 1rem; font-weight: 600; }
+.tfc-panel .felt-boxes-cell { height: 46px; }
+.tfc-head { display: flex; align-items: center; gap: 10px; }
+.tfc-pair { display: flex; gap: 4px; margin-right: auto; }
+.tfc-text { border: 0; background: none; padding: 8px 4px; color: #97a1ac; font-weight: 600; }
+.tfc-note { margin: 0; color: #97a1ac; font-size: .8125rem; }
+.tfc-grid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 3px; }
+.tfc-grid button { height: 32px; padding: 0; border-radius: 5px; border: 0; background: #fbfcfc; font: 700 13px/1 var(--sat-font-ui, sans-serif); display: flex; align-items: center; justify-content: center; gap: 1px; }
+.tfc-grid button i { font: 400 12px/1 system-ui, sans-serif; font-style: normal; }
+.tfc-grid button[aria-pressed="true"] { background: var(--sat-accent-fill, #0052cc); color: #fff; }
+.tfc-grid button:disabled { opacity: .18; }
+.tfc-foot { display: flex; align-items: center; gap: 10px; padding-right: 56px; }
+.tfc-foot .tfc-note { flex: 1; }
+.tfc-save { height: 40px; padding: 0 22px; border-radius: 10px; border: 0; background: var(--sat-accent-fill, #0052cc); color: #fff; font-weight: 600; }
+.tfc-save:disabled { opacity: .4; }
+html[data-calm] .tfc-panel, html[data-calm] .tfc-panel[data-open="true"] { clip-path: none; opacity: 0; transition: opacity 150ms linear, visibility 0s linear 150ms; }
+html[data-calm] .tfc-panel[data-open="true"] { opacity: 1; transition: opacity 150ms linear; }
+html[data-motion-off] .tfc-panel, html[data-motion-off] .tfc-panel[data-open="true"] { transition: none; }
+
+/* ---------- your own photo and colour: a tap on your photo ---------- */
+.tf-av { background-size: cover; background-position: center; }
+button.tf-av--me { border: 0; padding: 0; cursor: pointer; }
+.tf-mine { position: absolute; z-index: 31; width: 236px; transform: translate(-50%, -100%); transform-origin: var(--ox, 50%) 100%; animation: tf-mine 220ms cubic-bezier(.22,1,.36,1); }
+.tf-mine[data-under="true"] { transform: translate(-50%, 0); transform-origin: var(--ox, 50%) 0; }
+@keyframes tf-mine { from { opacity: 0; scale: .5; } }
+.tfl { padding: 12px; border-radius: 16px; background: #1c1e21; border: 1px solid rgba(235,241,245,.18); box-shadow: var(--felt-elev-3); display: flex; flex-direction: column; gap: 10px; }
+.tfl-hues { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; justify-items: center; }
+.tfl-hues button { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
+.tfl-hues button[aria-checked="true"] { border-color: #fff; }
+.tfl-row { display: flex; gap: 8px; }
+.tfl-btn { flex: 1; height: 40px; border-radius: 10px; border: 1px solid rgba(235,241,245,.25); background: #25282c; color: #ebf1f5; font: 600 .875rem var(--sat-font-ui, sans-serif); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+html[data-calm] .tf-mine, html[data-motion-off] .tf-mine { animation: none; }

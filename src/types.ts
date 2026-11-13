@@ -12,7 +12,11 @@ export interface Player {
   code?: string;
   /** True once the host has shown or copied the current code. A code nobody has seen cannot be used. */
   codeIssued?: boolean;
+  /** How the player shows on the Table: a colour (index of FELT_HUES) and a small photo (a JPEG data URL, about 96 px).
+      The player sets it from their own phone, with their player code. */
+  look?: PlayerLook;
 }
+export interface PlayerLook { hue?: number; photo?: string }
 
 /** Players who play together. Games tagged with a group settle together (netted payments). */
 export interface Group {

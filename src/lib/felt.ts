@@ -9,7 +9,7 @@ export type FeltKind = 'sb' | 'bb' | 'fold' | 'check' | 'call' | 'bet' | 'raise'
 /** One step of a hand. An action carries its player; `to` is the player's street total after it, `add` the chips it put in. */
 export interface FeltStep { id?: string; seg: FeltSeg; k: FeltKind; to: number; add: number; allin: boolean }
 export type FeltAction = Required<Pick<FeltStep, 'id'>> & Omit<FeltStep, 'id' | 'seg'> & { seg: Exclude<FeltSeg, 'end'> };
-export interface FeltPlayer { id: string; name: string; /** Index of the player's colour (FELT_HUES). */ hue: number }
+export interface FeltPlayer { id: string; name: string; /** Index of the player's colour (FELT_HUES). */ hue: number; /** The player's photo, when they set one. */ photo?: string }
 export interface FeltHand {
   n: number;
   live: boolean;
@@ -223,8 +223,10 @@ export function seatSpots(w: number, h: number, n: number): SeatSpots[] {
     const rail = (d: number, a: number): Pt => { const g = pillPoint(w, h, i / Math.max(1, n), a * M); return { x: g.x + d * M * g.nx, y: g.y + d * M * g.ny }; };
     const c = Math.sign(f.ny * (w / 2 - f.x)) || -1; // the side toward the middle of the table
     const up = f.ny > 0.2;
-    const from = up ? c * (9.5 - 6.9 * Math.abs(f.nx)) : -c * 10.6, step = (up ? c : -c) * 3.6, deep = up ? 9.2 : 10.6;
-    const ca = up ? from + c * 5.4 : 0, cd = up ? 17.8 : 15.5;
+    // a seat on the south edge keeps its chips on its west (owner, 13 Nov 2026); a side seat keeps them away from the middle
+    const side = up ? c : f.ny < -0.9 ? 1 : -c;
+    const from = side * (up ? 9.5 - 6.9 * Math.abs(f.nx) : 10.6), step = side * 3.6, deep = up ? 9.2 : 10.6;
+    const ca = up ? from + side * 5.4 : 0, cd = up ? 17.8 : 15.5;
     return {
       seat: at(1, 0),
       hole: { ...at(cd, ca), rot: (Math.atan2(f.nx, -f.ny) * 180) / Math.PI },

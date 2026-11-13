@@ -1,6 +1,13 @@
 # Nightcap: progress
 
-## Latest (13 Nov 2026): 1.8.2
+## Latest (13 Nov 2026): 1.8.3
+- Player view Table: the card button opens a panel out of itself inside the table screen (`TableCards` in Join.tsx): code boxes when not logged on, else the cards for the hand on show. It is not a Sheet, so it turns with the table.
+- Player look: `Player.look` ({ hue, photo }). The player's phone writes `inbox/<id>/look` (locked with the player code); host.ts `applyInbox` checks it and saves it with `setPlayerLook`; `buildPub` carries `hue` and `photo` on each player; both Tables draw them. Photo: 96 px JPEG data URL, 16,000 characters at most. `LookPanel` in Join.tsx opens from a tap on your own photo.
+- seatSpots: south edge seats keep chips on their west.
+- Seen in the Browser pane with a mock room and two tabs: log on in the panel, cards saved and applied by the host, colour applied by the host. Not seen: the camera and a real photo, a real phone.
+- Open: the owner wants to drag the parts for each table size (2 to 10) in docs/mockups/table-sizes.html and send back the layout; `seatSpots` then takes those places.
+
+## Earlier (13 Nov 2026): 1.8.2
 - Shipped: the Table rebuilt to the owner's design notes, for the host (game page > Table, #/watch/<id>) and for the player view (Join > Action > Table).
 - One engine: src/lib/felt.ts (`FeltHand`, `feltSteps`, `feltAt`, `feltPots`, `seatSpots`, chips). One screen: src/components/tableFelt.tsx (`TableFelt`, `TablePage`), styles src/css/tablefelt.css. spectator.css is gone; birdsEye.tsx is no longer used by Join.
 - Host adapter: src/screens/Spectator.tsx (replay.ts `handSteps` -> FeltHand). Player adapter: src/live/feltView.ts (`viewActions` reads the viewer boxes) and src/components/viewerTable.tsx.

@@ -2,13 +2,16 @@
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CardPair, Empty, Header, Help, Icon, Info, NewItemsPill, NumericText, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
+import { CardPair, PlayingCard, useCardLook, Empty, Header, Help, Icon, Info, NewItemsPill, NumericText, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { calm } from '../lib/motion';
 import { isRangeStack } from '../lib/stacks';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
 import { MinRaiseTip } from '../components/rules';
 import { ViewerTable } from '../components/viewerTable';
+import type { FeltMe } from '../components/tableFelt';
+import { FELT_HUES, type FeltHand } from '../lib/felt';
+import { SUIT_SYMBOL, lookColor, rankLabel } from '../lib/cards';
 import { RevealProvider, useBigPips, useSeenCards, VCards, ViewerLookSettings } from '../components/viewerLook';
 import { StandingChart } from '../components/candle';
 import { lock, unlock, type LockBox } from '../report/lock';
@@ -16,7 +19,7 @@ import { CHECK_TEXT, keyFromPassphrase, open, seal } from '../live/crypto';
 import { pickDriver } from '../live/host';
 import { viewText, type HandView, type NowSnapshot, type PubSnapshot, type StackLine, type ViewStreet } from '../live/snapshot';
 import type { HelpKey } from '../lib/help';
-import type { Card } from '../types';
+import type { Card, PlayerLook } from '../types';
 import { go } from '../router';
 import { SHOWDOWN_LOCK } from '../components/cardEntry';
 
@@ -83,6 +86,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   const [openHand, setOpenHand] = useState<number | null>(null);
   const [cardsHand, setCardsHand] = useState<number | null>(null);
   const [err, setErr] = useState('');
+  // the look this player just chose, shown at once on this phone; the host sends it to everyone with the next snapshot
+  const [myLook, setMyLook] = useState<PlayerLook | null>(null);
   // the Sign in words stay on the card button until the first sign-in on this phone
   const [signedOnce, setSignedOnce] = useState(() => ls.get('felt-viewer-signed-once') === '1');
   useEffect(() => { if (me && !signedOnce) { ls.set('felt-viewer-signed-once', '1'); setSignedOnce(true); } }, [me, signedOnce]);
@@ -177,6 +182,18 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
   // the host tells this player alone, inside the box only their code opens, which hands cannot be right. The host
   // sends a hand only once a later hand is under way
   const toCheck = me?.clash ?? [];
+  // the Table: this player's own look, and the card button that opens into the code boxes or the cards
+  const mineNow = me ? pub.players.find((p) => p.name === me.name) : undefined;
+  const look: PlayerLook = myLook ?? { hue: mineNow?.hue, photo: mineNow?.photo };
+  const tablePub = me && myLook ? { ...pub, players: pub.players.map((p) => (p.name === me.name ? { ...p, hue: myLook.hue, photo: myLook.photo } : p)) } : pub;
+  const sendLook = async (next: PlayerLook) => {
+    if (!me || !code) return;
+    setMyLook(next);
+    try { await driver.set(room, `inbox/${me.id}/look`, await lock(next, code)); } catch { toast('Not sent. Check the connection and try again.'); }
+  };
+  const tableMe: FeltMe | undefined = me && code ? { id: me.name, panel: (close) => <LookPanel look={look} seat={pub.players.findIndex((p) => p.name === me.name)} onSet={sendLook} onClose={close} /> } : undefined;
+  const tableCorner = (hand: FeltHand) => <TableCards me={me} onShow={hand.n} hands={hands} now={now} entered={entered.current} tryCode={tryCode} onSave={sendCards}
+    onLeave={() => { setMe(null); setCode(null); setMyLook(null); ss.del(`felt-join-code:${room}`); }} />;
   const shownHand = openHand !== null ? hands.find((h) => h.n === openHand) : undefined;
 
   if (shownHand) {
@@ -200,7 +217,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
       <SlidePane k={tab} i={TABS.findIndex((t) => t.k === tab)}>
       <div className="sat-stack" style={gap(3)}>
         {tab === 'action' && <ActionLog pub={pub} stacks={stacks} now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')}
-          tableFab={<button type="button" className="tfp-fab" aria-label={me ? 'Add own hand' : 'Log on with your player code'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={28} stroke={1.8} /></button>} />}
+          tablePub={tablePub} tableCorner={tableCorner} tableMe={tableMe} />}
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
           onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
@@ -294,7 +311,7 @@ function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blind
   );
 }
 
-function ActionLog({ pub, stacks, now: sent, hands, blinds, onFlag, tableFab }: { pub: PubSnapshot; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void; tableFab?: ReactNode }) {
+function ActionLog({ stacks, now: sent, hands, blinds, onFlag, tablePub, tableCorner, tableMe }: { pub: PubSnapshot; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void; tablePub: PubSnapshot; tableCorner: (hand: FeltHand) => ReactNode; tableMe?: FeltMe }) {
   // a new hand shows only after real action: blinds and card entry alone do not count
   const now = sent && sent.acted !== false ? sent : null;
   const closed = now ? hands.filter((h) => h.n !== now.n) : hands;
@@ -331,7 +348,7 @@ function ActionLog({ pub, stacks, now: sent, hands, blinds, onFlag, tableFab }: 
           <span style={{ display: 'block' }}>The timeline replays a hand, one action for each stop. Live goes back to the hand in play.</span>
         </Info>
       </div>
-      {table && <ViewerTable pub={pub} now={sent} stacks={stacks} onBack={() => pick(false)} corner={tableFab} />}
+      {table && <ViewerTable pub={tablePub} now={sent} stacks={stacks} onBack={() => pick(false)} corner={tableCorner} me={tableMe} />}
       {!table && <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />}
       {!table && !now && !hands.length && <div className="sat-flat sat-card sat-small">No hands yet.</div>}
       {!table && now && <HandFrame key={now.n} n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}
@@ -574,6 +591,100 @@ function HandPick({ hands, now, entered, me, toCheck, start, onSave, onClose, on
       </div>
       <button className="sat-btn sat-btn--block" onClick={onLeave}>Sign out</button>
     </Sheet>
+  );
+}
+
+/** The card button of the Table. It opens out of itself, in the table's own direction: the player code boxes for a player who has
+    not logged on, else this player's cards for the hand on show, ready to pick. Cards go to the host as from the card sheet. */
+function TableCards({ me, onShow, hands, now, entered, tryCode, onSave, onLeave }: {
+  me: Me | null; onShow: number; hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Map<number, Card[]>;
+  tryCode: (c: string) => Promise<boolean>; onSave: (n: number, cards: Card[]) => Promise<void>; onLeave: () => void;
+}) {
+  const cardLook = useCardLook();
+  const [open, setOpen] = useState(false);
+  // the panel keeps its content while it closes
+  const [kept, setKept] = useState(false);
+  const show = (v: boolean) => { setOpen(v); if (v) setKept(true); else window.setTimeout(() => setKept(false), 260); };
+  const live = me && now && now.acted !== false && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board, shown: shownBy(now.view, me.name) }] : [];
+  const mine = me ? [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board, shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))] : [];
+  const host = me ? loggedOf(me) : {};
+  const known = (k: number): Card[] => (host[k]?.length ? host[k] : entered.get(k) ?? []);
+  const [n, setN] = useState<number | null>(null);
+  const [cards, setCards] = useState<Card[]>([]);
+  const h = mine.find((x) => x.n === n) ?? null;
+  const choose = (k: number) => { setN(k); setCards(known(k).slice(0, 2)); };
+  // it opens on the hand on show when this player was dealt in, else on their newest hand
+  const openUp = () => { const first = mine.find((x) => x.n === onShow) ?? mine[0]; if (first) choose(first.n); show(true); };
+  // a player who has just logged on goes straight to their cards
+  const logOn = async (c: string) => tryCode(c);
+  useEffect(() => { setN(null); setCards([]); }, [me?.id]);
+  useEffect(() => { if (open && me && n === null && mine.length) choose((mine.find((x) => x.n === onShow) ?? mine[0]).n); }); // eslint-disable-line react-hooks/exhaustive-deps
+  const tap = (c: Card) => setCards((was) => (was.includes(c) ? was.filter((x) => x !== c) : was.length < 2 ? [...was, c] : was));
+  const save = () => { if (!h || cards.length !== 2) return; onSave(h.n, cards).then(() => toast('Cards saved.'), () => toast('Cards not sent. Check the connection and try again.')); show(false); };
+  return (
+    <span className="tfc">
+      {open && <button type="button" className="tfc-veil" aria-label="Close" onClick={() => show(false)} />}
+      <div className="tfc-panel" data-open={open} role="dialog" aria-label={me ? 'Add own hand' : 'Player code'} aria-hidden={!open}>
+        {kept && !me && <><b className="tfc-title">Player code</b><CodeBoxes onSubmit={logOn} /></>}
+        {kept && me && (
+          <>
+            <div className="tfc-head">
+              {mine.length > 0 && (
+                <select className="tfp-pick" aria-label="Hand" value={h?.n ?? ''} onChange={(e) => choose(Number(e.target.value))}>
+                  {mine.map((x) => <option key={x.n} value={x.n}>Hand {x.n}</option>)}
+                </select>
+              )}
+              <span className="tfc-pair">{[0, 1].map((i) => <PlayingCard key={i} card={(h?.shown.length ? h.shown : cards)[i] ?? null} size="sm" />)}</span>
+              <button type="button" className="tfc-text" onClick={() => { show(false); onLeave(); }}>Sign out</button>
+            </div>
+            {!mine.length && <p className="tfc-note">No hands for you yet.</p>}
+            {h && h.shown.length > 0 && <p className="tfc-note">{SHOWDOWN_LOCK}</p>}
+            {h && !h.shown.length && (
+              <>
+                <div className="tfc-grid">
+                  {[...'shdc'].flatMap((su) => [...'AKQJT98765432'].map((r) => {
+                    const c = (r + su) as Card;
+                    return <button key={c} type="button" disabled={h.blocked.includes(c)} aria-pressed={cards.includes(c)} aria-label={`${rankLabel(c)} ${SUIT_SYMBOL[su]}`} style={{ color: cards.includes(c) ? undefined : lookColor(cardLook, su) }} onClick={() => tap(c)}>{rankLabel(c)}<i>{SUIT_SYMBOL[su]}</i></button>;
+                  }))}
+                </div>
+                <div className="tfc-foot"><span className="tfc-note">Nobody else can see your hidden cards.</span><button type="button" className="tfc-save" disabled={cards.length !== 2} onClick={save}>Save</button></div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+      <button type="button" className="tfp-fab" aria-label={me ? 'Add own hand' : 'Log on with your player code'} aria-expanded={open} onClick={() => (open ? show(false) : openUp())}><Icon name="cardsadd" size={28} stroke={1.8} /></button>
+    </span>
+  );
+}
+
+/** A photo as a small square JPEG (96 px), so it fits in the game snapshot. */
+async function smallPhoto(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise<void>((ok, no) => { img.onload = () => ok(); img.onerror = () => no(new Error('photo')); img.src = url; });
+    const side = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas');
+    c.width = c.height = 96;
+    c.getContext('2d')!.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 96, 96);
+    return c.toDataURL('image/jpeg', 0.72);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/** Your own look on the Table: a tap on a colour sets it; Photo opens the camera. Each change goes to the host at once. */
+function LookPanel({ look, seat, onSet, onClose }: { look: PlayerLook; seat: number; onSet: (l: PlayerLook) => void; onClose: () => void }) {
+  const hue = look.hue ?? Math.max(0, seat) % FELT_HUES.length;
+  const take = async (f?: File) => { if (!f) return; try { onSet({ hue, photo: await smallPhoto(f) }); onClose(); } catch { toast('This photo cannot be read. Try another.'); } };
+  return (
+    <div className="tfl">
+      <div className="tfl-hues" role="radiogroup" aria-label="Your colour">
+        {FELT_HUES.map((c, i) => <button key={c} type="button" role="radio" aria-checked={i === hue} aria-label={`Colour ${i + 1}`} style={{ background: c }} onClick={() => onSet({ ...look, hue: i })} />)}
+      </div>
+      <div className="tfl-row">
+        <label className="tfl-btn">Photo<input type="file" accept="image/*" capture="user" hidden onChange={(e) => { void take(e.target.files?.[0]); e.target.value = ''; }} /></label>
+        {look.photo && <button type="button" className="tfl-btn" onClick={() => onSet({ hue })}>No photo</button>}
+      </div>
+    </div>
   );
 }
 

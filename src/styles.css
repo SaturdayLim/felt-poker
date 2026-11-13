@@ -1038,3 +1038,12 @@ html[data-calm] .felt-start-choice { transition: none; }
 [data-share="game"] { view-transition-name: felt-game; }
 html[data-calm] [data-share] { view-transition-name: none; }
 ::view-transition-group(felt-game) { animation-duration: 420ms; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+
+/* Player view, Players: each player as on the Table view, a photo with a plate across its foot (owner, 13 Nov 2026) */
+.felt-pseat { position: absolute; transform: translate(-50%, -50%); width: 46px; height: 46px; }
+.felt-pseat-av { display: block; width: 46px; height: 46px; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--hue) 50%, #14161a) center / cover; box-shadow: 0 0 0 2px #3c4148, var(--felt-elev-1); }
+.felt-pseat-av svg { width: 100%; height: 100%; display: block; fill: rgba(255,255,255,.82); }
+.felt-pseat.is-me .felt-pseat-av { box-shadow: 0 0 0 3px var(--felt-coral, #ff5722), var(--felt-elev-1); }
+.felt-pseat-tag { position: absolute; left: 50%; top: calc(100% - 10px); transform: translateX(-50%); display: flex; align-items: baseline; gap: .4em; padding: 2px 8px; border-radius: 8px; background: #14161a; color: #fff; font-size: .75rem; line-height: 1.2; white-space: nowrap; box-shadow: var(--felt-elev-1); }
+.felt-pseat-tag b { font-weight: 600; max-width: 72px; }
+.felt-pseat-tag .sat-num { color: #aeb7c0; font-weight: 600; font-variant-numeric: tabular-nums; }

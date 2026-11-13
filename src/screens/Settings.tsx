@@ -261,7 +261,8 @@ function GameDefaults() {
   );
 }
 
-function CardsView() {
+/** Settings, Cards: the Suits editor with its miniature board, then the card test ground. The player view's Card Settings shows it too. */
+export function CardsView() {
   return (
     <>
       <CardLookEditor />

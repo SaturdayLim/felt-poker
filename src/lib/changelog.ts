@@ -1,5 +1,13 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.7', date: '13 Nov 2026', notes: [
+    'Table: photos show again at full size. The actions of the upper seats are no longer cut off at the top of the screen.',
+    'Table: the player to act gets a brighter light and a white name plate. The other players step further back.',
+    'Table: Big pips makes the ranks and suit marks bigger on the board and on shown cards.',
+    'Player view, Card Settings: Big pips, then the same Suits editor and card board as Settings, Cards on the host.',
+    'Player view, Players: each player shows as on the Table, a photo with a name plate. The standing chart writes each low and high at the end of its line.',
+    'Player view: with Big pips on, an empty card box no longer shows large text.',
+  ] },
   { version: '1.8.6', date: '13 Nov 2026', notes: [
     'Table: the name and stack sit on a plate across the foot of each photo. The last action sits above the head, centred on the photo.',
     'Table: each stack stands in one row in front of its player. The hole cards lie past it.',

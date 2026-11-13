@@ -71,11 +71,12 @@
 
 /* the light on the player to act */
 .tf-light { z-index: 1; width: calc(var(--m) * 46); height: calc(var(--m) * 46); border-radius: 50%; pointer-events: none; opacity: 0;
-  background: radial-gradient(circle, rgba(255,255,255,.3) 0%, rgba(255,255,255,.12) 38%, transparent 68%); mix-blend-mode: soft-light; }
+  background: radial-gradient(circle, rgba(255,248,225,.34) 0%, rgba(255,248,225,.16) 36%, transparent 66%); mix-blend-mode: screen; transition: opacity 300ms linear; }
 .tf-light[data-on="true"] { opacity: 1; }
 
 /* seat: the photo on the rail, a plate with the name and stack across its foot, the last action above the head */
 .tf-seat { width: calc(var(--m) * 11.2); height: calc(var(--m) * 11.2); transform: translate(-50%, -50%); z-index: 6; }
+.tf-seat > .tf-av { display: block; }
 .tf-seat > .tf-tag { position: absolute; left: 50%; top: calc(100% - var(--m) * 2.6); transform: translateX(-50%); }
 .tf-seat > .tf-act { position: absolute; left: 50%; bottom: calc(100% + var(--m) * .9); transform: translateX(-50%); }
 .tf-av { width: calc(var(--m) * 11.2); height: calc(var(--m) * 11.2); border-radius: 50%; flex: none; overflow: hidden; background: color-mix(in srgb, var(--hue) 50%, #14161a);
@@ -95,7 +96,9 @@
 .tf-player { transition: opacity 300ms linear, filter 300ms linear; }
 .tf-player.is-lit .tf-av { box-shadow: 0 0 0 calc(var(--m) * .7) #fff, 0 0 calc(var(--m) * 3) calc(var(--m) * 1.4) rgba(255,255,255,.55), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); }
 .tf-player.is-win .tf-av { box-shadow: 0 0 0 calc(var(--m) * .7) #e9b84a, 0 0 calc(var(--m) * 3) calc(var(--m) * 1.2) rgba(233,184,74,.5), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); }
-.tf-player.is-dim .tf-seat, .tf-player.is-dim .tf-stack { opacity: .6; }
+.tf-player.is-lit .tf-tag { background: #fff; color: #1c1e21; }
+.tf-player.is-lit .tf-tag small { color: #4a525c; }
+.tf-player.is-dim .tf-seat, .tf-player.is-dim .tf-stack { opacity: .45; }
 .tf-player.is-out .tf-seat, .tf-player.is-out .tf-stack, .tf-player.is-idle .tf-seat, .tf-player.is-idle .tf-stack { opacity: .2; }
 .tf-player.is-out .tf-av, .tf-player.is-idle .tf-av { filter: grayscale(1); }
 
@@ -114,6 +117,11 @@
 .tf-hole.is-up .felt-card { width: calc(var(--m) * 7); height: calc(var(--m) * 9.8); }
 .tf-hole.is-up .felt-card .r { font-size: calc(var(--m) * 3.5); }
 .tf-hole.is-up .felt-card .s { font-size: calc(var(--m) * 3.2); margin-top: 0; }
+/* Big pips (Card Settings): bigger rank and suit mark on face-up cards */
+.tfp-big .tf-board .felt-card .r { font-size: calc(var(--m) * 5.8); }
+.tfp-big .tf-board .felt-card .s { font-size: calc(var(--m) * 6.4); }
+.tfp-big .tf-hole.is-up .felt-card .r { font-size: calc(var(--m) * 4.4); }
+.tfp-big .tf-hole.is-up .felt-card .s { font-size: calc(var(--m) * 4.8); }
 .tf-hole.is-up > span + span { margin-left: calc(var(--m) * .4); }
 .tf-hole.is-muck { opacity: .75; }
 .tf-flip { animation: tf-flip 340ms cubic-bezier(.22,1,.36,1); }

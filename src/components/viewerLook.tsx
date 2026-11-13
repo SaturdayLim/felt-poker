@@ -2,8 +2,9 @@
    card look (settings.cards). With nothing custom, the viewer reads the phone's normal look. Board cards that the
    host selects while the viewer watches flip face up (the same flip as FlipDown in ui.tsx, turned the other way). */
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
-import { CardBack, Info, RankOrderSeg, Toggle, useCardLook } from './ui';
-import { DEFAULT_FACE, DEFAULT_LOOK, SUIT_NAME, SUIT_SYMBOL, cardText, cleanLook, lookColor, rankLabel } from '../lib/cards';
+import { CardBack, Info, Toggle, useCardLook } from './ui';
+import { CardsView } from '../screens/Settings';
+import { DEFAULT_FACE, SUIT_SYMBOL, cardText, lookColor, rankLabel } from '../lib/cards';
 import { calm } from '../lib/motion';
 import type { Card, CardLook, SuitKey } from '../types';
 
@@ -23,9 +24,8 @@ const read = (): string => { try { return localStorage.getItem(KEY) ?? ''; } cat
 const listeners = new Set<() => void>();
 /* The look before Default was pressed, kept so a mistaken tap is no loss. It clears on the next edit. */
 const PREV = 'felt-viewer-look-prev';
-let prevMemory = '';
-const readPrev = (): string => { try { return localStorage.getItem(PREV) ?? ''; } catch { return prevMemory; } };
-const writePrev = (v: string) => { prevMemory = v; try { if (v) localStorage.setItem(PREV, v); else localStorage.removeItem(PREV); } catch { /* kept in memory */ } };
+
+const writePrev = (v: string) => { try { if (v) localStorage.setItem(PREV, v); else localStorage.removeItem(PREV); } catch { /* kept in memory */ } };
 const write = (v: ViewerLook) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* private mode: kept until the page closes */ memory = JSON.stringify(v); } listeners.forEach((l) => l()); };
 const snap = () => read() || memory;
 const subscribe = (l: () => void) => { listeners.add(l); window.addEventListener('storage', l); return () => { listeners.delete(l); window.removeEventListener('storage', l); }; };
@@ -38,20 +38,11 @@ export function useViewerLook(): [ViewerLook, (patch: Partial<ViewerLook>) => vo
   return [look, (patch) => { writePrev(''); write(clean({ ...look, ...patch })); }, () => { if (look.big || look.custom) writePrev(JSON.stringify(look)); write(VIEWER_DEFAULT); }];
 }
 
-/** The look the viewer had before pressing Default, while no new edit has happened. */
-function useBackLook(): ViewerLook | null {
-  const raw = useSyncExternalStore(subscribe, readPrev, () => '');
-  if (!raw) return null;
-  try { return clean(JSON.parse(raw)); } catch { return null; }
-}
-const restoreLook = (v: ViewerLook) => { writePrev(''); write(v); };
-
-/** The look cards use in the viewer: the phone's own look, until the viewer turns custom colours on. */
+/** The look cards use in the viewer: the phone's own look (Card Settings edits it, as Settings, Cards does on the host). */
 function useEffectiveLook(): { look: CardLook; bg?: string; big: boolean } {
   const phone = useCardLook();
   const [v] = useViewerLook();
-  if (!v.custom) return { look: phone, big: v.big };
-  return { look: cleanLook({ order: DEFAULT_LOOK.order, colors: v.colors, custom: true, bg: v.bg }), bg: v.bg, big: v.big };
+  return { look: phone, bg: phone.custom ? phone.bg : undefined, big: v.big };
 }
 
 /** Class for the page: Big pips grows the cards and their rank and pip. */
@@ -114,57 +105,20 @@ export function VCards({ cards, size, reveal }: { cards: Card[]; size?: 'sm' | '
 
 /* ------------------------------- settings ------------------------------- */
 
-/** The viewer's own Settings: Big pips, pip colours and card background. A tip beside each field; no captions. */
+/** The viewer's own Card Settings: Big pips, then the same Suits editor and card test board as the host's Settings, Cards.
+    Everything is kept on this phone. */
 export function ViewerLookSettings() {
-  const [v, set, reset] = useViewerLook();
-  const phone = useCardLook();
-  const isDefault = !v.big && !v.custom;
-  const back = useBackLook();
-  // the first custom edit starts from what the cards show now
-  const pick = (patch: Partial<ViewerLook>) => set(v.custom ? patch : { colors: Object.fromEntries(SUITS.map((s) => [s, lookColor(phone, s)])) as Record<SuitKey, string>, ...patch, custom: true });
-  const shownColors = (s: SuitKey) => (v.custom ? v.colors[s] : lookColor(phone, s));
+  const [v, set] = useViewerLook();
   return (
-    <section className="sat-glass-2 felt-list felt-vlook" aria-label="My cards">
-      <div className="felt-vlook-preview" aria-hidden="true">
-        {(['As', 'Kh', 'Qc', 'Jd'] as Card[]).map((c) => <Face key={c} card={c} size="sm" />)}
-      </div>
-      <div className="felt-row">
-        <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Big pips
-          <Info title="Big pips">Card ranks and suit marks grow, so clubs and spades are easy to tell apart. This applies on this phone only.</Info></span>
-        <Toggle on={v.big} onChange={(big) => set({ big })} label="Big pips" />
-      </div>
-      <div className="felt-row">
-        <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Card picker order
-          <Info title="Card picker order">{'A > 2'} puts the ace on the left. {'2 > A'} puts the 2 on the left. Press the arrows to flip the order. This applies on this phone only.</Info></span>
-        <RankOrderSeg />
-      </div>
-      <div className="felt-row felt-vlook-colors">
-        <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Pip colours
-          <Info title="Pip colours">Pick one colour for each suit. The colours apply on this phone only. The host keeps its own card look.</Info></span>
-        <span className="felt-vlook-swatches">
-          {SUITS.map((s) => (
-            <label key={s} className="felt-vswatch" style={{ ['--vs' as string]: shownColors(s) }}>
-              <input type="color" value={shownColors(s)} aria-label={`${SUIT_NAME[s]} colour`} onChange={(e) => pick({ colors: { ...(v.custom ? v.colors : Object.fromEntries(SUITS.map((x) => [x, lookColor(phone, x)])) as Record<SuitKey, string>), [s]: e.target.value } })} />
-              <span aria-hidden="true">{SUIT_SYMBOL[s]}</span>
-            </label>
-          ))}
-        </span>
-      </div>
-      <div className="felt-row">
-        <span className="felt-row-main sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}>Card background
-          <Info title="Card background">The colour behind the rank and suit mark. It applies on this phone only.</Info></span>
-        <label className="felt-vswatch felt-vswatch--bg" style={{ ['--vs' as string]: v.custom ? v.bg : DEFAULT_FACE }}>
-          <input type="color" value={v.custom ? v.bg : DEFAULT_FACE} aria-label="Card background colour" onChange={(e) => pick({ bg: e.target.value })} />
-        </label>
-      </div>
-      <div className="felt-row felt-row--end">
-        <button type="button" className="sat-btn sat-btn--block" disabled={isDefault} aria-disabled={isDefault} onClick={reset}>Default</button>
-      </div>
-      {back && isDefault && (
-        <div className="felt-row felt-row--end felt-vlook-undo">
-          <button type="button" className="sat-btn sat-btn--primary sat-btn--block" onClick={() => restoreLook(back)}>Back to my colours</button>
+    <>
+      <section className="sat-glass sat-card sat-stack felt-vlook" aria-label="Big pips">
+        <div className="sat-split">
+          <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-1)' }}><h2 className="sat-h2">Big pips</h2>
+            <Info title="Big pips">Card ranks and suit marks grow, so clubs and spades are easy to tell apart. This applies on this phone only.</Info></span>
+          <Toggle on={v.big} onChange={(big) => set({ big })} label="Big pips" />
         </div>
-      )}
-    </section>
+      </section>
+      <CardsView />
+    </>
   );
 }

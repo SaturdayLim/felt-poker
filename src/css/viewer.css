@@ -4,12 +4,12 @@
 .felt-vbig .felt-card:not(.felt-cardback) { width: 40px; height: 54px; }
 .felt-vbig .felt-card.sm:not(.felt-cardback) { width: 34px; height: 46px; border-radius: 5px; }
 .felt-vbig .felt-card.lg:not(.felt-cardback) { width: 60px; height: 82px; }
-.felt-vbig .felt-card:not(.felt-cardback) .r { font-size: 20px; }
-.felt-vbig .felt-card:not(.felt-cardback) .s { font-size: 24px; margin-top: 0; }
-.felt-vbig .felt-card.sm:not(.felt-cardback) .r { font-size: 17px; }
-.felt-vbig .felt-card.sm:not(.felt-cardback) .s { font-size: 22px; }
-.felt-vbig .felt-card.lg:not(.felt-cardback) .r { font-size: 30px; }
-.felt-vbig .felt-card.lg:not(.felt-cardback) .s { font-size: 32px; }
+.felt-vbig .felt-card:not(.felt-cardback):not(.empty) .r { font-size: 20px; }
+.felt-vbig .felt-card:not(.felt-cardback):not(.empty) .s { font-size: 24px; margin-top: 0; }
+.felt-vbig .felt-card.sm:not(.felt-cardback):not(.empty) .r { font-size: 17px; }
+.felt-vbig .felt-card.sm:not(.felt-cardback):not(.empty) .s { font-size: 22px; }
+.felt-vbig .felt-card.lg:not(.felt-cardback):not(.empty) .r { font-size: 30px; }
+.felt-vbig .felt-card.lg:not(.felt-cardback):not(.empty) .s { font-size: 32px; }
 .felt-vbig .felt-card.felt-cardback.sm { width: 34px; height: 46px; }
 
 /* Board card reveal: the back shows first, a rotateY of 0 to 180 turns it to the front (src/components/viewerLook.tsx). */

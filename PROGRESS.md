@@ -1,6 +1,12 @@
 # Nightcap: progress
 
-## Latest (13 Nov 2026): 1.8.6
+## Latest (13 Nov 2026): 1.8.7
+
+- Table: fixed 1.8.6 photos (spans were inline, so tiny). Fit now leaves 12 m above the table for upper-seat actions. Brighter spotlight, white plate on the player to act. Big pips (`.tfp-big`) on the Table.
+- Player view: Card Settings = Big pips + host `CardsView` (exported from Settings.tsx). Viewer custom colours are no longer read; the phone card look is used. Players tab: photo and plate seats (`.felt-pseat`), no dealer button, no stack bubble. Candle: figures at wick ends, no Low and High words.
+- Checked in a browser: host Table (4 players, landscape 844 x 390). Not checked: player view Card Settings, Players tab, candle (needs a live room).
+
+## Earlier (13 Nov 2026): 1.8.6
 
 - Table seat layout E (owner pick from docs/mockups/seat-options.html): name plate on the photo foot, action above the head, stack in one row in front of the player, hole cards past the row. Rule in `seatSpots` (src/lib/felt.ts); plate and action CSS in src/css/tablefelt.css.
 - Not seen in the real app yet (no game in dev storage); the mockup uses the same numbers. Check on the live test.

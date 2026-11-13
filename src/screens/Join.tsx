@@ -220,7 +220,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
         {tab === 'action' && <ActionLog pub={pub} stacks={stacks} now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')}
           tablePub={tablePub} tableCorner={tableCorner} tableMe={tableMe} />}
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
-        {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
+        {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me}
           onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
         {tab === 'game' && <Rules pub={pub} />}
         {tab === 'cards' && <ViewerLookSettings />}
@@ -459,7 +459,10 @@ function StepTable({ s }: { s: ViewStreet }) {
   );
 }
 
-function PlayersTab({ pub, stacks, me, button, onCount }: { pub: PubSnapshot; stacks: StackLine[]; me: Me | null; button: string | null; onCount?: (chips: number) => Promise<void> }) {
+const SEAT_FACE = <svg viewBox="0 0 96 96" aria-hidden="true"><circle cx="48" cy="38" r="17" /><path d="M14 96c2-22 16-32 34-32s32 10 34 32z" /></svg>;
+
+/** Players: the table with each player as on the Table view (photo, then a plate with the name and stack), the standing chart, and the final count. */
+function PlayersTab({ pub, stacks, me, onCount }: { pub: PubSnapshot; stacks: StackLine[]; me: Me | null; onCount?: (chips: number) => Promise<void> }) {
   const seats = [...pub.players].sort((a, b) => a.seat - b.seat);
   // the signed-in player sits south, otherwise seat 1; the rest follow clockwise
   const at = Math.max(0, seats.findIndex((p) => p.id === me?.id));
@@ -474,11 +477,11 @@ function PlayersTab({ pub, stacks, me, button, onCount }: { pub: PubSnapshot; st
         <div className="felt-table-rail"><div className="felt-table-felt">{pub.game.name}</div></div>
         {ring.map((p, i) => {
           const a = Math.PI / 2 + (i * 2 * Math.PI) / ring.length;
+          const hue = FELT_HUES[(p.hue ?? seats.indexOf(p)) % FELT_HUES.length];
           return (
-            <div key={p.id} className={`felt-seat ${p.id === me?.id ? 'is-me' : ''}`} style={{ left: `${50 + 38 * Math.cos(a)}%`, top: `${50 + 37 * Math.sin(a)}%` }}>
-              <b className="felt-ellipsis">{p.name}</b>
-              <span className="felt-seat-stack sat-num"><NumericText value={stackText(pub.game.bb, stacks.find((s) => s.name === p.name))} /></span>
-              {button === p.name && <span className="felt-seat-btn" aria-label="Button">D</span>}
+            <div key={p.id} className={`felt-pseat ${p.id === me?.id ? 'is-me' : ''}`} style={{ left: `${50 + 40 * Math.cos(a)}%`, top: `${50 + 36 * Math.sin(a)}%`, ['--hue' as string]: hue }}>
+              <span className="felt-pseat-av" style={p.photo ? { backgroundImage: `url("${p.photo}")` } : undefined}>{!p.photo && SEAT_FACE}</span>
+              <span className="felt-pseat-tag"><b className="felt-ellipsis">{p.name}</b><span className="sat-num"><NumericText value={stackText(pub.game.bb, stacks.find((s) => s.name === p.name))} /></span></span>
             </div>
           );
         })}

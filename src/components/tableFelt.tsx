@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import { CardBack, PlayingCard } from './ui';
 import { calm, motionOff } from '../lib/motion';
 import { haptic } from '../lib/haptics';
+import { useBigPips } from './viewerLook';
 import { FELT_HUES, chipCols, chipSvg, feltAt, feltFig, seatSpots, type FeltHand, type FeltSeg, type Pt } from '../lib/felt';
 import type { Card } from '../types';
 
@@ -77,11 +78,11 @@ export function TableFelt({ hand, k, animate, me }: { hand: FeltHand; k: number;
   const [mine, setMine] = useState(false);
   const area = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0, left: 0, top: 0 });
-  // the table takes the height or the width left, whichever is less: photos reach above it, names and actions below it
+  // the table takes the height or the width left, whichever is less: the actions of the upper seats reach 12 m above it, the name plates of the lower seats 10 m below it
   useLayoutEffect(() => {
     const e = area.current;
     if (!e) return;
-    const fit = () => { const aw = e.clientWidth, ah = e.clientHeight, h = Math.max(100, Math.min(ah / 1.3, aw / 2.24)); setBox({ w: h * 2, h, left: (aw - h * 2) / 2, top: (ah - h * 1.3) / 2 + h * 0.085 }); };
+    const fit = () => { const aw = e.clientWidth, ah = e.clientHeight, h = Math.max(100, Math.min(ah / 1.22, aw / 2.24)); setBox({ w: h * 2, h, left: (aw - h * 2) / 2, top: (ah - h * 1.22) / 2 + h * 0.12 }); };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(e);
@@ -204,6 +205,7 @@ const Arrow = ({ flip }: { flip?: boolean }) => <svg viewBox="0 0 24 24" aria-hi
     Live follows the hand in play and each new hand. The timeline and the arrows move a cursor over the hand on show: that never
     changes the record. `corner` is the one button at the bottom right (log on, add own hand). */
 export function TablePage({ hands, live, idle, canLive, onBack, corner, me }: { hands: FeltHand[]; live: FeltHand | null; idle: FeltHand; canLive: boolean; onBack?: () => void; corner?: ReactNode | ((hand: FeltHand) => ReactNode); me?: FeltMe }) {
+  const big = !!useBigPips();
   const lastDone = hands[hands.length - 1];
   const [pick, setPick] = useState<'live' | number>(() => (canLive || !lastDone ? 'live' : lastDone.n));
   // the step on show; null follows the end of the hand
@@ -275,7 +277,7 @@ export function TablePage({ hands, live, idle, canLive, onBack, corner, me }: { 
   const label = (h: FeltHand) => (h.winners.length ? `Hand ${h.n} (${h.winners.join(' and ')})` : `Hand ${h.n}`);
   const value = pick === 'live' ? 'live' : String(hand.n);
   return createPortal(
-    <div className="tfp">
+    <div className={`tfp ${big ? 'tfp-big' : ''}`}>
       <div className="tfp-area">
         {onBack && <button type="button" className="tfp-round tfp-back" aria-label="Back" onClick={onBack}><Arrow /></button>}
         {canLive && (

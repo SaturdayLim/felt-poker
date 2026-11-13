@@ -1,5 +1,13 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.2', date: '13 Nov 2026', notes: [
+    'Table: a new layout, on its side for a phone. Each photo sits on the rail with the name, the stack and the last action under it.',
+    'Table: hole cards and chips stay beside their own player. Committed chips sit past the cards. Folded cards go to the muck beside the board.',
+    'Table: the player to act is lit and the others dim. A folded player fades far back.',
+    'Table: the pot sits under the board and each side pot joins the row to its left, with the mark of the all-in player who can win it.',
+    'Table: stacks, bets and pots are drawn as chips. The pot moves to the winner at the result.',
+    'Player view: Table opens the same table, with a timeline for each hand, Live, and the card button to log on or add own hand.',
+  ] },
   { version: '1.8.1', date: '13 Nov 2026', notes: [
     'The mark: the S covers more of each circle.',
     'App update: Check for update opens Nightcap again from the load screen.',

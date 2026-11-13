@@ -1,6 +1,17 @@
 # Nightcap: progress
 
-## Latest (13 Nov 2026): 1.8.0
+## Latest (13 Nov 2026): 1.8.2
+- Shipped: the Table rebuilt to the owner's design notes, for the host (game page > Table, #/watch/<id>) and for the player view (Join > Action > Table).
+- One engine: src/lib/felt.ts (`FeltHand`, `feltSteps`, `feltAt`, `feltPots`, `seatSpots`, chips). One screen: src/components/tableFelt.tsx (`TableFelt`, `TablePage`), styles src/css/tablefelt.css. spectator.css is gone; birdsEye.tsx is no longer used by Join.
+- Host adapter: src/screens/Spectator.tsx (replay.ts `handSteps` -> FeltHand). Player adapter: src/live/feltView.ts (`viewActions` reads the viewer boxes) and src/components/viewerTable.tsx.
+- Layout rule (`seatSpots`): every part is measured from its own seat's point on the rail. Lower and side seats: cards straight in front of the photo, stack beside it. Upper seats (name hangs over the cloth): stack and cards beside the name, toward the middle. Test: each part is nearer to its own photo than to any other, 2 to 10 players.
+- Pots: the pot that still grows is "Pot" (centred under the board); a pot capped by an all-in is "Side pot", to its left, with that player's mark.
+- Tests: src/lib/felt.test.ts, src/live/feltView.test.ts (viewer boxes give the same chips per player as the host replay, on the trial backups).
+- Seen in the Browser pane on the synthetic 4-player game: host Table (side pot hand step by step, lit player, fold fade), player view Table through a mock room, the code sheet above the table. Not seen: a real phone, 9 players in the real app, chip slides frame by frame.
+- Not built: selfies, colour pick on your own photo (both need a sync path), stacks on finished hands in the player view (the snapshot has none).
+- Mockups (not in the build): docs/mockups/table.html, table-editor.html, table-v3.html.
+
+## Earlier (13 Nov 2026): 1.8.0
 - Shipped: rename Felt to Nightcap (user text only; code names and storage keys stay), Table (spectator view), load screen inside the app page with a glide into the first screen, new mark (smaller chips, open S ends), rail dot fix, Export rows with explicit heights, four CSV files (action log added, hand start/end/duration/final pot).
 - Table: game page > Table tab, or the link button opens #/watch/<id> in a new window. Engine: src/lib/replay.ts (`handSteps`, `tableAt`, `resultAt`), tests in src/lib/replay.test.ts (66 real hands from the trial backups: wagers match `contributions`, end stacks match the next hand's stacks). The watch window never writes: store.ts skips IDB writes when WATCH; other windows post "saved" on BroadcastChannel nightcap-store and the watch window rehydrates. The live hand comes from the recorder draft (felt-draft-<id>, localStorage); `mine` is dropped on read.
 - Seen in the Browser pane (synthetic 4-player game built in the page, not owner data): side pot and split hand, hand won pre-flop, live follow across two tabs (draft and saved hand), Live with a behind count, scrubbing leaves the scorer data unchanged, 44 views with no private card in the DOM, the watch window cannot write IDB, TV layout at 1280 x 720.

@@ -1,0 +1,140 @@
+/* The table from above (src/components/tableFelt.tsx): the host's Table and the player view's Table.
+   Sizes inside the table are in --m, 1% of the table height, so one layout serves a phone and a TV.
+   The table itself is art (cloth, wood, chips): its colours are fixed. The buttons round it use the app tokens.
+   One accent only: the player to act is lit and everyone else is dimmed, All-in is orange and Live is red. */
+
+/* the screen: always landscape. A phone held upright shows it turned, so the player turns the phone. */
+.tfp { position: fixed; left: 0; top: 0; z-index: 40; width: 100dvw; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: #0f1113; color: #ebf1f5;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); touch-action: none; overscroll-behavior: contain; }
+@media (orientation: portrait) {
+  .tfp { width: 100dvh; height: 100dvw; transform-origin: 0 0; transform: rotate(90deg) translateY(-100%);
+    padding: env(safe-area-inset-left) env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom); }
+}
+.tfp-area { position: relative; flex: 1; min-height: 0; }
+.tf-area { position: absolute; inset: 0; }
+.tfp button { cursor: pointer; font: inherit; color: inherit; }
+.tfp-round { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(235,241,245,.18); background: #1c1e21; display: grid; place-items: center; padding: 0; }
+.tfp-round svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tfp-round:disabled { opacity: .35; }
+.tfp-back { position: absolute; left: 10px; top: 10px; z-index: 20; }
+.tfp-live { position: absolute; right: 10px; top: 10px; z-index: 20; min-height: 40px; padding: 0 16px; border-radius: 20px; border: 0; background: #e5484d; color: #fff; font-weight: 700; display: flex; align-items: center; gap: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 0 14px 2px rgba(229,72,77,.7); }
+.tfp-live.is-on { animation: tfp-glow 1.8s ease-in-out infinite; }
+.tfp-live i { width: 9px; height: 9px; border-radius: 50%; background: #fff; }
+.tfp-behind { font: 700 12px var(--sat-font-mono, monospace); padding: 0 6px; border-radius: 9px; background: #fff; color: #e5484d; }
+@keyframes tfp-glow { 50% { box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 0 26px 7px rgba(229,72,77,.75); } }
+
+.tfp-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 10px 6px; }
+.tfp-pick { flex: none; height: 38px; max-width: 150px; padding: 0 8px; border-radius: 8px; border: 1px solid rgba(235,241,245,.18); background: #1c1e21; color: inherit; font: inherit; }
+.tfp-pick option { color: #1c1e21; background: #fff; }
+/* the timeline: plain, with no accent. Past stops are light; the stop on show is a white knob. */
+.tfp-track { flex: 1; min-width: 0; display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; }
+.tfp-track::-webkit-scrollbar { display: none; }
+.tfp-seg { flex: none; position: relative; display: flex; height: 38px; border-radius: 6px; background: #1c1e21; border: 1px solid rgba(235,241,245,.14); overflow: hidden; }
+.tfp-seg em { position: absolute; left: 5px; top: 2px; font: 600 9.5px var(--sat-font-ui, sans-serif); font-style: normal; color: #97a1ac; pointer-events: none; white-space: nowrap; }
+.tfp-stop { width: 20px; min-width: 20px; height: 100%; border: 0; padding: 0; background: none; position: relative; }
+.tfp-seg .tfp-stop:first-of-type:last-of-type { min-width: 46px; }
+.tfp-stop::after { content: ''; position: absolute; left: 50%; margin-left: -1px; top: 18px; bottom: 6px; width: 2px; border-radius: 1px; background: #97a1ac; opacity: .45; }
+.tfp-stop.is-past { background: rgba(235,241,245,.08); }
+.tfp-stop.is-past::after { background: #ebf1f5; opacity: .9; }
+.tfp-stop[aria-current="step"]::after { margin-left: -6px; width: 12px; top: 16px; bottom: auto; height: 12px; border-radius: 50%; background: #fff; opacity: 1; box-shadow: 0 0 0 2px #1c1e21, 0 0 0 3.5px #ebf1f5; }
+/* the corner button: the card button of the app, in the Main colour */
+.tfp-fab { flex: none; --felt-fab-bg: var(--sat-accent-fill, #0052cc); width: 46px; height: 46px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; background: var(--felt-fab-bg); color: var(--sat-on-accent, #fff); box-shadow: var(--felt-elev-2); }
+.tfp-fab svg { width: 28px; height: 28px; }
+
+/* ---------- the table ---------- */
+.tf { position: absolute; font-family: var(--sat-font-ui, sans-serif); line-height: 1.15; }
+.tf-wood { position: absolute; inset: 0; border-radius: 9999px;
+  background: repeating-linear-gradient(96deg, rgba(0,0,0,.14) 0 2px, transparent 2px 9px), repeating-linear-gradient(84deg, rgba(255,255,255,.06) 0 1px, transparent 1px 13px), linear-gradient(#7a4e2b, #4f2f18);
+  box-shadow: 0 calc(var(--m) * 2.4) calc(var(--m) * 4.8) rgba(0,0,0,.55), inset 0 calc(var(--m) * .3) 0 rgba(255,255,255,.22), inset 0 calc(var(--m) * -.5) calc(var(--m) * .8) rgba(0,0,0,.5); }
+.tf-pad { position: absolute; inset: calc(var(--m) * 1.4); border-radius: 9999px; background: linear-gradient(#34373c, #17181b);
+  box-shadow: inset 0 calc(var(--m) * .5) calc(var(--m) * .6) rgba(255,255,255,.16), inset 0 calc(var(--m) * -.8) calc(var(--m) * 1) rgba(0,0,0,.6); }
+.tf-cloth { --felt: #1d7a52; position: absolute; inset: calc(var(--m) * 5.4); border-radius: 9999px; overflow: hidden;
+  background: radial-gradient(ellipse 70% 85% at 50% 42%, color-mix(in srgb, var(--felt) 78%, #fff) 0%, var(--felt) 45%, color-mix(in srgb, var(--felt) 58%, #000) 100%);
+  box-shadow: inset 0 calc(var(--m) * 1.4) calc(var(--m) * 2.6) rgba(0,0,0,.6), inset 0 0 calc(var(--m) * 7) rgba(0,0,0,.35), 0 0 0 calc(var(--m) * .3) rgba(0,0,0,.55); }
+/* the nap of the cloth: fine noise, darker and lighter */
+.tf-cloth::before, .tf-cloth::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
+.tf-cloth::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: .42; mix-blend-mode: multiply; }
+.tf-cloth::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: .16; mix-blend-mode: soft-light; }
+.tf-passline { position: absolute; inset: calc(var(--m) * 15.5); border-radius: 9999px; border: calc(var(--m) * .26) solid rgba(255,255,255,.2); box-shadow: 0 0 0 calc(var(--m) * .1) rgba(0,0,0,.2), inset 0 0 0 calc(var(--m) * .1) rgba(0,0,0,.2); pointer-events: none; }
+/* the mark, pressed into the cloth: a dark line with a light lip under it */
+.tf-etch { position: absolute; left: 50%; top: 50%; height: calc(var(--m) * 54); transform: translate(-50%, -50%); fill: none; stroke-linecap: round; stroke-width: 1.1; overflow: visible; }
+.tf-etch .lo { stroke: rgba(255,255,255,.1); transform: translateY(.9px); }
+.tf-etch .hi { stroke: rgba(0,0,0,.2); }
+.tf-etch .s { stroke-width: 2.6; }
+
+.tf-at { position: absolute; transform: translate(-50%, -50%); transition: left 500ms cubic-bezier(.22,1,.36,1), top 500ms cubic-bezier(.22,1,.36,1), opacity 300ms linear, transform 500ms cubic-bezier(.22,1,.36,1); }
+.tf-noanim .tf-at, .tf-noanim .tf-at *, .tf-noanim .tf-player { transition: none !important; animation: none !important; }
+
+/* the light on the player to act */
+.tf-light { z-index: 1; width: calc(var(--m) * 46); height: calc(var(--m) * 46); border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(255,255,255,.3) 0%, rgba(255,255,255,.12) 38%, transparent 68%); mix-blend-mode: soft-light; }
+.tf-light[data-on="true"] { opacity: 1; }
+
+/* seat: the photo on the rail, then the name and stack, then the last action, each under the one before */
+.tf-seat { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .7); transform: translate(-50%, calc(var(--m) * -5.6)); z-index: 6; }
+.tf-av { width: calc(var(--m) * 11.2); height: calc(var(--m) * 11.2); border-radius: 50%; flex: none; overflow: hidden; background: color-mix(in srgb, var(--hue) 50%, #14161a);
+  box-shadow: 0 0 0 calc(var(--m) * .55) #3c4148, 0 0 0 calc(var(--m) * .85) rgba(0,0,0,.6), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); transition: box-shadow 250ms; }
+.tf-av svg { width: 100%; height: 100%; display: block; fill: rgba(255,255,255,.82); }
+.tf-tag { min-width: calc(var(--m) * 15); padding: calc(var(--m) * .45) calc(var(--m) * 1.6) calc(var(--m) * .55); border-radius: calc(var(--m) * 1.2); background: #14161a; color: #fff; text-align: center; white-space: nowrap;
+  font-size: max(9.5px, calc(var(--m) * 2.5)); box-shadow: 0 calc(var(--m) * .4) calc(var(--m) * .8) rgba(0,0,0,.45); }
+.tf-tag b { display: block; font-weight: 600; max-width: calc(var(--m) * 20); overflow: hidden; text-overflow: ellipsis; }
+.tf-tag small { display: block; min-height: 1.15em; font: 600 .95em var(--sat-font-mono, monospace); color: #aeb7c0; }
+.tf-gain { color: #e9b84a; }
+.tf-act { padding: calc(var(--m) * .2) calc(var(--m) * 1.3); border-radius: calc(var(--m) * .8); background: #ebf1f5; color: #1c1e21; font-weight: 700; font-size: max(9px, calc(var(--m) * 2.3)); white-space: nowrap; }
+.tf-act:empty { visibility: hidden; padding: 0; }
+.tf-act.is-allin { background: #ff5722; color: #fff; }
+
+/* who has the eye: the player to act is lit, the rest of the table steps back, a folded player nearly leaves */
+.tf-player { transition: opacity 300ms linear, filter 300ms linear; }
+.tf-player.is-lit .tf-av { box-shadow: 0 0 0 calc(var(--m) * .7) #fff, 0 0 calc(var(--m) * 3) calc(var(--m) * 1.4) rgba(255,255,255,.55), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); }
+.tf-player.is-win .tf-av { box-shadow: 0 0 0 calc(var(--m) * .7) #e9b84a, 0 0 calc(var(--m) * 3) calc(var(--m) * 1.2) rgba(233,184,74,.5), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); }
+.tf-player.is-dim .tf-seat, .tf-player.is-dim .tf-stack { opacity: .6; }
+.tf-player.is-out .tf-seat, .tf-player.is-out .tf-stack, .tf-player.is-idle .tf-seat, .tf-player.is-idle .tf-stack { opacity: .2; }
+.tf-player.is-out .tf-av, .tf-player.is-idle .tf-av { filter: grayscale(1); }
+
+/* cards: the app's cards, sized from the table */
+.tf .felt-card { transition: none; flex: none; }
+.tf-board { display: flex; gap: calc(var(--m) * 1); z-index: 3; }
+.tf-board > span, .tf-hole > span { display: block; }
+.tf-board .felt-card { width: calc(var(--m) * 9.4); height: calc(var(--m) * 13.2); border-radius: calc(var(--m) * .9); }
+.tf-board .felt-card .r { font-size: calc(var(--m) * 4.6); }
+.tf-board .felt-card .s { font-size: calc(var(--m) * 4.2); margin-top: 0; }
+.tf-slot { background: rgba(0,0,0,.16); border: 0; box-shadow: inset 0 calc(var(--m) * .3) calc(var(--m) * .5) rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.12); display: block; }
+.tf-hole { display: flex; z-index: 4; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)); }
+.tf-hole .felt-card { width: calc(var(--m) * 5.2); height: calc(var(--m) * 7.3); border-radius: calc(var(--m) * .5); box-shadow: 0 calc(var(--m) * .3) calc(var(--m) * .6) rgba(0,0,0,.45); }
+.tf-hole > span + span { margin-left: calc(var(--m) * -2.3); }
+.tf-hole.is-up { z-index: 7; }
+.tf-hole.is-up .felt-card { width: calc(var(--m) * 7); height: calc(var(--m) * 9.8); }
+.tf-hole.is-up .felt-card .r { font-size: calc(var(--m) * 3.5); }
+.tf-hole.is-up .felt-card .s { font-size: calc(var(--m) * 3.2); margin-top: 0; }
+.tf-hole.is-up > span + span { margin-left: calc(var(--m) * .4); }
+.tf-hole.is-muck { opacity: .75; }
+.tf-flip { animation: tf-flip 340ms cubic-bezier(.22,1,.36,1); }
+@keyframes tf-flip { from { transform: perspective(500px) rotateY(90deg); } }
+.tf-dealer { z-index: 5; display: grid; place-items: center; width: calc(var(--m) * 4.4); height: calc(var(--m) * 4.4); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #d9d4c6); color: #1c1e21; font-weight: 800; font-size: max(8px, calc(var(--m) * 2.3));
+  box-shadow: 0 calc(var(--m) * .3) 0 #8d897c, 0 calc(var(--m) * .6) calc(var(--m) * .9) rgba(0,0,0,.5), inset 0 0 0 calc(var(--m) * .3) #1c1e21;
+  transition: left 700ms cubic-bezier(.65,0,.35,1), top 700ms cubic-bezier(.65,0,.35,1); }
+
+/* chips */
+.tf-chips { display: block; }
+.tf-chips svg { display: block; width: 100%; height: auto; overflow: visible; }
+.tf-stack { z-index: 2; }
+.tf-col { position: absolute; transform: translate(-50%, -100%); z-index: 2; }
+.tf-bet, .tf-fly, .tf-pot { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .4); }
+.tf-bet { z-index: 3; }
+.tf-bet[data-on="false"] { visibility: hidden; }
+.tf-fly { z-index: 8; opacity: 0; }
+.tf-amt { display: inline-flex; align-items: center; gap: .35em; padding: 0 .55em; border-radius: 1em; background: rgba(0,0,0,.55); color: #fff; font: 600 max(9px, calc(var(--m) * 2.3)) var(--sat-font-mono, monospace); white-space: nowrap; }
+.tf-amt em { font: 600 1em var(--sat-font-ui, sans-serif); font-style: normal; color: #c9d1d8; }
+.tf-amt.is-allin { background: #ff5722; }
+.tf-amt i { width: 1.35em; height: 1.35em; margin: .12em 0; border-radius: 50%; background: var(--hue); color: #fff; font: 700 .82em var(--sat-font-ui, sans-serif); font-style: normal; display: grid; place-items: center; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+/* one row under the board: the pot is centred, and each side pot stands to its left */
+.tf-pots { position: absolute; right: calc(50% - var(--m) * 9); transform: translateY(-50%); display: flex; flex-direction: row-reverse; align-items: flex-end; gap: calc(var(--m) * 1.5); z-index: 3; }
+.tf-pot { min-width: calc(var(--m) * 18); }
+
+/* Reduced motion: fades, no travel. Animation speed Off: cuts. */
+html[data-calm] .tf-at, html[data-calm] .tf-dealer { transition: opacity 150ms linear; }
+html[data-calm] .tf-flip, html[data-calm] .tfp-live.is-on { animation: none; }
+html[data-motion-off] .tf-at, html[data-motion-off] .tf-dealer, html[data-motion-off] .tf-player, html[data-motion-off] .tf-av { transition: none; }
+html[data-motion-off] .tf-flip, html[data-motion-off] .tfp-live.is-on { animation: none; }

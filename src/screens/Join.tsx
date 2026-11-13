@@ -1,14 +1,14 @@
 /* The player view of a live game. Opened from the host's link or the scanner. A viewer can read the action and the
    settings, read every closed hand street by street, add their own cards (with their code) and flag a wrong update.
    Nothing else: no reports, no awards, no settings. A signed-in player sees only their own hidden cards, never anyone else's. */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CardPair, Empty, Header, Help, Icon, Info, NewItemsPill, NumericText, Sheet, SlidePane, TabPill, toast, WordButton } from '../components/ui';
 import { calm } from '../lib/motion';
 import { isRangeStack } from '../lib/stacks';
 import { CardEntrySheet } from '../components/cardEntry';
 import { CodeBoxes } from '../components/codeBoxes';
 import { MinRaiseTip } from '../components/rules';
-import { BirdsEye } from '../components/birdsEye';
+import { ViewerTable } from '../components/viewerTable';
 import { RevealProvider, useBigPips, useSeenCards, VCards, ViewerLookSettings } from '../components/viewerLook';
 import { StandingChart } from '../components/candle';
 import { lock, unlock, type LockBox } from '../report/lock';
@@ -199,7 +199,8 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
       <SlidePane k={tab} i={TABS.findIndex((t) => t.k === tab)}>
       <div className="sat-stack" style={gap(3)}>
-        {tab === 'action' && <ActionLog pub={pub} stacks={stacks} now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')} />}
+        {tab === 'action' && <ActionLog pub={pub} stacks={stacks} now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')}
+          tableFab={<button type="button" className="tfp-fab" aria-label={me ? 'Add own hand' : 'Log on with your player code'} onClick={() => setSheet(me ? 'cards' : 'code')}><Icon name="cardsadd" size={28} stroke={1.8} /></button>} />}
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me} button={now?.view.button ?? pub.button}
           onCount={me && code ? async (chips) => { await driver.set(room, `inbox/${me.id}/count`, await lock({ count: chips }, code)); } : undefined} />}
@@ -293,7 +294,7 @@ function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blind
   );
 }
 
-function ActionLog({ pub, stacks, now: sent, hands, blinds, onFlag }: { pub: PubSnapshot; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void }) {
+function ActionLog({ pub, stacks, now: sent, hands, blinds, onFlag, tableFab }: { pub: PubSnapshot; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void; tableFab?: ReactNode }) {
   // a new hand shows only after real action: blinds and card entry alone do not count
   const now = sent && sent.acted !== false ? sent : null;
   const closed = now ? hands.filter((h) => h.n !== now.n) : hands;
@@ -324,13 +325,13 @@ function ActionLog({ pub, stacks, now: sent, hands, blinds, onFlag }: { pub: Pub
         </div>
         <Info title="Table view">
           <span style={{ display: 'block' }}>List shows the action as text.</span>
-          <span style={{ display: 'block' }}>Table shows the seats from above. The button is at the bottom.</span>
-          <span style={{ display: 'block' }}>A ring marks the player to act. Red chips show what a player put in this hand.</span>
-          <span style={{ display: 'block' }}>The light above a name: green is playing, amber is away, red is out of the game.</span>
-          <span style={{ display: 'block' }}>A faded seat with a dashed outline is not in this hand.</span>
+          <span style={{ display: 'block' }}>Table shows the table from above, on its side. Turn the phone to read it.</span>
+          <span style={{ display: 'block' }}>The player to act is lit. A folded player fades.</span>
+          <span style={{ display: 'block' }}>Hole cards stay face down. They turn face up only when shown at the table.</span>
+          <span style={{ display: 'block' }}>The timeline replays a hand, one action for each stop. Live goes back to the hand in play.</span>
         </Info>
       </div>
-      {table && <BirdsEye pub={pub} now={sent} stacks={stacks} />}
+      {table && <ViewerTable pub={pub} now={sent} stacks={stacks} onBack={() => pick(false)} corner={tableFab} />}
       {!table && <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />}
       {!table && !now && !hands.length && <div className="sat-flat sat-card sat-small">No hands yet.</div>}
       {!table && now && <HandFrame key={now.n} n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}

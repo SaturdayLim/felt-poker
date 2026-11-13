@@ -1,5 +1,12 @@
 # Nightcap: progress
 
+## In progress (13 Nov 2026): 1.8.5, not shipped yet
+- DONE and committed locally (not pushed): one seat rule for every table size in `seatSpots` (src/lib/felt.ts). Each seat is the same seen from its own chair: hole cards straight in front, committed chips past them, dealer button at the front left corner of the cards, stack along the rail on the player's left. Upper seats: cards lie past the action label; the stack starts where the name ends. `FELT_MOVES` (src/lib/feltLayout.ts) is empty. Checked in docs/mockups/table-sizes.html at 6, 9 and 10 players.
+- RUNNING when this note was written: an agent building the owner's player-view list in src/screens/Join.tsx and nearby (icon tabs, Card Settings and Game Settings, Players tab redraw, candle numbers at the wick ends, hold-to-scrub timeline in tableFelt.tsx, Action tip, code box caret, min raise and 7-2 tips for the selected option only). Its edits are UNCOMMITTED in the working tree. A second agent reviews the whole app, read only.
+- TO FINISH: read both reports; check the player-view edits (`npx tsc -b`, `npx vitest run`, a look in the browser at #/join/<room>); bump to 1.8.5 with a changelog entry; build; commit; push main; write the handover with the review findings.
+- If the player-view edits look wrong: `git diff` shows them; `git checkout -- <file>` drops one file.
+- Open question for the owner: on the top half of the table the name and action hang over the cloth, which crowds the cards. Recommended fix: put the name and action ABOVE the photo for top-half seats (outside the table, as bottom seats have them below), so every seat keeps cards right in front of the photo. Not built: the owner first asked for names under the photo.
+
 ## Latest (13 Nov 2026): 1.8.4
 - Table layout per size: src/lib/feltLayout.ts `FELT_MOVES` holds the owner's drags for 2 to 10 players (m right and down, added to the rule in `seatSpots`). To change a place: open docs/mockups/table-sizes.html from the dev server (it edits on top of the rule alone and keeps its work in localStorage `nightcap-table-sizes-v1`), drag, then copy the moves into feltLayout.ts. Do not change the rule in `seatSpots` without redoing the moves.
 - Committed chips show the amount alone; "All-in to N" stays under the player's name for the rest of the hand.

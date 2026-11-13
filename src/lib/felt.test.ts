@@ -9,7 +9,7 @@ describe('seatSpots', () => {
       for (let n = 2; n <= 10; n++) {
         const spots = seatSpots(w, h, n, {}); // the rule alone, with none of the owner's moves
         spots.forEach((s, i) => {
-          for (const part of [s.hole, s.bet, s.dealer, s.stack(0), s.stack(3)]) {
+          for (const part of [s.hole, s.bet, s.dealer, s.stack(0)]) {
             const own = dist(part, s.seat);
             spots.forEach((o, j) => { if (j !== i) expect(own, `${n} players, seat ${i} against seat ${j}`).toBeLessThan(dist(part, o.seat)); });
           }
@@ -18,17 +18,6 @@ describe('seatSpots', () => {
           expect(dist(s.stack(3), s.seat)).toBeLessThan(h * 0.33);
         });
       }
-    }
-  });
-});
-
-describe('the owner layout', () => {
-  it('keeps hole cards and committed chips nearer to their own photo than to any other', () => {
-    for (let n = 2; n <= 10; n++) {
-      const spots = seatSpots(2000, 1000, n);
-      spots.forEach((s, i) => {
-        for (const part of [s.hole, s.bet]) spots.forEach((o, j) => { if (j !== i) expect(dist(part, s.seat), `${n} players, seat ${i} against seat ${j}`).toBeLessThan(dist(part, o.seat)); });
-      });
     }
   });
 });

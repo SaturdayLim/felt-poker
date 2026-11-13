@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nightcap Table Layout</title>
+<!-- Mockup only (owner review, 13 Nov 2026). Not part of the app build. Sample players: no game data.
+     A still table. Every part can be dragged, turned, sized and moved between layers. Copy layout gives the result as JSON. -->
+<style>
+  @font-face { font-family: 'Geist'; font-weight: 100 900; font-display: swap; src: url('../../src/saturday/fonts/Geist-Variable.woff2') format('woff2'); }
+  @font-face { font-family: 'Geist Mono'; font-weight: 100 900; font-display: swap; src: url('../../src/saturday/fonts/GeistMono-Variable.woff2') format('woff2'); }
+  :root { --ui: 'Geist', 'Segoe UI', system-ui, -apple-system, sans-serif; --mono: 'Geist Mono', ui-monospace, Consolas, monospace;
+    --page: #121417; --panel: #1c1e21; --well: #25282c; --text: #EBF1F5; --muted: #97a1ac; --line: rgba(235,241,245,.16); --line-strong: rgba(235,241,245,.3);
+    --accent: #0052CC; --orange: #FF5722; --gold: #E9B84A; --neg: #e5484d; --felt: #1d7a52; --ease: cubic-bezier(.22,1,.36,1); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--page); color: var(--text); font: 14px/1.35 var(--ui); -webkit-user-select: none; user-select: none; }
+  body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  /* ---------- the table ---------- */
+  .stage { display: grid; place-items: center; padding: 70px 60px; min-width: 0; overflow: hidden; }
+  .tb { position: relative; width: min(100%, calc((100svh - 150px) * 2)); aspect-ratio: 2 / 1; touch-action: none; }
+  /* wood edge, padded rail, then the cloth */
+  .wood { position: absolute; inset: 0; border-radius: 9999px;
+    background: repeating-linear-gradient(96deg, rgba(0,0,0,.14) 0 2px, transparent 2px 9px), repeating-linear-gradient(84deg, rgba(255,255,255,.06) 0 1px, transparent 1px 13px), linear-gradient(#7a4e2b, #4f2f18);
+    box-shadow: 0 calc(var(--m) * 2.4) calc(var(--m) * 4.8) rgba(0,0,0,.55), 0 calc(var(--m) * .6) calc(var(--m) * 1.2) rgba(0,0,0,.5), inset 0 calc(var(--m) * .3) 0 rgba(255,255,255,.22), inset 0 calc(var(--m) * -.5) calc(var(--m) * .8) rgba(0,0,0,.5); }
+  .pad { position: absolute; inset: calc(var(--m) * 1.6); border-radius: 9999px; background: linear-gradient(#34373c, #17181b);
+    box-shadow: inset 0 calc(var(--m) * .5) calc(var(--m) * .6) rgba(255,255,255,.16), inset 0 calc(var(--m) * -.8) calc(var(--m) * 1) rgba(0,0,0,.6), 0 0 0 calc(var(--m) * .2) rgba(0,0,0,.5); }
+  .cloth { position: absolute; inset: calc(var(--m) * 6.2); border-radius: 9999px; overflow: hidden;
+    background: radial-gradient(ellipse 70% 85% at 50% 42%, color-mix(in srgb, var(--felt) 78%, #fff) 0%, var(--felt) 45%, color-mix(in srgb, var(--felt) 58%, #000) 100%);
+    box-shadow: inset 0 calc(var(--m) * 1.4) calc(var(--m) * 2.6) rgba(0,0,0,.6), inset 0 0 calc(var(--m) * 7) rgba(0,0,0,.35), 0 0 0 calc(var(--m) * .35) rgba(0,0,0,.55); }
+  /* the nap of the cloth: fine noise, darker and lighter */
+  .cloth::before, .cloth::after { content: ''; position: absolute; inset: 0; }
+  .cloth::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: .42; mix-blend-mode: multiply; }
+  .cloth::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: .16; mix-blend-mode: soft-light; }
+  .betline { position: absolute; inset: calc(var(--m) * 13); border-radius: 9999px; border: calc(var(--m) * .28) solid rgba(255,255,255,.2); box-shadow: 0 0 0 calc(var(--m) * .12) rgba(0,0,0,.18), inset 0 0 0 calc(var(--m) * .12) rgba(0,0,0,.18); pointer-events: none; }
+
+  .it { position: absolute; left: 0; top: 0; cursor: grab; transition: left 400ms var(--ease), top 400ms var(--ease); }
+  .dragging .it { transition: none; cursor: grabbing; }
+  .it.sel { outline: 1.5px dashed #fff; outline-offset: 4px; }
+  .it[hidden] { display: none; }
+  .rot { position: absolute; left: 50%; top: -26px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); cursor: crosshair; }
+  .rot::after { content: ''; position: absolute; left: 5px; top: 14px; width: 2px; height: 10px; background: #fff; }
+
+  /* parts */
+  .pt { display: block; width: calc(var(--m) * 13); height: calc(var(--m) * 13); border-radius: 50%; background: color-mix(in srgb, var(--hue) 55%, #101214); background-size: cover; background-position: center; overflow: hidden;
+    box-shadow: 0 0 0 calc(var(--m) * .7) var(--hue), 0 0 0 calc(var(--m) * 1.05) rgba(0,0,0,.6), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); }
+  .pt svg { width: 100%; height: 100%; display: block; }
+  .nm { display: block; min-width: calc(var(--m) * 18); padding: calc(var(--m) * .7) calc(var(--m) * 2.2) calc(var(--m) * .8); border-radius: calc(var(--m) * 1.4); background: #14161a; color: #fff; text-align: center; white-space: nowrap; line-height: 1.15;
+    font-size: max(10px, calc(var(--m) * 2.7)); border-bottom: calc(var(--m) * .5) solid var(--hue); box-shadow: 0 calc(var(--m) * .4) calc(var(--m) * .8) rgba(0,0,0,.45); }
+  .nm b { display: block; font-weight: 600; }
+  .nm small { display: block; font: 600 .92em var(--mono); color: #aeb7c0; }
+  .db { display: grid; place-items: center; width: calc(var(--m) * 5); height: calc(var(--m) * 5); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #d9d4c6); color: #1c1e21; font-weight: 800; font-size: max(9px, calc(var(--m) * 2.6));
+    box-shadow: 0 calc(var(--m) * .35) 0 #8d897c, 0 calc(var(--m) * .7) calc(var(--m) * 1) rgba(0,0,0,.5), inset 0 0 0 calc(var(--m) * .35) #1c1e21; }
+  .ai { display: block; padding: calc(var(--m) * .3) calc(var(--m) * 1.6); border-radius: calc(var(--m) * .8); background: var(--orange); color: #fff; font-weight: 800; font-size: max(10px, calc(var(--m) * 2.7)); white-space: nowrap; box-shadow: 0 calc(var(--m) * .4) calc(var(--m) * .8) rgba(0,0,0,.4); }
+  .ac { display: block; padding: calc(var(--m) * .3) calc(var(--m) * 1.5); border-radius: calc(var(--m) * .8); background: #EBF1F5; color: #1c1e21; font-weight: 700; font-size: max(10px, calc(var(--m) * 2.5)); white-space: nowrap; box-shadow: 0 calc(var(--m) * .4) calc(var(--m) * .8) rgba(0,0,0,.4); }
+  .cards { display: flex; gap: calc(var(--m) * .5); }
+  .cd { --w: calc(var(--m) * 6.4); position: relative; width: var(--w); height: calc(var(--w) * 1.4); border-radius: calc(var(--w) * .1); background: linear-gradient(#fff, #eef0f1); color: #1c1e21; display: grid; place-items: center; flex: none;
+    box-shadow: 0 calc(var(--m) * .35) calc(var(--m) * .7) rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.25); font-weight: 700; }
+  .cd i { position: absolute; left: 9%; top: 5%; font-style: normal; font-size: calc(var(--w) * .34); line-height: 1; }
+  .cd span { font-size: calc(var(--w) * .58); line-height: 1; margin-top: 18%; font-family: system-ui, sans-serif; }
+  .cd.red { color: #c8372d; }
+  .cd.bk { background: #1C1E21; box-shadow: 0 calc(var(--m) * .35) calc(var(--m) * .7) rgba(0,0,0,.45), inset 0 0 0 calc(var(--w) * .06) #EBF1F5; }
+  .cd.bk svg { height: 46%; fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round; }
+  .board .cd { --w: calc(var(--m) * 9.6); }
+  .chipbox { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .5); }
+  .chipbox svg { display: block; height: auto; overflow: visible; }
+  .amt { padding: 0 .6em; border-radius: 1em; background: rgba(0,0,0,.55); color: #fff; font: 600 max(10px, calc(var(--m) * 2.5)) var(--mono); white-space: nowrap; }
+  .amt em { font: 600 1em var(--ui); font-style: normal; color: #c9d1d8; margin-right: .4em; }
+
+  /* ---------- side panel ---------- */
+  aside { background: var(--panel); border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row + .row { margin-top: 8px; }
+  .row label { flex: 1; min-width: 0; }
+  .btn { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--well); }
+  .btn:active { transform: scale(.96); }
+  .btn.main { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.sq { width: 36px; padding: 0; font-size: 18px; }
+  .num { font: 600 15px var(--mono); min-width: 28px; text-align: center; }
+  input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  input[type=color] { width: 36px; height: 36px; padding: 0; border: 1px solid var(--line-strong); border-radius: 8px; background: none; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; flex: 1; }
+  .seg button { min-height: 34px; border: 0; background: none; }
+  .seg button[aria-pressed=true] { background: var(--text); color: var(--panel); font-weight: 600; }
+  .list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .list button { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 10px; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; }
+  .list button:first-child { border-top: 0; }
+  .list button.on { background: var(--well); }
+  .list .z { font: 600 12px var(--mono); color: var(--muted); margin-left: auto; }
+  .list .eye { width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); }
+  .list .eye[data-off=true] { opacity: .3; }
+  .hint { margin: 0; color: var(--muted); font-size: 12.5px; }
+  textarea { width: 100%; height: 84px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--well); padding: 8px; font: 11px/1.4 var(--mono); resize: vertical; -webkit-user-select: text; user-select: text; }
+  #insp[hidden] { display: none; }
+  .said { min-height: 1.3em; color: var(--gold); font-size: 12.5px; margin: 0; }
+
+  /* ---------- player code: the app's six boxes ---------- */
+  .veil { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.55); display: grid; align-items: end; justify-items: center; opacity: 0; pointer-events: none; transition: opacity 250ms; }
+  .veil.open { opacity: 1; pointer-events: auto; }
+  .sheet { width: min(100%, 440px); background: var(--panel); border: 1px solid var(--line); border-bottom: 0; border-radius: 20px 20px 0 0; padding: 10px 20px 24px; transform: translateY(100%); transition: transform 350ms var(--ease); }
+  .veil.open .sheet { transform: none; }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); margin: 0 auto 16px; }
+  .sheet h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+  .sheet p { margin: 0 0 14px; color: var(--muted); }
+  .boxes { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .cell { height: 56px; display: grid; place-items: center; border-radius: 10px; border: 1.5px solid var(--line-strong); background: var(--well); font: 700 1.375rem var(--mono); }
+  .cell.is-in { animation: char-in 220ms cubic-bezier(.23,1,.32,1) backwards; }
+  .cell.is-next { border-color: var(--accent); animation: box-pulse 1400ms ease-in-out infinite; }
+  .boxes.is-bad { animation: shake 320ms cubic-bezier(.23,1,.32,1); }
+  .boxes.is-bad .cell { border-color: var(--neg); }
+  .boxes.is-ok .cell { animation: box-lift 420ms cubic-bezier(.23,1,.32,1) backwards; animation-delay: calc(var(--i) * 60ms); }
+  .boxes input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+  .berr { display: block; min-height: 1.25em; margin-top: 8px; font-size: 13px; color: var(--neg); opacity: 0; transition: opacity 500ms var(--ease) 500ms; }
+  .berr.is-on { opacity: 1; transition: none; }
+  @keyframes char-in { from { opacity: 0; transform: translateY(10px) scale(.97); filter: blur(6px); } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-3px); } }
+  @keyframes box-pulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); } }
+  @keyframes box-lift { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-3px); } }
+  .codes { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+  .codes button { border: 0; background: none; padding: 4px 0; color: #7fb0ff; font: 600 12.5px var(--mono); }
+
+  /* colour picker: opens out of your own photo */
+  .hues { position: fixed; z-index: 800; display: grid; grid-template-columns: repeat(5, 34px); gap: 8px; padding: 12px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 12px 24px rgba(0,0,0,.5);
+    transform-origin: var(--ox, 50%) 0; transform: scale(.4); opacity: 0; pointer-events: none; transition: transform 220ms var(--ease), opacity 160ms linear; }
+  .hues.open { transform: none; opacity: 1; pointer-events: auto; }
+  .hues button { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; background: var(--c); }
+  .hues button[aria-pressed=true] { border-color: #fff; }
+  .hues label { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+
+  @media (max-width: 860px) { body { grid-template-columns: 1fr; height: auto; } .stage { padding: 56px 40px; } aside { border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="stage"><div class="tb" id="tb"><div class="wood"></div><div class="pad"></div><div class="cloth"></div><div class="betline"></div></div></div>
+
+<aside>
+  <h1>Table Layout</h1>
+  <p class="hint">Drag a part to move it. Drag the white knob to turn it. Arrow keys move it in small steps.</p>
+
+  <section>
+    <h2>Table</h2>
+    <div class="row"><label>Players</label><button class="btn sq" id="less" aria-label="One player fewer">−</button><span class="num" id="count">9</span><button class="btn sq" id="more" aria-label="Add a player">+</button></div>
+    <div class="row"><label for="felt">Cloth colour</label><input type="color" id="felt" value="#1d7a52"></div>
+    <div class="row"><button class="btn" id="signin" style="flex:1">Player sign-in</button></div>
+    <p class="said" id="said"></p>
+  </section>
+
+  <section id="insp" hidden>
+    <h2 id="what"></h2>
+    <div class="row" id="rowScope"><div class="seg"><button data-scope="all">All seats</button><button data-scope="one">This seat only</button></div></div>
+    <div class="row" id="rowMode"><div class="seg"><button data-mode="seat">Follows the rail</button><button data-mode="screen">Same on screen</button></div></div>
+    <div class="row" id="rowTurn"><label for="turn">Turn to face the centre</label><input type="checkbox" id="turn"></div>
+    <div class="row"><label for="r">Turn</label><input type="range" id="r" min="-180" max="180" step="1"><span class="num" id="rv"></span></div>
+    <div class="row"><label for="s">Size</label><input type="range" id="s" min="0.4" max="2.5" step="0.05"><span class="num" id="sv"></span></div>
+    <div class="row"><label>Layer</label><button class="btn" id="zdn">Back</button><span class="num" id="zv"></span><button class="btn" id="zup">Forward</button></div>
+    <div class="row"><button class="btn" id="reset1" style="flex:1">Reset this part</button></div>
+  </section>
+
+  <section>
+    <h2>Parts</h2>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section>
+    <h2>Layout</h2>
+    <div class="row"><button class="btn main" id="copy" style="flex:1">Copy layout</button><button class="btn" id="save">Save file</button></div>
+    <div class="row"><textarea id="json" spellcheck="false" aria-label="Layout as JSON"></textarea></div>
+    <div class="row"><button class="btn" id="load" style="flex:1">Load from box</button><button class="btn" id="resetAll">Reset all</button></div>
+  </section>
+</aside>
+
+<div class="veil" id="veil"><div class="sheet" role="dialog" aria-label="Player sign-in">
+  <div class="grab"></div>
+  <h3>Enter your player code</h3>
+  <p>Your seat opens on the table.</p>
+  <div class="boxes" id="boxes"></div>
+  <span class="berr" id="berr">Code does not match.</span>
+  <div class="codes" id="codes"></div>
+</div></div>
+<div class="hues" id="hues"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const fig = (n) => Math.round(n).toLocaleString('en-US');
+const KEY = 'nightcap-table-layout-v1';
+
+/* ---------- sample players ---------- */
+const HUES = ['#0052CC', '#c8372d', '#2d8a4e', '#8a5cc2', '#c9772b', '#2a8c95', '#c2478f', '#E9B84A', '#6f7a86', '#FF5722'];
+const PL = [['Nic', 'K7M2QX'], ['Eve', 'R4T9BW'], ['Mike', 'H3J8LD'], ['Nat', 'P6C5ZN'], ['Cat', 'W2F7VG'], ['Everett', 'Y9S4AE'], ['Sam', 'B5D3KT'], ['Jo', 'M8X2RC'], ['Raj', 'T6G9HP']]
+  .map(([name, code], i) => ({ name, code, hue: HUES[i] }));
+const STACK = [1240, 386, 905, 0, 2150, 77, 640, 1515, 310], BET = [60, 0, 60, 240, 0, 25, 60, 0, 10];
+const ACT = ['Calls 60', 'Folds', 'Raises to 60', 'All-in for 240', 'Folds', 'Posts BB 25', 'Calls 60', 'Checks', 'Posts SB 10'];
+const UP = { 2: ['Ad', 'Kc'], 5: ['Ks', 'Qd'] };
+
+/* ---------- the layout ---------- */
+// a, b in m (1% of the table height). mode seat: a = along the rail, clockwise; b = toward the centre. mode screen: a = right; b = down.
+const DEF = {
+  seat: {
+    portrait: { label: 'Player portrait', mode: 'seat', a: 0, b: 0, r: 0, s: 1, z: 5, turn: false, show: true },
+    name: { label: 'Nametag', mode: 'screen', a: 0, b: 8.6, r: 0, s: 1, z: 6, turn: false, show: true },
+    dealer: { label: 'Dealer button', mode: 'screen', a: -10.5, b: 8.6, r: 0, s: 1, z: 7, turn: false, show: true },
+    hole: { label: 'Hole cards', mode: 'seat', a: 15.5, b: 9, r: 0, s: 1, z: 4, turn: false, show: true },
+    stack: { label: 'Player stack', mode: 'seat', a: -15, b: 9, r: 0, s: 1, z: 3, turn: false, show: true },
+    bet: { label: 'Committed stack', mode: 'seat', a: 0, b: 27, r: 0, s: 1, z: 3, turn: false, show: true },
+    allin: { label: 'All-in title', mode: 'screen', a: 0, b: -9.5, r: 0, s: 1, z: 8, turn: false, show: true },
+    action: { label: 'Action', mode: 'screen', a: 0, b: 15.2, r: 0, s: 1, z: 8, turn: false, show: true },
+  },
+  centre: {
+    board: { label: 'Board', x: 50, y: 45, r: 0, s: 1, z: 2, show: true },
+    pot: { label: 'Central pot', x: 44, y: 64, r: 0, s: 1, z: 2, show: true },
+    side: { label: 'Side pot', x: 58, y: 64, r: 0, s: 1, z: 2, show: true },
+  },
+};
+const clone = (o) => JSON.parse(JSON.stringify(o));
+let L = { players: 9, felt: '#1d7a52', seat: clone(DEF.seat), seatOnly: {}, centre: clone(DEF.centre) };
+try { const saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.seat) adopt(saved); } catch { /* first run */ }
+function adopt(o) {
+  L.players = Math.max(2, Math.min(9, o.players | 0 || 9)); L.felt = o.felt || L.felt; L.seatOnly = o.seatOnly || {};
+  for (const k in DEF.seat) L.seat[k] = { ...DEF.seat[k], ...(o.seat?.[k] || {}), label: DEF.seat[k].label };
+  for (const k in DEF.centre) L.centre[k] = { ...DEF.centre[k], ...(o.centre?.[k] || {}), label: DEF.centre[k].label };
+}
+function out() {
+  const strip = (g) => Object.fromEntries(Object.entries(g).map(([k, v]) => { const { label, ...rest } = v; for (const f in rest) if (typeof rest[f] === 'number') rest[f] = Math.round(rest[f] * 100) / 100; return [k, rest]; }));
+  return { version: 1, units: 'm = 1% of the table height. Seat parts: a and b in m from the seat point on the rail. mode seat: a along the rail (clockwise), b toward the centre. mode screen: a right, b down. Centre parts: x and y in % of the table box. r in degrees, s = size, z = layer.',
+    players: L.players, felt: L.felt, seat: strip(L.seat), seatOnly: L.seatOnly, centre: strip(L.centre) };
+}
+function keep() { const t = JSON.stringify(out(), null, 1); $('#json').value = t; try { localStorage.setItem(KEY, t); } catch { /* private mode */ } }
+
+/* ---------- chips ---------- */
+const DEN = [[500, 5], [100, 4], [25, 3], [5, 2], [1, 1]];
+const CHIP = { 1: ['#f2efe6', '#b9b4a3', '#2a5bd0'], 2: ['#cf3b30', '#8a211a', '#ffffff'], 3: ['#2f9454', '#1b5a32', '#ffffff'], 4: ['#2a2d32', '#0c0d0f', '#E9B84A'], 5: ['#7446ad', '#472a6b', '#ffffff'] };
+function chipCols(amount) {
+  let rem = Math.round(amount), kept = 0; const cols = [];
+  for (const [d, k] of DEN) { let n = Math.floor(rem / d); if (n > 0 && d > 1 && kept < 2) { n -= 1; kept++; } for (; n > 0; n -= 10) { cols.push([k, Math.min(10, n)]); } rem -= cols.filter((c) => c[0] === k).reduce((a, c) => a + c[1], 0) * d; }
+  return cols;
+}
+/** Chip stacks drawn from an amount: one column per value, each chip with its edge marks, the top chip with its face. */
+function chipSvg(amount) {
+  const cols = chipCols(amount); if (!cols.length) return '';
+  const w = 30, ry = 6.4, th = 5, gap = 3, top = Math.max(...cols.map((c) => c[1])), H = ry * 2 + th * top + 5, Wd = cols.length * (w + gap) - gap + 6;
+  let g = '';
+  cols.forEach(([k, n], ci) => {
+    const [face, dark, mark] = CHIP[k], cx = 3 + w / 2 + ci * (w + gap), base = H - 3 - ry;
+    g += `<ellipse cx="${cx + 1.5}" cy="${base + 2.2}" rx="${w / 2 + 1.5}" ry="${ry + 1}" fill="rgba(0,0,0,.4)"/>`;
+    for (let j = 0; j < n; j++) {
+      const x = cx + (((ci * 7 + j * 13) % 5) - 2) * 0.4, yt = base - (j + 1) * th;
+      g += `<path d="M${x - w / 2} ${yt} v${th} a${w / 2} ${ry} 0 0 0 ${w} 0 v${-th} z" fill="${dark}"/>`;
+      g += `<path d="M${x - w / 2 + 0.3} ${yt + th / 2} a${w / 2 - 0.3} ${ry} 0 0 0 ${w - 0.6} 0" fill="none" stroke="${mark}" stroke-width="${th * 0.6}" stroke-dasharray="4.6 6.2" stroke-dashoffset="${(j % 2) * 5}" opacity=".92"/>`;
+      g += `<path d="M${x - w / 2} ${yt + th} a${w / 2} ${ry} 0 0 0 ${w} 0" fill="none" stroke="rgba(0,0,0,.45)" stroke-width=".7"/>`;
+      g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2}" ry="${ry}" fill="${face}"/>`;
+      if (j === n - 1) {
+        g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2 - 1.9}" ry="${ry - 0.85}" fill="none" stroke="${mark}" stroke-width="3" stroke-dasharray="6 6.9"/>`;
+        g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2 - 5.4}" ry="${ry - 2.3}" fill="${face}" stroke="${mark}" stroke-width=".7" stroke-opacity=".7"/>`;
+        g += `<ellipse cx="${x - 2}" cy="${yt - 1.2}" rx="${w / 2 - 9}" ry="${ry - 4.2}" fill="rgba(255,255,255,.22)"/>`;
+      } else g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2}" ry="${ry}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".6"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${Wd} ${H}" style="width:calc(var(--m) * ${(Wd / 30 * 3.5).toFixed(2)})">${g}</svg>`;
+}
+const chipBox = (amount, text) => `<span class="chipbox">${chipSvg(amount)}<span class="amt">${text}</span></span>`;
+
+/* ---------- cards and portrait ---------- */
+const SUIT = { s: '♠', h: '♥', d: '♦', c: '♣' };
+const S_PATH = 'M53.38 36.90 A24 24 0 1 0 32 50 A24 24 0 1 1 10.62 63.10';
+const cardUp = (c) => `<span class="cd ${c[1] === 'h' || c[1] === 'd' ? 'red' : ''}"><i>${c[0] === 'T' ? '10' : c[0]}</i><span>${SUIT[c[1]]}</span></span>`;
+const cardBack = () => `<span class="cd bk"><svg viewBox="-4 -4 72 108"><path d="${S_PATH}"/></svg></span>`;
+const FACE = `<svg viewBox="0 0 96 96"><circle cx="48" cy="38" r="17" fill="rgba(255,255,255,.82)"/><path d="M14 96c2-22 16-32 34-32s32 10 34 32z" fill="rgba(255,255,255,.82)"/></svg>`;
+
+/* ---------- the pill ---------- */
+const tb = $('#tb');
+let W = 1, H = 1, M = 1, frames = [];
+/** The seat point on the rail and its inward direction, t of the way round from the bottom centre (clockwise seen from above), in px. */
+function pill(t, d) {
+  const w = W - 2 * d, h = H - 2 * d, r = Math.min(w, h) / 2, lh = w - 2 * r, lv = h - 2 * r, q = (Math.PI * r) / 2, per = 2 * lh + 2 * lv + 4 * q;
+  const parts = [['h', lh / 2, w / 2, h, -1], ['a', q, r, h - r, 90], ['v', lv, 0, h - r, -1], ['a', q, r, r, 180], ['h', lh, r, 0, 1], ['a', q, w - r, r, 270], ['v', lv, w, r, 1], ['a', q, w - r, h - r, 0], ['h', lh / 2, w - r, h, -1]];
+  let dist = (((t % 1) + 1) % 1) * per, x = w / 2, y = h, nx = 0, ny = -1;
+  for (const [kind, len, a, b, c] of parts) {
+    if (dist <= len) {
+      if (kind === 'h') { x = a + c * dist; y = b; nx = 0; ny = b === 0 ? 1 : -1; }
+      else if (kind === 'v') { x = a; y = b + c * dist; nx = a === 0 ? 1 : -1; ny = 0; }
+      else { const ang = ((c + (dist / (q || 1)) * 90) * Math.PI) / 180; x = a + r * Math.cos(ang); y = b + r * Math.sin(ang); nx = -Math.cos(ang); ny = -Math.sin(ang); }
+      break;
+    }
+    dist -= len;
+  }
+  return { x: x + d, y: y + d, nx, ny };
+}
+
+/* ---------- parts on the table ---------- */
+let sel = null, me = null; // sel: 'hole.3' or 'pot'
+const parts = {};
+const isSeat = (id) => id.includes('.');
+const kindOf = (id) => id.split('.')[0], seatOf = (id) => +id.split('.')[1];
+const cfg = (id) => (isSeat(id) ? { ...L.seat[kindOf(id)], ...(L.seatOnly[id] || {}) } : L.centre[id]);
+/** The record a change of place, turn or size goes to: this seat's own record when it has one, else the record of all seats. */
+const target = (id) => (isSeat(id) ? L.seatOnly[id] || L.seat[kindOf(id)] : L.centre[id]);
+
+function content(kind, i) {
+  const p = PL[i];
+  if (kind === 'portrait') return `<span class="pt" style="--hue:${p.hue}">${FACE}</span>`;
+  if (kind === 'name') return `<span class="nm" style="--hue:${p.hue}"><b>${p.name}</b><small>${fig(STACK[i])}</small></span>`;
+  if (kind === 'dealer') return i === 0 ? `<span class="db">D</span>` : '';
+  if (kind === 'hole') return ACT[i] === 'Folds' ? '' : `<span class="cards">${UP[i] ? UP[i].map(cardUp).join('') : cardBack() + cardBack()}</span>`;
+  if (kind === 'stack') return STACK[i] ? `<span class="chipbox">${chipSvg(STACK[i])}</span>` : '';
+  if (kind === 'bet') return BET[i] ? chipBox(BET[i], fig(BET[i])) : '';
+  if (kind === 'allin') return i === 3 || (L.players < 4 && i === 1) ? `<span class="ai">All-in</span>` : '';
+  if (kind === 'action') return `<span class="ac">${ACT[i]}</span>`;
+  if (kind === 'board') return `<span class="cards board">${['Kh', '8s', '3d', 'Qc'].map(cardUp).join('')}<span class="cd" style="background:rgba(0,0,0,.18);box-shadow:inset 0 2px 4px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.14)"></span></span>`;
+  if (kind === 'pot') return chipBox(385, '<em>Pot</em>385');
+  if (kind === 'side') return chipBox(120, '<em>Side pot</em>120');
+  return '';
+}
+function build() {
+  for (const id in parts) parts[id].remove();
+  for (const id in parts) delete parts[id];
+  const add = (id, html) => { if (!html) return; const e = el('div', 'it', html); e.dataset.id = id; tb.append(e); parts[id] = e; };
+  for (const k in L.centre) add(k, content(k));
+  for (let i = 0; i < L.players; i++) for (const k in L.seat) add(`${k}.${i}`, content(k, i));
+  if (sel && !parts[sel]) sel = null;
+  place();
+}
+function place() {
+  W = tb.clientWidth; H = tb.clientHeight; M = H / 100; tb.style.setProperty('--m', M + 'px');
+  document.documentElement.style.setProperty('--felt', L.felt);
+  frames = Array.from({ length: L.players }, (_, i) => pill(i / L.players, M * 1));
+  for (const id in parts) {
+    const e = parts[id], c = cfg(id); let x, y, rot = c.r;
+    if (isSeat(id)) {
+      const f = frames[seatOf(id)];
+      if (c.mode === 'seat') { x = f.x + (c.a * f.ny + c.b * f.nx) * M; y = f.y + (c.a * -f.nx + c.b * f.ny) * M; } else { x = f.x + c.a * M; y = f.y + c.b * M; }
+      if (c.turn) rot += (Math.atan2(f.nx, -f.ny) * 180) / Math.PI;
+    } else { x = (c.x / 100) * W; y = (c.y / 100) * H; }
+    e.style.left = x + 'px'; e.style.top = y + 'px'; e.style.transform = `translate(-50%, -50%) rotate(${rot}deg) scale(${c.s})`; e.style.zIndex = c.z * 10 + (id === sel ? 5 : 0);
+    e.hidden = !c.show; e.classList.toggle('sel', id === sel);
+    const knob = e.querySelector('.rot'); if (id === sel && !knob) e.append(el('span', 'rot')); else if (id !== sel && knob) knob.remove();
+  }
+  panel(); keep();
+}
+
+/* ---------- side panel ---------- */
+function panel() {
+  $('#count').textContent = L.players; $('#felt').value = L.felt;
+  const rows = [...Object.keys(L.seat).map((k) => [k + '.0', L.seat[k]]), ...Object.keys(L.centre).map((k) => [k, L.centre[k]])].sort((a, b) => b[1].z - a[1].z);
+  $('#list').innerHTML = rows.map(([id, c]) => `<button data-id="${id}" class="${sel && kindOf(sel) === kindOf(id) ? 'on' : ''}"><span class="eye" data-eye="${id}" data-off="${!c.show}" aria-label="${c.show ? 'Hide' : 'Show'} ${c.label}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>${c.label}<span class="z">${c.z}</span></button>`).join('');
+  const box = $('#insp'); box.hidden = !sel; if (!sel) return;
+  const c = cfg(sel), seat = isSeat(sel);
+  $('#what').textContent = c.label + (seat ? `, seat ${seatOf(sel) + 1} (${PL[seatOf(sel)].name})` : '');
+  $('#rowScope').hidden = $('#rowMode').hidden = $('#rowTurn').hidden = !seat;
+  if (seat) {
+    const own = !!L.seatOnly[sel];
+    box.querySelectorAll('[data-scope]').forEach((b) => b.setAttribute('aria-pressed', (b.dataset.scope === 'one') === own));
+    box.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === c.mode));
+    $('#turn').checked = !!c.turn;
+  }
+  $('#r').value = c.r; $('#rv').textContent = Math.round(c.r) + '°'; $('#s').value = c.s; $('#sv').textContent = (+c.s).toFixed(2); $('#zv').textContent = c.z;
+}
+const pick = (id) => { sel = id; place(); };
+$('#list').addEventListener('click', (e) => {
+  const eye = e.target.closest('[data-eye]'), row = e.target.closest('[data-id]'); if (!row) return;
+  const id = row.dataset.id, rec = isSeat(id) ? L.seat[kindOf(id)] : L.centre[id];
+  if (eye) { rec.show = !rec.show; place(); } else pick(sel && kindOf(sel) === kindOf(id) ? sel : parts[id] ? id : Object.keys(parts).find((x) => kindOf(x) === kindOf(id)) || null);
+});
+$('#insp').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b || !sel) return;
+  const kind = kindOf(sel), all = isSeat(sel) ? L.seat[kind] : L.centre[sel];
+  if (b.dataset.scope === 'one' && !L.seatOnly[sel]) { const c = cfg(sel); L.seatOnly[sel] = { a: c.a, b: c.b, r: c.r, s: c.s }; }
+  else if (b.dataset.scope === 'all') delete L.seatOnly[sel];
+  else if (b.dataset.mode) all.mode = b.dataset.mode;
+  else if (b.id === 'zup') all.z = Math.min(20, all.z + 1);
+  else if (b.id === 'zdn') all.z = Math.max(0, all.z - 1);
+  else if (b.id === 'reset1') { delete L.seatOnly[sel]; if (isSeat(sel)) L.seat[kind] = clone(DEF.seat[kind]); else L.centre[sel] = clone(DEF.centre[sel]); }
+  place();
+});
+$('#turn').addEventListener('change', (e) => { if (sel && isSeat(sel)) { L.seat[kindOf(sel)].turn = e.target.checked; place(); } });
+$('#r').addEventListener('input', (e) => { if (sel) { target(sel).r = +e.target.value; place(); } });
+$('#s').addEventListener('input', (e) => { if (sel) { target(sel).s = +e.target.value; place(); } });
+$('#less').addEventListener('click', () => { if (L.players > 2) { L.players--; build(); } });
+$('#more').addEventListener('click', () => { if (L.players < 9) { L.players++; build(); } });
+$('#felt').addEventListener('input', (e) => { L.felt = e.target.value; place(); });
+const say = (t) => { $('#said').textContent = t; };
+$('#copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#json').value); say('Layout copied.'); } catch { $('#json').select(); say('Copy the text in the box.'); } });
+$('#save').addEventListener('click', () => { const a = el('a'); a.href = URL.createObjectURL(new Blob([$('#json').value], { type: 'application/json' })); a.download = 'nightcap-table-layout.json'; a.click(); URL.revokeObjectURL(a.href); });
+$('#load').addEventListener('click', () => { try { adopt(JSON.parse($('#json').value)); build(); say('Layout loaded.'); } catch { say('The text in the box is not a layout.'); } });
+$('#resetAll').addEventListener('click', () => { L = { players: L.players, felt: '#1d7a52', seat: clone(DEF.seat), seatOnly: {}, centre: clone(DEF.centre) }; sel = null; build(); say('Layout reset.'); });
+
+/* ---------- drag, turn, nudge ---------- */
+let drag = null;
+function moveBy(id, dx, dy) { // px on screen
+  const t = target(id), c = cfg(id);
+  if (!isSeat(id)) { t.x += (dx / W) * 100; t.y += (dy / H) * 100; return; }
+  const f = frames[seatOf(id)];
+  if (c.mode === 'seat') { t.a += (dx * f.ny + dy * -f.nx) / M; t.b += (dx * f.nx + dy * f.ny) / M; } else { t.a += dx / M; t.b += dy / M; }
+}
+tb.addEventListener('pointerdown', (e) => {
+  const it = e.target.closest('.it'); closeHues();
+  if (!it) { pick(null); return; }
+  const id = it.dataset.id; if (sel !== id) pick(id);
+  drag = { id, x: e.clientX, y: e.clientY, far: 0, turn: e.target.classList.contains('rot') };
+  tb.setPointerCapture(e.pointerId); tb.classList.add('dragging');
+});
+tb.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  if (drag.turn) {
+    const b = parts[drag.id].getBoundingClientRect(), c = cfg(drag.id), f = isSeat(drag.id) ? frames[seatOf(drag.id)] : null;
+    let deg = (Math.atan2(e.clientY - (b.top + b.height / 2), e.clientX - (b.left + b.width / 2)) * 180) / Math.PI + 90;
+    if (f && c.turn) deg -= (Math.atan2(f.nx, -f.ny) * 180) / Math.PI;
+    deg = Math.round(((deg + 540) % 360) - 180); if (!e.shiftKey) deg = Math.round(deg / 5) * 5;
+    target(drag.id).r = deg; drag.far = 9;
+  } else { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.far += Math.abs(dx) + Math.abs(dy); moveBy(drag.id, dx, dy); drag.x = e.clientX; drag.y = e.clientY; }
+  place();
+});
+tb.addEventListener('pointerup', () => {
+  if (!drag) return; tb.classList.remove('dragging');
+  const d = drag; drag = null;
+  // a tap on your own photo opens your colours
+  if (d.far < 4 && kindOf(d.id) === 'portrait' && me === seatOf(d.id)) openHues(d.id);
+});
+window.addEventListener('keydown', (e) => {
+  if (!sel || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || $('#veil').classList.contains('open')) return;
+  const step = (e.shiftKey ? 2 : 0.5) * M, d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (d) { e.preventDefault(); moveBy(sel, d[0], d[1]); place(); }
+  else if (e.key === '[' || e.key === ']') { target(sel).r += e.key === '[' ? -5 : 5; place(); }
+  else if (e.key === 'Escape') pick(null);
+});
+new ResizeObserver(place).observe(tb);
+
+/* ---------- player code, as in the app: six boxes, the last character submits ---------- */
+const veil = $('#veil'), boxes = $('#boxes');
+let code = '', boxState = 'idle', boxTimer = 0;
+boxes.innerHTML = '<span></span>'.repeat(6) + `<input aria-label="Player code" autocomplete="one-time-code" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text">`;
+const codeIn = boxes.querySelector('input');
+function drawBoxes(fresh) {
+  boxes.className = 'boxes is-' + boxState;
+  [...boxes.querySelectorAll('span')].forEach((c, i) => {
+    const ch = code[i] || '', changed = c.textContent !== ch; c.textContent = ch; c.style.setProperty('--i', i);
+    c.className = `cell ${i === code.length && boxState === 'idle' ? 'is-next' : ''}`;
+    if (ch && (changed || fresh)) { void c.offsetWidth; c.classList.add('is-in'); } else if (ch && boxState !== 'ok') c.classList.add('is-in');
+  });
+  $('#berr').classList.toggle('is-on', boxState === 'bad'); codeIn.readOnly = boxState !== 'idle';
+}
+function typed(raw) {
+  if (boxState !== 'idle') return;
+  code = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); codeIn.value = code; drawBoxes();
+  if (code.length < 6) return;
+  const i = PL.findIndex((p, n) => p.code === code && n < L.players);
+  if (i >= 0) { boxState = 'ok'; drawBoxes(); boxTimer = setTimeout(() => { me = i; veil.classList.remove('open'); say(`Signed in as ${PL[i].name}. Tap your photo to change your colour.`); pick(`portrait.${i}`); }, 800); }
+  else { boxState = 'bad'; drawBoxes(); boxTimer = setTimeout(() => { code = ''; codeIn.value = ''; boxState = 'idle'; drawBoxes(); codeIn.focus(); }, 1000); }
+}
+codeIn.addEventListener('input', (e) => typed(e.target.value));
+$('#signin').addEventListener('click', () => {
+  clearTimeout(boxTimer); code = ''; codeIn.value = ''; boxState = 'idle'; drawBoxes(); closeHues();
+  $('#codes').innerHTML = 'Trial codes: ' + PL.slice(0, L.players).map((p) => `<span>${p.name} <button data-code="${p.code}">${p.code}</button></span>`).join('');
+  veil.classList.add('open'); setTimeout(() => codeIn.focus(), 350);
+});
+$('#codes').addEventListener('click', (e) => { const c = e.target.dataset.code; if (!c || boxState !== 'idle') return; let n = 0; code = ''; const t = setInterval(() => { typed(c.slice(0, ++n)); if (n >= 6) clearInterval(t); }, 90); });
+veil.addEventListener('click', (e) => { if (e.target === veil) veil.classList.remove('open'); });
+
+/* ---------- your colour ---------- */
+const hues = $('#hues');
+function openHues(id) {
+  const i = seatOf(id), b = parts[id].getBoundingClientRect();
+  hues.innerHTML = HUES.map((c) => `<button style="--c:${c}" data-c="${c}" aria-label="Colour ${c}" aria-pressed="${PL[i].hue.toLowerCase() === c.toLowerCase()}"></button>`).join('') + `<label>Other<input type="color" value="${PL[i].hue}"></label>`;
+  const left = Math.max(8, Math.min(innerWidth - 238, b.left + b.width / 2 - 115)), top = Math.min(innerHeight - 170, b.bottom + 12);
+  hues.style.left = left + 'px'; hues.style.top = top + 'px'; hues.style.setProperty('--ox', b.left + b.width / 2 - left + 'px'); hues.classList.add('open');
+}
+function closeHues() { hues.classList.remove('open'); }
+function setHue(c) { if (me === null) return; PL[me].hue = c; for (const k of ['portrait', 'name']) { const e = parts[`${k}.${me}`]; if (e) e.firstElementChild.style.setProperty('--hue', c); } hues.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.c === c)); }
+hues.addEventListener('click', (e) => { const c = e.target.dataset.c; if (c) { setHue(c); closeHues(); } });
+hues.addEventListener('input', (e) => setHue(e.target.value));
+
+build();
+</script>
+</body>
+</html>

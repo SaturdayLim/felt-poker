@@ -1,5 +1,10 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.4', date: '13 Nov 2026', notes: [
+    'Table: each table size, 2 to 10 players, has its own places for stacks, hole cards, committed chips and the dealer button.',
+    'Table: committed chips show the amount alone. All-in stays on the player.',
+    'Table: figures use the same type as the rest of Nightcap.',
+  ] },
   { version: '1.8.3', date: '13 Nov 2026', notes: [
     'Player view, Table: the card button opens out into your cards for the hand on show, in the same direction as the table. A player who has not logged on gets the code boxes there.',
     'Player view, Table: tap your own photo to choose a colour or take a photo. Everyone at the table sees it.',

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nightcap Table Sizes</title>
+<!-- Mockup only (owner review, 13 Nov 2026). Not part of the app build. Open it from the dev server: it loads the app's own
+     layout code (src/lib/felt.ts) and styles, so each table starts exactly as the app draws it. Sample players: no game data.
+     One tab for each table size. Drag the stack, hole cards, committed chips or dealer button of any seat. Copy layout gives JSON. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #0f1113; color: #ebf1f5; font: 14px/1.35 'Segoe UI', system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+  body { display: flex; flex-direction: column; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgba(235,241,245,.14); }
+  .top b { margin-right: 4px; }
+  button { font: inherit; color: inherit; cursor: pointer; min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(235,241,245,.25); background: #1c1e21; }
+  button[aria-pressed="true"] { background: #ebf1f5; color: #1c1e21; font-weight: 600; }
+  button.main { background: #0052cc; border-color: #0052cc; font-weight: 600; }
+  .gap { flex: 1; }
+  label { display: flex; align-items: center; gap: 6px; }
+  #said { color: #e9b84a; min-width: 150px; }
+  #area { position: relative; flex: 1; min-height: 0; touch-action: none; }
+  .part { cursor: grab; }
+  .part.sel { outline: 1.5px dashed #fff; outline-offset: 3px; }
+  .tf-col.part { outline-offset: 1px; }
+  .dragging .tf-at, .dragging .tf-col { transition: none !important; cursor: grabbing; }
+  .back { display: block; width: calc(var(--m) * 5.2); height: calc(var(--m) * 7.3); border-radius: calc(var(--m) * .5); background: #1c1e21; box-shadow: 0 calc(var(--m) * .3) calc(var(--m) * .6) rgba(0,0,0,.45), inset 0 0 0 calc(var(--m) * .3) #ebf1f5; }
+  .tf-dealer.ghost { opacity: .45; }
+  .hint { padding: 6px 12px; color: #97a1ac; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <b>Players</b>
+  <span id="sizes"></span>
+  <label><input type="checkbox" id="mirror" checked> Mirror left and right</label>
+  <span class="gap"></span>
+  <span id="said"></span>
+  <button id="resetSize">Reset this size</button>
+  <button class="main" id="copy">Copy layout</button>
+</div>
+<div class="hint">Drag a stack, hole cards, committed chips or a dealer button. Arrow keys move the selected part in small steps. [ and ] turn hole cards. Names, photos and actions stay where the rule puts them.</div>
+<div id="area"></div>
+
+<script type="module">
+import '/src/css/tablefelt.css';
+import { seatSpots, pillPoint, chipCols, chipSvg, FELT_HUES } from '/src/lib/felt.ts';
+
+const KEY = 'nightcap-table-sizes-v1';
+const NAMES = ['Nic', 'Eve', 'Mike', 'Nat', 'Cat', 'Everett', 'Sam', 'Jo', 'Raj', 'Lee'];
+const STACK = [1240, 386, 905, 240, 2150, 77, 640, 1515, 310, 820], BET = [60, 12, 60, 240, 30, 25, 60, 6, 10, 60];
+const ACT = ['Call 60', 'Bet 12', 'Raise to 60', 'All-in to 240', 'Bet 30', 'BB 25', 'Call 60', 'Bet 6', 'SB 10', 'Call 60'];
+const BB = 20;
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const FACE = '<svg viewBox="0 0 96 96"><circle cx="48" cy="38" r="17"/><path d="M14 96c2-22 16-32 34-32s32 10 34 32z"/></svg>';
+const chips = (cols) => { const p = chipSvg(cols); return `<span class="tf-chips" style="width:calc(var(--m) * ${(p.wide * 3.3).toFixed(2)})">${p.html}</span>`; };
+
+// moves[n][seat][part] = { x, y, rot } in m (1% of the table height), added to the app's own place
+let moves = {};
+try { moves = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { /* first run */ }
+let n = 8, sel = null, W = 1, H = 1, M = 1, spots = [], left = 0, top = 0;
+const mv = (i, part) => (((moves[n] ??= {})[i] ??= {})[part] ??= { x: 0, y: 0, rot: 0 });
+const peek = (i, part) => moves[n]?.[i]?.[part] ?? { x: 0, y: 0, rot: 0 };
+const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(moves)); } catch { /* private mode */ } };
+
+const area = $('#area');
+$('#sizes').innerHTML = [2, 3, 4, 5, 6, 7, 8, 9, 10].map((k) => `<button data-n="${k}">${k}</button>`).join(' ');
+$('#sizes').addEventListener('click', (e) => { const k = e.target.dataset.n; if (k) { n = +k; sel = null; draw(); } });
+
+function base(i, part, j = 0) { const s = spots[i]; return part === 'stack' ? s.stack(j) : s[part]; }
+function place(i, part, j = 0) { const b = base(i, part, j), d = peek(i, part); return { x: b.x + d.x * M, y: b.y + d.y * M, rot: (b.rot ?? 0) + (d.rot ?? 0) }; }
+
+function draw() {
+  const aw = area.clientWidth, ah = area.clientHeight;
+  H = Math.max(100, Math.min(ah / 1.3, aw / 2.24)); W = H * 2; M = H / 100; left = (aw - W) / 2; top = (ah - H * 1.3) / 2 + H * 0.085;
+  spots = seatSpots(W, H, n, {});
+  document.querySelectorAll('#sizes button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.n === n));
+  let h = `<section class="tf tf-noanim" style="width:${W}px;height:${H}px;left:${left}px;top:${top}px;--m:${M}px"><div class="tf-wood"></div><div class="tf-pad"></div><div class="tf-cloth"></div><div class="tf-passline"></div>`;
+  h += `<div class="tf-at tf-board" style="left:${W / 2}px;top:${H * 0.42}px">${'<span><span class="felt-card lg tf-slot" style="display:block;width:calc(var(--m)*9.4);height:calc(var(--m)*13.2);border-radius:calc(var(--m)*.9)"></span></span>'.repeat(5)}</div>`;
+  h += `<div class="tf-pots" style="top:${H * 0.6}px"><span class="tf-pot">${chips(chipCols(385, BB, 3))}<span class="tf-amt"><em>Pot</em>385</span></span><span class="tf-pot">${chips(chipCols(120, BB, 3))}<span class="tf-amt"><em>Side pot</em>120</span></span></div>`;
+  for (let i = 0; i < n; i++) {
+    const hue = FELT_HUES[i % 10], id = (part) => `data-seat="${i}" data-part="${part}"`, on = (part) => (sel && sel.i === i && sel.part === part ? ' sel' : '');
+    h += `<div class="tf-player" style="--hue:${hue}">`;
+    chipCols(STACK[i], BB, 4).forEach((c, j) => { const q = place(i, 'stack', j); h += `<span class="tf-col part${on('stack')}" ${id('stack')} style="left:${q.x}px;top:${q.y + M * 1.4}px">${chips([c])}</span>`; });
+    const ho = place(i, 'hole'), be = place(i, 'bet'), de = place(i, 'dealer'), se = spots[i].seat;
+    h += `<span class="tf-at tf-hole part${on('hole')}" ${id('hole')} style="left:${ho.x}px;top:${ho.y}px;--rot:${ho.rot}deg"><span><span class="back"></span></span><span><span class="back"></span></span></span>`;
+    h += `<span class="tf-at tf-bet part${on('bet')}" ${id('bet')} style="left:${be.x}px;top:${be.y}px">${chips(chipCols(BET[i], BB, 3))}<span class="tf-amt ${i === 3 ? 'is-allin' : ''}">${i === 3 ? 'All-in ' : ''}${BET[i]}</span></span>`;
+    h += `<span class="tf-at tf-dealer part${i ? ' ghost' : ''}${on('dealer')}" ${id('dealer')} style="left:${de.x}px;top:${de.y}px">D</span>`;
+    h += `<div class="tf-at tf-seat" style="left:${se.x}px;top:${se.y}px"><span class="tf-av">${FACE}</span><span class="tf-tag"><b>${NAMES[i]}</b><small>${STACK[i].toLocaleString('en-US')}</small></span><span class="tf-act ${i === 3 ? 'is-allin' : ''}">${ACT[i]}</span></div></div>`;
+  }
+  area.innerHTML = h + '</section>';
+  keep();
+}
+
+/* ---------- drag ---------- */
+const twin = (i) => (n - i) % n;
+function nudge(i, part, dx, dy, rot = 0) {
+  const a = mv(i, part); a.x += dx; a.y += dy; a.rot = (a.rot ?? 0) + rot;
+  const t = twin(i);
+  if ($('#mirror').checked && t !== i) { const b = mv(t, part); b.x -= dx; b.y += dy; b.rot = (b.rot ?? 0) - rot; }
+}
+let drag = null;
+area.addEventListener('pointerdown', (e) => {
+  const p = e.target.closest('.part');
+  if (!p) { sel = null; draw(); return; }
+  sel = { i: +p.dataset.seat, part: p.dataset.part }; drag = { x: e.clientX, y: e.clientY };
+  area.setPointerCapture(e.pointerId); area.classList.add('dragging'); draw();
+});
+area.addEventListener('pointermove', (e) => { if (!drag || !sel) return; nudge(sel.i, sel.part, (e.clientX - drag.x) / M, (e.clientY - drag.y) / M); drag = { x: e.clientX, y: e.clientY }; draw(); });
+area.addEventListener('pointerup', () => { drag = null; area.classList.remove('dragging'); });
+window.addEventListener('keydown', (e) => {
+  if (!sel) return;
+  const s = e.shiftKey ? 2 : 0.5, d = { ArrowLeft: [-s, 0], ArrowRight: [s, 0], ArrowUp: [0, -s], ArrowDown: [0, s] }[e.key];
+  if (d) { e.preventDefault(); nudge(sel.i, sel.part, d[0], d[1]); draw(); }
+  else if ((e.key === '[' || e.key === ']') && sel.part === 'hole') { nudge(sel.i, 'hole', 0, 0, e.key === '[' ? -5 : 5); draw(); }
+});
+
+/* ---------- out ---------- */
+const r2 = (v) => Math.round(v * 100) / 100;
+function layout() {
+  const out = { version: 1, units: 'm = 1% of the table height. x right and y down from the seat photo centre. d = in from the table edge, a = round the rail clockwise from the seat. moved = this part was dragged.', sizes: {} };
+  const was = n;
+  for (n = 2; n <= 10; n++) {
+    if (!moves[n]) continue;
+    spots = seatSpots(2000, 1000, n, {}); M = 10;
+    out.sizes[n] = Array.from({ length: n }, (_, i) => {
+      const f = pillPoint(2000, 1000, i / n), seat = spots[i].seat, row = { seat: i + 1 };
+      for (const part of ['stack', 'hole', 'bet', 'dealer']) {
+        const p = place(i, part), d = peek(i, part), rx = p.x - f.x, ry = p.y - f.y;
+        row[part] = { x: r2((p.x - seat.x) / M), y: r2((p.y - seat.y) / M), d: r2((rx * f.nx + ry * f.ny) / M), a: r2((rx * f.ny - ry * f.nx) / M), ...(part === 'hole' ? { rot: r2(p.rot) } : {}), moved: !!(d.x || d.y || d.rot) };
+      }
+      return row;
+    });
+  }
+  n = was;
+  return JSON.stringify(out);
+}
+const say = (t) => { $('#said').textContent = t; setTimeout(() => { if ($('#said').textContent === t) $('#said').textContent = ''; }, 3000); };
+$('#copy').addEventListener('click', async () => { const t = layout(); draw(); try { await navigator.clipboard.writeText(t); say('Layout copied.'); } catch { window.prompt('Copy the layout:', t); } });
+$('#resetSize').addEventListener('click', () => { delete moves[n]; sel = null; draw(); say(`${n} players reset.`); });
+new ResizeObserver(draw).observe(area);
+draw();
+</script>
+</body>
+</html>

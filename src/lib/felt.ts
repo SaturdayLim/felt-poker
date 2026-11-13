@@ -3,6 +3,7 @@
    `seatSpots` places every part of a seat from that seat's own point on the rail, so cards and chips stay beside their player.
    Public facts only: a hand carries the board and the cards shown at the table, never a player's private cards. */
 import type { Card } from '../types';
+import { FELT_MOVES, type FeltMoves, type FeltPart } from './feltLayout';
 
 export type FeltSeg = 'preflop' | 'flop' | 'turn' | 'river' | 'end';
 export type FeltKind = 'sb' | 'bb' | 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allin' | 'straddle' | 'deal' | 'show' | 'win';
@@ -213,8 +214,9 @@ export interface SeatSpots {
     its own photo than to any other.
     Lower and side seats: the name hangs outside the table, so the cards sit straight in front of the photo and the stack beside it.
     Upper seats: the name hangs over the cloth in front of the photo, so the stack and the cards sit beside the name, on the side
-    toward the middle of the table. */
-export function seatSpots(w: number, h: number, n: number): SeatSpots[] {
+    toward the middle of the table.
+    `moves` are the owner's own places for each table size, added on top of the rule (src/lib/feltLayout.ts). */
+export function seatSpots(w: number, h: number, n: number, moves: FeltMoves = FELT_MOVES): SeatSpots[] {
   const M = h / 100;
   return Array.from({ length: n }, (_, i) => {
     const f = pillPoint(w, h, i / Math.max(1, n));
@@ -227,12 +229,14 @@ export function seatSpots(w: number, h: number, n: number): SeatSpots[] {
     const side = up ? c : f.ny < -0.9 ? 1 : -c;
     const from = side * (up ? 9.5 - 6.9 * Math.abs(f.nx) : 10.6), step = side * 3.6, deep = up ? 9.2 : 10.6;
     const ca = up ? from + side * 5.4 : 0, cd = up ? 17.8 : 15.5;
+    const mv = moves[n]?.[i];
+    const moved = (p: Pt, part: FeltPart): Pt => { const m = mv?.[part]; return m ? { x: p.x + m[0] * M, y: p.y + m[1] * M } : p; };
     return {
       seat: at(1, 0),
-      hole: { ...at(cd, ca), rot: (Math.atan2(f.nx, -f.ny) * 180) / Math.PI },
-      dealer: at(cd + 1.6, ca + 6.2),
-      bet: at(cd + 7.6, ca),
-      stack: (j: number) => rail(deep, from + j * step),
+      hole: { ...moved(at(cd, ca), 'hole'), rot: (Math.atan2(f.nx, -f.ny) * 180) / Math.PI + (mv?.hole?.[2] ?? 0) },
+      dealer: moved(at(cd + 1.6, ca + 6.2), 'dealer'),
+      bet: moved(at(cd + 7.6, ca), 'bet'),
+      stack: (j: number) => moved(rail(deep, from + j * step), 'stack'),
     };
   });
 }

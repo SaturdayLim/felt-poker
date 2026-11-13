@@ -23,7 +23,7 @@ function Chips({ amount, bb, max, col }: { amount: number; bb: number; max?: num
 
 /** Committed chips in front of a seat. New chips slide out from the stack; chips swept in slide to the pots and fade.
     The figure keeps its last amount while it slides away. Reduced motion fades. */
-function Bet({ amount, allin, bb, from, at, pot, animate }: { amount: number; allin: boolean; bb: number; from: Pt; at: Pt; pot: Pt; animate: boolean }) {
+function Bet({ amount, bb, from, at, pot, animate }: { amount: number; bb: number; from: Pt; at: Pt; pot: Pt; animate: boolean }) {
   const el = useRef<HTMLSpanElement>(null);
   const [shown, setShown] = useState(amount);
   const prev = useRef(amount);
@@ -47,7 +47,7 @@ function Bet({ amount, allin, bb, from, at, pot, animate }: { amount: number; al
   return (
     <span ref={el} className="tf-at tf-bet" data-on={shown > 0} style={{ left: at.x, top: at.y }} aria-hidden={shown <= 0}>
       <Chips amount={shown} bb={bb} max={3} />
-      <span className={`tf-amt ${allin ? 'is-allin' : ''}`}>{allin ? 'All-in ' : ''}{feltFig(shown)}</span>
+      <span className="tf-amt">{feltFig(shown)}</span>
     </span>
   );
 }
@@ -160,7 +160,7 @@ export function TableFelt({ hand, k, animate, me }: { hand: FeltHand; k: number;
                       : <><span><CardBack size="sm" /></span><span><CardBack size="sm" /></span></>}
                   </span>
                 )}
-                {inHand && <Bet amount={s.bets[p.id] ?? 0} allin={all} bb={hand.bb} from={sp.stack(0)} at={sp.bet} pot={pots} animate={animate} />}
+                {inHand && <Bet amount={s.bets[p.id] ?? 0} bb={hand.bb} from={sp.stack(0)} at={sp.bet} pot={pots} animate={animate} />}
                 <div className="tf-at tf-seat" style={{ left: sp.seat.x, top: sp.seat.y }}
                   aria-label={`${p.name}${stack !== undefined ? `, ${feltFig(stack)} chips` : ''}${out ? ', folded' : ''}${idle ? ', not in this hand' : ''}${all ? ', all-in' : ''}${lit === i ? ', to act' : ''}`}>
                   {own

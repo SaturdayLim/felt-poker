@@ -1,6 +1,11 @@
 # Nightcap: progress
 
-## Latest (13 Nov 2026): 1.8.3
+## Latest (13 Nov 2026): 1.8.4
+- Table layout per size: src/lib/feltLayout.ts `FELT_MOVES` holds the owner's drags for 2 to 10 players (m right and down, added to the rule in `seatSpots`). To change a place: open docs/mockups/table-sizes.html from the dev server (it edits on top of the rule alone and keeps its work in localStorage `nightcap-table-sizes-v1`), drag, then copy the moves into feltLayout.ts. Do not change the rule in `seatSpots` without redoing the moves.
+- Committed chips show the amount alone; "All-in to N" stays under the player's name for the rest of the hand.
+- Table figures use the UI face with tabular digits, not Geist Mono.
+
+## Earlier (13 Nov 2026): 1.8.3
 - Player view Table: the card button opens a panel out of itself inside the table screen (`TableCards` in Join.tsx): code boxes when not logged on, else the cards for the hand on show. It is not a Sheet, so it turns with the table.
 - Player look: `Player.look` ({ hue, photo }). The player's phone writes `inbox/<id>/look` (locked with the player code); host.ts `applyInbox` checks it and saves it with `setPlayerLook`; `buildPub` carries `hue` and `photo` on each player; both Tables draw them. Photo: 96 px JPEG data URL, 16,000 characters at most. `LookPanel` in Join.tsx opens from a tap on your own photo.
 - seatSpots: south edge seats keep chips on their west.

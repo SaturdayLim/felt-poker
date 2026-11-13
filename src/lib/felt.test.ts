@@ -4,10 +4,10 @@ import { chipCols, feltAt, feltPots, feltSteps, seatSpots, type FeltAction, type
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 
 describe('seatSpots', () => {
-  it('keeps each seat\'s cards, chips and button nearer to its own photo than to any other, for 2 to 10 players', () => {
+  it('the rule keeps each seat\'s cards, chips and button nearer to its own photo than to any other, for 2 to 10 players', () => {
     for (const [w, h] of [[2000, 1000], [520, 260]]) {
       for (let n = 2; n <= 10; n++) {
-        const spots = seatSpots(w, h, n);
+        const spots = seatSpots(w, h, n, {}); // the rule alone, with none of the owner's moves
         spots.forEach((s, i) => {
           for (const part of [s.hole, s.bet, s.dealer, s.stack(0), s.stack(3)]) {
             const own = dist(part, s.seat);
@@ -18,6 +18,17 @@ describe('seatSpots', () => {
           expect(dist(s.stack(3), s.seat)).toBeLessThan(h * 0.33);
         });
       }
+    }
+  });
+});
+
+describe('the owner layout', () => {
+  it('keeps hole cards and committed chips nearer to their own photo than to any other', () => {
+    for (let n = 2; n <= 10; n++) {
+      const spots = seatSpots(2000, 1000, n);
+      spots.forEach((s, i) => {
+        for (const part of [s.hole, s.bet]) spots.forEach((o, j) => { if (j !== i) expect(dist(part, s.seat), `${n} players, seat ${i} against seat ${j}`).toBeLessThan(dist(part, o.seat)); });
+      });
     }
   });
 });

@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nightcap Table</title>
+<!-- Mockup only (owner design notes, 13 Nov 2026). Not part of the app build. Sample players and scripted hands: no game data.
+     The table in landscape, laid out to the owner's notes. The live hand is simulated: one action every 2 seconds. -->
+<style>
+  @font-face { font-family: 'Geist'; font-weight: 100 900; font-display: swap; src: url('../../src/saturday/fonts/Geist-Variable.woff2') format('woff2'); }
+  @font-face { font-family: 'Geist Mono'; font-weight: 100 900; font-display: swap; src: url('../../src/saturday/fonts/GeistMono-Variable.woff2') format('woff2'); }
+  @font-face { font-family: 'Libre Baskerville'; font-weight: 400 700; font-display: swap; src: url('../../src/saturday/fonts/LibreBaskerville-Variable.woff2') format('woff2'); }
+  :root { --ui: 'Geist', 'Segoe UI', system-ui, -apple-system, sans-serif; --mono: 'Geist Mono', ui-monospace, Consolas, monospace;
+    --page: #0f1113; --panel: #1c1e21; --well: #25282c; --text: #EBF1F5; --muted: #97a1ac; --line: rgba(235,241,245,.16); --line-strong: rgba(235,241,245,.3);
+    --accent: #0052CC; --orange: #FF5722; --gold: #E9B84A; --red: #e5484d; --felt: #1d7a52; --ease: cubic-bezier(.22,1,.36,1); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--page); color: var(--text); font: 14px/1.3 var(--ui); -webkit-user-select: none; user-select: none; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:active { transform: scale(.95); }
+
+  /* the page is always landscape: a phone held upright shows it turned, so the player turns the phone */
+  .app { position: fixed; left: 0; top: 0; width: 100dvw; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  @media (orientation: portrait) { .app { width: 100dvh; height: 100dvw; transform-origin: 0 0; transform: rotate(90deg) translateY(-100%); } }
+  .area { position: relative; flex: 1; min-height: 0; }
+  .tb { position: absolute; }
+
+  /* wood edge, padded rail, cloth, pass line */
+  .wood { position: absolute; inset: 0; border-radius: 9999px;
+    background: repeating-linear-gradient(96deg, rgba(0,0,0,.14) 0 2px, transparent 2px 9px), repeating-linear-gradient(84deg, rgba(255,255,255,.06) 0 1px, transparent 1px 13px), linear-gradient(#7a4e2b, #4f2f18);
+    box-shadow: 0 calc(var(--m) * 2.4) calc(var(--m) * 4.8) rgba(0,0,0,.55), inset 0 calc(var(--m) * .3) 0 rgba(255,255,255,.22), inset 0 calc(var(--m) * -.5) calc(var(--m) * .8) rgba(0,0,0,.5); }
+  .pad { position: absolute; inset: calc(var(--m) * 1.4); border-radius: 9999px; background: linear-gradient(#34373c, #17181b);
+    box-shadow: inset 0 calc(var(--m) * .5) calc(var(--m) * .6) rgba(255,255,255,.16), inset 0 calc(var(--m) * -.8) calc(var(--m) * 1) rgba(0,0,0,.6); }
+  .cloth { position: absolute; inset: calc(var(--m) * 5.4); border-radius: 9999px; overflow: hidden;
+    background: radial-gradient(ellipse 70% 85% at 50% 42%, color-mix(in srgb, var(--felt) 78%, #fff) 0%, var(--felt) 45%, color-mix(in srgb, var(--felt) 58%, #000) 100%);
+    box-shadow: inset 0 calc(var(--m) * 1.4) calc(var(--m) * 2.6) rgba(0,0,0,.6), inset 0 0 calc(var(--m) * 7) rgba(0,0,0,.35), 0 0 0 calc(var(--m) * .3) rgba(0,0,0,.55); }
+  .cloth::before, .cloth::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
+  .cloth::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: .42; mix-blend-mode: multiply; }
+  .cloth::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: .16; mix-blend-mode: soft-light; }
+  .passline { position: absolute; inset: calc(var(--m) * 15.5); border-radius: 9999px; border: calc(var(--m) * .26) solid rgba(255,255,255,.2); box-shadow: 0 0 0 calc(var(--m) * .1) rgba(0,0,0,.2), inset 0 0 0 calc(var(--m) * .1) rgba(0,0,0,.2); pointer-events: none; }
+  /* the mark, pressed into the cloth: a dark line with a light lip under it */
+  .etch { position: absolute; left: 50%; top: 50%; height: calc(var(--m) * 54); transform: translate(-50%, -50%); fill: none; stroke-linecap: round; pointer-events: none; overflow: visible; }
+  .etch .lo { stroke: rgba(255,255,255,.1); transform: translateY(.9px); }
+  .etch .hi { stroke: rgba(0,0,0,.2); }
+  .etchword { position: absolute; left: 50%; top: 79.5%; transform: translate(-50%, -50%); font: 400 calc(var(--m) * 3.6) 'Libre Baskerville', Georgia, serif; letter-spacing: .32em; color: rgba(0,0,0,.2); text-shadow: 0 .9px 0 rgba(255,255,255,.1); pointer-events: none; padding-left: .32em; }
+
+  .at { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); transition: left 500ms var(--ease), top 500ms var(--ease), opacity 300ms linear, transform 500ms var(--ease); }
+  .noanim .at, .noanim .at * { transition: none !important; }
+
+  /* seat: photo on the rail, then the name and stack, then the last action, each under the one before */
+  .seat { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .7); transform: translate(-50%, calc(var(--m) * -5.6)); z-index: 6; pointer-events: none; }
+  .av { width: calc(var(--m) * 11.2); height: calc(var(--m) * 11.2); border-radius: 50%; flex: none; overflow: hidden; background: color-mix(in srgb, var(--hue) 55%, #101214); pointer-events: auto;
+    box-shadow: 0 0 0 calc(var(--m) * .65) var(--hue), 0 0 0 calc(var(--m) * .95) rgba(0,0,0,.6), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); transition: box-shadow 200ms; }
+  .av svg { width: 100%; height: 100%; display: block; }
+  .tag { min-width: calc(var(--m) * 15); padding: calc(var(--m) * .45) calc(var(--m) * 1.6) calc(var(--m) * .55); border-radius: calc(var(--m) * 1.2); background: #14161a; text-align: center; white-space: nowrap; line-height: 1.12;
+    font-size: max(9.5px, calc(var(--m) * 2.5)); border-bottom: calc(var(--m) * .45) solid var(--hue); box-shadow: 0 calc(var(--m) * .4) calc(var(--m) * .8) rgba(0,0,0,.45); }
+  .tag b { display: block; font-weight: 600; max-width: calc(var(--m) * 20); overflow: hidden; text-overflow: ellipsis; }
+  .tag small { display: block; font: 600 .95em var(--mono); color: #aeb7c0; }
+  .tag .gain { color: var(--gold); }
+  .act { padding: calc(var(--m) * .2) calc(var(--m) * 1.3); border-radius: calc(var(--m) * .8); background: #EBF1F5; color: #1c1e21; font-weight: 700; font-size: max(9px, calc(var(--m) * 2.3)); white-space: nowrap; transition: opacity 200ms; }
+  .act:empty { opacity: 0; padding: 0; }
+  .act.allin { background: var(--orange); color: #fff; }
+  .seat.turn .av { box-shadow: 0 0 0 calc(var(--m) * .65) var(--orange), 0 0 0 calc(var(--m) * 1.6) color-mix(in srgb, var(--orange) 40%, transparent), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); }
+  .seat.win .av { box-shadow: 0 0 0 calc(var(--m) * .65) var(--gold), 0 0 0 calc(var(--m) * 1.6) color-mix(in srgb, var(--gold) 45%, transparent), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); }
+  .seat.out, .stk.out { opacity: .4; }
+
+  /* cards */
+  .cd { --w: calc(var(--m) * 5.2); position: relative; width: var(--w); height: calc(var(--w) * 1.4); border-radius: calc(var(--w) * .1); background: linear-gradient(#fff, #eef0f1); color: #1c1e21; display: grid; place-items: center; flex: none;
+    box-shadow: 0 calc(var(--m) * .3) calc(var(--m) * .6) rgba(0,0,0,.45), 0 0 0 .5px rgba(0,0,0,.3); font-weight: 700; }
+  .cd i { position: absolute; left: 9%; top: 5%; font-style: normal; font-size: calc(var(--w) * .36); line-height: 1; }
+  .cd span { font-size: calc(var(--w) * .58); line-height: 1; margin-top: 18%; font-family: system-ui, sans-serif; }
+  .cd.red { color: #c8372d; }
+  .cd.bk { background: #1C1E21; box-shadow: 0 calc(var(--m) * .3) calc(var(--m) * .6) rgba(0,0,0,.45), inset 0 0 0 calc(var(--w) * .06) #EBF1F5; }
+  .cd.bk svg { height: 46%; fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round; }
+  .cd.slot { background: rgba(0,0,0,.16); box-shadow: inset 0 calc(var(--m) * .3) calc(var(--m) * .5) rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.12); }
+  .board { display: flex; gap: calc(var(--m) * 1); z-index: 3; }
+  .board .cd { --w: calc(var(--m) * 9.4); }
+  .hole { display: flex; z-index: 4; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)); }
+  .hole .cd + .cd { margin-left: calc(var(--m) * -2.3); }
+  .hole.up { z-index: 7; --rot: 0deg !important; }
+  .hole.up .cd { --w: calc(var(--m) * 7); }
+  .hole.up .cd + .cd { margin-left: calc(var(--m) * .4); }
+  .hole.muck { z-index: 1; }
+  .db { z-index: 5; display: grid; place-items: center; width: calc(var(--m) * 4.4); height: calc(var(--m) * 4.4); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #d9d4c6); color: #1c1e21; font-weight: 800; font-size: max(8px, calc(var(--m) * 2.3));
+    box-shadow: 0 calc(var(--m) * .3) 0 #8d897c, 0 calc(var(--m) * .6) calc(var(--m) * .9) rgba(0,0,0,.5), inset 0 0 0 calc(var(--m) * .3) #1c1e21; transition: left 700ms cubic-bezier(.65,0,.35,1), top 700ms cubic-bezier(.65,0,.35,1); }
+
+  /* chips */
+  .stk { width: 0; height: 0; transform: none; z-index: 2; }
+  .stk svg { position: absolute; transform: translate(-50%, -100%); }
+  .chipbox { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .4); }
+  .chipbox svg, .stk svg { display: block; height: auto; overflow: visible; }
+  .amt { padding: 0 .55em; border-radius: 1em; background: rgba(0,0,0,.55); color: #fff; font: 600 max(9px, calc(var(--m) * 2.3)) var(--mono); white-space: nowrap; }
+  .amt em { font: 600 1em var(--ui); font-style: normal; color: #c9d1d8; margin-right: .35em; }
+  .amt.allin { background: var(--orange); }
+  .bet { z-index: 3; }
+  .pots { display: flex; align-items: flex-end; gap: calc(var(--m) * 3); z-index: 3; }
+  .who { display: flex; gap: calc(var(--m) * .4); }
+  .who i { width: calc(var(--m) * 3.2); height: calc(var(--m) * 3.2); min-width: 13px; min-height: 13px; border-radius: 50%; background: var(--hue); color: #fff; font: 700 max(8px, calc(var(--m) * 2)) var(--ui); font-style: normal; display: grid; place-items: center; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  .fly { z-index: 8; transition: left 850ms cubic-bezier(.65,0,.35,1), top 850ms cubic-bezier(.65,0,.35,1), opacity 250ms linear 700ms; }
+
+  /* corners */
+  .back { position: absolute; left: 10px; top: 10px; z-index: 20; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; }
+  .back svg, .step svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .live { position: absolute; right: 10px; top: 10px; z-index: 20; min-height: 40px; padding: 0 16px; border-radius: 20px; border: 0; background: var(--red); color: #fff; font-weight: 700; display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.18) inset, 0 0 14px 2px color-mix(in srgb, var(--red) 70%, transparent); }
+  .live.on { animation: glow 1.8s ease-in-out infinite; }
+  .live i { width: 9px; height: 9px; border-radius: 50%; background: #fff; }
+  .live .n { font: 700 12px var(--mono); padding: 0 6px; border-radius: 9px; background: #fff; color: var(--red); }
+  @keyframes glow { 50% { box-shadow: 0 0 0 1px rgba(255,255,255,.18) inset, 0 0 26px 7px color-mix(in srgb, var(--red) 75%, transparent); } }
+  .bar { flex: none; display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 10px 6px; }
+  .bar select { height: 36px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); max-width: 150px; flex: none; }
+  .bar select option { color: #1c1e21; background: #fff; }
+  .tl { flex: 1; min-width: 0; display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; }
+  .seg { flex: none; position: relative; display: flex; height: 36px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+  .seg em { position: absolute; left: 5px; top: 2px; font: 600 9.5px var(--ui); font-style: normal; color: var(--muted); pointer-events: none; white-space: nowrap; }
+  .tk { width: 20px; min-width: 20px; height: 100%; border: 0; padding: 0; background: none; position: relative; }
+  .seg .tk:first-of-type:last-of-type { min-width: 44px; }
+  .tk::after { content: ''; position: absolute; left: 50%; margin-left: -1px; top: 17px; bottom: 6px; width: 2px; border-radius: 1px; background: var(--muted); opacity: .5; }
+  .tk.past { background: color-mix(in srgb, var(--orange) 26%, transparent); }
+  .tk.past::after { background: var(--orange); opacity: 1; }
+  .tk.cur::after { margin-left: -6px; width: 12px; top: 15px; bottom: 5px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px var(--orange); opacity: 1; }
+  .tk:active { transform: none; }
+  .step { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; }
+  .step:disabled { opacity: .35; }
+  .me { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 0; background: var(--accent); color: #fff; font-weight: 600; white-space: nowrap; }
+  .toast { position: absolute; left: 50%; bottom: 56px; z-index: 30; transform: translateX(-50%) translateY(8px); padding: 8px 14px; border-radius: 10px; background: #EBF1F5; color: #1c1e21; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 200ms, transform 200ms var(--ease); white-space: nowrap; }
+  .toast.on { opacity: 1; transform: translateX(-50%); }
+
+  /* sheets */
+  .veil { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,.55); display: grid; align-items: end; justify-items: center; opacity: 0; pointer-events: none; transition: opacity 250ms; }
+  .veil.open { opacity: 1; pointer-events: auto; }
+  .sheet { width: min(100%, 440px); max-height: 96%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-bottom: 0; border-radius: 20px 20px 0 0; padding: 8px 18px 18px; transform: translateY(100%); transition: transform 350ms var(--ease); }
+  .veil.open .sheet { transform: none; }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); margin: 0 auto 10px; }
+  .sheet h3 { margin: 0 0 2px; font-size: 18px; font-weight: 600; }
+  .sheet p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .boxes { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .cell { height: 52px; display: grid; place-items: center; border-radius: 10px; border: 1.5px solid var(--line-strong); background: var(--well); font: 700 1.375rem var(--mono); }
+  .cell.is-in { animation: char-in 220ms cubic-bezier(.23,1,.32,1) backwards; }
+  .cell.is-next { border-color: var(--accent); animation: box-pulse 1400ms ease-in-out infinite; }
+  .boxes.is-bad { animation: shake 320ms cubic-bezier(.23,1,.32,1); }
+  .boxes.is-bad .cell { border-color: var(--red); }
+  .boxes.is-ok .cell { animation: box-lift 420ms cubic-bezier(.23,1,.32,1) backwards; animation-delay: calc(var(--i) * 60ms); }
+  .boxes input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+  .berr { display: block; min-height: 1.25em; margin-top: 6px; font-size: 13px; color: var(--red); opacity: 0; transition: opacity 500ms var(--ease) 500ms; }
+  .berr.is-on { opacity: 1; transition: none; }
+  @keyframes char-in { from { opacity: 0; transform: translateY(10px) scale(.97); filter: blur(6px); } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-3px); } }
+  @keyframes box-pulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); } }
+  @keyframes box-lift { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-3px); } }
+  .codes { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); }
+  .codes button { border: 0; background: none; padding: 3px 0; color: #7fb0ff; font: 600 12px var(--mono); }
+  .mine { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .mine .cd { --w: 40px; --m: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
+  .grid button { height: 30px; border-radius: 5px; border: 1px solid var(--line); background: #fbfcfc; color: #1c1e21; font: 700 12px var(--ui); padding: 0; }
+  .grid button.red { color: #c8372d; }
+  .grid button[aria-pressed=true] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .save { margin-top: 10px; width: 100%; height: 44px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font-weight: 600; }
+  .save:disabled { opacity: .4; }
+  .hues { position: absolute; z-index: 35; display: grid; grid-template-columns: repeat(5, 32px); gap: 8px; padding: 10px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 12px 24px rgba(0,0,0,.5);
+    transform: scale(.4); opacity: 0; pointer-events: none; transition: transform 220ms var(--ease), opacity 160ms linear; }
+  .hues.open { transform: none; opacity: 1; pointer-events: auto; }
+  .hues button { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; background: var(--c); }
+  .hues button[aria-pressed=true] { border-color: #fff; }
+  @media (prefers-reduced-motion: reduce) { .at, .fly, .db { transition: opacity 150ms linear !important; } .live.on { animation: none; } }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="area" id="area">
+    <button class="back" id="back" aria-label="Back to the game"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="live on" id="live"><i></i><span>Live</span></button>
+    <div class="tb" id="tb">
+      <div class="wood"></div><div class="pad"></div>
+      <div class="cloth"></div>
+      <svg class="etch" viewBox="-2 -2 68 104" aria-hidden="true">
+        <g class="lo" stroke-width="1.1"><circle cx="32" cy="26" r="18"/><circle cx="32" cy="26" r="12"/><circle cx="32" cy="74" r="18"/><circle cx="32" cy="74" r="12"/><path stroke-width="2.6" d="M53.38 36.90 A24 24 0 1 0 32 50 A24 24 0 1 1 10.62 63.10"/></g>
+        <g class="hi" stroke-width="1.1"><circle cx="32" cy="26" r="18"/><circle cx="32" cy="26" r="12"/><circle cx="32" cy="74" r="18"/><circle cx="32" cy="74" r="12"/><path stroke-width="2.6" d="M53.38 36.90 A24 24 0 1 0 32 50 A24 24 0 1 1 10.62 63.10"/></g>
+      </svg>
+      <div class="etchword">Nightcap</div>
+      <div class="passline"></div>
+    </div>
+    <div class="hues" id="hues"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+  <div class="bar">
+    <select id="pick" aria-label="Hand"></select>
+    <div class="tl" id="tl" role="group" aria-label="Actions"></div>
+    <button class="step" id="prev" aria-label="Back one action"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="step" id="next" aria-label="Forward one action"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+    <button class="me" id="me">Log on</button>
+  </div>
+
+  <div class="veil" id="veil"><div class="sheet" role="dialog" aria-label="Log on">
+    <div class="grab"></div>
+    <h3>Enter your player code</h3>
+    <p>Your seat opens on the table.</p>
+    <div class="boxes" id="boxes"></div>
+    <span class="berr" id="berr">Code does not match.</span>
+    <div class="codes" id="codes"></div>
+  </div></div>
+  <div class="veil" id="veil2"><div class="sheet" role="dialog" aria-label="Add own hand">
+    <div class="grab"></div>
+    <h3 id="mineTitle">Add own hand</h3>
+    <p>Only you see these cards. The table keeps them face down.</p>
+    <div class="mine" id="mine"></div>
+    <div class="grid" id="grid"></div>
+    <button class="save" id="saveMine" disabled>Save</button>
+  </div></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const fig = (n) => Math.round(n).toLocaleString('en-US');
+
+/* ---------- sample data: 9 players, SB 1, BB 2 ---------- */
+const HUES = ['#0052CC', '#c8372d', '#2d8a4e', '#8a5cc2', '#c9772b', '#2a8c95', '#c2478f', '#b8902f', '#6f7a86', '#FF5722'];
+const P = [['nic', 'Nic', 'K7M2QX'], ['eve', 'Eve', 'R4T9BW'], ['mike', 'Mike', 'H3J8LD'], ['nat', 'Nat', 'P6C5ZN'], ['cat', 'Cat', 'W2F7VG'], ['ev', 'Everett', 'Y9S4AE'], ['sam', 'Sam', 'B5D3KT'], ['jo', 'Jo', 'M8X2RC'], ['raj', 'Raj', 'T6G9HP']]
+  .map(([id, name, code], i) => ({ id, name, code, hue: HUES[i], i }));
+const byId = Object.fromEntries(P.map((p) => [p.id, p]));
+const N = P.length, BB = 2;
+// positions count from the button: 0 BTN, 1 SB, 2 BB, 3 UTG ...
+const SCRIPTS = {
+  river: { board: ['Kh', '8s', '3d', 'Qc', '2s'], cards: { 3: ['Ad', 'Kc'], 5: ['Ks', 'Qd'] }, rank: [5, 3, 2, 0, 1, 4, 6, 7, 8],
+    acts: [[3, 'r', 6], [4, 'f'], [5, 'c'], [6, 'f'], [7, 'f'], [8, 'c'], [0, 'c'], [1, 'f'], [2, 'c'], 'flop', [2, 'x'], [3, 'b', 12], [5, 'c'], [8, 'f'], [0, 'f'], [2, 'c'], 'turn', [2, 'x'], [3, 'x'], [5, 'b', 30], [2, 'f'], [3, 'c'], 'river', [3, 'x'], [5, 'b', 60], [3, 'c'], 'show'] },
+  take: { board: [], cards: {}, rank: [4],
+    acts: [[3, 's', 4], [4, 'r', 12], [5, 'f'], [6, 'f'], [7, 'f'], [8, 'f'], [0, 'f'], [1, 'f'], [2, 'f'], [3, 'f']] },
+  side: { board: ['Jc', '9h', '4s', '4d', 'Ah'], cards: { 3: ['Jd', 'Js'], 5: ['As', 'Th'], 2: ['Ac', 'Qh'] }, rank: [3, 2, 5, 0, 1, 4, 6, 7, 8],
+    acts: [[3, 'r', 40], [4, 'f'], [5, 'c'], [6, 'f'], [7, 'f'], [8, 'f'], [0, 'f'], [1, 'f'], [2, 'c'], 'flop', [2, 'x'], [5, 'b', 50], [2, 'c'], 'turn', [2, 'x'], [5, 'x'], 'river', [2, 'b', 80], [5, 'c'], 'show'] },
+};
+const SEG = { preflop: 'Pre-flop', flop: 'Flop', turn: 'Turn', river: 'River', end: 'Showdown' };
+
+function build(key, btn, stacks, n) {
+  const sc = SCRIPTS[key], at = (i) => P[(btn + i) % N].id;
+  const steps = [{ t: 'act', p: at(1), k: 'sb', to: 1, seg: 'preflop' }, { t: 'act', p: at(2), k: 'bb', to: 2, seg: 'preflop' }];
+  let seg = 'preflop';
+  for (const a of sc.acts) {
+    if (a === 'show') steps.push({ t: 'show', seg: 'end' });
+    else if (typeof a === 'string') { seg = a; steps.push({ t: 'deal', street: a, seg }); }
+    else steps.push({ t: 'act', p: at(a[0]), k: a[1], to: a[2], seg });
+  }
+  steps.push({ t: 'win', seg: 'end' });
+  const cards = {}; for (const i in sc.cards) cards[at(+i)] = sc.cards[i];
+  return { n, key, button: at(0), steps, board: sc.board, cards, rank: sc.rank.map(at), start: { ...stacks }, showdown: sc.acts.includes('show') };
+}
+
+/** The table after k steps. Rebuilt from the steps each time: moving the cursor changes nothing. */
+function stateAt(h, k) {
+  const s = { stacks: { ...h.start }, bets: {}, contrib: {}, swept: {}, folded: [], allin: new Set(), boardN: 0, shown: false, pays: null, won: {}, act: {}, toAct: null };
+  const sweep = () => { for (const p in s.bets) s.swept[p] = (s.swept[p] || 0) + s.bets[p]; s.bets = {}; };
+  const quiet = () => { for (const p in s.act) if (!s.folded.includes(p) && !s.allin.has(p)) delete s.act[p]; };
+  for (let i = 0; i < k && i < h.steps.length; i++) {
+    const st = h.steps[i];
+    if (st.t === 'deal') { sweep(); quiet(); s.boardN = { flop: 3, turn: 4, river: 5 }[st.street]; }
+    else if (st.t === 'show') { sweep(); quiet(); s.shown = true; s.boardN = h.board.length; }
+    else if (st.t === 'win') {
+      sweep(); quiet(); s.pays = [];
+      const live = P.map((p) => p.id).filter((p) => !s.folded.includes(p) && (s.contrib[p] || 0) > 0);
+      const levels = [...new Set(live.map((p) => s.contrib[p]))].sort((a, b) => a - b);
+      let prev = 0;
+      for (const L of levels) {
+        let amt = 0; for (const p in s.contrib) amt += Math.min(s.contrib[p], L) - Math.min(s.contrib[p], prev);
+        const elig = live.filter((p) => s.contrib[p] >= L), w = h.rank.find((p) => elig.includes(p)), lastPay = s.pays[s.pays.length - 1];
+        if (lastPay && lastPay.p === w) lastPay.amt += amt; else s.pays.push({ p: w, amt });
+        prev = L;
+      }
+      for (const pay of s.pays) { s.stacks[pay.p] += pay.amt; s.won[pay.p] = (s.won[pay.p] || 0) + pay.amt; }
+      s.swept = {};
+    } else {
+      const p = st.p, had = s.bets[p] || 0, max = Math.max(0, ...Object.values(s.bets));
+      if (st.k === 'f') { s.folded.push(p); s.act[p] = 'Fold'; }
+      else if (st.k === 'x') s.act[p] = 'Check';
+      else {
+        const want = st.k === 'c' ? max : st.to, to = Math.min(want, had + s.stacks[p]), add = to - had;
+        s.stacks[p] -= add; s.bets[p] = to; s.contrib[p] = (s.contrib[p] || 0) + add;
+        const all = s.stacks[p] === 0; if (all) s.allin.add(p);
+        s.act[p] = all ? `All-in to ${fig(to)}` : { sb: `SB ${fig(to)}`, bb: `BB ${fig(to)}`, s: `Straddle to ${fig(to)}`, c: `Call ${fig(to)}`, b: `Bet ${fig(to)}`, r: `Raise to ${fig(to)}` }[st.k];
+      }
+    }
+  }
+  const nx = h.steps[k];
+  if (nx && nx.t === 'act' && nx.k !== 'sb' && nx.k !== 'bb') s.toAct = nx.p;
+  return s;
+}
+/** The pots on the table. The pot that still grows is the Pot. A pot capped by an all-in is a Side pot, and it carries the mark of each all-in player who can win it.
+    Players who can still bet are in every pot, so they carry no mark. */
+function potsOf(s) {
+  const caps = [...new Set([...s.allin].filter((p) => !s.folded.includes(p) && s.swept[p]).map((p) => s.swept[p]))].sort((a, b) => a - b), pots = [];
+  let prev = 0;
+  for (const L of [...caps, Infinity]) {
+    let amt = 0; for (const p in s.swept) amt += Math.min(s.swept[p], L) - Math.min(s.swept[p], prev);
+    if (amt > 0) pots.push({ amt, who: [...s.allin].filter((p) => !s.folded.includes(p) && s.swept[p] >= L && L !== Infinity) });
+    prev = L;
+  }
+  // the pot that still grows comes first and is the Pot; each capped pot is a Side pot
+  return pots.reverse();
+}
+
+/* ---------- chips: values of 0.5, 1, 2.5, 5, 25, 50 and 100 BB ---------- */
+const CHIPS = [[100, '#E9B84A', '#9c7620', '#1c1e21'], [50, '#7446ad', '#472a6b', '#fff'], [25, '#2a2d32', '#0c0d0f', '#E9B84A'], [5, '#2f9454', '#1b5a32', '#fff'], [2.5, '#2a5bd0', '#173a8c', '#fff'], [1, '#cf3b30', '#8a211a', '#fff'], [0.5, '#f2efe6', '#b9b4a3', '#2a5bd0']];
+function chipCols(amount, maxCols = 5) {
+  const run = (keep) => {
+    let rem = Math.round((amount / BB) * 2) / 2, kept = 0; const cols = [];
+    for (const c of CHIPS) { let n = Math.floor(rem / c[0] + 1e-9); if (n > 0 && c[0] > 0.5 && kept < keep) { n--; kept++; } if (n > 0) { cols.push([c, Math.min(n, 12)]); rem -= n * c[0]; } }
+    return cols;
+  };
+  let cols = run(2); if (cols.length > maxCols) cols = run(1); if (cols.length > maxCols) cols = run(0);
+  return cols.slice(0, maxCols);
+}
+function chipSvg(cols) {
+  if (!cols.length) return '';
+  const w = 30, ry = 6.4, th = 5, gap = 3, top = Math.max(...cols.map((c) => c[1])), H = ry * 2 + th * top + 5, Wd = cols.length * (w + gap) - gap + 6;
+  let g = '';
+  cols.forEach(([[, face, dark, mark], n], ci) => {
+    const cx = 3 + w / 2 + ci * (w + gap), base = H - 3 - ry;
+    g += `<ellipse cx="${cx + 1.5}" cy="${base + 2.2}" rx="${w / 2 + 1.5}" ry="${ry + 1}" fill="rgba(0,0,0,.4)"/>`;
+    for (let j = 0; j < n; j++) {
+      const x = cx + (((ci * 7 + j * 13) % 5) - 2) * 0.4, yt = base - (j + 1) * th;
+      g += `<path d="M${x - w / 2} ${yt} v${th} a${w / 2} ${ry} 0 0 0 ${w} 0 v${-th} z" fill="${dark}"/>`;
+      g += `<path d="M${x - w / 2 + 0.3} ${yt + th / 2} a${w / 2 - 0.3} ${ry} 0 0 0 ${w - 0.6} 0" fill="none" stroke="${mark}" stroke-width="${th * 0.6}" stroke-dasharray="4.6 6.2" stroke-dashoffset="${(j % 2) * 5}" opacity=".92"/>`;
+      g += `<path d="M${x - w / 2} ${yt + th} a${w / 2} ${ry} 0 0 0 ${w} 0" fill="none" stroke="rgba(0,0,0,.45)" stroke-width=".7"/>`;
+      g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2}" ry="${ry}" fill="${face}"/>`;
+      if (j === n - 1) {
+        g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2 - 1.9}" ry="${ry - 0.85}" fill="none" stroke="${mark}" stroke-width="3" stroke-dasharray="6 6.9"/>`;
+        g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2 - 5.4}" ry="${ry - 2.3}" fill="${face}" stroke="${mark}" stroke-width=".7" stroke-opacity=".7"/>`;
+      } else g += `<ellipse cx="${x}" cy="${yt}" rx="${w / 2}" ry="${ry}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".6"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${Wd} ${H}" style="width:calc(var(--m) * ${((Wd / 30) * 3.3).toFixed(2)})">${g}</svg>`;
+}
+const chipBox = (amount, text, cls = '', extra = '') => `<span class="chipbox">${chipSvg(chipCols(amount, 4))}<span class="amt ${cls}">${text}</span>${extra}</span>`;
+
+/* ---------- cards ---------- */
+const SUIT = { s: '♠', h: '♥', d: '♦', c: '♣' };
+const S_PATH = 'M53.38 36.90 A24 24 0 1 0 32 50 A24 24 0 1 1 10.62 63.10';
+const cardUp = (c) => `<span class="cd ${c[1] === 'h' || c[1] === 'd' ? 'red' : ''}"><i>${c[0] === 'T' ? '10' : c[0]}</i><span>${SUIT[c[1]]}</span></span>`;
+const cardBack = () => `<span class="cd bk"><svg viewBox="-4 -4 72 108"><path d="${S_PATH}"/></svg></span>`;
+const FACE = `<svg viewBox="0 0 96 96"><circle cx="48" cy="38" r="17" fill="rgba(255,255,255,.82)"/><path d="M14 96c2-22 16-32 34-32s32 10 34 32z" fill="rgba(255,255,255,.82)"/></svg>`;
+function flip(e) { if (anim) e.animate([{ transform: 'perspective(500px) rotateY(90deg)' }, { transform: 'perspective(500px) rotateY(0)' }], { duration: 340, easing: 'cubic-bezier(.22,1,.36,1)' }); }
+
+/* ---------- the pill ---------- */
+const tb = $('#tb'), area = $('#area');
+let W = 1, H = 1, M = 1;
+/** A point d inside the table edge, t of the way round from the bottom centre (clockwise seen from above) plus `along` px round the rail, with its inward direction. */
+function pill(t, d, along = 0) {
+  const w = W - 2 * d, h = H - 2 * d, r = Math.min(w, h) / 2, lh = w - 2 * r, lv = h - 2 * r, q = (Math.PI * r) / 2, per = 2 * lh + 2 * lv + 4 * q;
+  const parts = [['h', lh / 2, w / 2, h, -1], ['a', q, r, h - r, 90], ['v', lv, 0, h - r, -1], ['a', q, r, r, 180], ['h', lh, r, 0, 1], ['a', q, w - r, r, 270], ['v', lv, w, r, 1], ['a', q, w - r, h - r, 0], ['h', lh / 2, w - r, h, -1]];
+  let dist = ((((t % 1) + 1) % 1) * per + along + per) % per, x = w / 2, y = h, nx = 0, ny = -1;
+  for (const [kind, len, a, b, c] of parts) {
+    if (dist <= len) {
+      if (kind === 'h') { x = a + c * dist; y = b; nx = 0; ny = b === 0 ? 1 : -1; }
+      else if (kind === 'v') { x = a; y = b + c * dist; nx = a === 0 ? 1 : -1; ny = 0; }
+      else { const ang = ((c + (dist / (q || 1)) * 90) * Math.PI) / 180; x = a + r * Math.cos(ang); y = b + r * Math.sin(ang); nx = -Math.cos(ang); ny = -Math.sin(ang); }
+      break;
+    }
+    dist -= len;
+  }
+  return { x: x + d, y: y + d, nx, ny, rot: (Math.atan2(nx, -ny) * 180) / Math.PI };
+}
+const put = (e, pt) => { e.style.left = pt.x + 'px'; e.style.top = pt.y + 'px'; };
+// where each part sits, in m (1% of the table height): d = in from the table edge, a = round the rail from the seat (minus = to the player's right)
+const AT = { seat: [1, 0], stack: [10.6, 10.6, 3.75], hole: [15.5, -13], dealer: [21.5, -7.2], bet: [26, -13] };
+/** A part of a seat: d in from the table edge and a to the side, measured from that seat's own point on the rail.
+    Every seat has the same arrangement, turned to face the centre. */
+function pt(i, [d, a]) { const f = pill(i / N, M); return { x: f.x + (a * f.ny + (d - 1) * f.nx) * M, y: f.y + (-a * f.nx + (d - 1) * f.ny) * M, rot: f.rot }; }
+/** A stack column: a round the rail from the seat (so a row of columns follows the curve), then d in from the edge. */
+function onRail(i, [d, a]) { const f = pill(i / N, M, a * M); return { x: f.x + (d - 1) * M * f.nx, y: f.y + (d - 1) * M * f.ny }; }
+/** Each seat's own sides. The name and action hang straight down from the photo. On the upper curves that column leans along the rail,
+    so the hole cards go to the other side of the photo and the stack sits past them. Everywhere else: cards to the player's right, stack to the left. */
+const SIDE = [];
+function sides() {
+  P.forEach((p) => {
+    const f = pill(p.i / N, M), lean = f.ny > 0.2 && Math.abs(f.nx) > 0.3 ? -Math.sign(f.nx) : 0, c = lean < 0 ? 1 : -1;
+    SIDE[p.i] = { hole: [AT.hole[0], 13 * c], dealer: [AT.dealer[0], 13 * c + 5.8], bet: [AT.bet[0], 13 * c], stack: lean ? [AT.stack[0], 20.5 * c, AT.stack[2] * c] : AT.stack };
+  });
+}
+const centre = (x, y) => ({ x: (x / 100) * W, y: (y / 100) * H });
+const BOARD = [50, 42], POTS = [50, 59.5], MUCK = [27.5, 42];
+
+/* ---------- table parts (made once) ---------- */
+const ui = { seat: {}, hole: {}, stk: {}, bet: {} };
+const board = el('div', 'at board'), pots = el('div', 'at pots'), dealer = el('div', 'at db', 'D');
+tb.append(board, pots, dealer);
+P.forEach((p) => {
+  const seat = el('div', 'at seat', `<span class="av">${FACE}</span><span class="tag"><b></b><small><span></span><span class="gain"></span></small></span><span class="act"></span>`);
+  seat.style.setProperty('--hue', p.hue); seat.dataset.p = p.id;
+  const hole = el('div', 'at hole'), stk = el('div', 'at stk'), bet = el('div', 'at bet'); bet.style.opacity = 0;
+  tb.append(stk, hole, bet, seat);
+  ui.seat[p.id] = seat; ui.hole[p.id] = hole; ui.stk[p.id] = stk; ui.bet[p.id] = bet;
+});
+function layout() {
+  // the table takes the height or the width left, whichever is less: photos reach above it, names and actions below it
+  const aw = area.clientWidth, ah = area.clientHeight; H = Math.min(ah / 1.3, aw / 2.24); W = H * 2; M = H / 100;
+  tb.style.width = W + 'px'; tb.style.height = H + 'px'; tb.style.left = (aw - W) / 2 + 'px'; tb.style.top = (ah - H * 1.3) / 2 + H * 0.085 + 'px'; tb.style.setProperty('--m', M + 'px');
+  put(board, centre(...BOARD)); put(pots, centre(...POTS));
+  sides(); P.forEach((p) => put(ui.seat[p.id], pt(p.i, AT.seat)));
+}
+
+/* ---------- state of the page ---------- */
+const done = [];
+let live = null, liveLen = 0, liveRest = 0, btn = 0;
+let pick = 'live', k = 0, follow = true, anim = false, shownKey = '', me = null;
+const cur = () => (pick === 'live' ? live : done.find((h) => h.n === pick));
+const lastOf = (h) => (h === live ? liveLen : h.steps.length);
+const had = { bets: {}, pays: false };
+function tween(e, to) {
+  const from = e._v ?? to; e._v = to; cancelAnimationFrame(e._raf);
+  if (!anim || from === to) { e.textContent = fig(to); return; }
+  const t0 = performance.now(); const run = (now) => { const f = Math.min(1, (now - t0) / 500); e.textContent = fig(from + (to - from) * f); if (f < 1) e._raf = requestAnimationFrame(run); }; run(t0);
+}
+
+function render() {
+  const h = cur(); if (!h) return;
+  const s = stateAt(h, k), key = h.n + '';
+  if (key !== shownKey) { anim = false; shownKey = key; had.bets = {}; }
+  tb.classList.toggle('noanim', !anim);
+  if (board.children.length !== 5) board.innerHTML = '<span></span>'.repeat(5);
+  [...board.children].forEach((slot, i) => { const c = i < s.boardN ? h.board[i] : null, v = c || ''; if (slot._c !== v) { slot._c = v; slot.innerHTML = c ? cardUp(c) : '<span class="cd slot"></span>'; if (c) flip(slot.firstChild); } });
+  put(dealer, pt(byId[h.button].i, SIDE[byId[h.button].i].dealer));
+  for (const p of P) {
+    const id = p.id, seat = ui.seat[id], out = s.folded.includes(id), won = s.won[id] || 0;
+    seat.className = `at seat ${out ? 'out' : ''} ${s.toAct === id ? 'turn' : ''} ${won ? 'win' : ''}`;
+    seat.querySelector('b').textContent = p.name;
+    const small = seat.querySelector('small'); tween(small.firstChild, s.stacks[id]); small.lastChild.textContent = won ? ` +${fig(won)}` : '';
+    const act = seat.querySelector('.act'), text = s.act[id] || ''; act.textContent = text; act.className = 'act' + (text.startsWith('All-in') ? ' allin' : '');
+    // the stack: one column per chip value, set down along the rail behind the pass line
+    const stk = ui.stk[id]; stk.className = 'at stk' + (out ? ' out' : '');
+    stk.innerHTML = chipCols(s.stacks[id]).map((c, j) => { const S = SIDE[p.i].stack, q = onRail(p.i, [S[0], S[1] + j * S[2]]); return chipSvg([c]).replace('style="', `style="left:${q.x}px;top:${q.y + M * 1.4}px;`); }).join('');
+    // hole cards: face down across the pass line; folded, they go to the muck beside the board; face up only when shown at the showdown
+    const hole = ui.hole[id], up = s.shown && !out && h.cards[id] ? h.cards[id].join('') : '';
+    if (hole._c !== up || !hole.firstChild) { hole._c = up; hole.innerHTML = up ? h.cards[id].map(cardUp).join('') : cardBack() + cardBack(); if (up) [...hole.children].forEach(flip); }
+    hole.className = `at hole ${up ? 'up' : ''} ${out ? 'muck' : ''}`;
+    const home = pt(p.i, SIDE[p.i].hole), order = s.folded.indexOf(id);
+    if (out) { const m = centre(...MUCK); put(hole, { x: m.x + (((p.i * 37) % 9) - 4) * M * 0.7, y: m.y + (((p.i * 53) % 7) - 3) * M * 0.7 }); hole.style.setProperty('--rot', ((p.i * 67) % 140) - 70 + 'deg'); hole.style.zIndex = 1 + order; }
+    else { put(hole, home); hole.style.setProperty('--rot', home.rot + 'deg'); hole.style.zIndex = ''; }
+    // committed chips: past the hole cards, upright, the amount under them
+    const bet = ui.bet[id], amt = s.bets[id] || 0, was = had.bets[id] || 0, spot = pt(p.i, SIDE[p.i].bet);
+    if (amt > 0) {
+      bet.innerHTML = chipBox(amt, s.allin.has(id) ? `All-in ${fig(amt)}` : fig(amt), s.allin.has(id) ? 'allin' : '');
+      if (!was && anim) { bet.style.transition = 'none'; put(bet, onRail(p.i, SIDE[p.i].stack)); bet.style.opacity = 0; void bet.offsetWidth; bet.style.transition = ''; }
+      put(bet, spot); bet.style.opacity = 1;
+    } else { put(bet, was && anim ? centre(...POTS) : spot); bet.style.opacity = 0; }
+    had.bets[id] = amt;
+  }
+  // pots; a side pot names the all-in players who can win it
+  const list = potsOf(s);
+  pots.innerHTML = list.map((x, i) => chipBox(x.amt, `<em>${i ? 'Side pot' : 'Pot'}</em>${fig(x.amt)}`, '', x.who.length && list.length > 1 ? `<span class="who">${x.who.map((p) => `<i style="--hue:${byId[p].hue}" aria-label="${byId[p].name}">${byId[p].name[0]}</i>`).join('')}</span>` : '')).join('');
+  tb.querySelectorAll('.fly').forEach((f) => f.remove());
+  if (s.pays && !had.pays && anim) s.pays.forEach((pay, j) => {
+    const f = el('div', 'at fly', chipBox(pay.amt, fig(pay.amt))), c = centre(...POTS); put(f, { x: c.x + (j - (s.pays.length - 1) / 2) * M * 16, y: c.y }); tb.append(f);
+    setTimeout(() => { put(f, onRail(byId[pay.p].i, SIDE[byId[pay.p].i].stack)); f.style.opacity = 0; }, 400 + j * 550);
+    setTimeout(() => f.remove(), 1900 + j * 550);
+  });
+  had.pays = !!s.pays;
+  timeline(h); liveBtn(); picker();
+  $('#prev').disabled = k <= 0; $('#next').disabled = k >= lastOf(h);
+  $('#me').textContent = me === null ? 'Log on' : 'Add own hand';
+}
+
+/* ---------- timeline: one block per street, one tick per action ---------- */
+let dragging = false;
+function timeline(h) {
+  const tl = $('#tl'), last = lastOf(h), sig = h.n + ':' + last;
+  if (tl._sig !== sig) {
+    tl._sig = sig; tl.innerHTML = `<div class="seg"><em>Start</em><button class="tk" data-k="0" aria-label="Before the first action"></button></div>`;
+    let seg = null, box = null;
+    h.steps.slice(0, last).forEach((st, i) => {
+      if (st.seg !== seg) { seg = st.seg; box = el('div', 'seg', `<em>${st.seg === 'end' && !h.showdown ? 'Result' : SEG[st.seg]}</em>`); tl.append(box); }
+      const b = el('button', 'tk'); b.dataset.k = i + 1; b.setAttribute('aria-label', `Step ${i + 1}`); box.append(b);
+    });
+  }
+  tl.querySelectorAll('.tk').forEach((b) => { const v = +b.dataset.k; b.classList.toggle('past', v < k); b.classList.toggle('cur', v === k); });
+  const c = tl.querySelector('.cur'); if (c && !dragging) { const left = c.offsetLeft + c.parentElement.offsetLeft - tl.offsetLeft; if (left < tl.scrollLeft || left + 24 > tl.scrollLeft + tl.clientWidth) tl.scrollLeft = left - tl.clientWidth / 2; }
+}
+function seek(e) { const t = document.elementFromPoint(e.clientX, e.clientY), b = t && t.closest('[data-k]'); if (b && $('#tl').contains(b)) moveTo(+b.dataset.k, 'jump'); }
+$('#tl').addEventListener('pointerdown', (e) => { dragging = true; seek(e); });
+window.addEventListener('pointermove', (e) => { if (dragging && e.buttons) seek(e); });
+window.addEventListener('pointerup', () => { dragging = false; });
+
+function moveTo(to, how) {
+  const h = cur(), last = lastOf(h), v = Math.max(0, Math.min(last, to));
+  anim = how !== 'jump' && v === k + 1; k = v; follow = pick === 'live' && k === last; render();
+}
+function goLive() { pick = 'live'; follow = true; anim = false; k = liveLen; render(); }
+function liveBtn() {
+  const b = $('#live'), behind = pick === 'live' ? liveLen - k : 0;
+  b.className = 'live' + (follow ? ' on' : '');
+  b.innerHTML = `<i></i><span>Live</span>${!follow && behind > 0 ? `<span class="n">${behind}</span>` : ''}`;
+  b.setAttribute('aria-label', follow ? 'Live' : behind > 0 ? `Go to live, ${behind} actions behind` : 'Go to live');
+}
+function picker() {
+  const sel = $('#pick'), sig = live.n + ':' + done.length;
+  if (sel._sig !== sig) {
+    sel._sig = sig;
+    sel.innerHTML = `<option value="live">Hand ${live.n} (live)</option>` + [...done].reverse().map((h) => `<option value="${h.n}">Hand ${h.n} (${[...new Set(stateAt(h, h.steps.length).pays.map((x) => byId[x.p].name))].join(' and ')})</option>`).join('');
+  }
+  sel.value = pick;
+}
+$('#pick').addEventListener('change', (e) => { const v = e.target.value; if (v === 'live') return goLive(); pick = +v; follow = false; anim = false; k = 0; render(); });
+$('#prev').addEventListener('click', () => moveTo(k - 1));
+$('#next').addEventListener('click', () => moveTo(k + 1));
+$('#live').addEventListener('click', goLive);
+$('#back').addEventListener('click', () => toast('Back opens the game page.'));
+window.addEventListener('keydown', (e) => { if (document.querySelector('.veil.open')) return; if (e.key === 'ArrowLeft') moveTo(k - 1); else if (e.key === 'ArrowRight') moveTo(k + 1); else if (e.key.toLowerCase() === 'l') goLive(); });
+let toastT = 0;
+function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => e.classList.remove('on'), 2600); }
+
+/* ---------- the simulated live game ---------- */
+const CYCLE = ['river', 'take', 'side'];
+function nextLive() {
+  const stacks = stateAt(live || done[done.length - 1], 999).stacks;
+  if (live) done.push(live);
+  for (const p in stacks) if (stacks[p] <= 0) stacks[p] = 200; // a bust player buys back in
+  btn = (btn + 1) % N;
+  live = build(CYCLE[(done.length - 2) % 3], btn, stacks, done.length + 1); liveLen = 2; liveRest = 0;
+}
+function tick() {
+  if (liveLen < live.steps.length) liveLen++;
+  else if (++liveRest >= 3) { const was = live; nextLive(); if (pick === 'live' && !follow) pick = was.n; else if (pick === 'live') { k = liveLen; anim = false; render(); return; } }
+  if (pick === 'live' && follow) { anim = k === liveLen - 1; k = liveLen; render(); } else { timeline(cur()); liveBtn(); picker(); }
+}
+
+/* ---------- log on: the app's six boxes; the last character submits ---------- */
+const veil = $('#veil'), boxes = $('#boxes');
+let code = '', boxState = 'idle', boxTimer = 0;
+boxes.innerHTML = '<span></span>'.repeat(6) + `<input aria-label="Player code" autocomplete="one-time-code" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text">`;
+const codeIn = boxes.querySelector('input');
+function drawBoxes() {
+  boxes.className = 'boxes is-' + boxState;
+  [...boxes.querySelectorAll('span')].forEach((c, i) => {
+    const ch = code[i] || '', changed = c.textContent !== ch; c.textContent = ch; c.style.setProperty('--i', i);
+    const keepIn = ch && !changed && c.classList.contains('is-in') && boxState !== 'ok';
+    c.className = `cell ${i === code.length && boxState === 'idle' ? 'is-next' : ''} ${keepIn ? 'is-in' : ''}`;
+    if (ch && changed) { void c.offsetWidth; c.classList.add('is-in'); }
+  });
+  $('#berr').classList.toggle('is-on', boxState === 'bad'); codeIn.readOnly = boxState !== 'idle';
+}
+function typed(raw) {
+  if (boxState !== 'idle') return;
+  code = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); codeIn.value = code; drawBoxes();
+  if (code.length < 6) return;
+  const p = P.find((x) => x.code === code);
+  if (p) { boxState = 'ok'; drawBoxes(); boxTimer = setTimeout(() => { me = p.id; veil.classList.remove('open'); render(); toast(`Logged on as ${p.name}. Tap your photo to change your colour.`); }, 800); }
+  else { boxState = 'bad'; drawBoxes(); boxTimer = setTimeout(() => { code = ''; codeIn.value = ''; boxState = 'idle'; drawBoxes(); codeIn.focus(); }, 1000); }
+}
+codeIn.addEventListener('input', (e) => typed(e.target.value));
+$('#codes').innerHTML = 'Trial codes: ' + P.map((p) => `<span>${p.name} <button data-code="${p.code}">${p.code}</button></span>`).join('');
+$('#codes').addEventListener('click', (e) => { const c = e.target.dataset.code; if (!c || boxState !== 'idle') return; let n = 0; code = ''; const t = setInterval(() => { typed(c.slice(0, ++n)); if (n >= 6) clearInterval(t); }, 90); });
+document.querySelectorAll('.veil').forEach((v) => v.addEventListener('click', (e) => { if (e.target === v) v.classList.remove('open'); }));
+
+/* ---------- add own hand: kept for the player, face down on the table ---------- */
+const RANKS = 'AKQJT98765432', mine = [];
+$('#grid').innerHTML = [...'shdc'].map((s) => [...RANKS].map((r) => `<button data-c="${r + s}" class="${s === 'h' || s === 'd' ? 'red' : ''}" aria-pressed="false" aria-label="${r}${SUIT[s]}">${r === 'T' ? '10' : r}${SUIT[s]}</button>`).join('')).join('');
+function drawMine() {
+  $('#mine').innerHTML = [0, 1].map((i) => (mine[i] ? cardUp(mine[i]) : '<span class="cd slot"></span>')).join('');
+  $('#grid').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', mine.includes(b.dataset.c)));
+  $('#saveMine').disabled = mine.length !== 2;
+}
+$('#grid').addEventListener('click', (e) => { const c = e.target.dataset.c; if (!c) return; const i = mine.indexOf(c); if (i >= 0) mine.splice(i, 1); else if (mine.length < 2) mine.push(c); drawMine(); });
+$('#saveMine').addEventListener('click', () => { $('#veil2').classList.remove('open'); toast('Cards saved. The table keeps them face down.'); });
+$('#me').addEventListener('click', () => {
+  closeHues();
+  if (me === null) { clearTimeout(boxTimer); code = ''; codeIn.value = ''; boxState = 'idle'; drawBoxes(); veil.classList.add('open'); setTimeout(() => codeIn.focus(), 350); }
+  else { mine.length = 0; drawMine(); $('#mineTitle').textContent = `Add own hand, hand ${cur().n}`; $('#veil2').classList.add('open'); }
+});
+
+/* ---------- your colour: a tap on your own photo ---------- */
+const hues = $('#hues');
+function closeHues() { hues.classList.remove('open'); }
+tb.addEventListener('click', (e) => {
+  const seat = e.target.closest('.av')?.parentElement; if (!seat || seat.dataset.p !== me) return closeHues();
+  hues.innerHTML = HUES.map((c) => `<button style="--c:${c}" data-c="${c}" aria-label="Colour ${c}" aria-pressed="${byId[me].hue === c}"></button>`).join('');
+  const x = tb.offsetLeft + seat.offsetLeft, y = tb.offsetTop + seat.offsetTop, below = y < area.clientHeight / 2;
+  hues.style.left = Math.max(8, Math.min(area.clientWidth - 220, x - 106)) + 'px'; hues.style.top = (below ? y + M * 8 : y - M * 8 - 100) + 'px'; hues.style.transformOrigin = below ? '50% 0' : '50% 100%';
+  hues.classList.add('open');
+});
+hues.addEventListener('click', (e) => { const c = e.target.dataset.c; if (!c) return; byId[me].hue = c; ui.seat[me].style.setProperty('--hue', c); closeHues(); anim = false; render(); });
+
+/* ---------- start ---------- */
+const s0 = Object.fromEntries(P.map((p) => [p.id, 200])); s0[P[3].id] = 40; // one short stack, so hand 1 has a side pot
+done.push(build('side', 0, s0, 1));
+btn = 1; done.push(build('take', 1, stateAt(done[0], 999).stacks, 2));
+nextLive();
+layout(); k = liveLen; render();
+new ResizeObserver(() => { layout(); anim = false; render(); }).observe(area);
+setInterval(tick, 2000);
+</script>
+</body>
+</html>

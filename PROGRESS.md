@@ -1,6 +1,11 @@
 # Nightcap: progress
 
-## Latest (13 Nov 2026): 1.8.5
+## Latest (13 Nov 2026): 1.8.6
+
+- Table seat layout E (owner pick from docs/mockups/seat-options.html): name plate on the photo foot, action above the head, stack in one row in front of the player, hole cards past the row. Rule in `seatSpots` (src/lib/felt.ts); plate and action CSS in src/css/tablefelt.css.
+- Not seen in the real app yet (no game in dev storage); the mockup uses the same numbers. Check on the live test.
+
+## Earlier (13 Nov 2026): 1.8.5
 - Table: one seat rule in `seatSpots` (src/lib/felt.ts) for every size. `FELT_MOVES` (src/lib/feltLayout.ts) is empty; add a move there only for a place the rule cannot give. Checked at 6, 9 and 10 players in docs/mockups/table-sizes.html.
 - Table timeline (src/components/tableFelt.tsx `TablePage`): tap = show step; swipe = scroll; hold 250 ms then drag = scrub (`.tfp-track.is-scrub`). Not tried on a phone, and not in portrait, where the whole table screen is rotated 90 degrees by CSS: check that a swipe still scrolls there.
 - Player view (src/screens/Join.tsx): Header icon tabs (Action book, Hands cards, Players person, Game Settings chip, Card Settings spade); Settings split into Game Settings (`Rules`) and Card Settings (`ViewerLookSettings`). Action tip = HELP.viewerAction. Code boxes: caret and selection hidden (styles.css `.felt-boxes-input`). Min raise and 7-2 tips show the selected option only (components/rules.tsx `MinRaiseTip`, `BountyWinTip`, `BountyHandTip`). Pot figure in the Hands rows no longer uses `.sat-num`.

@@ -74,15 +74,18 @@
   background: radial-gradient(circle, rgba(255,255,255,.3) 0%, rgba(255,255,255,.12) 38%, transparent 68%); mix-blend-mode: soft-light; }
 .tf-light[data-on="true"] { opacity: 1; }
 
-/* seat: the photo on the rail, then the name and stack, then the last action, each under the one before */
-.tf-seat { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .7); transform: translate(-50%, calc(var(--m) * -5.6)); z-index: 6; }
+/* seat: the photo on the rail, a plate with the name and stack across its foot, the last action above the head */
+.tf-seat { width: calc(var(--m) * 11.2); height: calc(var(--m) * 11.2); transform: translate(-50%, -50%); z-index: 6; }
+.tf-seat > .tf-tag { position: absolute; left: 50%; top: calc(100% - var(--m) * 2.6); transform: translateX(-50%); }
+.tf-seat > .tf-act { position: absolute; left: 50%; bottom: calc(100% + var(--m) * .9); transform: translateX(-50%); }
 .tf-av { width: calc(var(--m) * 11.2); height: calc(var(--m) * 11.2); border-radius: 50%; flex: none; overflow: hidden; background: color-mix(in srgb, var(--hue) 50%, #14161a);
   box-shadow: 0 0 0 calc(var(--m) * .55) #3c4148, 0 0 0 calc(var(--m) * .85) rgba(0,0,0,.6), 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); transition: box-shadow 250ms; }
 .tf-av svg { width: 100%; height: 100%; display: block; fill: rgba(255,255,255,.82); }
-.tf-tag { min-width: calc(var(--m) * 15); padding: calc(var(--m) * .45) calc(var(--m) * 1.6) calc(var(--m) * .55); border-radius: calc(var(--m) * 1.2); background: #14161a; color: #fff; text-align: center; white-space: nowrap;
-  font-size: max(9.5px, calc(var(--m) * 2.5)); box-shadow: 0 calc(var(--m) * .4) calc(var(--m) * .8) rgba(0,0,0,.45); }
-.tf-tag b { display: block; font-weight: 600; max-width: calc(var(--m) * 20); overflow: hidden; text-overflow: ellipsis; }
-.tf-tag small { display: block; min-height: 1.15em; font-weight: 600; font-size: .95em; font-variant-numeric: tabular-nums; color: #aeb7c0; }
+.tf-tag { display: flex; align-items: baseline; gap: .4em; padding: calc(var(--m) * .3) calc(var(--m) * 1.2); border-radius: calc(var(--m) * 1); background: #14161a; color: #fff; white-space: nowrap; line-height: 1.15;
+  font-size: max(9px, calc(var(--m) * 2.3)); box-shadow: 0 calc(var(--m) * .4) calc(var(--m) * .8) rgba(0,0,0,.5); }
+.tf-tag b { font-weight: 600; max-width: calc(var(--m) * 14); overflow: hidden; text-overflow: ellipsis; }
+.tf-tag small { font-weight: 600; font-size: 1em; font-variant-numeric: tabular-nums; color: #aeb7c0; }
+.tf-tag small:empty { display: none; }
 .tf-gain { color: #e9b84a; }
 .tf-act { padding: calc(var(--m) * .2) calc(var(--m) * 1.3); border-radius: calc(var(--m) * .8); background: #ebf1f5; color: #1c1e21; font-weight: 700; font-size: max(9px, calc(var(--m) * 2.3)); white-space: nowrap; }
 .tf-act:empty { visibility: hidden; padding: 0; }

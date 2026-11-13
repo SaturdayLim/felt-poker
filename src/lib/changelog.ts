@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.6', date: '13 Nov 2026', notes: [
+    'Table: the name and stack sit on a plate across the foot of each photo. The last action sits above the head, centred on the photo.',
+    'Table: each stack stands in one row in front of its player. The hole cards lie past it.',
+  ] },
   { version: '1.8.5', date: '13 Nov 2026', notes: [
     'Table: one rule places every seat the same, seen from its own chair. Hole cards lie in front of the photo, committed chips past them, the dealer button at the front left corner of the cards, the stack on the left of the player.',
     'Table timeline: a tap shows a step. A quick swipe scrolls the timeline. Press and hold, then drag, to move through the hand.',

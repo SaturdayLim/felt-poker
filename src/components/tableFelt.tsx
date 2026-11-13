@@ -152,7 +152,7 @@ export function TableFelt({ hand, k, animate, me }: { hand: FeltHand; k: number;
             return (
               <div key={p.id} className={`tf-player ${state}`} style={{ ['--hue' as string]: hue[p.id] }}>
                 <span className="tf-stack">
-                  {cols.map((c, j) => { const q = sp.stack(j); return <span key={j} className="tf-col" style={{ left: q.x, top: q.y + M * 1.4 }}><Chips amount={0} bb={hand.bb} col={c} /></span>; })}
+                  {cols.map((c, j) => { const q = sp.stack(j, cols.length); return <span key={j} className="tf-col" style={{ left: q.x, top: q.y }}><Chips amount={0} bb={hand.bb} col={c} /></span>; })}
                 </span>
                 {inHand && (
                   <span className={`tf-at tf-hole ${up ? 'is-up' : ''} ${out ? 'is-muck' : ''}`} style={{ left: hole.x, top: hole.y, ['--rot' as string]: `${hole.rot}deg`, zIndex: out ? 1 + order : undefined }} aria-hidden={!up}>

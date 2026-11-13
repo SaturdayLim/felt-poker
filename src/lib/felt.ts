@@ -206,20 +206,22 @@ export interface SeatSpots {
   dealer: Pt;
   /** Committed chips, past the hole cards. */
   bet: Pt;
-  /** Where stack column j stands, along the rail behind the pass line. */
-  stack: (j: number) => Pt;
+  /** The foot of stack column j of k: the columns stand in one row across the screen, in front of the photo. */
+  stack: (j: number, k?: number) => Pt;
 }
+/** Stack row: at most 4 columns, 3.6 m apart, each at most 5.6 m tall (8 chips). */
+const STACK_COLS = 4, STACK_GAP = 3.6, STACK_H = 5.6;
 /** Where each part of each seat sits, for a table of w by h (px). Every part is measured from the seat's own point on the
     rail: in m (1% of the table height) toward the centre, and to the side. So a seat's cards and chips are always nearer to
     its own photo than to any other.
     One rule for every seat and every table size (from the owner's own placing, 13 Nov 2026): each seat is the same when it is
     seen from its own chair.
-    - Hole cards lie straight in front of the photo, across the pass line, turned to face the centre.
+    Option E (owner pick, 13 Nov 2026):
+    - The name and stack sit on a plate across the foot of the photo. The action sits above the head, centred on the photo.
+    - The stack stands in one row of columns straight in front of the photo, across the screen.
+    - Hole cards lie past the stack row, across the pass line, turned to face the centre.
     - Committed chips stand straight past the hole cards.
     - The dealer button sits at the front left corner of the hole cards.
-    - The stack stands along the rail on the player's left: west for a south seat, east for a north seat.
-    The name and the action hang straight down the screen from the photo. On an upper seat they hang over the cloth, so there the
-    hole cards sit a little further in, and the stack starts where the name ends (nearer on the upper left, further on the upper right).
     `moves` can shift a part of one seat at one table size (src/lib/feltLayout.ts). */
 export function seatSpots(w: number, h: number, n: number, moves: FeltMoves = FELT_MOVES): SeatSpots[] {
   const M = h / 100;
@@ -227,23 +229,22 @@ export function seatSpots(w: number, h: number, n: number, moves: FeltMoves = FE
     const f = pillPoint(w, h, i / Math.max(1, n));
     // d in from the edge, a to the player's left (clockwise round the rail)
     const at = (d: number, a: number): Pt => ({ x: f.x + (a * f.ny + d * f.nx) * M, y: f.y + (-a * f.nx + d * f.ny) * M });
-    const rail = (d: number, a: number): Pt => { const g = pillPoint(w, h, i / Math.max(1, n), a * M); return { x: g.x + d * M * g.nx, y: g.y + d * M * g.ny }; };
-    // how far the name hangs over the cloth: 0 for a lower or side seat, 1 for an upper seat
-    const up = Math.max(0, Math.min(1, f.ny / 0.35));
-    // on an upper seat the name leans to the player's right (upper left of the table) or left (upper right)
-    const lean = -f.nx * up;
-    // the stack starts where the name ends, and never so far round that it reads as the next player's
-    const from = Math.max(2.5, Math.min(16, 10 + 10 * lean)), deep = 10.6 + 4 * Math.max(0, lean);
-    // on an upper seat the hole cards lie past the action label, so the label does not cover them
-    const cd = 15.5 + 5.5 * up;
+    const ax = Math.abs(f.nx), ay = Math.abs(f.ny);
+    // the stack row: STACK_COLS columns side by side across the screen, each STACK_H tall at most. Its half size measured toward the centre:
+    const half = ax * ((STACK_COLS - 1) * STACK_GAP / 2 + 1.65) + ay * (STACK_H / 2);
+    // it starts past the photo, and on a lower seat also past the action label above the head
+    const near = 7.5 + 4.5 * Math.max(0, -f.ny), centre = near + half;
+    // the hole cards lie past the stack row (half a card deep plus a small gap)
+    const cd = centre + half + 4.2;
+    const row = at(centre, 0);
     const mv = moves[n]?.[i];
     const moved = (p: Pt, part: FeltPart): Pt => { const m = mv?.[part]; return m ? { x: p.x + m[0] * M, y: p.y + m[1] * M } : p; };
     return {
       seat: at(1, 0),
       hole: { ...moved(at(cd, 0), 'hole'), rot: (Math.atan2(f.nx, -f.ny) * 180) / Math.PI + (mv?.hole?.[2] ?? 0) },
       dealer: moved(at(cd + 3, 8.3), 'dealer'),
-      bet: moved(at(cd + 9 - 0.5 * up, 0), 'bet'),
-      stack: (j: number) => moved(rail(deep, from + j * 3.6), 'stack'),
+      bet: moved(at(cd + 9, 0), 'bet'),
+      stack: (j: number, k = 1) => moved({ x: row.x + (j - (k - 1) / 2) * STACK_GAP * M, y: row.y + (STACK_H / 2) * M }, 'stack'),
     };
   });
 }

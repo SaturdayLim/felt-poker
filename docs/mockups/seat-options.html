@@ -1,0 +1,177 @@
+<title>Full Ring Seat Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: a tab row of options over one wide pill table at 9 or 10 seats; the table is fixed art, so the page is dark only. */
+  :root {
+    color-scheme: dark;
+    --bg: #0f1113; --panel: #1c1e21; --line: rgba(235,241,245,.16); --fg: #ebf1f5; --muted: #97a1ac;
+    --felt: #1d7a52; --wood: #6a4327; --pad: #222428; --plate: #14161a; --accent: #0052cc; --allin: #ff5722; --gold: #e9b84a;
+    --ui: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  html, body { background: var(--bg); color: var(--fg); font-family: var(--ui); }
+  body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 28px; }
+  .wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  h1 { margin: 0; font-size: 1.25rem; font-weight: 650; text-wrap: balance; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 0 14px; cursor: pointer; }
+  .bar button[aria-pressed="true"] { background: var(--fg); color: var(--bg); font-weight: 600; }
+  .bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bar .gap { flex: 1; }
+  .note { margin: 0; color: var(--muted); max-width: 70ch; line-height: 1.45; }
+  .note b { color: var(--fg); font-weight: 600; }
+  .stage { position: relative; width: 100%; max-width: 100%; aspect-ratio: 2 / 1.5; }
+
+  .tb { position: absolute; border-radius: 9999px; }
+  .wood { position: absolute; inset: 0; border-radius: 9999px; background: linear-gradient(var(--wood), #3f2614); box-shadow: 0 calc(var(--m) * 2) calc(var(--m) * 4) rgba(0,0,0,.55); }
+  .pad { position: absolute; inset: calc(var(--m) * 1.4); border-radius: 9999px; background: var(--pad); }
+  .cloth { position: absolute; inset: calc(var(--m) * 5.4); border-radius: 9999px; background: radial-gradient(ellipse 70% 85% at 50% 42%, #2b9566, var(--felt) 45%, #114a31); box-shadow: inset 0 calc(var(--m) * 1.4) calc(var(--m) * 2.6) rgba(0,0,0,.6); }
+  .pass { position: absolute; inset: calc(var(--m) * 15.5); border-radius: 9999px; border: calc(var(--m) * .26) solid rgba(255,255,255,.2); }
+  .board { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); display: flex; gap: calc(var(--m) * 1); }
+  .board i { width: calc(var(--m) * 9.4); height: calc(var(--m) * 13.2); border-radius: calc(var(--m) * .9); background: rgba(0,0,0,.18); box-shadow: inset 0 2px 4px rgba(0,0,0,.4); }
+  .pot { position: absolute; left: 50%; top: 60%; transform: translate(-50%, -50%); }
+
+  .at { position: absolute; transform: translate(-50%, -50%); transition: left 450ms cubic-bezier(.22,1,.36,1), top 450ms cubic-bezier(.22,1,.36,1); }
+  .av { width: calc(var(--m) * 11.2); height: calc(var(--m) * 11.2); border-radius: 50%; background: var(--hue); box-shadow: 0 0 0 calc(var(--m) * .55) #3c4148, 0 calc(var(--m) * 1) calc(var(--m) * 2) rgba(0,0,0,.5); display: grid; place-items: center; z-index: 6; }
+  .av svg { width: 70%; fill: rgba(255,255,255,.85); }
+  .lab { display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) * .5); z-index: 7; }
+  .lab.row { flex-direction: row; }
+  .tag { min-width: calc(var(--m) * 14); padding: calc(var(--m) * .4) calc(var(--m) * 1.4); border-radius: calc(var(--m) * 1.1); background: var(--plate); text-align: center; white-space: nowrap; font-size: max(9px, calc(var(--m) * 2.4)); line-height: 1.15; box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+  .tag b { display: block; font-weight: 600; }
+  .tag small { display: block; color: #aeb7c0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .act { padding: calc(var(--m) * .2) calc(var(--m) * 1.2); border-radius: calc(var(--m) * .8); background: var(--fg); color: #1c1e21; font-weight: 700; font-size: max(9px, calc(var(--m) * 2.2)); white-space: nowrap; }
+  .act.ai { background: var(--allin); color: #fff; }
+  /* option E: the name plate sits on the photo, the action is a badge at its corner */
+  .plate { z-index: 7; padding: calc(var(--m) * .3) calc(var(--m) * 1.2); border-radius: calc(var(--m) * 1); background: var(--plate); font-size: max(9px, calc(var(--m) * 2.2)); white-space: nowrap; text-align: center; line-height: 1.1; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .plate b { font-weight: 600; } .plate small { color: #aeb7c0; margin-left: .4em; font-variant-numeric: tabular-nums; }
+  .badge { z-index: 8; }
+
+  .cards { display: flex; z-index: 4; }
+  .cards i { width: calc(var(--m) * 5.2); height: calc(var(--m) * 7.3); border-radius: calc(var(--m) * .5); background: #1c1e21; box-shadow: inset 0 0 0 calc(var(--m) * .3) var(--fg), 0 2px 4px rgba(0,0,0,.45); display: grid; place-items: center; color: var(--gold); font: 700 calc(var(--m) * 3.4) Georgia, serif; }
+  .cards i + i { margin-left: calc(var(--m) * -2.3); }
+  .dealer { width: calc(var(--m) * 4.4); height: calc(var(--m) * 4.4); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #d9d4c6); color: #1c1e21; font-weight: 800; font-size: max(8px, calc(var(--m) * 2.2)); display: grid; place-items: center; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,.5); }
+  .col { display: flex; flex-direction: column-reverse; z-index: 2; }
+  .col u { display: block; width: calc(var(--m) * 3.3); height: calc(var(--m) * 1.4); border-radius: 50%; background: var(--c); box-shadow: 0 calc(var(--m) * .4) 0 rgba(0,0,0,.45); text-decoration: none; }
+  .col u + u { margin-bottom: calc(var(--m) * -.8); }
+  .bet { display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 3; }
+  .amt { padding: 0 .55em; border-radius: 1em; background: rgba(0,0,0,.55); font-weight: 600; font-size: max(9px, calc(var(--m) * 2.2)); font-variant-numeric: tabular-nums; }
+  .seatnum { position: absolute; font-size: 11px; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { .at { transition: none; } }
+  @media (max-width: 520px) { .note { font-size: .875rem; } }
+</style>
+
+<div class="wrap">
+  <h1>Full Ring Seat Options</h1>
+  <div class="bar" id="opts" role="group" aria-label="Option"></div>
+  <div class="bar">
+    <span class="note">Players</span>
+    <button type="button" data-n="9" aria-pressed="true">9</button>
+    <button type="button" data-n="10" aria-pressed="false">10</button>
+    <span class="gap"></span>
+  </div>
+  <p class="note" id="note"></p>
+  <div class="stage" id="stage"></div>
+  <p class="note">Sample hand: one player all-in, the button on Nic. Photos are placeholders. Options A to D keep the stack on the player's left along the rail. E stands it in a row in front of the player.</p>
+</div>
+
+<script>
+const NAMES = ['Nic', 'Eve', 'Mike', 'Nat', 'Cat', 'Everett', 'Sam', 'Jo', 'Raj', 'Lee'];
+const HUES = ['#3b74d6', '#c8473d', '#3a9a5e', '#8a5cc2', '#c9772b', '#2a8c95', '#c2478f', '#b8902f', '#7b8794', '#5b6ee1'];
+const STACK = [1240, 386, 905, 0, 2150, 77, 640, 1515, 310, 820], BET = [60, 0, 60, 240, 0, 25, 60, 0, 10, 60];
+const ACT = ['Call 60', 'Fold', 'Raise to 60', 'All-in to 240', 'Fold', 'BB 25', 'Call 60', 'Check', 'SB 10', 'Call 60'];
+const CHIPS = ['#E9B84A', '#7446ad', '#2a2d32', '#2f9454', '#2a5bd0', '#cf3b30', '#f2efe6'];
+const FACE = '<svg viewBox="0 0 96 96"><circle cx="48" cy="38" r="17"/><path d="M14 96c2-22 16-32 34-32s32 10 34 32z"/></svg>';
+
+const OPTIONS = {
+  A: { name: 'A. Name below, all seats', note: '<b>Now in 1.8.5.</b> Name and action hang under every photo. On the top half they hang over the cloth, so the hole cards move further in, past the action.' },
+  B: { name: 'B. Name above, top half', note: '<b>Recommended.</b> Top-half seats mirror the bottom: name and action sit above the photo, outside the table. Every seat has its cards straight in front of the photo at the same depth.' },
+  C: { name: 'C. Cards above heads', note: '<b>Your idea.</b> Top-half seats keep the name under the photo, and their hole cards sit above the head, outside the rail. The cards no longer cross the pass line for those seats, so they read as off the table.' },
+  D: { name: 'D. Name beside photo', note: 'The name and action sit beside the photo on the rail, to the right of the player. Nothing hangs over the cloth on any seat. Wide names take room from the neighbour on a full ring.' },
+  E: { name: 'E. Name plate on photo', note: '<b>Picked.</b> A slim plate across the foot of the photo holds the name and stack. The action sits above the head, centred on the photo. The stack stands in one row in front of the player, and the cards lie past it.' },
+};
+let opt = 'E', n = 9;
+const stage = document.getElementById('stage');
+
+/** A point on the pill edge of w by h, t of the way round from the bottom centre (clockwise seen from above), plus `along`; nx, ny point inward. */
+function pill(w, h, t, along = 0) {
+  const r = Math.min(w, h) / 2, lh = w - 2 * r, lv = h - 2 * r, q = (Math.PI * r) / 2, per = 2 * lh + 2 * lv + 4 * q;
+  const parts = [['h', lh / 2, w / 2, h, -1], ['a', q, r, h - r, 90], ['v', lv, 0, h - r, -1], ['a', q, r, r, 180], ['h', lh, r, 0, 1], ['a', q, w - r, r, 270], ['v', lv, w, r, 1], ['a', q, w - r, h - r, 0], ['h', lh / 2, w - r, h, -1]];
+  let d = ((((t % 1) + 1) % 1) * per + along + per * 4) % per, x = w / 2, y = h, nx = 0, ny = -1;
+  for (const [k, len, a, b, c] of parts) {
+    if (d <= len) {
+      if (k === 'h') { x = a + c * d; y = b; nx = 0; ny = b === 0 ? 1 : -1; }
+      else if (k === 'v') { x = a; y = b + c * d; nx = a === 0 ? 1 : -1; ny = 0; }
+      else { const g = ((c + (d / (q || 1)) * 90) * Math.PI) / 180; x = a + r * Math.cos(g); y = b + r * Math.sin(g); nx = -Math.cos(g); ny = -Math.sin(g); }
+      break;
+    }
+    d -= len;
+  }
+  return { x, y, nx, ny };
+}
+function cols(amount) {
+  let rem = Math.round(amount / 20 * 2) / 2; const vals = [100, 50, 25, 5, 2.5, 1, .5], out = [];
+  vals.forEach((v, i) => { const k = Math.floor(rem / v + 1e-9); if (k > 0 && out.length < 4) { out.push([i, Math.min(k, 8)]); rem -= k * v; } });
+  return out;
+}
+const colHtml = ([i, k]) => `<span class="col">${`<u style="--c:${CHIPS[i]}"></u>`.repeat(k)}</span>`;
+
+function draw() {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  const H = Math.min(sh / 1.5, sw / 2.18), W = H * 2, M = H / 100, L = (sw - W) / 2, T = (sh - H) / 2;
+  stage.style.setProperty('--m', M + 'px');
+  const px = (p) => `left:${L + p.x}px;top:${T + p.y}px`;
+  let h = `<div class="tb" style="left:${L}px;top:${T}px;width:${W}px;height:${H}px;--m:${M}px"><div class="wood"></div><div class="pad"></div><div class="cloth"></div><div class="pass"></div>
+    <div class="board"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="pot"><span class="amt">Pot 385</span></div></div>`;
+  for (let i = 0; i < n; i++) {
+    const f = pill(W, H, i / n), up = Math.max(0, Math.min(1, f.ny / 0.35)), top = up > 0.5;
+    const at = (d, a) => ({ x: f.x + (a * f.ny + d * f.nx) * M, y: f.y + (-a * f.nx + d * f.ny) * M });
+    const rail = (d, a) => { const g = pill(W, H, i / n, a * M); return { x: g.x + d * M * g.nx, y: g.y + d * M * g.ny }; };
+    const rot = (Math.atan2(f.nx, -f.ny) * 180) / Math.PI;
+    const seat = at(1, 0);
+    // where the label column goes, and the depth of the cards, by option
+    let labDy = 9.6, labDx = 0, cd = 15.5, cardsAt = null, labClass = 'lab', stackFrom = 10, stackDeep = 10.6, plate = false;
+    if (opt === 'A' && top) { cd = 21; const lean = -f.nx * up; stackFrom = Math.max(2.5, Math.min(16, 10 + 10 * lean)); stackDeep = 10.6 + 4 * Math.max(0, lean); }
+    if (opt === 'B' && top) labDy = -10.4;
+    if (opt === 'C' && top) { cardsAt = { x: seat.x, y: seat.y - 9.6 * M, rot: 0 }; }
+    if (opt === 'D') { labDy = 0; labDx = 0; labClass = 'lab'; }
+    let rowAt = null, half = 0;
+    if (opt === 'E') {
+      // same rule as seatSpots in src/lib/felt.ts: one row of stacks in front of the photo, cards past it
+      plate = true; const ax = Math.abs(f.nx), ay = Math.abs(f.ny);
+      half = ax * (3 * 3.6 / 2 + 1.65) + ay * 2.8; const centre = 7.5 + 4.5 * Math.max(0, -f.ny) + half;
+      cd = centre + half + 4.2; rowAt = at(centre, 0);
+    }
+    const hole = cardsAt ?? { ...at(cd, 0), rot };
+    const bet = cardsAt ? at(15.5, 0) : at(cd + 9, 0), dealer = cardsAt ? at(12, 8.3) : at(cd + 3, 8.3);
+    const cs = cols(STACK[i]);
+    if (rowAt) cs.forEach((c, j) => { h += `<span class="at" style="${px({ x: rowAt.x + (j - (cs.length - 1) / 2) * 3.6 * M, y: rowAt.y + 2.8 * M })};transform:translate(-50%,-100%)">${colHtml(c)}</span>`; });
+    // the stack along the rail on the player's left
+    else cs.forEach((c, j) => { const q = rail(stackDeep, stackFrom + j * 3.6); h += `<span class="at" style="${px({ x: q.x, y: q.y - M * 1.4 })}">${colHtml(c)}</span>`; });
+    if (ACT[i] !== 'Fold') h += `<span class="at cards" style="${px(hole)};transform:translate(-50%,-50%) rotate(${hole.rot}deg)"><i>S</i><i>S</i></span>`;
+    if (BET[i]) h += `<span class="at bet" style="${px(bet)}">${cols(BET[i]).slice(0, 3).map(colHtml).join('')}<span class="amt">${BET[i]}</span></span>`;
+    if (i === 0) h += `<span class="at dealer" style="${px(dealer)}">D</span>`;
+    h += `<span class="at av" style="${px(seat)};--hue:${HUES[i]}">${FACE}</span>`;
+    const act = `<span class="act ${ACT[i].startsWith('All-in') ? 'ai' : ''}">${ACT[i]}</span>`, tag = `<span class="tag"><b>${NAMES[i]}</b><small>${STACK[i].toLocaleString('en-US')}</small></span>`;
+    if (plate) {
+      h += `<span class="at plate" style="${px({ x: seat.x, y: seat.y + 5.2 * M })}"><b>${NAMES[i]}</b><small>${STACK[i].toLocaleString('en-US')}</small></span>`;
+      h += `<span class="at badge" style="${px({ x: seat.x, y: seat.y - 6.5 * M })};transform:translate(-50%,-100%)">${act}</span>`;
+    } else if (opt === 'D') {
+      // beside the photo on the rail, on the player's right
+      const side = rail(1, -15);
+      h += `<span class="at lab" style="${px(side)}">${tag}${act}</span>`;
+    } else {
+      const y = labDy < 0 ? seat.y + labDy * M : seat.y + labDy * M;
+      h += `<span class="at ${labClass}" style="${px({ x: seat.x + labDx * M, y })};transform:translate(-50%, ${labDy < 0 ? '-100%' : '0'})">${labDy < 0 ? act + tag : tag + act}</span>`;
+    }
+  }
+  stage.innerHTML = h;
+}
+
+const optBar = document.getElementById('opts');
+optBar.innerHTML = Object.entries(OPTIONS).map(([k, o]) => `<button type="button" data-o="${k}" aria-pressed="${k === opt}">${o.name}</button>`).join('');
+function pick(k) { opt = k; optBar.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.o === k)); document.getElementById('note').innerHTML = OPTIONS[k].note; draw(); }
+optBar.addEventListener('click', (e) => { const b = e.target.closest('[data-o]'); if (b) pick(b.dataset.o); });
+document.querySelectorAll('[data-n]').forEach((b) => b.addEventListener('click', () => { n = +b.dataset.n; document.querySelectorAll('[data-n]').forEach((x) => x.setAttribute('aria-pressed', x === b)); draw(); }));
+new ResizeObserver(draw).observe(stage);
+pick('E');
+</script>

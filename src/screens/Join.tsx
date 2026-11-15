@@ -546,12 +546,14 @@ function CodeSheet({ onSubmit, onClose }: { onSubmit: (c: string) => Promise<boo
 
 /** The cards this player showed at the table in a hand, if any. */
 const shownBy = (view: HandView, name: string): Card[] => view.streets.flatMap((s) => s.shown ?? []).find((x) => x.name === name)?.cards ?? [];
+/** Cards no hand can take: the board and every card another player showed at the table (public cards). */
+const publicOf = (board: Card[], shown: { name: string; cards: Card[] }[], name: string): Card[] => [...board, ...shown.filter((x) => x.name !== name).flatMap((x) => x.cards)];
 
 function HandPick({ hands, now, entered, me, toCheck, start, onSave, onClose, onLeave }: {
   hands: PubSnapshot['hands']; now: NowSnapshot | null; entered: Map<number, Card[]>; me: Me; toCheck: number[]; start: number | null; onSave: (n: number, cards: Card[]) => Promise<void>; onClose: () => void; onLeave: () => void;
 }) {
-  const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board, shown: shownBy(now.view, me.name) }] : [];
-  const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board, shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))];
+  const live = now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: publicOf(now.board, now.view.streets.flatMap((s) => s.shown ?? []), me.name), shown: shownBy(now.view, me.name) }] : [];
+  const mine = [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: publicOf(x.board, x.shown, me.name), shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))];
   // cards shown at the table belong to the host's showdown: they cannot be replaced from here
   const [n, setN] = useState<number | null>(() => (start !== null && mine.find((x) => x.n === start)?.shown.length ? null : start));
   const pick = (x: (typeof mine)[number]) => { if (x.shown.length) toast(SHOWDOWN_LOCK); else setN(x.n); };
@@ -604,8 +606,8 @@ function TableCards({ me, onShow, hands, now, entered, tryCode, onSave, onLeave 
   // the panel keeps its content while it closes
   const [kept, setKept] = useState(false);
   const show = (v: boolean) => { setOpen(v); if (v) setKept(true); else window.setTimeout(() => setKept(false), 260); };
-  const live = me && now && now.acted !== false && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: now.board, shown: shownBy(now.view, me.name) }] : [];
-  const mine = me ? [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: x.board, shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))] : [];
+  const live = me && now && now.acted !== false && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: publicOf(now.board, now.view.streets.flatMap((s) => s.shown ?? []), me.name), shown: shownBy(now.view, me.name) }] : [];
+  const mine = me ? [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: publicOf(x.board, x.shown, me.name), shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))] : [];
   const host = me ? loggedOf(me) : {};
   const known = (k: number): Card[] => (host[k]?.length ? host[k] : entered.get(k) ?? []);
   const [n, setN] = useState<number | null>(null);

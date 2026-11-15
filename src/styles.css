@@ -1047,3 +1047,9 @@ html[data-calm] [data-share] { view-transition-name: none; }
 .felt-pseat-tag { position: absolute; left: 50%; top: calc(100% - 10px); transform: translateX(-50%); display: flex; align-items: baseline; gap: .4em; padding: 2px 8px; border-radius: 8px; background: #14161a; color: #fff; font-size: .75rem; line-height: 1.2; white-space: nowrap; box-shadow: var(--felt-elev-1); }
 .felt-pseat-tag b { font-weight: 600; max-width: 72px; }
 .felt-pseat-tag .sat-num { color: #aeb7c0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Page sections are not cards (owner, 15 Nov 2026; saas-card-kit skill). A section of a page (.sat-glass.sat-card) is a
+   heading and its content on the page itself: no glass, no border, no shadow, no side padding. Surfaces are kept for what
+   they mean: a list of rows (.felt-list, .sat-glass-2), a floating sheet or tip, a live card on the table. This stops every
+   block reading as one more identical rounded card. */
+.felt-page .sat-glass.sat-card { background: none; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding-inline: 0; padding-block: var(--sat-space-3); }

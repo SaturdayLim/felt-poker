@@ -234,12 +234,12 @@ function pots(by: 'street' | 'winner') {
   return (m: TrialModel): Block[] => {
     const n = m.pots.length;
     const max = Math.max(...m.pots.map((p) => p.pot), 1);
-    const med = [...m.pots.map((p) => p.pot)].sort((a, b) => a - b)[Math.floor(n / 2)] ?? 0;
-    const big = m.biggest[0];
+    // the largest hand of the night carries its figure on the bar
+    const bigAt = m.pots.findIndex((p) => p.pot === max);
     const step = niceStep(max);
     const top = Math.ceil(max / step) * step;
     const title = by === 'street' ? 'Pot sizes by street' : 'Pot sizes by winner';
-    return [sectionTitle(title, big ? `Biggest ${big.pot}, median ${med}` : ''), chart(440, (ctx, y0) => {
+    return [sectionTitle(title), chart(440, (ctx, y0) => {
       const T = y0 + 20, B = y0 + 360;
       const Y = (v: number) => B - (v / top) * (B - T);
       for (let t = 0; t <= top + 1e-6; t += step) {
@@ -253,6 +253,10 @@ function pots(by: 'street' | 'winner') {
         ctx.fillStyle = by === 'street' ? streetColor(p.street) : p.winners.length > 1 ? C.lineStrong : colorOf(m, p.winners[0]);
         ctx.fillRect(xAt(k + 1, n) - bw / 2, B - h, bw, h);
       });
+      if (bigAt >= 0) {
+        const p = m.pots[bigAt], bx = Math.max(CL + 40, Math.min(CR - 40, xAt(bigAt + 1, n)));
+        text(ctx, String(p.pot), bx, B - (p.pot / top) * (B - T) - 10, font(700, 22), C.text, 'center');
+      }
       xTicks(ctx, n, B);
       const items = by === 'street' ? STREET_NAMES.filter((s) => m.pots.some((p) => p.street === s)).map((s) => ({ l: s, c: streetColor(s) }))
         : [...m.players.map((p) => ({ l: p.name, c: colorOf(m, p.id) })), ...(m.pots.some((p) => p.winners.length > 1) ? [{ l: 'Split', c: C.lineStrong }] : [])];

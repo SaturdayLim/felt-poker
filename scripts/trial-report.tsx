@@ -7,7 +7,7 @@
    - Host view: opened from the dev server with a backup (?src=...). Every player is open.
    - Shared report: one HTML file with the data inside (#felt-report). Game Summary and Compare are open to
      everyone; each player page opens only with that player's code (see trial-lock.ts). */
-import { StrictMode, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, StrictMode, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CodeBoxes } from '../src/components/codeBoxes';
 import '../src/saturday/css/tokens.css';
@@ -245,6 +245,13 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
           {m.moves.map((x, i) => <div key={`m${i}`} className="felt-row"><span className="trial-tag">Move</span><span className="felt-row-main">{x.from} to {x.to}, after hand #{x.afterN}{x.note ? <span className="felt-row-sub">{x.note}</span> : null}</span><b>{x.amount}</b></div>)}
         </div>
       </Section>
+      {(m.ledger ?? []).length > 0 && (
+        <Section title="Event Ledger" tip={['Every event off the felt, in time order: buy-ins, rebuys, cash-outs, counts, chip moves and 7-2 bounties.', 'Each event has a reference (E1, E2 ...). The same reference is in the Event ledger CSV and in the Game Log.', 'After hand = the last hand finished before the event.']}>
+          <div className="sat-glass-2 felt-list trial-ledger">
+            {m.ledger.map((r) => <LedgerLine key={r.ref} r={r} />)}
+          </div>
+        </Section>
+      )}
       <Section title="Settle Up" tip={['Smallest set of payments that closes every account.', 'Chips, before any money rate.', 'Copy puts the list on your clipboard.']}>
         <div className="sat-glass-2 felt-list">
           {m.settle.length === 0 && <div className="felt-row"><span className="felt-row-main">All square.</span></div>}
@@ -295,15 +302,33 @@ function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
 }
 
 /** The full game log: every hand in order, each opening to its action log. */
+/** One event of the ledger. Its id (ledger-E3) lets a link point to it. */
+function LedgerLine({ r }: { r: TrialModel['ledger'][number] }) {
+  return (
+    <div id={`ledger-${r.ref}`} className="felt-row trial-ledger-row">
+      <span className="trial-tag">{r.ref}</span>
+      <span className="felt-row-main">{r.label}{r.who ? `, ${r.who}` : ''}{r.to ? ` to ${r.to}` : ''}
+        <span className="felt-row-sub">{r.afterN ? `After hand #${r.afterN}` : 'Before the first hand'}{r.detail ? `, ${r.detail}` : ''}</span></span>
+      <b className="sat-num">{r.chips ?? r.money ?? ''}</b>
+    </div>
+  );
+}
+
 function GameLog({ m }: { m: TrialModel }) {
+  // events off the felt sit between the hands, as dashed rows with their ledger reference
+  const events = (n: number) => (m.ledger ?? []).filter((r) => r.afterN === n);
   return (
     <Section title="Game Log" tip={['Every recorded hand in order.', 'Tap a hand to open its actions, the cards shown and the result.', 'Amounts are chips.']}>
       <div className="sat-stack" style={gap(2)}>
+        {events(0).map((r) => <div key={r.ref} className="trial-log-event"><LedgerLine r={r} /></div>)}
         {(m.log ?? []).map((v) => (
-          <div key={v.n} className="trial-hand">
-            <div className="sat-split"><span><b>#{v.n}</b> <span className="sat-muted">{v.button ? `Button: ${v.button}` : ''}</span></span><b className="sat-num">{v.pot}</b></div>
-            <LogDrop v={v} label={v.result} />
-          </div>
+          <Fragment key={v.n}>
+            <div className="trial-hand">
+              <div className="sat-split"><span><b>#{v.n}</b> <span className="sat-muted">{v.button ? `Button: ${v.button}` : ''}</span></span><b className="sat-num">{v.pot}</b></div>
+              <LogDrop v={v} label={v.result} />
+            </div>
+            {events(v.n).map((r) => <div key={r.ref} className="trial-log-event"><LedgerLine r={r} /></div>)}
+          </Fragment>
         ))}
       </div>
     </Section>

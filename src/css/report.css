@@ -34,8 +34,7 @@
 }
 .felt-exp-hands .felt-exp-sub { padding-right: var(--sat-space-2); }
 .felt-exp-pot { gap: var(--sat-space-4); padding-left: calc(var(--exp-text) + 20px + var(--sat-space-3)); }
-.felt-exp-pot > button { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0; background: none; border: 0; font: inherit; color: var(--sat-muted); cursor: pointer; }
-.felt-exp-pot > button[aria-checked="true"] { color: var(--sat-text); }
+.felt-exp-pot > button { display: flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; padding: 0; background: none; border: 0; font: inherit; color: var(--sat-text); cursor: pointer; }
 .felt-exp-pot > button[aria-checked="true"] .felt-choice-dot { border: 5px solid var(--sat-accent); }
 html[data-calm] .felt-exp-act, html[data-calm] .felt-exp-chev { transition-duration: 150ms; }
 html[data-motion-off] .felt-exp-act, html[data-motion-off] .felt-exp-chev, html[data-motion-off] .felt-exp-head { transition: none; }

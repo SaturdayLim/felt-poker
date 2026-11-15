@@ -80,3 +80,20 @@ description: Felt UI principles. Use when adding or changing any screen, button,
 
 - Use tokens only. With Custom colours, every token derives from Base, Main, Accent, Up and Down (styles.css, html[data-palette="custom"]).
 - A new colour must derive from one of the five with color-mix. Do not add a literal colour.
+
+## Units (owner, 15 Nov 2026)
+
+Do not use px for everything. Pick the unit by the job:
+
+- Font sizes: rem. A small floor for scaled text is also rem, for example `max(0.5625rem, calc(var(--m) * 2.3))`.
+- Layouts and widths: %. A column, a panel or a seat position is a share of its parent.
+- Borders and shadows: px. The `--felt-elev-1/2/3` shadows and 1 px hairlines stay in px.
+- Full-screen sections: vw. On a phone use the dynamic forms (`100dvw`, `100dvh`), because the browser bars change the plain viewport.
+- Button padding: em, so the padding grows with the button text.
+
+Where this meets older rules:
+
+- The Table art (`.tf`, `src/css/tablefelt.css`) keeps its own unit, `--m` (1% of the table height). Every part of the table scales with the table, so its layout stays in m and does not change to %.
+- Touch targets and gaps that the owner set in px stay in px: the 8 px between targets, the 44 px minimum hit area, the 60 px banner switch and the 52 px content switches. They are fixed sizes for a finger, not layout.
+- Spacing between blocks uses the kit tokens (`--sat-space-*`). Do not swap a token for a raw unit.
+- Apply this to new and changed code. Do not convert a whole file only to change units.

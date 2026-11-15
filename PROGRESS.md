@@ -1,6 +1,15 @@
 # Nightcap: progress
 
-## Latest (13 Nov 2026): 1.8.7
+## Latest (15 Nov 2026): 1.8.8
+
+- Skill `saas-card-kit` installed (.claude/skills, from anthropics/skills frontend-design). Units rule merged into felt-ui skill.
+- Repeated cards: every page section was `.sat-glass.sat-card` (same glass, radius, border, shadow). Sections are now flat on the page (styles.css, end). Lists, sheets and tips keep their surfaces. Checked on Settings only.
+- Host action log: book button on the hand page (`HandLogSheet`, src/components/handLogSheet.tsx, uses `handView`).
+- Event ledger: `gameLedger` (src/report/ledger.ts) feeds the CSV (new `ref`, `after_hand` columns) and the report (Event Ledger section, events in Game Log, anchors #ledger-E3).
+- Host Table: live hand hidden until a real action (Spectator.tsx). Pickers: shown cards are public and blocked (HandRecorder `used`, Join `publicOf`). CLAUDE.md rule updated.
+- Everett report lock: not a crypto fault. The page is locked with the code the player had when the report went online. Republish the link (Export, Interactive Game Dashboard, copy) to relock with current codes.
+
+## Earlier (13 Nov 2026): 1.8.7
 
 - Table: fixed 1.8.6 photos (spans were inline, so tiny). Fit now leaves 12 m above the table for upper-seat actions. Brighter spotlight, white plate on the player to act. Big pips (`.tfp-big`) on the Table.
 - Player view: Card Settings = Big pips + host `CardsView` (exported from Settings.tsx). Viewer custom colours are no longer read; the phone card look is used. Players tab: photo and plate seats (`.felt-pseat`), no dealer button, no stack bubble. Candle: figures at wick ends, no Low and High words.

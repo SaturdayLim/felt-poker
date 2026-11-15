@@ -1,5 +1,13 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.8', date: '15 Nov 2026', notes: [
+    'Hand page: the book button opens the action log of the hand, street by street, with Copy.',
+    'Reports: an Event Ledger lists every event off the felt with a reference (E1, E2 ...) and the hand it came after. The Game Log shows each event between the hands. The Event ledger CSV carries the same reference.',
+    'Table: a new hand shows only after the first real action. No face-down cards sit on the table before the hand starts.',
+    'Card pickers: cards shown at the table leave the picker for every other hand, on the host and the player phone.',
+    'Export: Street won and Player won read the same; only the dot shows the pick. Pot sizes charts mark the biggest pot on its bar.',
+    'Pages: a section is a heading and its content on the page, not one more card.',
+  ] },
   { version: '1.8.7', date: '13 Nov 2026', notes: [
     'Table: photos show again at full size. The actions of the upper seats are no longer cut off at the top of the screen.',
     'Table: the player to act gets a brighter light and a white name plate. The other players step further back.',

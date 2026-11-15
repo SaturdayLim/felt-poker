@@ -88,6 +88,9 @@ function SpectatorBody({ g, alone }: { g: Game; alone: boolean }) {
   const now: FeltHand | null = useMemo(() => {
     if (!live) return null;
     const start = exactStacks(g, live.n), steps = handSteps(g, live.log, start);
+    // as for the viewers: a new hand shows only after a real action (check, call, bet, raise, fold). Blinds and card entry alone
+    // do not show it, so no face-down cards sit on the table before the hand starts
+    if (!live.ended && !steps.some((x) => x.k !== 'sb' && x.k !== 'bb' && x.k !== 'straddle')) return null;
     const at = live.board.findIndex((c) => !c), board = (at < 0 ? live.board : live.board.slice(0, at)) as Card[];
     return {
       n: live.n, live: true, players: seats(live.log.dealt), dealt: live.log.dealt, button: live.log.button ?? null,

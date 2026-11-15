@@ -43,7 +43,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Theme and opening-screen length belong to the phone. A backup restore must never change them.
 - Player status: dealt into a hand or acting in it turns the player green (playing). An away player is paused and not dealt in by default.
 - Recorder: who acts sits left and the pot right, under the stage tabs and outside the box. On a street tab the pot is that street's closing pot.
-- A hand never blocks anything. Only board and run cards leave the picker. A card entered twice is flagged, not refused.
+- A hand never blocks anything. Board cards, run cards and cards shown at the table (public cards) leave the picker, in every card picker, host and player (owner, 15 Nov 2026). A player keeps their own shown cards. Hidden cards entered twice are flagged, not refused.
 - Hold actions give feedback by haptics, not an animation under the thumb. Copy: "Generate New Code".
 - A press acts at once. Where a long press does nothing different, it looks and acts the same as a tap.
 - Add player mid-game: saved players first. A name already saved is flagged, and the user is asked for a different name. New Game and the seat picker share one rule (findSaved): an exact saved name adds that player; a close name is never swapped in silently: "Nat is saved. Add Nat, or save Cat as new?".

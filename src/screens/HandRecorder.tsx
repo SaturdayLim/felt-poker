@@ -4,6 +4,7 @@ import { useGame, useStore, usePlayerName } from '../store';
 import { back, backPlain, backTo, go } from '../router';
 import { installSwipeBack } from '../lib/swipeBack';
 import { CardEntrySheet } from '../components/cardEntry';
+import { HandLogSheet } from '../components/handLogSheet';
 import { useRebuyOffer } from '../components/rebuy';
 import { dropInbox, inboxFor, liveStatus, publishNow } from '../live/host';
 import { buildNow } from '../live/snapshot';
@@ -160,6 +161,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     return () => window.clearTimeout(t);
   });
   const existing = g?.hands.find((h) => h.id === handId);
+  const [logOpen, setLogOpen] = useState(false);
   const nNew = (g?.hands[g.hands.length - 1]?.n ?? 0) + 1;
 
   // Stacks cap wagers (all-in) only where the estimate is exact
@@ -315,7 +317,9 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
     st.board.forEach((c, i) => c && i < common && s.add(c));
     // run cards count only while the hand is on a run: going back to a street frees them
     if (st.log.runFrom !== undefined) st.runSlots.forEach((r) => r.forEach((c) => c && s.add(c)));
-    // a hand never blocks anything: only the board and the runs take a card out of the picker
+    // cards shown at the table are public: no other hand can take them (owner, 15 Nov 2026). A player's own shown cards stay
+    // pickable for that player (pickable and CardEntrySheet let a target keep its own cards)
+    for (const cs of Object.values(st.shown ?? {})) for (const c of cs ?? []) if (c) s.add(c);
     return s;
   }, [st]);
 
@@ -727,11 +731,16 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
   return (
     <div ref={pageRef} className={`felt-page felt-recorder ${!target && selCell ? 'has-keypad' : ''}`}>
       <Header back={() => back(readOnly ? `game/${g.id}/hands` : `game/${g.id}`)} title={`Hand ${st.n}`} sub={readOnly ? `${g.name}, review` : g.name}
-        right={existing && !readOnly ? (
-          <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Delete hand"
-            onClick={() => { withUndo(`Hand ${st.n} deleted.`, () => deleteHand(g.id, st.id)); backTo(`game/${g.id}`); }}>
-            <Icon name="trash" />
-          </button>
+        right={existing ? (
+          <span className="sat-cluster" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)', flexWrap: 'nowrap' }}>
+            {existing.log && <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Action log" onClick={() => setLogOpen(true)}><Icon name="book" /></button>}
+            {!readOnly && (
+              <button className="sat-btn sat-btn--ghost sat-iconbtn" aria-label="Delete hand"
+                onClick={() => { withUndo(`Hand ${st.n} deleted.`, () => deleteHand(g.id, st.id)); backTo(`game/${g.id}`); }}>
+                <Icon name="trash" />
+              </button>
+            )}
+          </span>
         ) : undefined}>
         <div className="felt-rec-bar sat-glass">
           <div className="felt-tabs" role="tablist" aria-label="Hand stage">
@@ -752,6 +761,7 @@ export default function HandRecorder({ gameId, handId }: { gameId: string; handI
           </div>
         )}
       </Header>
+      {logOpen && existing && <HandLogSheet g={g} h={existing} name={name} onClose={() => setLogOpen(false)} />}
 
       <SlidePane k={st.tab} i={TABS.indexOf(st.tab)}>
       <div className="sat-stack" style={gap(3)}>

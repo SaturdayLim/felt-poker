@@ -7,6 +7,7 @@ import { handSteps } from '../lib/replay';
 import { positionMap } from './logText';
 import { rowOrder } from '../lib/hand';
 import { fileDate } from '../lib/format';
+import { gameLedger } from './ledger';
 
 type NameFn = (id: ID) => string;
 
@@ -143,25 +144,13 @@ export function actionsCsv(games: Game[], name: NameFn): string {
   return toCsv(['game_id', 'game', 'date', 'hand', 'seq', 'street', 'street_seq', 'player', 'position', 'action', 'amount', 'chips_added', 'pot_after', 'stack_after', 'all_in', 'dark'], rows);
 }
 
+/** The event ledger, one row per event. `ref` (E1, E2 ...) and `after_hand` match the Event Ledger of the report. */
 export function ledgerCsv(games: Game[], name: NameFn): string {
   const rows: unknown[][] = [];
   for (const g of games) {
-    const unitMoney = (u: number) => (g.type === 'cash' ? +(u * g.unitValue).toFixed(2) : u);
-    for (const b of g.buyIns) rows.push([g.id, g.name, iso(b.at), g.type === 'cash' ? 'buy_in' : 'entry', name(b.playerId), '', g.type === 'cash' ? b.amount : '', unitMoney(b.amount), '']);
-    for (const c of g.cashOuts) rows.push([g.id, g.name, iso(c.at), 'cash_out', name(c.playerId), '', c.amount, unitMoney(c.amount), '']);
-    for (const e of g.statusEvents) rows.push([g.id, g.name, iso(e.at), `status_${e.status}`, name(e.playerId), '', '', '', '']);
-    for (const e of g.expenses) rows.push([g.id, g.name, iso(g.endedAt ?? g.startedAt), 'expense', e.paidBy ? name(e.paidBy) : '', '', '', e.amount, `${e.label} (split ${e.splitAmong.map(name).join('/')})`]);
-    for (const t of g.transfers) rows.push([g.id, g.name, iso(t.resolvedAt ?? g.endedAt ?? g.startedAt), t.resolved ? 'transfer_paid' : 'transfer_open', name(t.from), name(t.to), '', t.amount, '']);
-    for (const m of g.moves ?? []) rows.push([g.id, g.name, iso(m.at), `chip_move_${m.kind}`, name(m.from), m.to ? name(m.to) : 'off the table', m.amount, unitMoney(m.amount), [`after hand ${m.afterN}`, m.note].filter(Boolean).join(', ')]);
-    for (const c of g.counts ?? []) rows.push([g.id, g.name, iso(c.at), 'stack_count', name(c.playerId), '', c.chips, unitMoney(c.chips), '']);
-    for (const h of g.hands) {
-      const t = iso(h.endedAt ?? h.at);
-      if (h.missed) rows.push([g.id, g.name, t, 'missed_hand', '', '', '', '', `hand ${h.n}`]);
-      if (h.bounty) for (const p of h.bounty.payers) rows.push([g.id, g.name, t, 'bounty_27', name(p), name(h.bounty.playerId), bountyPay(h.bounty, p), unitMoney(bountyPay(h.bounty, p)), `hand ${h.n}`]);
-    }
+    for (const r of gameLedger(g, name)) rows.push([g.id, g.name, iso(r.at), r.code, r.who, r.to, r.chips ?? '', r.money ?? '', r.detail, r.ref, r.afterN]);
   }
-  rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])));
-  return toCsv(['game_id', 'game', 'time', 'event', 'player', 'to_player', 'chips', 'money', 'detail'], rows);
+  return toCsv(['game_id', 'game', 'time', 'event', 'player', 'to_player', 'chips', 'money', 'detail', 'ref', 'after_hand'], rows);
 }
 
 /** A game name made safe for a file name (no slashes, colons or quotes). */

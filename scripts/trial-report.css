@@ -267,3 +267,9 @@
   .trial-grow { transition-property: opacity; }
   .trial button:not(:disabled):active, .trial .trial-range-cell:active { scale: 1; }
 }
+
+/* Event ledger: each row can be linked (#ledger-E3); in the Game Log an event is a dashed row between hands */
+.trial-ledger-row { scroll-margin-top: 5rem; }
+.trial-ledger-row:target { background: var(--sat-accent-soft); }
+.trial-log-event { border: 1px dashed var(--sat-line-strong); border-radius: var(--sat-radius-md); }
+.trial-log-event .felt-row { min-height: 0; }

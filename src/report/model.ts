@@ -12,6 +12,7 @@ import type { Settings } from '../types';
 import { clashLevel, countedPairs, effectivePairs, privateOf, shownPair } from '../lib/clash';
 import { wonAt } from '../lib/style';
 import { playerResult, suggestTransfers } from '../lib/calc';
+import { gameLedger, type LedgerRow } from './ledger';
 import { lineText, positionMap, positionsFor, streetLines, type LogAct, type LogLine } from './logText';
 
 /** A table position: BTN, SB, BB, then UTG, UTG+1 and so on round to HJ and CO (see `positionNames`). */
@@ -88,6 +89,8 @@ export interface TrialModel {
   multiway: number; raisedPre: number;
   bounties: { n: number; to: string; total: number }[];
   moves: { from: string; to: string; amount: number; afterN: number; note?: string }[];
+  /** Every event off the felt, in time order, each with its reference (E1, E2 ...) (src/report/ledger.ts). */
+  ledger: LedgerRow[];
   biggest: { n: number; pot: number; winners: string[]; board: Card[]; shown: { p: string; cards: Card[]; rank: string }[] }[];
   avgVpip: number; avgAf: number;
   /** Target for the number of players dealt in: VPIP % and aggression (a point, shown like a player). */
@@ -345,6 +348,7 @@ export function buildModel(backup: { players: Player[]; games: Game[]; settings?
     raisedPre: hands.filter((h) => h.log!.streets.preflop?.raisers.length).length,
     bounties,
     moves: (g.moves ?? []).map((m) => ({ from: name(m.from), to: m.to ? name(m.to) : 'off the table', amount: m.amount, afterN: m.afterN, note: m.note })),
+    ledger: gameLedger(g, name),
     biggest,
     avgVpip: players.reduce((a, x) => a + x.vpip, 0) / players.length,
     avgAf: players.reduce((a, x) => a + x.af, 0) / players.length,

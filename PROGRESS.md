@@ -1,6 +1,10 @@
 # Nightcap: progress
 
-## Latest (15 Nov 2026): 1.8.8
+## Latest (15 Nov 2026): 1.8.9
+
+- New hand shows to viewers at once (owner): Join and viewerTable no longer wait for `now.acted`; `buildNow` takes the blinds out of the stacks from the start. Host Table shows the new hand too (the 1.8.8 gate in Spectator.tsx is gone); `TableFelt` hides hole cards in a live hand until the first real action. CLAUDE.md rule updated. Test in live.test.ts. Not checked in a live room.
+
+## Earlier (15 Nov 2026): 1.8.8
 
 - Skill `saas-card-kit` installed (.claude/skills, from anthropics/skills frontend-design). Units rule merged into felt-ui skill.
 - Repeated cards: every page section was `.sat-glass.sat-card` (same glass, radius, border, shadow). Sections are now flat on the page (styles.css, end). Lists, sheets and tips keep their surfaces. Checked on Settings only.

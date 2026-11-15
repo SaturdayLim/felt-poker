@@ -315,7 +315,8 @@ function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blind
 
 function ActionLog({ stacks, now: sent, hands, blinds, onFlag, tablePub, tableCorner, tableMe }: { pub: PubSnapshot; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void; tablePub: PubSnapshot; tableCorner: (hand: FeltHand) => ReactNode; tableMe?: FeltMe }) {
   // a new hand shows only after real action: blinds and card entry alone do not count
-  const now = sent && sent.acted !== false ? sent : null;
+  // a new hand shows as soon as the host opens it: blinds posted, the first player to act lit (owner, 15 Nov 2026)
+  const now = sent;
   const closed = now ? hands.filter((h) => h.n !== now.n) : hands;
   // a hand that arrives while the page is scrolled away from the newest raises a pill; a tap jumps up to it
   const latest = Math.max(now?.n ?? 0, ...hands.map((h) => h.n));
@@ -606,7 +607,7 @@ function TableCards({ me, onShow, hands, now, entered, tryCode, onSave, onLeave 
   // the panel keeps its content while it closes
   const [kept, setKept] = useState(false);
   const show = (v: boolean) => { setOpen(v); if (v) setKept(true); else window.setTimeout(() => setKept(false), 260); };
-  const live = me && now && now.acted !== false && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: publicOf(now.board, now.view.streets.flatMap((s) => s.shown ?? []), me.name), shown: shownBy(now.view, me.name) }] : [];
+  const live = me && now && now.view.dealt.includes(me.name) && !hands.some((h) => h.n === now.n) ? [{ n: now.n, blocked: publicOf(now.board, now.view.streets.flatMap((s) => s.shown ?? []), me.name), shown: shownBy(now.view, me.name) }] : [];
   const mine = me ? [...live, ...hands.filter((x) => x.dealt.includes(me.name)).map((x) => ({ n: x.n, blocked: publicOf(x.board, x.shown, me.name), shown: x.shown.find((s) => s.name === me.name)?.cards ?? [] }))] : [];
   const host = me ? loggedOf(me) : {};
   const known = (k: number): Card[] => (host[k]?.length ? host[k] : entered.get(k) ?? []);

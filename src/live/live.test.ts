@@ -159,6 +159,17 @@ describe('viewer reads what the host reads', () => {
     // the blinds are in front too: the small blind has 199 behind its 1
     expect(sent.stacks.find((s) => s.name === 'Bo')!.stack).toBe(199);
   });
+  it('a new hand shows at once: the blinds posted and the first player to act', () => {
+    const g = three();
+    const stacks = { a: 200, b: 200, c: 200 };
+    const sent = buildNow(g, names3, { n: 1, tab: 'preflop', log: newBoxLog(g, ['a', 'b', 'c'], 'a', stacks), board: [], ended: false });
+    expect(sent.acted).toBe(false);
+    expect(sent.toAct).toBe('Ann');
+    expect(sent.pot).toBe(3);
+    // the blinds are in front of the players, so the stacks behind them drop at once
+    expect(sent.stacks.find((x) => x.name === 'Bo')!.stack).toBe(199);
+    expect(sent.stacks.find((x) => x.name === 'Cy')!.stack).toBe(198);
+  });
   it('a straddle reads as a straddle, and a dark bet after the flop says so', () => {
     const g = three();
     const stacks = { a: 200, b: 200, c: 200 };

@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.8.9', date: '15 Nov 2026', notes: [
+    'Player view: a new hand shows as soon as the host opens it, with the blinds posted and the first player to act lit. The last showdown no longer stays on screen.',
+    'Table: a new hand shows its blinds and the player to act at once. Hole cards land with the first real action.',
+  ] },
   { version: '1.8.8', date: '15 Nov 2026', notes: [
     'Hand page: the book button opens the action log of the hand, street by street, with Copy.',
     'Reports: an Event Ledger lists every event off the felt with a reference (E1, E2 ...) and the hand it came after. The Game Log shows each event between the hands. The Event ledger CSV carries the same reference.',

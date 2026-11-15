@@ -223,6 +223,6 @@ export function buildNow(g: Game, players: Player[], hand: { n: number; tab: str
     toAct: hand.ended ? null : toAct,
     view: buildView(g, (hand.log.runs ?? 1) > 1 ? { ...hand.log, runCards: (hand.runSlots ?? []).map((r) => r.filter(Boolean) as Card[]) } : hand.log, board, name, undefined, shown, hand.n),
     // the chips in front of a player are not in the stack: the host shows the stack behind them, so viewers do too
-    ended: hand.ended, acted: hasActs(hand.log), stacks: behind(stackLines(g, name), hasActs(hand.log) ? contributions(g, hand.log, hand.log.button) : {}, g, name), updatedAt: at,
+    ended: hand.ended, acted: hasActs(hand.log), stacks: behind(stackLines(g, name), contributions(g, hand.log, hand.log.button), g, name), updatedAt: at,
   };
 }

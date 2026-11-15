@@ -89,6 +89,8 @@ export function TableFelt({ hand, k, animate, me }: { hand: FeltHand; k: number;
     return () => ro.disconnect();
   }, []);
   const s = useMemo(() => feltAt(hand, k), [hand, k]);
+  // a live hand shows its blinds and the player to act at once; hole cards land only with the first real action
+  const begun = !hand.live || hand.steps.slice(0, k).some((x) => x.k !== 'sb' && x.k !== 'bb' && x.k !== 'straddle');
   const n = hand.players.length;
   const spots = useMemo(() => seatSpots(box.w, box.h, n), [box.w, box.h, n]);
   const M = box.h / 100;
@@ -155,7 +157,7 @@ export function TableFelt({ hand, k, animate, me }: { hand: FeltHand; k: number;
                 <span className="tf-stack">
                   {cols.map((c, j) => { const q = sp.stack(j, cols.length); return <span key={j} className="tf-col" style={{ left: q.x, top: q.y }}><Chips amount={0} bb={hand.bb} col={c} /></span>; })}
                 </span>
-                {inHand && (
+                {inHand && begun && (
                   <span className={`tf-at tf-hole ${up ? 'is-up' : ''} ${out ? 'is-muck' : ''}`} style={{ left: hole.x, top: hole.y, ['--rot' as string]: `${hole.rot}deg`, zIndex: out ? 1 + order : undefined }} aria-hidden={!up}>
                     {up
                       ? up.map((c) => <span key={c} className="tf-flip"><PlayingCard card={c} size="sm" /></span>)

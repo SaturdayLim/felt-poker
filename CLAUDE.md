@@ -70,7 +70,7 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - 7-2 bounty (per game; on by default for cash, off for tournaments): Revealed, Winning, Best hand (last hand standing counts); Offsuit only or Suited allowed; chips. Every other player dealt in pays; a player who busts in the hand is exempt, a short stack pays what it has. It moves chips between stacks, never into the pot.
 - A shown 7-2 gets a Pay bounty tag at the result: pressed automatically when the rule is met, pressable by hand when it is not. Felt records what the table agreed; it never decides.
 - A bought-in player with an exact stack of 0 is not dealt in by default and cannot be added until a rebuy. A player with no chips in the pot is never a finalist.
-- Viewers see a new hand only after real action (check, call, bet, raise, fold). Blinds and card entry alone do not show it.
+- A new hand shows to viewers as soon as the host opens it (Log next hand): the blinds posted and the first player to act lit. The Table shows hole cards only from the first real action (check, call, bet, raise, fold) (owner, 15 Nov 2026).
 - Viewers can send their own cards for a hand. The host's entry for that player replaces them.
 - Card entry shows no words: filled = two face-down cards (the full Felt mark on ink, one ice border), nil = one etched box split down the middle. Cards already shown at the table show face up.
 - Cards shown at the table cannot be replaced by hidden cards (host or player): "Cards in showdown. Remove from showdown to overwrite."

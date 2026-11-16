@@ -192,6 +192,14 @@ describe('hand view', () => {
     expect(pub.standings.map((s) => s.id)).toEqual(['a', 'b']);
     void st;
   });
+  it('sends the report log for live commentary only when the host switched it on', () => {
+    expect(buildPub(game(), players).hands[0].log).toBeUndefined();
+    expect(buildPub(game(), players).game.talk).toBeUndefined();
+    const on = { ...game(), liveTalk: true };
+    const pub = buildPub(on, players);
+    expect(pub.game.talk).toBe(true);
+    expect(pub.hands[0].log?.n).toBe(pub.hands[0].n);
+  });
   it('writes a hand as plain text with cards as As and Td', () => {
     const text = viewText(3, 1, 2, { dealt: [], button: null, streets: [
       { key: 'flop', label: 'Flop', old: [], fresh: ['As', 'Td', '4c'], lines: ['SB (Chuggy, 0) bets 6'], cols: 1, rows: [], pot: 12 },

@@ -7,7 +7,7 @@ import { estimateStacks, exactStacks } from '../lib/stacks';
 import { bestHand } from '../lib/cards';
 import { contributions, finalists, hasActs, NOT_SHOWN, potTotal, replayStreet, rowOrder, STREETS, wentToShowdown } from '../lib/hand';
 import { units } from '../lib/format';
-import { rulesList } from '../report/model';
+import { handView, rulesList, type HandView as LogView } from '../report/model';
 import { positionMap } from '../report/logText';
 import type { HandLog } from '../types';
 
@@ -28,11 +28,14 @@ export interface PubHand {
   mucked?: string[];
   dealt: string[];
   view: HandView;
+  /** The action log in report form, sent only with live commentary on: the player's phone grades its own actions from it. */
+  log?: LogView;
 }
 export interface StackLine { name: string; stack: number | null; spread: number }
 export interface PubSnapshot {
   v: 1;
-  game: { name: string; type: string; sb: number; bb: number; status: string; startedAt: number };
+  /** `talk`: the host switched on live commentary for this game. */
+  game: { name: string; type: string; sb: number; bb: number; status: string; startedAt: number; talk?: boolean };
   rules: { label: string; value: string; tip?: string }[];
   /** `status` is the host's status light: playing, away or out. Older snapshots lack it. */
   /** `hue` and `photo`: the look the player chose for the Table (Player.look). */
@@ -76,7 +79,7 @@ export function buildPub(g: Game, players: Player[], settings?: Settings, at = D
   const name = (id: ID) => players.find((p) => p.id === id)?.name ?? '?';
   return {
     v: 1,
-    game: { name: g.name, type: g.type, sb: g.sb, bb: g.bb, status: g.status, startedAt: g.startedAt },
+    game: { name: g.name, type: g.type, sb: g.sb, bb: g.bb, status: g.status, startedAt: g.startedAt, ...(g.liveTalk ? { talk: true } : {}) },
     rules: rulesList(g, settings),
     players: g.playerIds.map((id) => { const look = players.find((p) => p.id === id)?.look; return { id, name: name(id), seat: g.seats[id] ?? 99, status: playerStatus(g, id), ...(look?.hue !== undefined ? { hue: look.hue } : {}), ...(look?.photo ? { photo: look.photo } : {}) }; }),
     standings: standings(g),
@@ -91,6 +94,7 @@ export function buildPub(g: Game, players: Player[], settings?: Settings, at = D
         n: h.n, pot: h.pot, winners, board: h.board, shown, mucked,
         dealt: (h.log?.dealt ?? []).map(name),
         view: buildView(g, h.log!, h.board, name, { winners, shown, mucked }, undefined, h.n),
+        ...(g.liveTalk ? { log: handView(g, h, name) } : {}),
       };
     }),
     stacks: stackLines(g, name),

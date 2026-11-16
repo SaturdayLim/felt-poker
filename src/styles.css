@@ -1070,3 +1070,19 @@ html[data-calm] [data-share] { view-transition-name: none; }
    they mean: a list of rows (.felt-list, .sat-glass-2), a floating sheet or tip, a live card on the table. This stops every
    block reading as one more identical rounded card. */
 .felt-page .sat-glass.sat-card { background: none; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding-inline: 0; padding-block: var(--sat-space-3); }
+/* Live commentary on the player's phone: one row per own action, the grade on the left edge and in the label
+   (green good or reasonable, blue think again, red do not do this) */
+.felt-talk { display: grid; gap: var(--sat-space-2); padding: 0 var(--sat-space-1) var(--sat-space-2); }
+.felt-talk-row { display: grid; gap: 2px; font-size: var(--sat-fs-small); line-height: 1.45; padding-left: var(--sat-space-2); border-left: 3px solid var(--sat-border, currentColor); }
+.felt-talk-line { color: var(--sat-muted); }
+.felt-talk-row.is-green { border-left-color: var(--sat-pos); }
+.felt-talk-row.is-green b { color: var(--sat-pos); }
+.felt-talk { --felt-talk-blue: #0052cc; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .felt-talk { --felt-talk-blue: #5b9cf5; } }
+:root[data-theme="dark"] .felt-talk { --felt-talk-blue: #5b9cf5; }
+.felt-talk-row.is-blue { border-left-color: var(--felt-talk-blue); }
+.felt-talk-row.is-blue b { color: var(--felt-talk-blue); }
+.felt-talk-row.is-red { border-left-color: var(--sat-neg); }
+.felt-talk-row.is-red b { color: var(--sat-neg); }
+.felt-livetalk { animation: felt-liverow-in 240ms var(--sat-ease) both; }
+html[data-calm] .felt-livetalk { animation-duration: 150ms; }

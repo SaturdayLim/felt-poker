@@ -49,4 +49,15 @@ describe('gameplay critique', () => {
     expect(head).toMatch(/Two aces show\. Only 2 are left/);
     expect(deep[1][1].some((x) => x.tone === 'ask' && /Bet or check\?/.test(x.text))).toBe(true);
   });
+  it('grades each of my actions with a closing comment', () => {
+    const c = critiqueFor([view], 'Ann', { 1: { cards: ['Ah', 'Kd'], lvl: null } }, { sb: 1, bb: 2 });
+    const close = c.hands[0].close!;
+    expect(close[0][0].g).toBe('green');
+    expect(close[1][1].g).toBe('green');
+    expect(close[1][1].text).toMatch(/represent top pair \(A\)/);
+    const weak = critiqueFor([view], 'Bo', { 1: { cards: ['9h', '4d'], lvl: null } }, { sb: 1, bb: 2 });
+    expect(weak.hands[0].close![0][1].g).toBe('red');
+    expect(weak.hands[0].close![0][1].v).toBe('Loose call');
+    expect(critiqueFor([view], 'Bo', {}, { sb: 1, bb: 2 }).hands[0].close![0][1].g).toBeUndefined();
+  });
 });

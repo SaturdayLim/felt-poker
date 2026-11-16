@@ -22,6 +22,8 @@ import type { HelpKey } from '../lib/help';
 import type { Card, PlayerLook } from '../types';
 import { go } from '../router';
 import { SHOWDOWN_LOCK } from '../components/cardEntry';
+import { critiqueFor, type CritClose } from '../report/critique';
+import type { HandView as LogView } from '../report/model';
 
 interface Meta { locked?: boolean; check?: string | null; updatedAt?: number; handCount?: number }
 interface Me { id: string; name: string; clash?: number[];
@@ -217,7 +219,7 @@ export default function Join({ room, keyFromLink }: { room: string; keyFromLink?
 
       <SlidePane k={tab} i={TABS.findIndex((t) => t.k === tab)}>
       <div className="sat-stack" style={gap(3)}>
-        {tab === 'action' && <ActionLog pub={pub} stacks={stacks} now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')}
+        {tab === 'action' && <ActionLog pub={pub} me={me} stacks={stacks} now={now} hands={hands} blinds={blinds} onFlag={() => setSheet('flag')}
           tablePub={tablePub} tableCorner={tableCorner} tableMe={tableMe} />}
         {tab === 'hands' && <HandsList hands={hands} blinds={blinds} onOpen={setOpenHand} />}
         {tab === 'players' && <PlayersTab pub={pub} stacks={stacks} me={me}
@@ -298,7 +300,24 @@ function Band({ s, runs }: { s: ViewStreet; runs?: HandView['runs'] }) {
   );
 }
 
-function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blinds: { sb: number; bb: number }; live?: { toAct: string | null; pot: number } }) {
+/** Live commentary: the closing comment on each of the signed-in player's own actions in one closed hand, with its grade
+    (green good or reasonable, blue think again, red do not do this). Only this phone sees it. */
+function Talk({ log, close }: { log: LogView; close: Record<number, Record<number, CritClose>> }) {
+  const rows = log.streets.flatMap((st, si) => Object.entries(close[si] ?? {}).map(([li, c]) => ({ key: `${si}-${li}`, street: st.street, line: (st.segs[Number(li)] ?? []).map((x) => x.t).join(''), c })));
+  if (!rows.length) return null;
+  return (
+    <div className="felt-talk" aria-label="Live commentary">
+      {rows.map((r) => (
+        <div key={r.key} className={`felt-talk-row is-${r.c.g ?? 'none'}`}>
+          <span className="felt-talk-line">{r.street}: {r.line}</span>
+          <span>{r.c.v && <b>{r.c.v}. </b>}{r.c.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HandFrame({ n, view, blinds, live, talk }: { n: number; view: HandView; blinds: { sb: number; bb: number }; live?: { toAct: string | null; pot: number }; talk?: ReactNode }) {
   // cards on screen when this frame first shows never flip: only a card that arrives later does
   const seen = useSeenCards(() => view.streets.flatMap((s) => [...s.old, ...s.fresh]));
   return (
@@ -307,17 +326,29 @@ function HandFrame({ n, view, blinds, live }: { n: number; view: HandView; blind
       <div className="felt-frame-sum"><h2 className="felt-frame-title">Hand {n}</h2></div>
       <CopyHand n={n} blinds={blinds} view={view} />
       {live && <div className="felt-frame-live"><span>{live.toAct ? <><b>{live.toAct}</b> to act</> : ''}</span><span>Pot <b className="sat-num"><NumericText value={money(live.pot)} /></b></span></div>}
+      {talk}
       {[...view.streets].reverse().map((s) => <Band key={s.key} s={s} runs={view.runs} />)}
     </section>
     </RevealProvider>
   );
 }
 
-function ActionLog({ stacks, now: sent, hands, blinds, onFlag, tablePub, tableCorner, tableMe }: { pub: PubSnapshot; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void; tablePub: PubSnapshot; tableCorner: (hand: FeltHand) => ReactNode; tableMe?: FeltMe }) {
+function ActionLog({ pub, me, stacks, now: sent, hands, blinds, onFlag, tablePub, tableCorner, tableMe }: { pub: PubSnapshot; me: Me | null; stacks: StackLine[]; now: NowSnapshot | null; hands: PubSnapshot['hands']; blinds: { sb: number; bb: number }; onFlag: () => void; tablePub: PubSnapshot; tableCorner: (hand: FeltHand) => ReactNode; tableMe?: FeltMe }) {
   // a new hand shows only after real action: blinds and card entry alone do not count
   // a new hand shows as soon as the host opens it: blinds posted, the first player to act lit (owner, 15 Nov 2026)
   const now = sent;
   const closed = now ? hands.filter((h) => h.n !== now.n) : hands;
+  // live commentary (the host's switch): graded comments on the signed-in player's own actions, from their own cards
+  const talk = useMemo(() => {
+    if (!pub.game.talk || !me) return null;
+    const logs = closed.flatMap((h) => (h.log ? [h.log] : []));
+    if (!logs.length) return null;
+    // the player's own entry, else the cards they showed at the table
+    const own: Record<number, Card[]> = { ...Object.fromEntries(closed.flatMap((h) => { const x = h.shown.find((y) => y.name === me.name); return x ? [[h.n, x.cards]] : []; })), ...Object.fromEntries(Object.entries(loggedOf(me)).filter(([, c]) => c.length === 2)) };
+    const cards = Object.fromEntries(Object.entries(own).filter(([, c]) => c.length === 2).map(([n, c]) => [Number(n), { cards: c, lvl: levelOf(me.why?.[n]) as 'red' | 'blue' | null }]));
+    return critiqueFor(logs, me.name, cards, { sb: blinds.sb, bb: blinds.bb });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pub.game.talk, me, hands, now?.n, blinds.sb, blinds.bb]);
   // a hand that arrives while the page is scrolled away from the newest raises a pill; a tap jumps up to it
   const latest = Math.max(now?.n ?? 0, ...hands.map((h) => h.n));
   const lastSeen = useRef(latest);
@@ -349,7 +380,10 @@ function ActionLog({ stacks, now: sent, hands, blinds, onFlag, tablePub, tableCo
       {!table && <NewItemsPill count={unread} noun={unread === 1 ? 'hand' : 'hands'} onJump={() => { window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); setUnread(0); }} />}
       {!table && !now && !hands.length && <div className="sat-flat sat-card sat-small">No hands yet.</div>}
       {!table && now && <HandFrame key={now.n} n={now.n} view={now.view} blinds={blinds} live={{ toAct: now.toAct, pot: now.pot }} />}
-      {!table && closed.map((h) => <HandFrame key={h.n} n={h.n} view={h.view} blinds={blinds} />)}
+      {!table && closed.map((h) => {
+        const hc = talk?.hands.find((x) => x.n === h.n);
+        return <HandFrame key={h.n} n={h.n} view={h.view} blinds={blinds} talk={hc?.close && h.log ? <Talk log={h.log} close={hc.close} /> : undefined} />;
+      })}
       <button className="sat-btn sat-btn--ghost" onClick={onFlag}><Icon name="flag" size={18} /> Flag a wrong update</button>
     </>
   );

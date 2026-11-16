@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import type { Game } from '../types';
-import { Caption, Help, Icon, mixClip, toast, useSwipeDown } from './ui';
+import { Caption, Help, Icon, mixClip, toast, Toggle, useSwipeDown } from './ui';
+import { useStore } from '../store';
 import { DRAWER, SPRING, calm, spring } from '../lib/motion';
 import { cancelStop, dismissFlag, liveAvailable, liveStatus, onLiveChange, requestStop, startSharing } from '../live/host';
 
@@ -93,6 +94,8 @@ export function LiveRow({ g }: { g: Game }) {
   const nameFade = useFadeOut<HTMLSpanElement>(!live.on);
   const noPassFade = useFadeOut<HTMLSpanElement>(noPass);
   const endFade = useFadeOut<HTMLSpanElement>(live.on);
+  const talkFade = useFadeOut<HTMLDivElement>(live.on);
+  const updateGame = useStore((st) => st.updateGame);
   if (!liveAvailable()) return <div className="sat-flat sat-card sat-small">The live link is not set up in this app yet. See docs/FIREBASE-SETUP.md.</div>;
 
   const start = async () => {
@@ -136,6 +139,13 @@ export function LiveRow({ g }: { g: Game }) {
           </span>
         )}
       </div>
+      {/* live commentary works only through the link, so the switch shows only while the link is on */}
+      {talkFade.mounted && (
+        <div ref={talkFade.ref} className="sat-switch-row felt-livetalk">
+          <span>Live commentary <Help k="liveTalk" /></span>
+          <Toggle on={!!g.liveTalk} onChange={(v) => updateGame(g.id, (x) => { x.liveTalk = v; })} label="Live commentary" />
+        </div>
+      )}
       {qrFrom && live.on && <QrPopup link={live.link} from={qrFrom} onClose={() => setQrFrom(null)} />}
       {live.on && live.viewers.length > 0 && (
         <div className="sat-cluster felt-liveviewers" style={{ ['--sat-gap' as string]: 'var(--sat-space-2)' }}>

@@ -11,17 +11,31 @@ import type { HandView } from './model';
 
 export type CritTone = 'good' | 'warn' | 'info' | 'ask';
 /** `a`: the answer to a question (tone 'ask'), a recommended action and its reason. The report hides it until a tap. */
-export interface CritNote { tone: CritTone; text: string; a?: string }
+export interface CritNote { tone: CritTone; text: string; a?: string; g?: CritGrade }
+/** The grade of one of the player's own actions: green = good or reasonable, blue = give it more thought, red = do not do this. */
+export type CritGrade = 'green' | 'blue' | 'red';
+/** The closing comment on one of the player's own actions: a grade and its label (none when no cards were entered), then
+    the takeaway: how the action compares with the recommended action, what it shows the table and what to represent next. */
+export interface CritClose { g?: CritGrade; v?: string; text: string }
 /** Comments for one hand: `lines[street][line]` holds the notes under that line of the action log. */
 export interface HandCrit {
   n: number;
   status: 'cards' | 'nocards' | 'invalid';
   /** A short verdict for the hand list ("Good fold", "Possible bluff"). */
-  verdict?: { tone: CritTone; label: string };
+  verdict?: { tone: CritTone; label: string; g?: CritGrade };
   lines: Record<number, Record<number, CritNote[]>>;
   /** Advanced insights: the thought process, street by street. Line -1 = notes on the street's cards (texture). */
   deep?: Record<number, Record<number, CritNote[]>>;
+  /** The closing comment under each of the player's own actions, by street and line. */
+  close?: Record<number, Record<number, CritClose>>;
 }
+const RED = new Set(['Loose call', 'Risky bluff', 'Fold here next time']);
+/** The grade of a short verdict: green = good or reasonable, blue = give it more thought, red = do not do this. */
+export function gradeOf(v: { tone: CritTone; label: string }): CritGrade {
+  if (v.tone === 'warn') return RED.has(v.label) || v.label === 'Possible bluff' ? 'red' : 'blue';
+  return v.label === 'Possible bluff' ? 'blue' : 'green';
+}
+const RANK_G: Record<CritGrade, number> = { red: 2, blue: 1, green: 0 };
 export interface PlayerCrit { hands: HandCrit[]; bluffs: number; bluffsWon: number; bluffSize: number; semis: number; valueBets: number }
 
 type Kind = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allin' | 'straddle';
@@ -180,7 +194,7 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
     const entry = cards[v.n];
     if (mineIn) {
       if (entry?.lvl === 'red') out.push({ n: v.n, status: 'invalid', verdict: { tone: 'info', label: 'Invalid hand' }, lines: {} });
-      else { const hc = one(p, me, entry?.cards ?? null); hc.deep = thinkHand(p, me, entry?.cards ?? null, habits, blinds); out.push(hc); }
+      else { const hc = one(p, me, entry?.cards ?? null); const th = thinkHand(p, me, entry?.cards ?? null, habits, blinds); hc.deep = th.deep; hc.close = th.close; out.push(hc); }
     }
     learn(habits, p);
   }
@@ -218,6 +232,7 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
         add = Math.max(0, add);
         const isRaise = a.to > high && (a.k === 'raise' || a.k === 'allin' || a.k === 'bet' || a.k === 'straddle');
         const facing = high > 0 && st.key !== 'preflop' ? high : st.key === 'preflop' ? high : 0;
+        const vMark = verdicts.length, nMark = hc.lines[st.i]?.[a.line]?.length ?? 0;
         if (a.who === me) {
           const habitOf = (x: string) => habitWord(habits[x]);
           const left = active().filter((x) => x !== me && ORDER.indexOf(p.posOf[x]) > ORDER.indexOf(myPos));
@@ -341,6 +356,11 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
           const size = (a.to - prev) / Math.max(1, potBefore);
           if (size > 1) say(st.i, a.line, 'info', `${p.posOf[a.who] || a.who} overbets (${pct(size)} of the pot). An overbet is polarising: very strong or a bluff.`);
         }
+        // the grade of my action colours its comments
+        if (a.who === me && verdicts.length > vMark) {
+          const g = gradeOf(verdicts[verdicts.length - 1]);
+          for (const n of (hc.lines[st.i]?.[a.line] ?? []).slice(nMark)) if (n.tone !== 'info') n.g = g;
+        }
         // the record moves on
         if (a.k === 'fold') folded.add(a.who);
         if (a.k === 'check' && a.who !== me) checkedBefore.add(a.who);
@@ -355,7 +375,9 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
     if (/^raise (check )+(bet)/.test(line)) { const last = Object.keys(hc.lines).map(Number).sort((a, b) => b - a)[0]; if (last !== undefined) { const ln = Math.max(...Object.keys(hc.lines[last]).map(Number)); say(last, ln, 'info', 'Your story: raise, then check, then bet. A delayed bet tells a mixed story; strong hands usually bet earlier.'); } }
     if (/(bet ){2,}bet/.test(line) && hole) { const last = Object.keys(hc.lines).map(Number).sort((a, b) => b - a)[0]; const ln = Math.max(...Object.keys(hc.lines[last] ?? { 0: [] }).map(Number)); say(last, ln, 'good', 'Your story: a bet on every street. That is a consistent story of strength.'); }
     if (bluffedHere && p.winners.includes(me)) bluffsWon++;
-    hc.verdict = verdicts.find((x) => x.tone === 'warn') ?? verdicts.find((x) => x.tone === 'good') ?? verdicts[0];
+    // the hand's verdict: the worst grade first (red, then blue, then green)
+    const graded = verdicts.map((x) => ({ ...x, g: gradeOf(x) }));
+    hc.verdict = graded.sort((x, y) => RANK_G[y.g] - RANK_G[x.g] || (y.tone === 'good' ? 1 : 0) - (x.tone === 'good' ? 1 : 0))[0];
     return hc;
   }
   return { hands: out, bluffs, bluffsWon, bluffSize: bluffs ? bluffSum / bluffs : 0, semis, valueBets };
@@ -396,8 +418,77 @@ function texture(board: Card[]): Texture {
   return { wet: flush !== 'none' || straight !== 'none', flush, flushSuit: fs, straight, words };
 }
 
+/* ------------------------------- closing commentary on each action the player took ------------------------------- */
+
+type Move = 'raise' | 'call' | 'check' | 'fold';
+interface Rec { k: Move; to?: number }
+const moveOf = (k: Kind): Move => (k === 'bet' || k === 'raise' || k === 'allin' || k === 'straddle' ? 'raise' : k === 'call' ? 'call' : k === 'check' ? 'check' : 'fold');
+
+/** The recommended action, read back from the first words of a quiz answer, so the verdict always agrees with the answer. */
+function recOf(answer: string, pot: number): Rec | null {
+  const w = /With [^:]+: (raise|fold)\./.exec(answer);
+  if (w) return { k: w[1] === 'raise' ? 'raise' : 'fold' };
+  const a = answer.replace(/^(No|Yes)\. /, '');
+  const num = (re: RegExp) => { const m = re.exec(a); return m ? Number(m[1]) : undefined; };
+  if (/^(Re-raise|Raise)/.test(a)) return { k: 'raise', to: num(/to about (\d+)/) ?? num(/\((\d+)\)/) };
+  if (/^(Bet|Lead out|Bluff)/.test(a)) return { k: 'raise', to: num(/\((\d+)/) ?? (/half the pot/.test(a) ? Math.round(pot / 2) : /third of the pot/.test(a) ? Math.round(pot / 3) : undefined) };
+  if (/^(Call|Limp behind)/.test(a)) return { k: 'call' };
+  if (/^Check/.test(a)) return { k: 'check' };
+  if (/^Fold/.test(a)) return { k: 'fold' };
+  return null;
+}
+
+/** The closing comment on one action: how it compares with the recommended action, what it shows the table and what
+    the player can represent next. No grade when no cards were entered. */
+const PLURAL = (r: string) => ({ A: 'aces', K: 'kings', Q: 'queens', J: 'jacks', T: '10s' } as Record<string, string>)[r] ?? `${r}s`;
+
+function closingFor(o: { did: Move; to: number; bb: number; street: string; raises: number; rec: Rec | null; repr: string; bluff: boolean }): CritClose {
+  const { did, rec, street } = o;
+  const pre = street === 'preflop', river = street === 'river';
+  const word = did === 'raise' ? (pre || o.raises > 0 ? 'raise' : 'bet') : did;
+  let g: CritGrade | undefined, v: string | undefined, why = '';
+  const verb = (r: Rec) => (r.k === 'raise' ? `${pre ? 'Raise' : 'Bet'}${r.to ? ` ${pre ? 'to ' : ''}about ${r.to}` : ''}` : r.k === 'call' ? 'Call' : r.k === 'check' ? 'Check' : 'Fold');
+  const often: Record<Move, string> = {
+    fold: 'Do this often: a fold with a hand that is behind keeps your chips for better spots.',
+    call: pre ? 'Do this often when the price is small and the hand plays well after the flop.' : 'Do this often when the price fits your hand.',
+    raise: pre ? 'Do this often: a raise with a good hand builds a pot you are likely to win.' : 'Do this often: a bet with a made hand is how a night is won.',
+    check: pre ? 'Do this often: take the free flop with a hand that does not want to raise.' : 'Do this often when your hand does not want a bigger pot: a small pot loses less.',
+  };
+  if (rec) {
+    if (rec.k === did || (rec.k === 'fold' && did === 'check')) {
+      if (did === 'raise' && rec.to && o.to && o.to / rec.to < 0.7 && rec.to - o.to >= o.bb) { g = 'blue'; v = `${pre ? 'Raise' : 'Bet'} a bit more`; why = `Aim for about ${rec.to}: a bigger ${word} charges worse hands more and folds out more draws.`; }
+      else if (did === 'raise' && rec.to && o.to && o.to / rec.to > 1.6 && o.to - rec.to >= o.bb) { g = 'blue'; v = 'A smaller size does the job'; why = `About ${rec.to} gets the same calls from worse hands and risks less.`; }
+      else { g = 'green'; v = `Good ${did === 'check' && rec.k === 'fold' ? 'check' : word}`; why = did === 'raise' && rec.to ? `Good size too. ${often.raise}` : often[did]; }
+    } else if (rec.k === 'raise' && (did === 'call' || did === 'check')) {
+      g = 'blue'; v = 'Could go more aggressive'; why = `${verb(rec)} next time. Passive play lets worse hands see cards for free or cheap.`;
+    } else if (did === 'raise' && (rec.k === 'call' || rec.k === 'check')) {
+      if (o.bluff) { g = 'red'; v = 'Risky bluff'; why = `${verb(rec)} next time. Bluff only when the players left fold often.`; }
+      else { g = 'green'; v = 'Reasonable'; why = `A ${rec.k} risks less here, but the ${word} keeps the lead.`; }
+    } else if (rec.k === 'fold') {
+      if (pre && did === 'call' && o.raises === 0) { g = 'blue'; v = 'Fold more often'; why = 'A limp costs little, but a weak hand loses more after the flop than it wins.'; }
+      else { g = 'red'; v = did === 'call' ? 'Loose call' : 'Fold here next time'; why = 'A fold saves chips: this hand is behind too often at this price.'; }
+    } else if (did === 'fold') {
+      g = 'blue'; v = 'Too tight'; why = `${verb(rec)} next time. The hand was good enough to continue.`;
+    } else { g = 'green'; v = 'Reasonable'; }
+  }
+  const shows = pre
+    ? (did === 'raise' ? (o.raises > 0 ? 'A re-raise shows a very strong hand: few players continue without one.' : 'A raise shows strength and takes the lead.')
+      : did === 'call' ? (o.raises > 0 ? 'A call shows a medium hand that wants a flop: pairs, suited cards, broadways.' : 'The table reads a limp as a capped hand: expect raises from players behind.')
+      : did === 'check' ? 'A check keeps your range wide: nobody knows what you hold.' : 'A fold shows nothing about your hand.')
+    : (did === 'raise' ? (o.raises > 0 ? 'A raise is polarising: the table puts you on a very strong hand or a bluff.' : `A bet claims the pot: you now represent ${o.repr}.`)
+      : did === 'call' ? 'A call shows a medium hand or a draw.'
+      : did === 'check' ? 'A check shows a weak or medium hand, or a trap.' : 'A fold shows nothing about your hand.');
+  const next = did === 'fold' || river ? ''
+    : pre ? (did === 'raise' ? 'On the flop: bet most boards, a third to half the pot. You represent the high cards.' : 'On the flop: you represent middle cards and draws. Bet the boards that fit them.')
+    : did === 'raise' ? 'Next street: keep the story. Bet again on a safe card; slow down when the card helps the callers.'
+    : did === 'call' ? 'Next street: if a draw card comes, a bet from you represents the draw that hit.'
+    : 'Next street: a bet after a check can represent a slowplay or the card that came.';
+  return { g, v, text: [why, shows, next].filter(Boolean).join(' ') };
+}
+
 function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<string, Habit>, blinds: { sb: number; bb: number }) {
   const out: Record<number, Record<number, CritNote[]>> = {};
+  const close: Record<number, Record<number, CritClose>> = {};
   const add = (st: number, line: number, note: CritNote) => { ((out[st] ??= {})[line] ??= []).push(note); };
   const tell = (st: number, line: number, text: string) => add(st, line, { tone: 'info', text });
   /** A quiz question and its answer: the recommended action first, then the reason. */
@@ -498,6 +589,11 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
       const behind = live.slice(live.indexOf(a.who) + 1);
       const others = live.filter((x) => x !== me);
       if (a.who === me) {
+        const mark = out[st.i]?.[a.line]?.length ?? 0;
+        /** The recommended action, when no quiz answer gives it. */
+        let recSet: Rec | null | undefined;
+        const folderLeft = others.some((x) => is(x, /folding to bets|tight/)) && !others.some((x) => is(x, /calling station/));
+        const bluff = !!hole && st.board.length >= 3 && isRaise && !valueHand && s !== 'weak' && o < 8;
         if (st.key === 'preflop') {
           const iso = 3 * bb + limpers * bb;
           const late = LATE.has(myPos), early = EARLY.has(myPos);
@@ -566,12 +662,17 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
           const plan = !hole ? 'Plan your answer before you check: call with a good hand, fold a weak one.'
             : s === 'monster' || s === 'strong' ? 'Check-raise for value: the aggressive player bets for you.'
             : valueHand ? 'Call one bet, and think again on the next street.' : o >= 8 ? 'Call if the price is right for your draw.' : 'Fold to a big bet.';
+          recSet = { k: (s === 'monster' || s === 'strong') && !agg ? 'raise' : 'check' };
           if (agg) ask(st.i, a.line, `${label(agg)} acts after you and is ${hw(agg)}. What do you do when ${agg} bets?`, plan);
           else ask(st.i, a.line, 'You act first. Check, or lead out?', s === 'monster' || s === 'strong'
             ? 'Lead out, about half the pot. Nobody behind bets often enough to trust a check-raise.'
             : 'Check. Out of position, keep the pot small and see what the others do.');
         } else if (isRaise) {
           const amount = a.to - prev;
+          recSet = s === 'monster' || s === 'strong' || o >= 8 ? { k: 'raise' }
+            : valueHand ? (raises > 0 ? { k: 'call' } : { k: 'raise' })
+            : s === 'weak' ? { k: raises > 0 ? 'fold' : 'check' }
+            : folderLeft ? { k: 'raise' } : { k: raises > 0 ? 'fold' : 'check' };
           tell(st.i, a.line, `You ${firstBet ? 'raise to' : 'bet'} ${a.to} into ${potBefore} (${pct(amount / Math.max(1, potBefore))} of the pot).`);
           ask(st.i, a.line, 'Which worse hands call this size? What do you do if raised?', !hole
             ? 'Worse pairs and draws call a medium bet. If raised, continue only with two pair or better.'
@@ -593,6 +694,13 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
             : o >= 4 && st.board.length < 5 ? (eq >= need ? `Call. Your ${o} outs give about ${pct(eq)} on the next card, more than the ${pct(need)} you need.` : `Fold. Your ${o} outs give about ${pct(eq)} on the next card, less than the ${pct(need)} you need.`)
             : s === 'weak' && need <= 0.25 ? 'Call once. The price is small, and a weak pair beats a bluff.'
             : 'Fold. You beat only bluffs, and the price is too high.') + ` ${choices(toCall, high, potBefore, st.key)}`);
+        }
+        if (a.k !== 'straddle') {
+          const firstAsk = (out[st.i]?.[a.line] ?? []).slice(mark).find((x) => x.tone === 'ask');
+          const rec = !hole ? null : recSet !== undefined ? recSet : firstAsk?.a ? recOf(firstAsk.a, potBefore) : null;
+          const top = [...st.board].sort((x, y) => rv(y) - rv(x))[0];
+          const repr = top ? (st.board.filter((c) => c[0] === top[0]).length >= 2 ? `trip ${PLURAL(top[0])}` : `top pair (${RANK_WORD(top[0])})`) : 'a strong hand';
+          (close[st.i] ??= {})[a.line] = closingFor({ did: moveOf(a.k), to: a.to, bb, street: st.key, raises, rec, repr, bluff });
         }
       } else if (imIn()) {
         if (st.key === 'preflop' && a.k === 'check') {
@@ -633,5 +741,5 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
     }
     prevBoard = st.board;
   }
-  return out;
+  return { deep: out, close };
 }

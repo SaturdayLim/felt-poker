@@ -1,6 +1,14 @@
 # Nightcap: progress
 
-## Latest (16 Nov 2026): 1.9.1
+## Latest (16 Nov 2026): 1.10.0
+
+- Closing commentary (owner): `thinkHand` returns `{ deep, close }`. `close[street][line]` = `CritClose { g, v, text }` for each own action. The recommended action comes from the first quiz answer of that action (`recOf` parses "Raise to about N", "Bet ... (N)", "Call", "Check", "Fold", "With X: raise.") or from `recSet` (check with an aggressor behind, own bets). `closingFor` compares it with the action: grade, label, then what the action shows and what to represent next. No cards = no grade.
+- Grades (owner): green good or reasonable, blue think again, red do not do this. Short notes get `g` from their verdict (`gradeOf`); a hand verdict takes the worst grade. A preflop limp that should fold is blue (Fold more often), not red.
+- Report: `CloseNote` under each own line in Advanced insights. Quiz border is now muted, so blue means a grade only.
+- Live commentary (owner, v1.10): `Game.liveTalk`, switch in `LiveRow` (shown while the link is on, tip `liveTalk`). `buildPub` adds `game.talk` and the report `log` (`handView`) per hand. Join `ActionLog` runs `critiqueFor` for the signed-in player (own entries, else their shown cards) and renders `Talk` at the top of each closed `HandFrame`.
+- Seen while testing: a reopened and closed game showed Length 12h (was 1h 29m) with no new events. Not checked further.
+
+## Earlier (16 Nov 2026): 1.9.1
 
 - Quiz answers (owner): every `ask` note carries `a` (recommended action, then the reason), computed from your made hand, texture and habits. Report `QuizNote` hides it behind Show answer (`.trial-quiz-grow`). `choices()` explains call, re-raise to 3x and fold wherever a call price shows. Wet board answer names what a bettor represents and "deny the draws their equity". Preflop seat order for "players after you" uses `PRE_ORDER`.
 

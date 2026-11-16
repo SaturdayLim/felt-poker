@@ -18,7 +18,7 @@ import '../src/saturday/css/saturday.css';
 import '../src/styles.css';
 import './trial-report.css';
 import { Cards, Icon, Info, Toggle } from '../src/components/ui';
-import { critiqueFor, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
+import { critiqueFor, type CritClose, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
 import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
 import { RANKS } from '../src/lib/cards';
@@ -285,7 +285,18 @@ function CritNotes({ notes, on }: { notes: CritNote[] | undefined; on: boolean }
   if (!notes?.length) return null;
   return (
     <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div><div className="trial-crit-body">
-      {notes.map((x, i) => (x.a ? <QuizNote key={i} q={x.text} a={x.a} /> : <span key={i} className={`trial-crit-note is-${x.tone}`}>{x.text}</span>))}
+      {notes.map((x, i) => (x.a ? <QuizNote key={i} q={x.text} a={x.a} /> : <span key={i} className={`trial-crit-note is-${x.g ?? x.tone}`}>{x.text}</span>))}
+    </div></div></div>
+  );
+}
+
+/** The closing comment on one of the player's own actions: the grade (green good, blue think again, red do not do this)
+    and the takeaway. It shows in both the short and the advanced critique. */
+function CloseNote({ c, on }: { c: CritClose | undefined; on: boolean }) {
+  if (!c) return null;
+  return (
+    <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div><div className="trial-crit-body">
+      <span className={`trial-crit-note trial-close is-${c.g ?? 'none'}`}>{c.v && <b>{c.v}. </b>}{c.text}</span>
     </div></div></div>
   );
 }
@@ -309,7 +320,7 @@ function CritVerdict({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
   if (!hc?.verdict) return null;
   return (
     <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div>
-      <span className={`trial-crit-verdict is-${hc.verdict.tone}`}>{hc.verdict.label}{hc.status === 'invalid' ? ': a card clashes with the board or a card shown at the table. The hand is skipped.' : ''}</span>
+      <span className={`trial-crit-verdict is-${hc.verdict.g ?? hc.verdict.tone}`}>{hc.verdict.label}{hc.status === 'invalid' ? ': a card clashes with the board or a card shown at the table. The hand is skipped.' : ''}</span>
     </div></div>
   );
 }
@@ -337,6 +348,7 @@ function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
                 <span className="trial-log-line">{l.map((sg, k) => (sg.c === undefined ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c % 8) + 1})` }}>{sg.t}</span>))}</span>
                 <CritNotes on={on && !adv} notes={hc?.lines[si]?.[i]} />
                 <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[i]} />
+                <CloseNote on={on && adv} c={hc?.close?.[si]?.[i]} />
               </Fragment>
             ))}
           </div>

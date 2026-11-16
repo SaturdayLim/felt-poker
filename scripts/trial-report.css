@@ -243,7 +243,15 @@
 .trial-crit-note { display: block; font-size: var(--sat-fs-small); line-height: 1.45; color: var(--sat-muted); padding-left: var(--sat-space-2); border-left: 2px solid var(--sat-glass-edge); }
 .trial-crit-note.is-good { border-left-color: var(--sat-pos); }
 .trial-crit-note.is-warn { border-left-color: var(--trial-s2); color: var(--sat-text); }
-.trial-crit-note.is-ask { border-left-color: var(--trial-s1); color: var(--sat-text); }
+/* grades: green = good or reasonable, blue = give it more thought, red = do not do this */
+.trial-crit-note.is-green { border-left-color: var(--sat-pos); color: var(--sat-text); }
+.trial-crit-note.is-blue { border-left-color: var(--trial-s1); color: var(--sat-text); }
+.trial-crit-note.is-red { border-left-color: var(--sat-neg); color: var(--sat-text); }
+.trial-close { color: var(--sat-text); border-left-width: 3px; }
+.trial-close.is-green b, .trial-crit-verdict.is-green { color: var(--sat-pos); }
+.trial-close.is-blue b, .trial-crit-verdict.is-blue { color: var(--trial-s1); }
+.trial-close.is-red b, .trial-crit-verdict.is-red { color: var(--sat-neg); }
+.trial-crit-note.is-ask { border-left-color: var(--sat-muted); color: var(--sat-text); }
 /* quiz: the question shows, the answer grows open on a tap (same grow as the log; an open log does not open it) */
 .trial-quiz { display: grid; gap: 2px; }
 .trial-quiz-btn { justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--sat-fs-small); font-weight: 600; color: var(--trial-s1); }

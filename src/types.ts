@@ -282,6 +282,8 @@ export interface Game {
   claimed?: Record<ID, { chips: number; at: number }>;
   /** Chips moved between players outside the pots (side games, tips). */
   moves?: ChipMove[];
+  /** Live commentary: players who follow the live link see graded comments on their own actions after each hand. */
+  liveTalk?: boolean;
 }
 
 export interface Markers {

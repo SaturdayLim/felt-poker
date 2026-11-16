@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.10.0', date: '16 Nov 2026', notes: [
+    'Reports: Advanced insights close each of your actions with a graded comment. Green: good or reasonable. Blue: think again. Red: do not do this.',
+    'Each comment says how the action compares with the recommended one (for example Good call, Raise a bit more), what it shows the table and what you can represent on the next street.',
+    'Reports: the short critique notes and the verdict on each hand use the same three colours.',
+    'Live link: a Live commentary switch under the link (host). With it on, each player who signs in on the link sees the graded comments on their own actions after each hand. Nobody else sees them.',
+  ] },
   { version: '1.9.1', date: '16 Nov 2026', notes: [
     'Reports: Advanced insights ask a question, and Show answer opens the recommended action with its reason. Think first, then check.',
     'Reports: a bet you face now shows what a call, a re-raise (to an amount) and a fold each do for you.',

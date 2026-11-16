@@ -1,5 +1,10 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.9.1', date: '16 Nov 2026', notes: [
+    'Reports: Advanced insights ask a question, and Show answer opens the recommended action with its reason. Think first, then check.',
+    'Reports: a bet you face now shows what a call, a re-raise (to an amount) and a fold each do for you.',
+    'Reports: board notes say what a player represents ("a player representing an ace bets now to deny the draws their equity").',
+  ] },
   { version: '1.9.0', date: '16 Nov 2026', notes: [
     'Reports: a Gameplay critique switch on each player page. It adds comments under Your Cards and under each line of the action log: the price of a call, the size of a bet, position, c-bets, bluffs and the habits of the other players so far.',
     'The critique uses only your own cards and what the whole table saw. A hand with a red ! is skipped as invalid. A hand with no cards entered is read from the action and position only.',

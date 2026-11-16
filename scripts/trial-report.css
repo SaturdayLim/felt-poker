@@ -244,6 +244,15 @@
 .trial-crit-note.is-good { border-left-color: var(--sat-pos); }
 .trial-crit-note.is-warn { border-left-color: var(--trial-s2); color: var(--sat-text); }
 .trial-crit-note.is-ask { border-left-color: var(--trial-s1); color: var(--sat-text); }
+/* quiz: the question shows, the answer grows open on a tap (same grow as the log; an open log does not open it) */
+.trial-quiz { display: grid; gap: 2px; }
+.trial-quiz-btn { justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--sat-fs-small); font-weight: 600; color: var(--trial-s1); }
+.trial-quiz.is-open .trial-quiz-btn .trial-chev { transform: rotate(180deg); }
+.trial-log.is-open .trial-quiz:not(.is-open) .trial-quiz-btn .trial-chev { transform: none; }
+.trial-log.is-open .trial-quiz-grow, .trial-quiz-grow { grid-template-rows: 0fr; opacity: 0; }
+.trial-quiz.is-open .trial-quiz-grow { grid-template-rows: 1fr; opacity: 1; }
+.trial-quiz-grow > span { overflow: hidden; min-height: 0; }
+.trial-quiz-a { display: block; padding-top: 2px; color: var(--sat-muted); }
 .trial-crit-verdict { display: block; font-size: var(--sat-fs-small); font-weight: 700; padding: 0 var(--sat-space-3) var(--sat-space-1) calc(28px + var(--sat-space-3) * 2); }
 .trial-crit-verdict.is-good { color: var(--sat-pos); }
 .trial-crit-verdict.is-warn { color: var(--trial-s2); }

@@ -285,8 +285,22 @@ function CritNotes({ notes, on }: { notes: CritNote[] | undefined; on: boolean }
   if (!notes?.length) return null;
   return (
     <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div><div className="trial-crit-body">
-      {notes.map((x, i) => <span key={i} className={`trial-crit-note is-${x.tone}`}>{x.text}</span>)}
+      {notes.map((x, i) => (x.a ? <QuizNote key={i} q={x.text} a={x.a} /> : <span key={i} className={`trial-crit-note is-${x.tone}`}>{x.text}</span>))}
     </div></div></div>
+  );
+}
+
+/** A question to think about first. The answer (the recommended action and its reason) grows open on a tap. */
+function QuizNote({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className={`trial-crit-note is-ask trial-quiz ${open ? 'is-open' : ''}`}>
+      <span>{q}</span>
+      <button type="button" className="trial-quiz-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? 'Hide answer' : 'Show answer'}<span className="trial-chev" aria-hidden="true"><Icon name="chevron" size={14} /></span>
+      </button>
+      <span className="trial-grow trial-quiz-grow" {...inertWhen(!open)}><span><span className="trial-quiz-a">{a}</span></span></span>
+    </span>
   );
 }
 

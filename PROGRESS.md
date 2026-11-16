@@ -1,6 +1,10 @@
 # Nightcap: progress
 
-## Latest (16 Nov 2026): 1.9.0
+## Latest (16 Nov 2026): 1.9.1
+
+- Quiz answers (owner): every `ask` note carries `a` (recommended action, then the reason), computed from your made hand, texture and habits. Report `QuizNote` hides it behind Show answer (`.trial-quiz-grow`). `choices()` explains call, re-raise to 3x and fold wherever a call price shows. Wet board answer names what a bettor represents and "deny the draws their equity". Preflop seat order for "players after you" uses `PRE_ORDER`.
+
+## Earlier (16 Nov 2026): 1.9.0
 
 - Gameplay critique (owner): `critiqueFor` in src/report/critique.ts reads each HandView's log lines back into actions (positions from "POS (Name)", amounts, pot from the blinds in `m.sub`), tracks habits from earlier hands (6+ hands: calling station, loose-aggressive, aggressive, folds to bets, tight) and writes rule notes per line plus one verdict per hand. Red entry = invalid, blue = counts, no entry = action-only notes.
 - Runs inside the report template (scripts/trial-report.tsx, `CritCtx`, `CritNotes`, `CritVerdict`) after a page unlocks, so reports already online get it once the template deploys. Switch sits in Your Cards; comments use `.trial-grow` (class `trial-crit`). Tests: critique.test.ts.

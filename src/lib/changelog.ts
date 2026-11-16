@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.9.0', date: '16 Nov 2026', notes: [
+    'Reports: a Gameplay critique switch on each player page. It adds comments under Your Cards and under each line of the action log: the price of a call, the size of a bet, position, c-bets, bluffs and the habits of the other players so far.',
+    'The critique uses only your own cards and what the whole table saw. A hand with a red ! is skipped as invalid. A hand with no cards entered is read from the action and position only.',
+  ] },
   { version: '1.8.9', date: '15 Nov 2026', notes: [
     'Player view: a new hand shows as soon as the host opens it, with the blinds posted and the first player to act lit. The last showdown no longer stays on screen.',
     'Table: a new hand shows its blinds and the player to act at once. Hole cards land with the first real action.',

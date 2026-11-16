@@ -1,6 +1,13 @@
 # Nightcap: progress
 
-## Latest (15 Nov 2026): 1.8.9
+## Latest (16 Nov 2026): 1.9.0
+
+- Gameplay critique (owner): `critiqueFor` in src/report/critique.ts reads each HandView's log lines back into actions (positions from "POS (Name)", amounts, pot from the blinds in `m.sub`), tracks habits from earlier hands (6+ hands: calling station, loose-aggressive, aggressive, folds to bets, tight) and writes rule notes per line plus one verdict per hand. Red entry = invalid, blue = counts, no entry = action-only notes.
+- Runs inside the report template (scripts/trial-report.tsx, `CritCtx`, `CritNotes`, `CritVerdict`) after a page unlocks, so reports already online get it once the template deploys. Switch sits in Your Cards; comments use `.trial-grow` (class `trial-crit`). Tests: critique.test.ts.
+- Sample: trial/build-sample.ts wraps the online Saturday report (still sealed per player) in the new template; published as a private artifact. Everett's code still fails (old code; republish the link).
+- Open: Settings > Cards board task (remove SuitBoard, move A > 2 to CardPlayground, animate suit swaps) waits for owner answers.
+
+## Earlier (15 Nov 2026): 1.8.9
 
 - New hand shows to viewers at once (owner): Join and viewerTable no longer wait for `now.acted`; `buildNow` takes the blinds out of the stacks from the start. Host Table shows the new hand too (the 1.8.8 gate in Spectator.tsx is gone); `TableFelt` hides hole cards in a live hand until the first real action. CLAUDE.md rule updated. Test in live.test.ts. Not checked in a live room.
 

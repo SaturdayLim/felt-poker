@@ -7,7 +7,7 @@
    - Host view: opened from the dev server with a backup (?src=...). Every player is open.
    - Shared report: one HTML file with the data inside (#felt-report). Game Summary and Compare are open to
      everyone; each player page opens only with that player's code (see trial-lock.ts). */
-import { Fragment, StrictMode, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, StrictMode, createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CodeBoxes } from '../src/components/codeBoxes';
 import '../src/saturday/css/tokens.css';
@@ -17,7 +17,8 @@ document.documentElement.setAttribute('data-skin', 'felt');
 import '../src/saturday/css/saturday.css';
 import '../src/styles.css';
 import './trial-report.css';
-import { Cards, Icon, Info } from '../src/components/ui';
+import { Cards, Icon, Info, Toggle } from '../src/components/ui';
+import { critiqueFor, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
 import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
 import { RANKS } from '../src/lib/cards';
@@ -276,19 +277,51 @@ function Settings({ m }: { m: TrialModel }) {
   );
 }
 
+/** Gameplay critique of the open player page: on = comments show under the log lines and the card rows. */
+const CritCtx = createContext<{ on: boolean; crit: PlayerCrit | null }>({ on: false, crit: null });
+
+/** Comments that open and close with the critique switch, on the same grow as the log itself. */
+function CritNotes({ notes, on }: { notes: CritNote[] | undefined; on: boolean }) {
+  if (!notes?.length) return null;
+  return (
+    <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div><div className="trial-crit-body">
+      {notes.map((x, i) => <span key={i} className={`trial-crit-note is-${x.tone}`}>{x.text}</span>)}
+    </div></div></div>
+  );
+}
+
+/** The verdict of one hand, under its row in Your Cards. */
+function CritVerdict({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
+  if (!hc?.verdict) return null;
+  return (
+    <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div>
+      <span className={`trial-crit-verdict is-${hc.verdict.tone}`}>{hc.verdict.label}{hc.status === 'invalid' ? ': a card clashes with the board or a card shown at the table. The hand is skipped.' : ''}</span>
+    </div></div>
+  );
+}
+
 /** One hand's action log: a dropdown with every action in time order, the cards shown and the result. */
 function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const { on, crit } = useContext(CritCtx);
+  const hc = crit?.hands.find((x) => x.n === v.n);
   return (
     <div className={`trial-log ${open ? 'is-open' : ''}`}>
       <button type="button" className="trial-log-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span>{label ?? 'Action log'}</span><span className="trial-chev" aria-hidden="true"><Icon name="chevron" size={16} /></span>
       </button>
       <div className="trial-grow" {...inertWhen(!open)}><div><div className="trial-log-body">
-        {v.streets.map((st) => (
+        {hc?.status === 'invalid' && <CritNotes on={on} notes={[{ tone: 'info', text: 'Invalid hand: your entry clashes with the board or a card shown at the table. The critique skips it.' }]} />}
+        {hc?.status === 'nocards' && <CritNotes on={on} notes={[{ tone: 'info', text: 'No cards entered for this hand. The comments read the action and the position only.' }]} />}
+        {v.streets.map((st, si) => (
           <div key={st.street} className="trial-log-street">
             <div className="trial-log-head"><b>{st.street}</b>{st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}</div>
-            {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => <span key={i} className="trial-log-line">{l.map((sg, k) => (sg.c === undefined ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c % 8) + 1})` }}>{sg.t}</span>))}</span>)}
+            {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => (
+              <Fragment key={i}>
+                <span className="trial-log-line">{l.map((sg, k) => (sg.c === undefined ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c % 8) + 1})` }}>{sg.t}</span>))}</span>
+                <CritNotes on={on} notes={hc?.lines[si]?.[i]} />
+              </Fragment>
+            ))}
           </div>
         ))}
         {v.shown.map((x) => (
@@ -395,6 +428,15 @@ function PlayerLock({ p, box, onOpen }: { p: TrialPlayer; box: LockBox; onOpen: 
 function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
   const s = p.s, st = s.style;
   const mine = m.awards.filter((a) => a.to.includes(p.id));
+  // Gameplay critique: only for a player who entered their own cards. It reads their entries and the public log.
+  const [critOn, setCritOn] = useState(false);
+  const crit = useMemo(() => {
+    if (!p.mine?.length || !p.logs?.length) return null;
+    const b = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/.exec(m.sub ?? '');
+    const cards = Object.fromEntries(p.mine.map((h) => [h.n, { cards: h.cards, lvl: h.lvl }]));
+    return critiqueFor(p.logs, p.name, cards, { sb: b ? +b[1] : 1, bb: b ? +b[2] : 2 });
+  }, [m.sub, p]);
+  const critBy = (n: number) => crit?.hands.find((x) => x.n === n);
   const rate = (a: number, b: number) => (b < 5 ? 'NA' : `${Math.round((a / b) * 100)}%`);
   const lines: [string, string, string, string[]][] = [
     ['VPIP', rate(s.vpip, s.logged), `${s.vpip}/${s.logged}`, ['Voluntary Put-in-Pot', 'Frequency of pre-flop call/raise (not including blinds)']],
@@ -404,6 +446,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
     ['Aggression', p.af.toFixed(1), `${st.betsRaises} bet/raise, ${st.calls} calls`, ['Post-flop (Bets + Raises) / Calls', '>1 = Bets > Calls']],
   ];
   return (
+    <CritCtx.Provider value={{ on: critOn, crit }}>
     <div className="sat-stack" style={gap(4)}>
       <section className="sat-glass sat-card sat-stack" style={gap(4)}>
         <div className="trial-who">
@@ -470,6 +513,30 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
 
       {p.mine.length > 0 && (
         <Section title={`Your Cards (${p.mine.length})`} tip={['Your own record of your cards, apart from the cards shown at the table.', 'Only you see these, with your player code.', 'Shown = also shown at the table.', 'Each hand shows the chips won or lost and where the hand was decided.', 'Red ! = a card is on the board or in a card shown at the table.', "Blue ! = a card is also in another player's entry.", 'A hand with a red ! stays out of the hand record.']}>
+          {crit && (
+            <div className="trial-crit-head">
+              <span className="trial-crit-switch">
+                <b>Gameplay critique</b>
+                <Tip title="Gameplay critique" lines={[
+                  'Comments on how you played each hand, under your cards and under each line of the action log.',
+                  'It uses only your own cards and what the whole table saw: the bets, the board, the positions.',
+                  "A player's habits count only from the hands before.",
+                  'It is a set of rules, not a solver. Use it to review the night.',
+                  'Hands with a red ! are skipped as invalid. Hands with a blue ! count as entered.',
+                ]} />
+              </span>
+              <Toggle on={critOn} onChange={setCritOn} label="Gameplay critique" />
+            </div>
+          )}
+          {crit && (
+            <div className={`trial-grow trial-crit ${critOn ? 'is-on' : ''}`} {...inertWhen(!critOn)}><div>
+              <p className="sat-small trial-crit-sum">
+                {crit.valueBets} value {crit.valueBets === 1 ? 'bet' : 'bets'}, {crit.semis} {crit.semis === 1 ? 'semi-bluff' : 'semi-bluffs'}, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}
+                {crit.bluffs > 0 ? ` (${crit.bluffsWon} won, average size ${Math.round(crit.bluffSize * 100)}% of the pot)` : ''}.
+                {' '}{crit.hands.filter((x) => x.verdict?.tone === 'warn').length} of {crit.hands.length} hands have a point to review.
+              </p>
+            </div></div>
+          )}
           <div className="sat-glass-2 felt-list">
             {p.mine.map((h) => {
               const v = p.logs.find((x) => x.n === h.n);
@@ -482,6 +549,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
                     {h.lvl && <span className={`trial-bang is-${h.lvl}`} role="img" aria-label={h.lvl === 'red' ? 'A card is on the board or in a card shown at the table' : "A card is also in another player's entry"}>!</span>}
                     <b className={`sat-small ${h.net > 0 ? 'felt-up' : h.net < 0 ? 'felt-down' : 'sat-muted'}`}>{h.net > 0 ? 'Won' : h.net < 0 ? 'Lost' : 'Even'} {Math.abs(h.net)} ({h.street})</b>
                   </div>
+                  <CritVerdict hc={critBy(h.n)} on={critOn} />
                   {v && <LogDrop v={v} />}
                 </div>
               );
@@ -511,6 +579,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         </div>
       </Section>
     </div>
+    </CritCtx.Provider>
   );
 }
 

@@ -233,6 +233,20 @@
 .trial-grow { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--trial-open) var(--trial-ease), opacity var(--trial-open) var(--trial-ease); }
 .trial-grow > div { overflow: hidden; min-height: 0; }
 .trial-award.is-open .trial-grow, .trial-log.is-open .trial-grow { grid-template-rows: 1fr; opacity: 1; }
+/* gameplay critique: comments grow open with the switch, on the same grow as the log (an open log does not open them) */
+.trial-log.is-open .trial-crit:not(.is-on), .trial-crit:not(.is-on) { grid-template-rows: 0fr; opacity: 0; }
+.trial-crit.is-on { grid-template-rows: 1fr; opacity: 1; }
+.trial-crit-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); }
+.trial-crit-switch { display: inline-flex; align-items: center; gap: var(--sat-space-2); }
+.trial-crit-sum { color: var(--sat-muted); margin: 0; }
+.trial-crit-body { display: grid; gap: var(--sat-space-1); padding: 2px 0 var(--sat-space-1) var(--sat-space-3); }
+.trial-crit-note { display: block; font-size: var(--sat-fs-small); line-height: 1.45; color: var(--sat-muted); padding-left: var(--sat-space-2); border-left: 2px solid var(--sat-glass-edge); }
+.trial-crit-note.is-good { border-left-color: var(--sat-pos); }
+.trial-crit-note.is-warn { border-left-color: var(--trial-s2); color: var(--sat-text); }
+.trial-crit-verdict { display: block; font-size: var(--sat-fs-small); font-weight: 700; padding: 0 var(--sat-space-3) var(--sat-space-1) calc(28px + var(--sat-space-3) * 2); }
+.trial-crit-verdict.is-good { color: var(--sat-pos); }
+.trial-crit-verdict.is-warn { color: var(--trial-s2); }
+.trial-crit-verdict.is-info { color: var(--sat-muted); font-weight: 600; }
 .trial-chev { transition: transform var(--trial-open) var(--trial-ease); }
 .trial-log.is-open .trial-chev { transform: rotate(180deg); }
 .trial-award-head { transition: background-color 150ms var(--trial-ease); }

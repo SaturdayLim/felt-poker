@@ -9,7 +9,7 @@ import type { Card } from '../types';
 import { RANKS, bestHand, DECK } from '../lib/cards';
 import type { HandView } from './model';
 
-export type CritTone = 'good' | 'warn' | 'info';
+export type CritTone = 'good' | 'warn' | 'info' | 'ask';
 export interface CritNote { tone: CritTone; text: string }
 /** Comments for one hand: `lines[street][line]` holds the notes under that line of the action log. */
 export interface HandCrit {
@@ -18,6 +18,8 @@ export interface HandCrit {
   /** A short verdict for the hand list ("Good fold", "Possible bluff"). */
   verdict?: { tone: CritTone; label: string };
   lines: Record<number, Record<number, CritNote[]>>;
+  /** Advanced insights: the thought process, street by street. Line -1 = notes on the street's cards (texture). */
+  deep?: Record<number, Record<number, CritNote[]>>;
 }
 export interface PlayerCrit { hands: HandCrit[]; bluffs: number; bluffsWon: number; bluffSize: number; semis: number; valueBets: number }
 
@@ -169,7 +171,7 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
     const entry = cards[v.n];
     if (mineIn) {
       if (entry?.lvl === 'red') out.push({ n: v.n, status: 'invalid', verdict: { tone: 'info', label: 'Invalid hand' }, lines: {} });
-      else out.push(one(p, me, entry?.cards ?? null));
+      else { const hc = one(p, me, entry?.cards ?? null); hc.deep = thinkHand(p, me, entry?.cards ?? null, habits, blinds); out.push(hc); }
     }
     learn(habits, p);
   }
@@ -346,4 +348,199 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
     return hc;
   }
   return { hands: out, bluffs, bluffsWon, bluffSize: bluffs ? bluffSum / bluffs : 0, semis, valueBets };
+}
+
+/* ------------------------------- advanced insights: the thought process ------------------------------- */
+/* Questions and considerations for each street, the way a strong player thinks through a hand: what the action
+   before says, what the board texture allows, what changed with the new card and what each player's habits suggest.
+   Same inputs as the critique: the player's own cards and the public record. */
+
+const SUIT_WORD: Record<string, string> = { h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades' };
+const RANK_WORD = (r: string) => (r === 'T' ? '10' : r);
+const boardText = (b: Card[]) => b.map((c) => RANK_WORD(c[0])).join('-');
+
+interface Texture { wet: boolean; flush: 'none' | 'draw' | 'made'; flushSuit: string; straight: 'none' | 'draw' | 'made'; words: string[] }
+function texture(board: Card[]): Texture {
+  const bySuit: Record<string, number> = {}, byRank: Record<string, number> = {};
+  for (const c of board) { bySuit[c[1]] = (bySuit[c[1]] ?? 0) + 1; byRank[c[0]] = (byRank[c[0]] ?? 0) + 1; }
+  const [fs, fn] = Object.entries(bySuit).sort((a, b) => b[1] - a[1])[0] ?? ['s', 0];
+  const counts = Object.values(byRank);
+  const vals = [...new Set(board.map(rv))];
+  if (vals.includes(14)) vals.push(1);
+  // the most board ranks inside one 5-rank window: 3 = a straight is possible, 2 = a straight draw is possible
+  let span = 0;
+  for (let lo = 1; lo <= 10; lo++) span = Math.max(span, vals.filter((v) => v >= lo && v < lo + 5).length);
+  const flush = fn >= 3 ? 'made' : fn === 2 && board.length < 5 ? 'draw' : 'none';
+  const straight = span >= 3 ? 'made' : span === 2 && board.length < 5 ? 'draw' : 'none';
+  const words: string[] = [];
+  if (Math.max(...counts) >= 3) words.push('trips on the board');
+  else if (counts.filter((x) => x >= 2).length >= 2) words.push('two pairs on the board');
+  else if (Math.max(...counts) === 2) words.push('a paired board');
+  if (flush === 'made') words.push(`${fn} ${SUIT_WORD[fs]}, so a flush is possible`);
+  else if (flush === 'draw') words.push(`two ${SUIT_WORD[fs]}, so a flush draw is possible`);
+  else if (board.length === 3) words.push('three suits');
+  if (straight === 'made') words.push('connected cards, so a straight is possible');
+  else if (straight === 'draw') words.push('straight draws are possible');
+  else words.push('few straight draws');
+  return { wet: flush !== 'none' || straight !== 'none', flush, flushSuit: fs, straight, words };
+}
+
+function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<string, Habit>, blinds: { sb: number; bb: number }) {
+  const out: Record<number, Record<number, CritNote[]>> = {};
+  const add = (st: number, line: number, tone: CritTone, text: string) => { ((out[st] ??= {})[line] ??= []).push({ tone, text }); };
+  const tell = (st: number, line: number, text: string) => add(st, line, 'info', text);
+  const ask = (st: number, line: number, text: string) => add(st, line, 'ask', text);
+  const { sb, bb } = blinds;
+  const players = Object.keys(p.posOf);
+  const label = (x: string) => (p.posOf[x] ? `${p.posOf[x]} (${x})` : x);
+  const hw = (x: string) => habitWord(habits[x]);
+  const habitLine = (x: string) => { const w = hw(x); return w ? ` ${x} is ${w}.` : ''; };
+  const myPos = p.posOf[me] ?? '';
+  const t = hole ? tier(hole) : null;
+  const yours = t ? t.cls : 'your hand';
+  const folded = new Set<string>();
+  let pot = 0, raiserPre: string | null = null, prevBoard: Card[] = [];
+  for (const st of p.streets) {
+    const put: Record<string, number> = {};
+    let high = 0, raises = 0, limpers = 0, firstBet: string | null = null;
+    if (st.key === 'preflop') {
+      const sbN = players.find((x) => p.posOf[x] === 'SB'), bbN = players.find((x) => p.posOf[x] === 'BB');
+      if (sbN) put[sbN] = sb;
+      if (bbN) put[bbN] = bb;
+      high = bb; pot = sb + bb;
+    }
+    const imIn = () => players.includes(me) && !folded.has(me);
+    const order = (xs: string[]) => [...xs].sort((a, b) => ORDER.indexOf(p.posOf[a]) - ORDER.indexOf(p.posOf[b]));
+    // the cards of the street: texture, what changed, what the action before represents
+    if (st.board.length >= 3 && imIn()) {
+      const tx = texture(st.board);
+      const fresh = st.board.slice(prevBoard.length);
+      if (st.key === 'flop') {
+        tell(st.i, -1, `Flop ${boardText(st.board)}: ${tx.words.join(', ')}.`);
+        ask(st.i, -1, `Is this board wet or dry? It is ${tx.wet ? 'wet: draws are possible, so a made hand wants to bet now' : 'dry: few draws, so a made hand can slow down'}.`);
+        ask(st.i, -1, raiserPre
+          ? `${label(raiserPre)} raised before the flop. Does this board hit a raising range (high cards, big pairs) or a calling range (middle cards, suited connectors)?`
+          : 'Nobody raised before the flop, so every range is wide. Which hands fit this board? Ax and suited cards are in many limped ranges.');
+        const byRank: Record<string, number> = {};
+        for (const c of st.board) byRank[c[0]] = (byRank[c[0]] ?? 0) + 1;
+        for (const [r, n] of Object.entries(byRank)) {
+          if (n < 2 || rv(`${r}s` as Card) < 10) continue;
+          const left = 4 - n - (hole?.filter((c) => c[0] === r).length ?? 0);
+          const plural: Record<string, string> = { A: 'aces', K: 'kings', Q: 'queens', J: 'jacks', T: 'tens' };
+          tell(st.i, -1, `${n === 2 ? 'Two' : 'Three'} ${plural[r]} show. Only ${left} ${left === 1 ? 'is' : 'are'} left, so a strong ${RANK_WORD(r)}x is less likely.`);
+        }
+      } else {
+        const c = fresh[0], before = texture(prevBoard), r = RANK_WORD(c[0]);
+        const changes: string[] = [];
+        if (st.board.filter((x) => x[0] === c[0]).length >= 2) changes.push('it pairs the board, so trips and full houses are possible');
+        if (tx.flush === 'made' && before.flush !== 'made') changes.push(`a flush is now possible in ${SUIT_WORD[tx.flushSuit]}`);
+        if (tx.straight === 'made' && before.straight !== 'made') changes.push('a straight is now possible');
+        if (rv(c) > Math.max(...prevBoard.map(rv))) changes.push('it is an overcard to the board');
+        tell(st.i, -1, `${st.key === 'turn' ? 'Turn' : 'River'} ${r}: the board is ${boardText(st.board)}. ${changes.length ? `The ${r} matters: ${changes.join('; ')}.` : `The ${r} changes little.`}`);
+        ask(st.i, -1, `Which hands does the ${r} help? Any ${r}x now has a pair. If the action says it hit, be ready to slow down or let go.`);
+        if (st.key === 'turn' && before.flush === 'draw' && tx.flush !== 'made') ask(st.i, -1, `The ${SUIT_WORD[before.flushSuit]} did not come. If it is left to you, keep betting so a flush draw pays to see the river?`);
+        if (st.key === 'river') ask(st.i, -1, 'Which draws missed? A missed draw cannot win at showdown, so it bluffs or gives up.');
+      }
+      if (hole) {
+        const s = made(hole, st.board), o = st.board.length < 5 ? outs(hole, st.board) : 0;
+        tell(st.i, -1, `You hold ${MADE_WORD[s]}${o >= 4 ? `, with ${o} cards that make a straight or better` : ''}.`);
+      }
+    }
+    st.acts.forEach((a, ai) => {
+      const prev = put[a.who] ?? 0;
+      const toCall = Math.max(0, high - prev);
+      const potBefore = pot;
+      let addC = 0;
+      if (a.k === 'call') addC = (a.allin && a.to ? a.to : high) - prev;
+      else if (a.k === 'bet' || a.k === 'raise' || a.k === 'allin' || a.k === 'straddle') addC = a.to - prev;
+      addC = Math.max(0, addC);
+      const isRaise = a.to > high && (a.k === 'raise' || a.k === 'allin' || a.k === 'bet' || a.k === 'straddle');
+      const checkedTo = st.key !== 'preflop' && ai > 0 && st.acts.slice(0, ai).every((x) => x.k === 'check');
+      const live = order(players.filter((x) => !folded.has(x)));
+      const behind = live.slice(live.indexOf(a.who) + 1);
+      if (a.who === me) {
+        if (st.key === 'preflop') {
+          const iso = 3 * bb + limpers * bb;
+          if (raises === 0 && a.k === 'check') {
+            tell(st.i, a.line, `You check the option. Nobody raised, so nobody showed strength.${t && t.t <= 1 ? ` With ${yours}, a raise to about ${iso} builds a pot you are likely to win.` : ' A free flop is fine with a hand that is not strong.'}`);
+          } else if (raises === 0 && limpers > 0) {
+            tell(st.i, a.line, `${limpers} ${limpers === 1 ? 'player limps' : 'players limp'} before you. A limp shows a capped range: premium hands usually raise.`);
+            const pair = !!hole && hole[0][0] === hole[1][0];
+            if (t && pair && rv(hole![0]) <= 9) {
+              ask(st.i, a.line, `With ${yours}, should you raise to about ${iso} (3 BB plus 1 BB for each limper) to isolate? A raise represents a stronger hand and charges hands with equity.`);
+              tell(st.i, a.line, `A set comes on about 1 flop in 8.5. An overcard to ${yours} comes on most flops, and higher cards (connectors, 9 to K, Ax) connect more often. A raise that wins the pot or the lead now pays off later.`);
+            } else if (t && t.t <= 1) tell(st.i, a.line, `With ${yours}, raise to about ${iso}. Limpers call with worse hands, and the pot grows while you are ahead.`);
+            else if (t && t.t === 2) ask(st.i, a.line, `With ${yours}, a limp behind is cheap and plays well in a pot with many players. Does a raise to ${iso} isolate a weak limper instead?`);
+            else if (t) ask(st.i, a.line, `With ${yours}, is the price worth it? Weak hands lose more chips after the flop than they win.`);
+            else ask(st.i, a.line, 'Which hands do the limpers hold, and do you want them in the pot with you?');
+          } else if (raises === 0) {
+            ask(st.i, a.line, `Nobody has entered. ${behind.length} ${behind.length === 1 ? 'player acts' : 'players act'} after you. Which hands open from ${myPos}, and to what size? 2.5 to 3 BB is standard.`);
+          } else {
+            const r = [...st.acts.slice(0, ai)].reverse().find((x) => x.to === high && x.who !== me);
+            if (r) {
+              const pos = p.posOf[r.who] ?? '';
+              tell(st.i, a.line, `${label(r.who)} raised to ${high} (${r2(high / bb)} BB).${EARLY.has(pos) ? ' From early position this shows a strong range.' : LATE.has(pos) ? ' From late position this can be a steal, so the range is wide.' : ''}${habitLine(r.who)}`);
+            }
+            ask(st.i, a.line, `Is ${yours} ahead of that range, or does it play well after the flop? A call needs ${pct(toCall / (potBefore + toCall))}. Call, re-raise or fold?`);
+          }
+        } else if (checkedTo && (a.k === 'bet' || a.k === 'check')) {
+          const lone = live.filter((x) => x !== me);
+          tell(st.i, a.line, `Everyone checks to you${behind.length === 0 ? ' in position' : ''}.${lone.length === 1 ? habitLine(lone[0]) : ''}`);
+          if (st.key === 'river') {
+            ask(st.i, a.line, 'How do you get the most value? Which worse hands call a bet, and how big a bet do they call?');
+            ask(st.i, a.line, `Is the check a trap? ${lone.some((x) => /calling station/.test(hw(x) ?? '')) ? 'A calling station rarely traps: it calls instead. Bet for value, and do not bluff it.' : 'What could you bluff, if anything?'}`);
+          } else {
+            ask(st.i, a.line, 'Bet or check? A bet charges draws and builds the pot when you are ahead. A check controls the pot and can set up a slowplay. Which worse hands call?');
+          }
+          if (a.k === 'bet') tell(st.i, a.line, `You bet ${a.to} into ${potBefore} (${pct(a.to / Math.max(1, potBefore))} of the pot).`);
+          if (a.k === 'check' && behind.length === 0) ask(st.i, a.line, 'You check behind. That gives a free card. Was a bet for value or protection better?');
+        } else if (a.k === 'check') {
+          const agg = behind.find((x) => /aggressive/.test(hw(x) ?? ''));
+          ask(st.i, a.line, agg ? `${label(agg)} acts after you and is ${hw(agg)}. A check can set up a check-raise. What do you do when ${agg} bets?` : 'You act first. Check to control the pot, or lead to take the initiative?');
+        } else if (isRaise) {
+          const amount = a.to - prev;
+          tell(st.i, a.line, `You ${firstBet ? 'raise to' : 'bet'} ${a.to} into ${potBefore} (${pct(amount / Math.max(1, potBefore))} of the pot).`);
+          ask(st.i, a.line, 'Which worse hands call this size? Which better hands raise? What do you do if raised?');
+          for (const x of live.filter((y) => y !== me)) {
+            const w = hw(x) ?? '';
+            if (/calling station/.test(w)) tell(st.i, a.line, `${x} is ${w}. Bet bigger for value against ${x}, and do not bluff ${x}.`);
+            else if (/folding to bets/.test(w)) tell(st.i, a.line, `${x} is ${w}. Bluffs work better against ${x}; a value bet may get no call.`);
+          }
+        } else if (a.k === 'call' || a.k === 'fold') {
+          ask(st.i, a.line, `Which hands bet like this? Which of them do you beat? You needed ${pct(toCall / (potBefore + toCall))} to call.`);
+        }
+      } else if (imIn()) {
+        if (st.key === 'preflop' && a.k === 'check') {
+          tell(st.i, a.line, `${label(a.who)} checks the option. Nobody raised, so no player has shown strength.`);
+          ask(st.i, a.line, `What does a check from ${a.who} tell you?${habitLine(a.who) || ' No habit is clear yet.'} Expect a wide, weak range.`);
+        } else if (isRaise && a.k !== 'straddle') {
+          const size = (a.to - prev) / Math.max(1, potBefore);
+          tell(st.i, a.line, `${label(a.who)} ${firstBet || st.key === 'preflop' ? 'raises to' : 'bets'} ${a.to}${st.key === 'preflop' ? ` (${r2(a.to / bb)} BB)` : ` (${pct(size)} of the pot)`}.${habitLine(a.who)}`);
+          ask(st.i, a.line, st.key === 'preflop'
+            ? `Which hands raise from ${p.posOf[a.who] ?? 'this seat'}?`
+            : `Which hands bet this size on ${boardText(st.board)}?${size > 1 ? ' An overbet is polarising: very strong or a bluff.' : size < 0.35 ? ' A small bet often wants a call: a strong hand, or a cheap bluff.' : ''}`);
+        }
+      }
+      // the record moves on
+      if (a.k === 'fold') folded.add(a.who);
+      if (st.key === 'preflop' && a.k === 'call' && raises === 0) limpers++;
+      if (isRaise) {
+        if (st.key !== 'preflop' || a.to > bb) raises++;
+        if (!firstBet) firstBet = a.who;
+        high = a.to;
+        if (st.key === 'preflop' && a.k !== 'straddle') raiserPre = a.who;
+      }
+      put[a.who] = prev + addC;
+      pot += addC;
+    });
+    // a street everyone checked
+    if (st.key !== 'preflop' && st.acts.length > 1 && st.acts.every((x) => x.k === 'check') && imIn()) {
+      const last = st.acts[st.acts.length - 1].line;
+      const aggs = players.filter((x) => x !== me && !folded.has(x) && /aggressive/.test(hw(x) ?? ''));
+      tell(st.i, last, 'Everyone checks: nobody claims the pot.');
+      ask(st.i, last, `Who is slowplaying, and who gave up?${aggs.length ? ` A check from ${aggs.join(' or ')} (aggressive so far) says more than a check from a passive player.` : ''} How do you play the next street in position?`);
+    }
+    prevBoard = st.board;
+  }
+  return out;
 }

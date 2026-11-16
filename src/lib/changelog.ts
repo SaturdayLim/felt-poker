@@ -3,6 +3,9 @@ export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
   { version: '1.9.0', date: '16 Nov 2026', notes: [
     'Reports: a Gameplay critique switch on each player page. It adds comments under Your Cards and under each line of the action log: the price of a call, the size of a bet, position, c-bets, bluffs and the habits of the other players so far.',
     'The critique uses only your own cards and what the whole table saw. A hand with a red ! is skipped as invalid. A hand with no cards entered is read from the action and position only.',
+    'Reports: Advanced insights, a second switch. It replaces the short comments with a thought process for each street: the board texture, what each new card changes, the habits of the other players and the questions to ask.',
+    'Settings, Cards: the sample board is gone. The card board under the test slots follows a suit drag as it happens, each card gliding to its new place. A new suit colour wipes across its row with a holographic shimmer.',
+    'Settings, Cards: A > 2 sits at the right of the two test slots. The Clear button is gone; a tap on a card turns it face down.',
   ] },
   { version: '1.8.9', date: '15 Nov 2026', notes: [
     'Player view: a new hand shows as soon as the host opens it, with the blinds posted and the first player to act lit. The last showdown no longer stays on screen.',

@@ -1,14 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SPLASH_DEFAULT, useStore, usePlayerName, type BackupData } from '../store';
 import { go } from '../router';
-import { calm, navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
+import { navSpeed, reducedNow, setMotionPref, setNavSpeed, type NavSpeed } from '../lib/motion';
 import { haptic } from '../lib/haptics';
-import { Caption, Header, Help, Icon, RankOrderSeg, SlidePane, Toggle, num, paths, toast, useCardLook, useRankOrder } from '../components/ui';
+import { Caption, Header, Help, Icon, SlidePane, Toggle, num, paths, toast, useCardLook } from '../components/ui';
 import { LiquidToggle } from '../components/liquidToggle';
 import { toTop } from '../components/navRail';
 import { InstallButton, InstallGuide } from '../components/install';
 import { CardPlayground } from '../components/cardTest';
-import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor, orderedRanks } from '../lib/cards';
+import { DEFAULT_FACE, SUIT_NAME, SUIT_SYMBOL, lookColor } from '../lib/cards';
 import { PALETTE_KEYS, PALETTE_NAME, cleanPalette, coloursFor, defaultsFor, withColours } from '../lib/palette';
 import { useResolvedTheme } from '../theme';
 import { CodeBoxes } from '../components/codeBoxes';
@@ -261,14 +261,9 @@ function GameDefaults() {
   );
 }
 
-/** Settings, Cards: the Suits editor with its miniature board, then the card test ground. The player view's Card Settings shows it too. */
+/** Settings, Cards: the Suits editor, then the live card test ground under it. The player view's Card Settings shows it too. */
 export function CardsView() {
-  return (
-    <>
-      <CardLookEditor />
-      <CardPlayground />
-    </>
-  );
+  return <CardLookEditor />;
 }
 
 function DataView() {
@@ -459,46 +454,9 @@ function CardLookEditor() {
         </div>
       </div>
       </section>
-      <SuitBoard order={list.projected} />
+      {/* the live board: rows follow a suit drag as it happens, and colours wipe in as they change */}
+      <CardPlayground suits={list.projected} />
     </>
-  );
-}
-
-/** The board of the card picker in miniature: one row for each suit in the order the suits will have, and the rank order with
-    its flip button. A suit row dragged in the list above moves here at the same time, one row at a time as it passes. */
-function SuitBoard({ order }: { order: SuitKey[] }) {
-  const look = useCardLook();
-  const [rank] = useRankOrder();
-  const ranks = orderedRanks(rank);
-  const box = useRef<HTMLDivElement>(null);
-  const lefts = useRef<Record<string, number>>({});
-  // flipping the order: each rank glides to its new column (measured before and after), instead of all 13 jumping
-  useLayoutEffect(() => {
-    const cells = [...(box.current?.querySelectorAll<HTMLElement>('.felt-miniboard-row:first-child [data-rank]') ?? [])];
-    const prev = lefts.current, next: Record<string, number> = {};
-    for (const c of cells) next[c.dataset.rank!] = c.getBoundingClientRect().left;
-    lefts.current = next;
-    if (calm() || !Object.keys(prev).length) return;
-    box.current?.querySelectorAll<HTMLElement>('[data-rank]').forEach((c) => {
-      const dx = (prev[c.dataset.rank!] ?? 0) - (next[c.dataset.rank!] ?? 0);
-      if (dx && c.animate) c.animate({ transform: [`translateX(${dx}px)`, 'translateX(0)'] }, { duration: 420, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
-    });
-  }, [rank]);
-  return (
-    <section className="sat-glass sat-card sat-stack felt-miniboard-card">
-      <RankOrderSeg />
-      <div ref={box} className="felt-miniboard" role="img" aria-label={`Picker rows from the top: ${order.map((x) => SUIT_NAME[x]).join(', ')}`}>
-        {(['s', 'h', 'c', 'd'] as SuitKey[]).map((su) => {
-          const c = lookColor(look, su);
-          return (
-            <div key={su} className="felt-miniboard-row" style={{ ['--row' as string]: order.indexOf(su), ['--suit' as string]: c }}>
-              <span className="felt-miniboard-suit">{SUIT_SYMBOL[su]}</span>
-              {ranks.map((r) => <span key={r} data-rank={r} className="felt-miniboard-cell">{r === 'T' ? '10' : r}</span>)}
-            </div>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 

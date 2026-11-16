@@ -278,7 +278,7 @@ function Settings({ m }: { m: TrialModel }) {
 }
 
 /** Gameplay critique of the open player page: on = comments show under the log lines and the card rows. */
-const CritCtx = createContext<{ on: boolean; crit: PlayerCrit | null }>({ on: false, crit: null });
+const CritCtx = createContext<{ on: boolean; adv: boolean; crit: PlayerCrit | null }>({ on: false, adv: false, crit: null });
 
 /** Comments that open and close with the critique switch, on the same grow as the log itself. */
 function CritNotes({ notes, on }: { notes: CritNote[] | undefined; on: boolean }) {
@@ -303,7 +303,7 @@ function CritVerdict({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
 /** One hand's action log: a dropdown with every action in time order, the cards shown and the result. */
 function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { on, crit } = useContext(CritCtx);
+  const { on, adv, crit } = useContext(CritCtx);
   const hc = crit?.hands.find((x) => x.n === v.n);
   return (
     <div className={`trial-log ${open ? 'is-open' : ''}`}>
@@ -316,10 +316,13 @@ function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
         {v.streets.map((st, si) => (
           <div key={st.street} className="trial-log-street">
             <div className="trial-log-head"><b>{st.street}</b>{st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}</div>
+            {/* advanced insights replace the short comments: the street's cards first, then the thought process under each line */}
+            <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[-1]} />
             {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => (
               <Fragment key={i}>
                 <span className="trial-log-line">{l.map((sg, k) => (sg.c === undefined ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c % 8) + 1})` }}>{sg.t}</span>))}</span>
-                <CritNotes on={on} notes={hc?.lines[si]?.[i]} />
+                <CritNotes on={on && !adv} notes={hc?.lines[si]?.[i]} />
+                <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[i]} />
               </Fragment>
             ))}
           </div>
@@ -430,6 +433,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
   const mine = m.awards.filter((a) => a.to.includes(p.id));
   // Gameplay critique: only for a player who entered their own cards. It reads their entries and the public log.
   const [critOn, setCritOn] = useState(false);
+  const [advOn, setAdvOn] = useState(false);
   const crit = useMemo(() => {
     if (!p.mine?.length || !p.logs?.length) return null;
     const b = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/.exec(m.sub ?? '');
@@ -446,7 +450,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
     ['Aggression', p.af.toFixed(1), `${st.betsRaises} bet/raise, ${st.calls} calls`, ['Post-flop (Bets + Raises) / Calls', '>1 = Bets > Calls']],
   ];
   return (
-    <CritCtx.Provider value={{ on: critOn, crit }}>
+    <CritCtx.Provider value={{ on: critOn, adv: advOn, crit }}>
     <div className="sat-stack" style={gap(4)}>
       <section className="sat-glass sat-card sat-stack" style={gap(4)}>
         <div className="trial-who">
@@ -529,7 +533,18 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
             </div>
           )}
           {crit && (
-            <div className={`trial-grow trial-crit ${critOn ? 'is-on' : ''}`} {...inertWhen(!critOn)}><div>
+            <div className={`trial-grow trial-crit ${critOn ? 'is-on' : ''}`} {...inertWhen(!critOn)}><div className="sat-stack" style={gap(2)}>
+              <div className="trial-crit-head">
+                <span className="trial-crit-switch">
+                  <b>Advanced insights</b>
+                  <Tip title="Advanced insights" lines={[
+                    'A thought process for each hand: the questions a strong player asks on each street.',
+                    'It reads the board texture, what each new card changes, and the habits of the other players so far.',
+                    'It replaces the short comments in the action log. Open one or two hands that matter to you.',
+                  ]} />
+                </span>
+                <Toggle on={advOn} onChange={setAdvOn} label="Advanced insights" />
+              </div>
               <p className="sat-small trial-crit-sum">
                 {crit.valueBets} value {crit.valueBets === 1 ? 'bet' : 'bets'}, {crit.semis} {crit.semis === 1 ? 'semi-bluff' : 'semi-bluffs'}, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}
                 {crit.bluffs > 0 ? ` (${crit.bluffsWon} won, average size ${Math.round(crit.bluffSize * 100)}% of the pot)` : ''}.

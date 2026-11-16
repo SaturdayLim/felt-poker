@@ -41,4 +41,12 @@ describe('gameplay critique', () => {
     expect(c.hands[0].status).toBe('nocards');
     expect(c.hands[0].lines[1][2].map((x) => x.text).join(' ')).toMatch(/cannot be checked/);
   });
+  it('advanced insights read the board texture and ask questions when checked to you', () => {
+    const paired = { ...view, streets: [view.streets[0], { ...view.streets[1], cards: ['4h', 'Ah', 'Ad'] as HandView['streets'][number]['cards'] }] };
+    const deep = critiqueFor([paired], 'Ann', { 1: { cards: ['5s', '5d'], lvl: null } }, { sb: 1, bb: 2 }).hands[0].deep!;
+    const head = deep[1][-1].map((x) => x.text).join(' ');
+    expect(head).toMatch(/Flop 4-A-A: a paired board/);
+    expect(head).toMatch(/Two aces show\. Only 2 are left/);
+    expect(deep[1][1].some((x) => x.tone === 'ask' && /Bet or check\?/.test(x.text))).toBe(true);
+  });
 });

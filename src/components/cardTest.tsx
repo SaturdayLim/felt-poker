@@ -3,9 +3,9 @@
    The grid and the faces read the live card look (suit colours, suit order, Ace-to-2 or 2-to-Ace), so a change elsewhere on
    the page shows at once. */
 import { useLayoutEffect, useRef, useState } from 'react';
-import { CardBack, CardPickerGrid, PlayingCard } from './ui';
+import { CardBack, CardPickerGrid, PlayingCard, RankOrderSeg } from './ui';
 import { calm } from '../lib/motion';
-import type { Card } from '../types';
+import type { Card, CardLook } from '../types';
 
 const EASE = 'cubic-bezier(0.23, 1, 0.32, 1)';
 
@@ -34,7 +34,8 @@ function Slot({ card, onClear, n }: { card: Card | null; onClear: () => void; n:
   );
 }
 
-export function CardPlayground() {
+/** `suits`: the suit row order to show, which follows a suit drag in the Suits list as it happens. */
+export function CardPlayground({ suits }: { suits?: CardLook['order'] }) {
   const [slots, setSlots] = useState<(Card | null)[]>([null, null]);
   const picked = slots.filter(Boolean) as Card[];
   const full = picked.length === 2;
@@ -42,11 +43,12 @@ export function CardPlayground() {
   const clear = (i: number) => setSlots((s) => s.map((x, j) => (j === i ? null : x)));
   return (
     <div className="felt-ptest" aria-label="Card test ground">
+      {/* the two slots sit in the centre; the rank order flip sits at the right */}
       <div className="felt-ptest-slots">
         {slots.map((c, i) => <Slot key={i} n={i + 1} card={c} onClear={() => clear(i)} />)}
-        <button type="button" className="sat-btn" style={{ minHeight: 44 }} disabled={!picked.length} onClick={() => setSlots([null, null])}>Clear</button>
+        <span className="felt-ptest-rank"><RankOrderSeg /></span>
       </div>
-      <CardPickerGrid disabled={(c) => full || picked.includes(c)} onPick={pick} />
+      <CardPickerGrid live suits={suits} disabled={(c) => full || picked.includes(c)} onPick={pick} />
     </div>
   );
 }

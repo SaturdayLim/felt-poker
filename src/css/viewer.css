@@ -74,7 +74,8 @@ html[data-calm] .felt-rankflip-btn svg { transition: none; }
 
 /* Card test ground: two slots over the real picker. */
 .felt-ptest { display: flex; flex-direction: column; gap: var(--sat-space-3); padding: var(--sat-space-4); }
-.felt-ptest-slots { display: flex; align-items: center; justify-content: center; gap: var(--sat-space-3); }
+.felt-ptest-slots { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--sat-space-3); }
+.felt-ptest-rank { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
 .felt-ptest-slot { display: inline-block; perspective: 500px; padding: 0; background: none; border: 0; min-width: 44px; min-height: 44px; }
 .felt-ptest-in { display: grid; transform-style: preserve-3d; }
 .felt-ptest-f, .felt-ptest-b { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: inline-flex; }

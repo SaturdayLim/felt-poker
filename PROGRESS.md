@@ -5,7 +5,8 @@
 - Gameplay critique (owner): `critiqueFor` in src/report/critique.ts reads each HandView's log lines back into actions (positions from "POS (Name)", amounts, pot from the blinds in `m.sub`), tracks habits from earlier hands (6+ hands: calling station, loose-aggressive, aggressive, folds to bets, tight) and writes rule notes per line plus one verdict per hand. Red entry = invalid, blue = counts, no entry = action-only notes.
 - Runs inside the report template (scripts/trial-report.tsx, `CritCtx`, `CritNotes`, `CritVerdict`) after a page unlocks, so reports already online get it once the template deploys. Switch sits in Your Cards; comments use `.trial-grow` (class `trial-crit`). Tests: critique.test.ts.
 - Sample: trial/build-sample.ts wraps the online Saturday report (still sealed per player) in the new template; published as a private artifact. Everett's code still fails (old code; republish the link).
-- Open: Settings > Cards board task (remove SuitBoard, move A > 2 to CardPlayground, animate suit swaps) waits for owner answers.
+- Advanced insights (owner): `thinkHand` in critique.ts writes `HandCrit.deep` (line -1 = street cards: texture via `texture()`, what the new card changes, paired high cards left). Notes tone `ask` = a question. Template: second switch "Advanced insights" (inside the critique grow); on, the deep notes replace the short ones in every action log.
+- Settings > Cards: `SuitBoard` removed. `CardLookEditor` renders `CardPlayground suits={list.projected}`; `CardPickerGrid live` glides cards (FLIP on offsets) on suit or rank order change and wipes a new suit colour (`@property --felt-wp`, styles.css) column by column. A > 2 at the right of the slots, no Clear. Checked in the browser with pointer events: rows swap mid-drag, 26 cards glide; flip glides 48; wipe staggers left to right.
 
 ## Earlier (15 Nov 2026): 1.8.9
 

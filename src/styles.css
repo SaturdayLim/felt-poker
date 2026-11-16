@@ -390,6 +390,23 @@ html[data-calm] .felt-skel { animation: none; }
 .felt-picker button .r { font-size: 13.5px; letter-spacing: -0.03em; }
 .felt-picker button .s { font-size: 11px; margin-top: 2px; font-family: system-ui, sans-serif; }
 .felt-picker button:disabled { opacity: 0.18; }
+/* Settings, Cards: the live board. A new suit colour wipes left to right across the row; a holographic band runs on
+   the wipe edge, over the text and the card face. Browsers without @property show the new colour at the end. */
+@property --felt-wp { syntax: '<percentage>'; inherits: true; initial-value: 130%; }
+.felt-picker.is-live { position: relative; }
+.felt-picker.is-live button { position: relative; overflow: hidden; }
+.felt-picker button.is-wipe .r, .felt-picker button.is-wipe .s {
+  color: transparent !important; -webkit-background-clip: text; background-clip: text;
+  background-image: linear-gradient(100deg, var(--c) 0 calc(var(--felt-wp) - 34%), #ff7ad9 calc(var(--felt-wp) - 25%), #7af2ff calc(var(--felt-wp) - 16%), #fff3a0 calc(var(--felt-wp) - 8%), var(--c0) var(--felt-wp));
+  animation: felt-wipe 620ms cubic-bezier(0.4, 0, 0.2, 1) var(--wd, 0ms) both;
+}
+.felt-picker button.is-wipe::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,122,217,0.55) 42%, rgba(122,242,255,0.6) 52%, rgba(255,243,160,0.55) 62%, transparent 74%);
+  animation: felt-sheen 620ms cubic-bezier(0.4, 0, 0.2, 1) var(--wd, 0ms) both;
+}
+@keyframes felt-wipe { from { --felt-wp: 0%; } to { --felt-wp: 130%; } }
+@keyframes felt-sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
 .felt-hand { display: block; width: 100%; text-align: left; padding: var(--sat-space-3) 0; border-bottom: 1px solid var(--sat-line); color: inherit; }
 .felt-hand:last-child { border-bottom: 0; }

@@ -243,6 +243,7 @@
 .trial-crit-note { display: block; font-size: var(--sat-fs-small); line-height: 1.45; color: var(--sat-muted); padding-left: var(--sat-space-2); border-left: 2px solid var(--sat-glass-edge); }
 .trial-crit-note.is-good { border-left-color: var(--sat-pos); }
 .trial-crit-note.is-warn { border-left-color: var(--trial-s2); color: var(--sat-text); }
+.trial-crit-note.is-ask { border-left-color: var(--trial-s1); color: var(--sat-text); }
 .trial-crit-verdict { display: block; font-size: var(--sat-fs-small); font-weight: 700; padding: 0 var(--sat-space-3) var(--sat-space-1) calc(28px + var(--sat-space-3) * 2); }
 .trial-crit-verdict.is-good { color: var(--sat-pos); }
 .trial-crit-verdict.is-warn { color: var(--trial-s2); }

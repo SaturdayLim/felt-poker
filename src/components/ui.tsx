@@ -1061,17 +1061,61 @@ export function RankOrderSeg() {
   );
 }
 
-export function CardPickerGrid({ disabled, onPick }: { disabled: (c: Card) => boolean; onPick: (c: Card) => void }) {
+/** The card picker grid. `suits` overrides the saved row order (Settings passes the order of a suit drag in progress).
+    With `live` (Settings, Cards), the board moves as the look changes: each card glides to its new place when the suit
+    order or the rank order changes, and a new suit colour wipes across its row left to right with a holographic shimmer. */
+export function CardPickerGrid({ disabled, onPick, suits, live }: { disabled: (c: Card) => boolean; onPick: (c: Card) => void; suits?: CardLook['order']; live?: boolean }) {
   const look = useCardLook();
   const [order] = useRankOrder();
+  const rows = suits ?? look.order;
+  const ranks = orderedRanks(order);
+  const box = useRef<HTMLDivElement>(null);
+  const spots = useRef<Map<string, [number, number]>>(new Map());
+  const colours = useRef<Record<string, string>>({});
+  // a card that moves glides from where it was (offsets inside the grid, so a page scroll does not count as a move)
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!live || !el) return;
+    const btns = [...el.querySelectorAll<HTMLElement>('button[data-card]')];
+    const prev = spots.current, next = new Map<string, [number, number]>();
+    for (const b of btns) next.set(b.dataset.card!, [b.offsetLeft, b.offsetTop]);
+    spots.current = next;
+    if (calm() || !prev.size) return;
+    for (const b of btns) {
+      const a = prev.get(b.dataset.card!), z = next.get(b.dataset.card!)!;
+      if (!a || !b.animate || (a[0] === z[0] && a[1] === z[1])) continue;
+      b.getAnimations().forEach((x) => { if (x.id === 'felt-glide') x.cancel(); });
+      const anim = b.animate({ transform: [`translate(${a[0] - z[0]}px, ${a[1] - z[1]}px)`, 'translate(0, 0)'] }, { duration: 320, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
+      anim.id = 'felt-glide';
+    }
+  }, [live, rows.join(''), order]); // eslint-disable-line react-hooks/exhaustive-deps
+  // a new suit colour wipes across the row, column by column; a wipe already running ends on the newest colour
+  const colourKey = rows.map((s) => lookColor(look, s)).join();
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!live || !el) return;
+    const prev = colours.current, next = Object.fromEntries(rows.map((s) => [s, lookColor(look, s)]));
+    colours.current = next;
+    if (calm()) return;
+    for (const s of rows) {
+      if (!prev[s] || prev[s] === next[s]) continue;
+      el.querySelectorAll<HTMLElement>(`button[data-suit="${s}"]`).forEach((b) => {
+        if (b.classList.contains('is-wipe')) return;
+        b.style.setProperty('--c0', prev[s]);
+        b.style.setProperty('--wd', `${Number(b.dataset.col) * 26}ms`);
+        b.classList.add('is-wipe');
+        b.addEventListener('animationend', () => b.classList.remove('is-wipe'), { once: true });
+      });
+    }
+  }, [live, colourKey]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="felt-picker">
-      {look.order.flatMap((su) => orderedRanks(order).map((r) => {
-        const c = r + su;
+    <div ref={box} className={`felt-picker ${live ? 'is-live' : ''}`}>
+      {rows.flatMap((su) => ranks.map((r, col) => {
+        const c = r + su, colour = lookColor(look, su);
         return (
-          <button key={c} disabled={disabled(c)} onClick={() => onPick(c)} aria-label={c}>
-            <span className="r" style={{ color: lookColor(look, su) }}>{r === 'T' ? '10' : r}</span>
-            <span className="s" style={{ color: lookColor(look, su) }}>{SUIT_SYMBOL[su]}</span>
+          <button key={c} disabled={disabled(c)} onClick={() => onPick(c)} aria-label={c} data-card={c} data-suit={su} data-col={col}>
+            <span className="r" style={{ color: colour, ['--c' as string]: colour }}>{r === 'T' ? '10' : r}</span>
+            <span className="s" style={{ color: colour, ['--c' as string]: colour }}>{SUIT_SYMBOL[su]}</span>
           </button>
         );
       }))}

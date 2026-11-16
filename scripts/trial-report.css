@@ -239,6 +239,11 @@
 .trial-crit-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); }
 .trial-crit-switch { display: inline-flex; align-items: center; gap: var(--sat-space-2); }
 .trial-crit-sum { color: var(--sat-muted); margin: 0; }
+/* critique add-ons: checkboxes, indented under the switch and set smaller, so they read as extras to it */
+.trial-addons { display: flex; flex-wrap: wrap; gap: var(--sat-space-1) var(--sat-space-4); padding-left: var(--sat-space-3); font-size: var(--sat-fs-small); }
+.trial-addon { display: inline-flex; align-items: center; gap: var(--sat-space-2); }
+.trial-addon > label { display: inline-flex; align-items: center; gap: var(--sat-space-2); min-height: 44px; cursor: pointer; }
+.trial-addon input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--trial-s1); }
 .trial-crit-body { display: grid; gap: var(--sat-space-1); padding: 2px 0 var(--sat-space-1) var(--sat-space-3); }
 .trial-crit-note { display: block; font-size: var(--sat-fs-small); line-height: 1.45; color: var(--sat-muted); padding-left: var(--sat-space-2); border-left: 2px solid var(--sat-glass-edge); }
 .trial-crit-note.is-good { border-left-color: var(--sat-pos); }

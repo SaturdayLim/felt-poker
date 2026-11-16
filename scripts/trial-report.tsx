@@ -19,6 +19,7 @@ import '../src/styles.css';
 import './trial-report.css';
 import { Cards, Icon, Info, Toggle } from '../src/components/ui';
 import { critiqueFor, type CritClose, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
+import { plainWords } from '../src/report/plain';
 import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
 import { RANKS } from '../src/lib/cards';
@@ -278,14 +279,17 @@ function Settings({ m }: { m: TrialModel }) {
 }
 
 /** Gameplay critique of the open player page: on = comments show under the log lines and the card rows. */
-const CritCtx = createContext<{ on: boolean; adv: boolean; crit: PlayerCrit | null }>({ on: false, adv: false, crit: null });
+const CritCtx = createContext<{ on: boolean; adv: boolean; jargon: boolean; crit: PlayerCrit | null }>({ on: false, adv: false, jargon: true, crit: null });
+/** The critique text as written (Use jargon ticked), or in plain words for a new player. */
+const useSay = () => { const { jargon } = useContext(CritCtx); return (t: string) => (jargon ? t : plainWords(t)); };
 
 /** Comments that open and close with the critique switch, on the same grow as the log itself. */
 function CritNotes({ notes, on }: { notes: CritNote[] | undefined; on: boolean }) {
+  const say = useSay();
   if (!notes?.length) return null;
   return (
     <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div><div className="trial-crit-body">
-      {notes.map((x, i) => (x.a ? <QuizNote key={i} q={x.text} a={x.a} /> : <span key={i} className={`trial-crit-note is-${x.g ?? x.tone}`}>{x.text}</span>))}
+      {notes.map((x, i) => (x.a ? <QuizNote key={i} q={say(x.text)} a={say(x.a)} /> : <span key={i} className={`trial-crit-note is-${x.g ?? x.tone}`}>{say(x.text)}</span>))}
     </div></div></div>
   );
 }
@@ -293,10 +297,11 @@ function CritNotes({ notes, on }: { notes: CritNote[] | undefined; on: boolean }
 /** The closing comment on one of the player's own actions: the grade (green good, blue think again, red do not do this)
     and the takeaway. It shows in both the short and the advanced critique. */
 function CloseNote({ c, on }: { c: CritClose | undefined; on: boolean }) {
+  const say = useSay();
   if (!c) return null;
   return (
     <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div><div className="trial-crit-body">
-      <span className={`trial-crit-note trial-close is-${c.g ?? 'none'}`}>{c.v && <b>{c.v}. </b>}{c.text}</span>
+      <span className={`trial-crit-note trial-close is-${c.g ?? 'none'}`}>{c.v && <b>{say(c.v)}. </b>}{say(c.text)}</span>
     </div></div></div>
   );
 }
@@ -317,10 +322,11 @@ function QuizNote({ q, a }: { q: string; a: string }) {
 
 /** The verdict of one hand, under its row in Your Cards. */
 function CritVerdict({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
+  const say = useSay();
   if (!hc?.verdict) return null;
   return (
     <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div>
-      <span className={`trial-crit-verdict is-${hc.verdict.g ?? hc.verdict.tone}`}>{hc.verdict.label}{hc.status === 'invalid' ? ': a card clashes with the board or a card shown at the table. The hand is skipped.' : ''}</span>
+      <span className={`trial-crit-verdict is-${hc.verdict.g ?? hc.verdict.tone}`}>{say(hc.verdict.label)}{hc.status === 'invalid' ? ': a card clashes with the board or a card shown at the table. The hand is skipped.' : ''}</span>
     </div></div>
   );
 }
@@ -460,6 +466,8 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
   // Gameplay critique: only for a player who entered their own cards. It reads their entries and the public log.
   const [critOn, setCritOn] = useState(false);
   const [advOn, setAdvOn] = useState(false);
+  // Use jargon (owner, 16 Nov 2026): ticked by default, so the critique reads as written; unticked swaps terms for plain words
+  const [jargonOn, setJargonOn] = useState(true);
   const crit = useMemo(() => {
     if (!p.mine?.length || !p.logs?.length) return null;
     const b = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/.exec(m.sub ?? '');
@@ -476,7 +484,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
     ['Aggression', p.af.toFixed(1), `${st.betsRaises} bet/raise, ${st.calls} calls`, ['Post-flop (Bets + Raises) / Calls', '>1 = Bets > Calls']],
   ];
   return (
-    <CritCtx.Provider value={{ on: critOn, adv: advOn, crit }}>
+    <CritCtx.Provider value={{ on: critOn, adv: advOn, jargon: jargonOn, crit }}>
     <div className="sat-stack" style={gap(4)}>
       <section className="sat-glass sat-card sat-stack" style={gap(4)}>
         <div className="trial-who">
@@ -560,19 +568,28 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
           )}
           {crit && (
             <div className={`trial-grow trial-crit ${critOn ? 'is-on' : ''}`} {...inertWhen(!critOn)}><div className="sat-stack" style={gap(2)}>
-              <div className="trial-crit-head">
-                <span className="trial-crit-switch">
-                  <b>Advanced insights</b>
+              {/* add-ons to the critique: checkboxes under the switch, so they read as extras, not as equal options */}
+              <div className="trial-addons" role="group" aria-label="Critique add-ons">
+                <span className="trial-addon">
+                  <label><input type="checkbox" checked={advOn} onChange={(e) => setAdvOn(e.target.checked)} /><span>Advanced insights</span></label>
                   <Tip title="Advanced insights" lines={[
                     'A thought process for each hand: the questions a strong player asks on each street.',
                     'It reads the board texture, what each new card changes, and the habits of the other players so far.',
                     'It replaces the short comments in the action log. Open one or two hands that matter to you.',
                   ]} />
                 </span>
-                <Toggle on={advOn} onChange={setAdvOn} label="Advanced insights" />
+                <span className="trial-addon">
+                  <label><input type="checkbox" checked={jargonOn} onChange={(e) => setJargonOn(e.target.checked)} /><span>Use jargon</span></label>
+                  <Tip title="Use jargon" lines={[
+                    'Ticked: the comments use poker terms, such as draw, outs and range.',
+                    'Not ticked: plain words replace the terms. For example, a draw is a hand that needs one more card.',
+                  ]} />
+                </span>
               </div>
               <p className="sat-small trial-crit-sum">
-                {crit.valueBets} value {crit.valueBets === 1 ? 'bet' : 'bets'}, {crit.semis} {crit.semis === 1 ? 'semi-bluff' : 'semi-bluffs'}, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}
+                {jargonOn
+                  ? <>{crit.valueBets} value {crit.valueBets === 1 ? 'bet' : 'bets'}, {crit.semis} {crit.semis === 1 ? 'semi-bluff' : 'semi-bluffs'}, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}</>
+                  : <>{crit.valueBets} {crit.valueBets === 1 ? 'bet' : 'bets'} that worse hands call, {crit.semis} {crit.semis === 1 ? 'bet' : 'bets'} with a hand that can still improve, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}</>}
                 {crit.bluffs > 0 ? ` (${crit.bluffsWon} won, average size ${Math.round(crit.bluffSize * 100)}% of the pot)` : ''}.
                 {' '}{crit.hands.filter((x) => x.verdict?.tone === 'warn').length} of {crit.hands.length} hands have a point to review.
               </p>

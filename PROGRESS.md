@@ -1,6 +1,11 @@
 # Nightcap: progress
 
-## Latest (16 Nov 2026): 1.10.0
+## Latest (16 Nov 2026): 1.10.1
+
+- Use jargon (owner): report add-on, ticked by default, applies to the short critique and Advanced insights (owner answers). `plainWords` (src/report/plain.ts) rewrites the finished text with ordered regex rules (longer phrases first), so ticked = text exactly as written. `useSay()` in scripts/trial-report.tsx applies it to notes, quiz questions and answers, closing comments and verdicts; the summary line has its own plain version.
+- Advanced insights and Use jargon are native checkboxes in `.trial-addons` (indented, small) under the Gameplay critique switch. Checked on the Saturday data: no term left in 1756 rewritten texts (trial/plain-check.ts).
+
+## Earlier (16 Nov 2026): 1.10.0
 
 - Closing commentary (owner): `thinkHand` returns `{ deep, close }`. `close[street][line]` = `CritClose { g, v, text }` for each own action. The recommended action comes from the first quiz answer of that action (`recOf` parses "Raise to about N", "Bet ... (N)", "Call", "Check", "Fold", "With X: raise.") or from `recSet` (check with an aggressor behind, own bets). `closingFor` compares it with the action: grade, label, then what the action shows and what to represent next. No cards = no grade.
 - Grades (owner): green good or reasonable, blue think again, red do not do this. Short notes get `g` from their verdict (`gradeOf`); a hand verdict takes the worst grade. A preflop limp that should fold is blue (Fold more often), not red.

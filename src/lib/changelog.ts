@@ -1,5 +1,9 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.10.1', date: '16 Nov 2026', notes: [
+    'Reports: Use jargon, a new add-on under Gameplay critique. Ticked (the default), the comments read as before. Not ticked, plain words replace poker terms: a draw is a hand that needs one more card, outs are helping cards.',
+    'Reports: Advanced insights and Use jargon are now checkboxes under the Gameplay critique switch, so they read as add-ons to it.',
+  ] },
   { version: '1.10.0', date: '16 Nov 2026', notes: [
     'Reports: Advanced insights close each of your actions with a graded comment. Green: good or reasonable. Blue: think again. Red: do not do this.',
     'Each comment says how the action compares with the recommended one (for example Good call, Raise a bit more), what it shows the table and what you can represent on the next street.',

@@ -1,5 +1,8 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.10.2', date: '16 Nov 2026', notes: [
+    'Reports, Compare: no section title or table tip. Each metric has a tip that says how its number is worked out and its target. Bold = the value closest to the target of balanced play (highest for Result, Won at SD and Pots won).',
+  ] },
   { version: '1.10.1', date: '16 Nov 2026', notes: [
     'Reports: Use jargon, a new add-on under Gameplay critique. Ticked (the default), the comments read as before. Not ticked, plain words replace poker terms: a draw is a hand that needs one more card, outs are helping cards.',
     'Reports: Advanced insights and Use jargon are now checkboxes under the Gameplay critique switch, so they read as add-ons to it.',

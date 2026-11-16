@@ -310,3 +310,5 @@
 .trial-ledger-row:target { background: var(--sat-accent-soft); }
 .trial-log-event { border: 1px dashed var(--sat-line-strong); border-radius: var(--sat-radius-md); }
 .trial-log-event .felt-row { min-height: 0; }
+
+.trial-th-tip { display: inline-flex; align-items: center; gap: var(--sat-space-1); white-space: nowrap; }

@@ -692,32 +692,39 @@ function HandRecord({ p }: { p: TrialPlayer }) {
 
 function Compare({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => void }) {
   const rate = (a: number, b: number) => (!b ? '-' : b < 5 ? 'NA' : `${Math.round((a / b) * 100)}%`);
-  const rows: { label: string; v: (p: TrialPlayer) => number; fmt: (p: TrialPlayer) => string; high?: boolean }[] = [
-    { label: 'Result', v: (p) => p.net, fmt: (p) => signed(p.net), high: true },
-    { label: 'VPIP', v: (p) => p.vpip, fmt: (p) => rate(p.s.vpip, p.s.logged) },
-    { label: 'PFR', v: (p) => p.pfr, fmt: (p) => rate(p.s.pfr, p.s.logged) },
-    { label: 'Aggression', v: (p) => p.af, fmt: (p) => p.af.toFixed(1), high: true },
-    { label: '3-Bet', v: (p) => p.s.style.threeBet, fmt: (p) => rate(p.s.style.threeBet, p.s.style.threeBetOpp) },
-    { label: 'C-bet', v: (p) => p.s.style.cbet, fmt: (p) => rate(p.s.style.cbet, p.s.style.cbetOpp) },
-    { label: 'Fold to C-bet', v: (p) => p.s.style.foldCbet, fmt: (p) => rate(p.s.style.foldCbet, p.s.style.foldCbetOpp) },
-    { label: 'Showdowns', v: (p) => p.s.wtsd, fmt: (p) => rate(p.s.wtsd, p.s.sawFlop) },
-    { label: 'Won at SD', v: (p) => (p.s.wtsd ? p.s.wsd / p.s.wtsd : 0), fmt: (p) => rate(p.s.wsd, p.s.wtsd), high: true },
-    { label: 'Pots won', v: (p) => p.s.handsWon, fmt: (p) => String(p.s.handsWon), high: true },
+  /** A share in %, or null with fewer than 5 chances (it then takes no part in the best value). */
+  const pct = (a: number, b: number) => (b < 5 ? null : (a / b) * 100);
+  const tv = m.target.vpip;
+  // each metric: its value, its text, and the target of balanced play (a number) or 'high' (more is better)
+  const rows: { label: string; tip: string[]; v: (p: TrialPlayer) => number | null; fmt: (p: TrialPlayer) => string; target: number | 'high' }[] = [
+    { label: 'Result', tip: ['Chips at the end minus chips bought.', 'Best = highest.'], v: (p) => p.net, fmt: (p) => signed(p.net), target: 'high' },
+    { label: 'VPIP', tip: ['Hands where you put chips in before the flop by choice (call or raise), divided by hands dealt.', 'Blinds posted do not count.', `Target about ${tv}% for ${m.players4} players.`], v: (p) => pct(p.s.vpip, p.s.logged), fmt: (p) => rate(p.s.vpip, p.s.logged), target: tv },
+    { label: 'PFR', tip: ['Hands where you raised before the flop, divided by hands dealt.', `Target about ${Math.round(tv * 0.75)}% (three quarters of VPIP).`], v: (p) => pct(p.s.pfr, p.s.logged), fmt: (p) => rate(p.s.pfr, p.s.logged), target: Math.round(tv * 0.75) },
+    { label: 'Aggression', tip: ['Bets and raises after the flop, divided by calls after the flop.', `Target about ${m.target.af}.`], v: (p) => p.af, fmt: (p) => p.af.toFixed(1), target: m.target.af },
+    { label: '3-Bet', tip: ['Re-raises before the flop, divided by the times you faced one raise.', 'Target about 8%.'], v: (p) => pct(p.s.style.threeBet, p.s.style.threeBetOpp), fmt: (p) => rate(p.s.style.threeBet, p.s.style.threeBetOpp), target: 8 },
+    { label: 'C-bet', tip: ['Flop bets after your raise before the flop, divided by the flops where you could make one.', 'Target about 65%.'], v: (p) => pct(p.s.style.cbet, p.s.style.cbetOpp), fmt: (p) => rate(p.s.style.cbet, p.s.style.cbetOpp), target: 65 },
+    { label: 'Fold to C-bet', tip: ['Folds to a flop bet from the raiser before the flop, divided by the times you faced one.', 'Target about 45%.'], v: (p) => pct(p.s.style.foldCbet, p.s.style.foldCbetOpp), fmt: (p) => rate(p.s.style.foldCbet, p.s.style.foldCbetOpp), target: 45 },
+    { label: 'Showdowns', tip: ['Hands that went to a showdown, divided by flops you saw.', 'Target about 28%.'], v: (p) => pct(p.s.wtsd, p.s.sawFlop), fmt: (p) => rate(p.s.wtsd, p.s.sawFlop), target: 28 },
+    { label: 'Won at SD', tip: ['Showdowns you won, divided by your showdowns.', 'Best = highest.'], v: (p) => pct(p.s.wsd, p.s.wtsd), fmt: (p) => rate(p.s.wsd, p.s.wtsd), target: 'high' },
+    { label: 'Pots won', tip: ['Pots you won or split.', 'Best = highest.'], v: (p) => p.s.handsWon, fmt: (p) => String(p.s.handsWon), target: 'high' },
   ];
+  // the value closest to the target is bold (ties share it)
+  const gapOf = (r: (typeof rows)[number], p: TrialPlayer) => { const x = r.v(p); return x === null ? null : r.target === 'high' ? -x : Math.abs(x - r.target); };
   return (
-    <Section title="Side by Side" tip={['Bold = best value where higher is better.', 'NA = <5 chances', 'Tap a name to open that player.']}>
+    <section className="sat-glass sat-card sat-stack" style={gap(3)}>
       <div className="trial-table-wrap">
         <table className="trial-table">
           <thead><tr><th />{m.players.map((p) => <th key={p.id}><button type="button" className="trial-th-btn" onClick={() => onPlayer(p.id)}><Dot m={m} id={p.id} />{p.name}</button></th>)}</tr></thead>
           <tbody>
             {rows.map((r) => {
-              const top = r.high ? Math.max(...m.players.map(r.v)) : null;
-              return <tr key={r.label}><th>{r.label}</th>{m.players.map((p) => { const t = r.fmt(p); return <td key={p.id} className={`${top !== null && r.v(p) === top ? 'is-best' : ''} ${t === 'NA' ? 'is-few' : ''}`}>{t}</td>; })}</tr>;
+              const gaps = m.players.map((p) => gapOf(r, p)).filter((x): x is number => x !== null);
+              const best = gaps.length ? Math.min(...gaps) : null;
+              return <tr key={r.label}><th><span className="trial-th-tip">{r.label} <Tip title={r.label} lines={r.tip} /></span></th>{m.players.map((p) => { const t = r.fmt(p); const g = gapOf(r, p); return <td key={p.id} className={`${best !== null && g === best ? 'is-best' : ''} ${t === 'NA' ? 'is-few' : ''}`}>{t}</td>; })}</tr>;
             })}
           </tbody>
         </table>
       </div>
-    </Section>
+    </section>
   );
 }
 

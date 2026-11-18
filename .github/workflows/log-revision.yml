@@ -1,0 +1,47 @@
+# Saturday tracker: logs releases on the project board, automatically, on every push to main.
+# Copy this file into a repo as .github/workflows/log-revision.yml (see tracker/SETUP.md part J).
+#
+# Which commits count as a release: subject lines matching MATCH below.
+#   Default: starts with a version, like "v1.7.3 Toast no longer covers the keypad".
+#   Other rule: repo variable TRACKER_MATCH (a regex). '.' logs every commit.
+# Project name on the board: the repo variable TRACKER_PROJECT, else the repo name.
+# Secret needed: TRACKER_REV_URL, the "Revision address" from the bot's setup() log.
+
+name: Log release on tracker
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  log:
+    runs-on: ubuntu-latest
+    env:
+      MATCH: ${{ vars.TRACKER_MATCH || '^v[0-9]' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Send matching commit titles
+        env:
+          REV_URL: ${{ secrets.TRACKER_REV_URL }}
+          PROJECT: ${{ vars.TRACKER_PROJECT || github.event.repository.name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ -z "$REV_URL" ]; then echo "No TRACKER_REV_URL secret. Nothing logged."; exit 0; fi
+          # A brand-new branch has no "before": take just the last commit.
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            RANGE="-1 $AFTER"
+          else
+            RANGE="$BEFORE..$AFTER"
+          fi
+          # Oldest first, merges skipped. Titles go through jq, so quotes in them cannot break anything.
+          git log --no-merges --reverse --format=%s $RANGE | { grep -E "$MATCH" || true; } | while IFS= read -r title; do
+            body=$(jq -cn --arg p "$PROJECT" --arg t "$title" '{project:$p, title:$t}')
+            reply=$(curl -sS -L --max-time 30 -H 'Content-Type: application/json' -d "$body" "$REV_URL")
+            echo "$title -> $reply"
+            echo "$reply" | grep -q '"ok":true' || { echo "::warning::Tracker did not log: $title"; }
+          done
+          echo "Done."

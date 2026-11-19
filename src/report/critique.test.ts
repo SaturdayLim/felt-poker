@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { critiqueFor, parseView } from './critique';
+import { bountyFromRules, critiqueFor, parseView } from './critique';
 import type { HandView } from './model';
 
 const seg = (t: string, c?: number) => (c === undefined ? { t } : { t, c });
@@ -118,5 +118,30 @@ describe('gameplay critique', () => {
     expect(textOf(c.deep![3][3])).not.toMatch(/Re-raise/);
     expect(textOf(c.lines[3][2])).toMatch(/all-in/);
     expect(textOf(c.deep![3][-1])).toMatch(/You hold a flush/);
+  });
+  it('reads the 7-2 bounty from the house rules', () => {
+    expect(bountyFromRules([{ label: '7-2 win', value: 'Revealed at showdown' }, { label: '7-2 hand', value: 'Offsuit only' }, { label: '7-2 amount', value: '10 chips per player' }])).toEqual({ win: 'shown', suited: false, amount: 10 });
+    expect(bountyFromRules([{ label: '7-2 win', value: 'Winning the pot' }, { label: '7-2 amount', value: '5 chips per player' }])?.win).toBe('won');
+    expect(bountyFromRules([{ label: '7-2 bounty', value: 'Off' }])).toBeNull();
+  });
+  it('holding 7-2 with a winning bounty, a bluff takes the pot and the bounty', () => {
+    const won = { win: 'won' as const, suited: false, amount: 10 };
+    const c = critiqueFor([view], 'Ann', { 1: { cards: ['7h', '2d'], lvl: null } }, { sb: 1, bb: 2 }, { bounty: won }).hands[0];
+    expect(textOf(c.deep![0][0])).toMatch(/You hold 7-2 with the bounty on\. It pays 10/);
+    expect(c.close![0][0].g).toBe('green');
+    expect(c.close![1][1].g).toBe('green');
+    // the same hand without the bounty is a plain bluff, not backed
+    const plain = critiqueFor([view], 'Ann', { 1: { cards: ['7h', '2d'], lvl: null } }, { sb: 1, bb: 2 }).hands[0];
+    expect(plain.close![0][0].g).not.toBe('green');
+    // suited 7-2 does not pay under Offsuit only
+    expect(textOf(critiqueFor([view], 'Ann', { 1: { cards: ['7h', '2h'], lvl: null } }, { sb: 1, bb: 2 }, { bounty: won }).hands[0].deep![0][0])).not.toMatch(/bounty/);
+  });
+  it('a player who showed 7-2 earlier is flagged as a bounty hunter when they raise', () => {
+    const won = { win: 'won' as const, suited: false, amount: 10 };
+    const earlier: HandView = { ...view, n: 1, shown: [{ p: 'Ann', cards: ['7c', '2s'] }] as HandView['shown'] };
+    const later: HandView = { ...view, n: 2 };
+    const c = critiqueFor([earlier, later], 'Bo', {}, { sb: 1, bb: 2 }, { bounty: won });
+    expect(textOf(c.hands[1].lines[0][0])).toMatch(/Ann showed 7-2 tonight \(hand #1\).*making a play for it/);
+    expect(textOf(c.hands[0].lines[0][0])).not.toMatch(/7-2/);
   });
 });

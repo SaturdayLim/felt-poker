@@ -1,6 +1,13 @@
 # Nightcap: progress
 
-## Latest (19 Nov 2026): 1.11.1
+## Latest (19 Nov 2026): 1.12.0
+
+- 7-2 bounty in the critique (owner): `Bounty`, `bountyFromRules` (reads the "7-2 win/hand/amount" rule rows of a report or live room), passed as `critiqueFor(..., { bounty })` from the report template and Join live commentary.
+- Prize in a hand = amount x (players dealt in - 1). Holding a paying 7-2 (`is72`): `bountyPre`/`bountyPost` replace the normal decision. Revealed = cheap showdown, call when the price is under the prize. Winning/Best hand = bluff, fold rate needed = bet / (pot + bet + prize); no bluff into a calling station or 3+ players.
+- Habits: `b72` = hands where the player showed 7-2. `chaser` = aggressive or loose, or showed 7-2 earlier. Commentator adds a bounty note to that player's raises and bets (limps under Revealed). Facing a chaser's bet, a weak pair calls to 33% (was 25%).
+- Saturday check: Bel's 72o in #66 (Revealed, 30 prize) now limps, calls and checks green with the bounty reason.
+
+## Earlier (19 Nov 2026): 1.11.1
 
 - Size grades (owner: tune sizes): `Rec.lo`/`Rec.hi` hold a range of good sizes (`sized`, `band` in `decidePost`). Value bands as pot shares: strong hands 25% (dry) / 45% (wet) / 40% (river) up to 75% or the pot; top pair and overpairs 25 to 60% dry, 33 to 75% wet, 33 to 66% river; weak pair 20 to 50%; semi-bluff 33 to 75%. A calling station raises only the top of a band by 10%. Raises: 2.5 to 4 times the bet; opens 2.2 to 4.5 BB; isolation 0.75 to 1.6 times 3 BB plus 1 BB per limper. Slack: a size must miss by max(1 BB, 10% of the pot). Bluffs are never size-graded.
 - Saturday data: "Bet a bit more" 50 to 33 (32 of them under 30% of the pot: real small value bets). "Raise a bit more" 15 to 7 (isolation raises under 75% of the standard size).

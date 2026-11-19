@@ -18,7 +18,7 @@ import '../src/saturday/css/saturday.css';
 import '../src/styles.css';
 import './trial-report.css';
 import { Cards, Icon, Info, Toggle } from '../src/components/ui';
-import { critiqueFor, type CritClose, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
+import { bountyFromRules, critiqueFor, type CritClose, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
 import { plainWords } from '../src/report/plain';
 import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
@@ -473,8 +473,8 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
     if (!p.logs?.length) return null;
     const b = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/.exec(m.sub ?? '');
     const cards = Object.fromEntries((p.mine ?? []).map((h) => [h.n, { cards: h.cards, lvl: h.lvl }]));
-    return critiqueFor(p.logs, p.name, cards, { sb: b ? +b[1] : 1, bb: b ? +b[2] : 2 });
-  }, [m.sub, p]);
+    return critiqueFor(p.logs, p.name, cards, { sb: b ? +b[1] : 1, bb: b ? +b[2] : 2 }, { bounty: bountyFromRules(m.rules) });
+  }, [m.sub, m.rules, p]);
   const critBy = (n: number) => crit?.hands.find((x) => x.n === n);
   const rate = (a: number, b: number) => (b < 5 ? 'NA' : `${Math.round((a / b) * 100)}%`);
   const lines: [string, string, string, string[]][] = [

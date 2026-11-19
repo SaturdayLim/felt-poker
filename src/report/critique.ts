@@ -37,6 +37,19 @@ export interface HandCrit {
 }
 const RANK_G: Record<CritGrade, number> = { red: 2, blue: 1, green: 0 };
 export interface PlayerCrit { hands: HandCrit[]; bluffs: number; bluffsWon: number; bluffSize: number; semis: number; valueBets: number }
+/** The game's 7-2 bounty (owner, 19 Nov 2026): `win` = the rule that pays it (shown: revealed, win or lose; won: wins chips
+    from the pot; sole: best hand or last hand left), `amount` = chips from each other player dealt in. */
+export interface Bounty { win: 'shown' | 'won' | 'sole'; suited: boolean; amount: number }
+/** The bounty from the house rules list of a report or a live room ("7-2 win", "7-2 hand", "7-2 amount"). Null when off. */
+export function bountyFromRules(rules: { label: string; value: string }[] | undefined): Bounty | null {
+  const win = rules?.find((r) => r.label === '7-2 win')?.value;
+  if (!win) return null;
+  const amount = Number(/(\d+(?:\.\d+)?)/.exec(rules!.find((r) => r.label === '7-2 amount')?.value ?? '')?.[1] ?? 0);
+  return { win: /^Revealed/.test(win) ? 'shown' : /^Winning/.test(win) ? 'won' : 'sole', suited: rules!.find((r) => r.label === '7-2 hand')?.value === 'Suited allowed', amount };
+}
+/** Two cards that the bounty pays: a 7 and a 2, of different suits unless suited counts. */
+const is72 = (cards: Card[], b: Bounty | null | undefined) => !!b && cards.length === 2 && [cards[0][0], cards[1][0]].sort().join('') === '27' && (b.suited || cards[0][1] !== cards[1][1]);
+const BOUNTY_PAYS: Record<Bounty['win'], string> = { shown: 'when the 7-2 is shown, win or lose', won: 'when the 7-2 wins chips from the pot', sole: 'when the 7-2 is the best hand or the last hand left' };
 
 type Kind = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allin' | 'straddle';
 interface Act { who: string; pos: string; k: Kind; to: number; allin: boolean; line: number }
@@ -163,7 +176,11 @@ const NEXT: Record<string, string> = { preflop: 'the flop', flop: 'the turn', tu
 
 /* ------------------------------- habits of the table ------------------------------- */
 
-interface Habit { hands: number; vpip: number; pfr: number; aggr: number; calls: number; faced: number; foldsFaced: number; seen: Record<string, boolean> }
+interface Habit { hands: number; vpip: number; pfr: number; aggr: number; calls: number; faced: number; foldsFaced: number; seen: Record<string, boolean>; /** Hands where the player showed 7-2. */ b72: number[] }
+const newHabit = (): Habit => ({ hands: 0, vpip: 0, pfr: 0, aggr: 0, calls: 0, faced: 0, foldsFaced: 0, seen: {}, b72: [] });
+/** A player who is likely to make a play for the 7-2 bounty: aggressive or loose so far, or already showed 7-2 tonight. */
+const chaser = (h: Habit | undefined) => !!h && (h.b72.length > 0 || /aggressive|loose/.test(habitWord(h) ?? ''));
+const chaseWhy = (x: string, h: Habit) => (h.b72.length ? `${x} showed 7-2 tonight (hand #${h.b72.join(', #')})` : `${x} plays aggressively so far`);
 const habitWord = (h: Habit | undefined): string | null => {
   if (!h || h.hands < 6) return null;
   const vp = h.vpip / h.hands, af = h.calls ? h.aggr / h.calls : h.aggr, ff = h.faced >= 4 ? h.foldsFaced / h.faced : null;
@@ -179,7 +196,7 @@ function learn(habits: Record<string, Habit>, p: Parsed) {
   for (const st of p.streets) {
     let high = st.key === 'preflop' ? 2 : 0;
     for (const a of st.acts) {
-      const h = (habits[a.who] ??= { hands: 0, vpip: 0, pfr: 0, aggr: 0, calls: 0, faced: 0, foldsFaced: 0, seen: {} });
+      const h = (habits[a.who] ??= newHabit());
       if (!met.has(a.who)) { met.add(a.who); h.hands++; }
       if (st.key === 'preflop') {
         if ((a.k === 'call' || a.k === 'raise' || a.k === 'allin' || a.k === 'bet') && !h.seen[`v${p.n}`]) { h.vpip++; h.seen[`v${p.n}`] = true; }
@@ -348,14 +365,25 @@ function walk(p: Parsed, blinds: { sb: number; bb: number }, onStreet: (st: Stre
 /* ------------------------------- basic analysis: the commentator ------------------------------- */
 /* What an action can mean, for any player, with no cards: the range it shows and the story it tells. */
 
-function commentate(p: Parsed, blinds: { sb: number; bb: number }, habits: Record<string, Habit>): Notes {
+function commentate(p: Parsed, blinds: { sb: number; bb: number }, habits: Record<string, Habit>, bounty: Bounty | null): Notes {
   const out: Notes = {};
   const say = (st: number, line: number, text: string) => { ((out[st] ??= {})[line] ??= []).push({ tone: 'info', text }); };
   const { bb } = blinds;
   const label = (x: string) => (p.posOf[x] ? `${p.posOf[x]} (${x})` : x);
   const habitOf = (x: string) => { const w = habitWord(habits[x]); return w ? ` ${x} is ${w}.` : ''; };
+  const prize = bounty ? bounty.amount * Math.max(0, Object.keys(p.posOf).length - 1) : 0;
+  /** A note when a likely bounty hunter makes the kind of move a 7-2 makes under this game's rule. */
+  const hunt = (x: string, kind: 'raise' | 'bet' | 'limp') => {
+    if (!bounty || !chaser(habits[x])) return '';
+    if (bounty.win === 'shown') return kind === 'limp' ? ` The 7-2 bounty (${prize} here) pays when the 7-2 is shown, win or lose. ${chaseWhy(x, habits[x])}, so a cheap entry can be a 7-2 on its way to a showdown.` : '';
+    return kind === 'limp' ? '' : ` The 7-2 bounty (${prize} here) pays only ${BOUNTY_PAYS[bounty.win].replace('when ', 'when ')}. ${chaseWhy(x, habits[x])}, so this ${kind} can be a 7-2 making a play for it.`;
+  };
   walk(p, blinds, (st, s) => {
-    if (st.board.length >= 3 && s.live.length >= 2) for (const t of boardNotes(st, s.prevBoard, s.raiserPre, label)) say(st.i, -1, t);
+    if (st.board.length >= 3 && s.live.length >= 2) {
+      for (const t of boardNotes(st, s.prevBoard, s.raiserPre, label)) say(st.i, -1, t);
+      const fresh = st.board.slice(s.prevBoard.length).filter((c) => c[0] === '7' || c[0] === '2');
+      if (bounty && bounty.win !== 'shown' && fresh.length) say(st.i, -1, `The ${fresh.map((c) => c[0]).join(' and ')} gives a 7-2 a pair: a player who went for the 7-2 bounty now has a real hand.`);
+    }
   }, (c) => {
     if (!c.first) return;
     const { a, st } = c;
@@ -367,7 +395,7 @@ function commentate(p: Parsed, blinds: { sb: number; bb: number }, habits: Recor
       else if (a.k === 'check') t = 'The BB checks the option. The flop is free, so the BB can hold any hand that did not want to raise.';
       else if (a.k === 'call' && c.raises === 0 && !a.allin) {
         t = pos === 'SB' && !many ? `The SB completes: half a blind more for a flop${c.limpers ? ` with ${c.limpers} ${c.limpers === 1 ? 'limper' : 'limpers'}` : ''}. The price is good, so the SB can hold almost any hand.`
-          : c.limpers === 0 ? `${many ? `${NUM[st.acts.filter((y) => y.line === a.line).length] ?? 'Several'} limps` : `${who} limps`} (a call of ${c.level} with no raise). A limp shows a hand that wants a cheap flop: small pairs, suited cards, weak aces. Most strong hands raise.${many ? '' : habitOf(a.who)}`
+          : c.limpers === 0 ? `${many ? `${NUM[st.acts.filter((y) => y.line === a.line).length] ?? 'Several'} limps` : `${who} limps`} (a call of ${c.level} with no raise). A limp shows a hand that wants a cheap flop: small pairs, suited cards, weak aces. Most strong hands raise.${many ? '' : habitOf(a.who) + hunt(a.who, 'limp')}`
           : `${many ? 'More limps' : 'Another limp'}. Each limp makes the pot bigger, so the players behind get a better price to join.`;
       } else if (a.k === 'call' || (a.k === 'allin' && !c.isRaise)) {
         t = c.facingAllin || a.allin ? `A call of an all-in needs a strong hand: big pairs, AK, AQ. The caller needs ${pct(c.need)} to break even.`
@@ -380,11 +408,11 @@ function commentate(p: Parsed, blinds: { sb: number; bb: number }, habits: Recor
         else if (c.raises === 0 && c.limpers === 0) {
           const range = EARLY.has(pos) ? 'From early position this shows a tight range: pairs 77 and up, AQ and up, suited broadways.' : LATE.has(pos) || pos === 'SB' ? 'From late position this can be a steal, so the range is wide: any pair, any ace, suited connectors, broadways.' : 'From the middle this shows a medium range: most pairs, AT and up, suited broadways.';
           const sz = a.to / c.level < 2.2 ? ` ${r2(size)} BB is small: it invites calls with any two cards.` : a.to / c.level > 4.5 ? ` ${r2(size)} BB is large: it risks a lot to win the blinds.` : '';
-          t = `${who} opens with a raise to ${r2(size)} BB. ${range}${sz}${habitOf(a.who)}`;
+          t = `${who} opens with a raise to ${r2(size)} BB. ${range}${sz}${habitOf(a.who)}${hunt(a.who, 'raise')}`;
         } else if (c.raises === 0) {
           const iso = 3 * c.level + c.limpers * c.level;
-          t = `${who} raises over ${c.limpers} ${c.limpers === 1 ? 'limper' : 'limpers'}: an isolation raise. It charges the limpers and aims to play the pot against one player. A standard size is about ${iso} (3 BB plus 1 BB for each limper).${a.to < iso * 0.7 ? ` ${a.to} is small: limpers call it with most hands.` : ''}${habitOf(a.who)}`;
-        } else if (c.raises === 1) t = `${who} re-raises to ${a.to} (a 3-bet). From most players this is a very strong hand: QQ or better, AK. From a loose player it can be a bluff.${habitOf(a.who)}`;
+          t = `${who} raises over ${c.limpers} ${c.limpers === 1 ? 'limper' : 'limpers'}: an isolation raise. It charges the limpers and aims to play the pot against one player. A standard size is about ${iso} (3 BB plus 1 BB for each limper).${a.to < iso * 0.7 ? ` ${a.to} is small: limpers call it with most hands.` : ''}${habitOf(a.who)}${hunt(a.who, 'raise')}`;
+        } else if (c.raises === 1) t = `${who} re-raises to ${a.to} (a 3-bet). From most players this is a very strong hand: QQ or better, AK. From a loose player it can be a bluff.${habitOf(a.who)}${hunt(a.who, 'raise')}`;
         else t = `${who} raises again to ${a.to} (a ${c.raises + 2}-bet). At this level it is almost always AA, KK, QQ or AK.`;
       }
     } else {
@@ -411,12 +439,12 @@ function commentate(p: Parsed, blinds: { sb: number; bb: number }, habits: Recor
             : 'A bet takes the lead.';
           const sz = size > 1 ? ' An overbet (more than the pot) is polarising: a very strong hand or a bluff.'
             : size < 0.35 ? (st.key === 'river' ? ' A small river bet (a block bet) is often a medium hand that sets its own price.' : ' A small bet is cheap to call: it wants calls from weaker hands, or it is a cheap bluff.') : '';
-          t = `${allinTxt}${tag} Size: ${pct(size)} of the pot.${sz}${habitOf(a.who)}`;
+          t = `${allinTxt}${tag} Size: ${pct(size)} of the pot.${sz}${habitOf(a.who)}${hunt(a.who, 'bet')}`;
         } else {
           const cr = c.checked.has(a.who);
           t = a.k === 'allin' ? `${allinTxt}${st.key === 'river' ? 'An all-in raise on the river is very strong: the best hands on this board, rarely a bluff.' : 'An all-in raise ends the betting: a very strong hand or a big draw.'}${habitOf(a.who)}`
-            : cr ? `A check-raise: ${who} checked, then raised. It shows a very strong hand, or a semi-bluff with a big draw.${habitOf(a.who)}`
-            : `${c.raises >= 1 ? 'A re-raise after the flop is very strong: two pair or better.' : 'A raise after the flop shows strength: most often two pair or better, or a big draw.'}${habitOf(a.who)}`;
+            : cr ? `A check-raise: ${who} checked, then raised. It shows a very strong hand, or a semi-bluff with a big draw.${habitOf(a.who)}${hunt(a.who, 'raise')}`
+            : `${c.raises >= 1 ? 'A re-raise after the flop is very strong: two pair or better.' : 'A raise after the flop shows strength: most often two pair or better, or a big draw.'}${habitOf(a.who)}${hunt(a.who, 'raise')}`;
         }
       }
     }
@@ -447,8 +475,11 @@ interface Spot {
   c: Ctx; me: string; pos: string; hole: Card[]; s: Made | null; o: number; word: string;
   others: string[]; station: boolean; folder: boolean; aggBehind: boolean; inPos: boolean;
   noRaise: boolean; story: boolean; cbet: boolean; stab: boolean; wet: boolean; multi: boolean; raiserPos: string;
+  /** The game's 7-2 bounty, its prize in this hand, whether I hold a paying 7-2, and whether the bet I face comes from a likely hunter. */
+  bounty: Bounty | null; prize: number; mine72: boolean; huntBet: boolean;
 }
 function decidePre(x: Spot): Rec {
+  if (x.mine72) return bountyPre(x);
   const { c, pos } = x, t = tier(x.hole), L = c.level;
   const iso = 3 * L + c.limpers * L;
   if (c.high > c.level) {
@@ -489,6 +520,7 @@ function decidePre(x: Spot): Rec {
 }
 function decidePost(x: Spot): Rec {
   const { c, s, o } = x, river = c.st.key === 'river';
+  if (x.mine72 && (s === 'none' || s === 'weak')) return bountyPost(x);
   const pot = c.potBefore, sz = (f: number) => Math.max(1, Math.round(pot * f));
   const value = s === 'monster' || s === 'strong';
   /** A bet of about the middle of a pot share range. Against a calling station the top of the range is 10% higher. */
@@ -522,6 +554,7 @@ function decidePost(x: Spot): Rec {
     ? { k: 'call', why: `${cap(x.word)} beats most all-in ranges. A raise is not possible: call.` }
     : { k: 'raise', ...sized(3 * c.high, 2.5 * c.high, 4 * c.high), ok: ['call'], why: `${cap(x.word)} beats most betting ranges. Raise to build the pot; a call to trap is fine too.` };
   if (s === 'overpair' || s === 'top') return { k: 'call', ok: !river && !x.noRaise ? ['raise'] : [], why: `${cap(x.word)} beats the bluffs and some value bets${c.need > 0.4 ? ', but fold to a second big bet' : ''}.` };
+  if (s === 'weak' && x.huntBet && c.need <= 0.33) return { k: 'call', why: `A weak pair beats a 7-2 bluff, and the bettor may be going for the bounty.` };
   if (s === 'weak') return c.need <= 0.25 ? { k: 'call', why: 'The price is small, and a weak pair beats a bluff.' } : { k: 'fold', why: `A weak pair beats only bluffs, and you need ${pct(c.need)}.` };
   if (o >= 4 && !river) return eq >= c.need * 0.8
     ? { k: 'call', ok: o >= 8 && !x.noRaise ? ['raise'] : [], why: `Your ${o} outs give about ${pct(eq)} on the next card. You need ${pct(c.need)}, and a hit can win more later.` }
@@ -529,6 +562,37 @@ function decidePost(x: Spot): Rec {
   return { k: 'fold', ok: c.need <= 0.12 ? ['call'] : [], why: `With ${x.word} you beat only bluffs, and the price (${pct(c.need)}) is too high.` };
 }
 const NUM = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
+/** Holding a 7-2 that the bounty pays, before the flop. */
+function bountyPre(x: Spot): Rec {
+  const { c } = x, b = x.bounty!, X = x.prize, L = c.level;
+  const iso = 3 * L + c.limpers * L;
+  if (b.win === 'shown') {
+    if (c.high > c.level) return c.toCall <= X ? { k: 'call', ok: ['fold'], why: `The bounty (${X}) pays ${BOUNTY_PAYS.shown}. A call of ${c.toCall} toward a showdown pays for itself.` } : { k: 'fold', ok: ['call'], why: `The call (${c.toCall}) costs more than the bounty (${X}).` };
+    if (c.toCall === 0) return { k: 'check', ok: ['raise'], why: `The bounty (${X}) pays ${BOUNTY_PAYS.shown}. A free flop keeps the road to a showdown cheap.` };
+    return { k: 'call', ok: ['raise', 'fold'], why: `The bounty (${X}) pays ${BOUNTY_PAYS.shown}. A cheap flop is the first step to a showdown.` };
+  }
+  const why = `The bounty (${X}) pays ${BOUNTY_PAYS[b.win]}, so 7-2 plays as a bluff: a raise that takes the pot also takes the bounty.`;
+  if (c.high > c.level) return c.raises <= 1 && c.toCall <= X
+    ? { k: 'raise', ...sized(3 * c.high, 2.5 * c.high, 4 * c.high), ok: ['call', 'fold'], why: `${why} Facing one raise, a re-raise can fold the raiser out.` }
+    : { k: 'fold', ok: ['call'], why: `Facing ${c.raises > 1 ? 'a re-raise' : 'a big raise'}, the bounty (${X}) does not cover the price.` };
+  if (c.toCall === 0) return { k: 'raise', ...sized(iso, 0.75 * iso, 1.6 * iso), ok: ['check'], why };
+  return { k: 'raise', ...(c.limpers ? sized(iso, 0.75 * iso, 1.6 * iso) : sized(3 * L, 2.2 * L, 4.5 * L)), ok: ['call'], why };
+}
+/** Holding a 7-2 that the bounty pays, after the flop, with no pair of note. */
+function bountyPost(x: Spot): Rec {
+  const { c } = x, b = x.bounty!, X = x.prize, pot = c.potBefore;
+  if (b.win === 'shown') {
+    if (c.toCall === 0) return { k: 'check', ok: ['raise'], why: `The bounty (${X}) pays ${BOUNTY_PAYS.shown}. Check toward a cheap showdown.` };
+    return c.toCall <= X ? { k: 'call', ok: ['fold'], why: `The bounty (${X}) pays at the showdown, win or lose, so a call of ${c.toCall} pays for itself.` } : { k: 'fold', ok: ['call'], why: `The call (${c.toCall}) costs more than the bounty (${X}).` };
+  }
+  const bet = Math.max(1, Math.round(pot * 0.6)), need = bet / (pot + bet + X);
+  const tough = x.station || x.others.length > 2;
+  if (c.toCall === 0) return tough
+    ? { k: 'check', ok: ['raise'], why: `A bluff needs folds, and ${x.station ? 'a calling station' : 'three or more players'} rarely fold, even with the bounty (${X}) on top.` }
+    : { k: 'raise', ...sized(bet, pot * 0.4, pot * 0.85), ok: ['check'], why: `A bluff that takes the pot also takes the bounty (${X}). A bet of ${bet} needs folds only ${pct(need)} of the time (it wins ${pot} plus ${X}).` };
+  if (!x.noRaise && !tough && c.raises === 0) return { k: 'raise', ...sized(3 * c.high, 2.5 * c.high, 4 * c.high), ok: ['fold'], why: `A raise as a bluff takes the pot and the bounty (${X}) when the bettor folds.` };
+  return { k: 'fold', why: `You beat only bluffs, and the bounty (${X}) pays only ${BOUNTY_PAYS[b.win].replace('when the 7-2 ', 'when it ')}.` };
+}
 const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
 /** The first letter in lower case, unless the text starts with a hand ("A7s") or a position. */
 const low = (t: string) => (/^([2-9TJQKA]{2}|[A-Z]{2})/.test(t) ? t : t[0].toLowerCase() + t.slice(1));
@@ -544,7 +608,7 @@ function choices(c: Ctx, noRaise: boolean): string {
 function verbOf(r: Rec, c: Ctx, pos: string): string {
   const pre = c.st.key === 'preflop';
   if (r.k === 'raise') return `${pre ? (c.raises > 0 ? 'Re-raise' : 'Raise') : c.toCall > 0 ? 'Raise' : 'Bet'}${r.to ? ` ${pre || c.toCall > 0 ? 'to ' : ''}about ${r.to}${r.lo !== undefined && r.hi !== undefined && r.hi - r.lo >= 2 ? ` (${r.lo} to ${r.hi})` : ''}` : ''}`;
-  if (r.k === 'call') return pre && c.raises === 0 ? (pos === 'SB' ? 'Complete the SB' : 'Limp behind') : 'Call';
+  if (r.k === 'call') return pre && c.raises === 0 ? (pos === 'SB' ? 'Complete the SB' : c.limpers ? 'Limp behind' : 'Limp') : 'Call';
   return r.k === 'check' ? 'Check' : 'Fold';
 }
 
@@ -573,7 +637,7 @@ function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec
       if (did === 'raise' && !o.bluff && lo !== undefined && o.to && o.to < lo && lo - o.to >= slack) { g = 'blue'; v = `${word === 'bet' ? 'Bet' : 'Raise'} a bit more`; why = `Aim for ${aim}: a bigger ${word} charges worse hands more and folds out more draws.`; }
       else if (did === 'raise' && !o.bluff && hi !== undefined && o.to && o.to > hi && o.to - hi >= slack) { g = 'blue'; v = 'A smaller size does the job'; why = `${cap(aim)} gets the same calls from worse hands and risks less.`; }
       else if (o.bluff && x?.story) { g = 'green'; v = 'Consistent story'; why = `${rec.why}`; }
-      else { g = 'green'; v = `Good ${word}`; why = o.bluff ? rec.why : did === 'raise' && rec.to ? `Good size too. ${often.raise}` : often[did]; }
+      else { g = 'green'; v = `Good ${word}`; why = o.bluff || x?.mine72 ? rec.why : did === 'raise' && rec.to ? `Good size too. ${often.raise}` : often[did]; }
     } else if (rec.ok?.includes(did) && did === 'raise' && rec.altTo && o.to && o.to < rec.altTo * 0.75 && rec.altTo * 0.75 - o.to >= o.bb) {
       g = 'blue'; v = 'Raise a bit more'; why = `A raise is fine, but aim for about ${rec.altTo} (${Math.round(rec.altTo * 0.75)} to ${Math.round(rec.altTo * 1.6)}): a small raise gets called by every limper. ${next} is the main line: ${low(rec.why)}`;
     } else if (rec.ok?.includes(did)) {
@@ -613,7 +677,7 @@ function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec
 }
 
 interface Tally { valueBets: number; semis: number; bluffs: number; bluffSum: number; bluffed: boolean }
-function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<string, Habit>, blinds: { sb: number; bb: number }, tally: Tally) {
+function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<string, Habit>, blinds: { sb: number; bb: number }, tally: Tally, bounty: Bounty | null) {
   const out: Notes = {};
   const close: Record<number, Record<number, CritClose>> = {};
   const add = (st: number, line: number, note: CritNote) => { ((out[st] ??= {})[line] ??= []).push(note); };
@@ -629,6 +693,9 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
   const t = hole ? tier(hole) : null;
   const yours = t ? t.cls : 'your hand';
   let imIn = Object.keys(p.posOf).includes(me);
+  const prize = bounty ? bounty.amount * Math.max(0, Object.keys(p.posOf).length - 1) : 0;
+  const mine72 = !!hole && is72(hole, bounty);
+  let toldBounty = false;
   walk(p, blinds, (st, s) => {
     imIn = s.live.includes(me);
     if (!imIn || st.board.length < 3) return;
@@ -694,7 +761,9 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
         aggBehind: c.behind.some((y) => is(y, /aggressive/)), inPos: c.behind.length === 0, noRaise,
         story: st.key !== 'flop' && st.key !== 'preflop' && c.prevAgg === me, cbet: st.key === 'flop' && c.raiserPre === me && !c.firstBet,
         stab: c.prevChecked && c.toCall === 0, wet: !!tx?.wet, multi: others.length > 1, raiserPos: c.highBy ? p.posOf[c.highBy] ?? '' : '',
+        bounty, prize, mine72, huntBet: !!bounty && bounty.win !== 'shown' && c.toCall > 0 && !!c.highBy && chaser(habits[c.highBy]),
       } : null;
+      if (mine72 && !toldBounty) { toldBounty = true; tell(st.i, a.line, `You hold 7-2 with the bounty on. It pays ${prize} (${bounty!.amount} from each of ${Object.keys(p.posOf).length - 1} players) ${BOUNTY_PAYS[bounty!.win]}.`); }
       const rec: Rec | null = x ? (st.key === 'preflop' ? decidePre(x) : decidePost(x)) : null;
       const answer = (generic: string) => (rec ? `${verbOf(rec, c, myPos)}. ${rec.why}` : generic) + (c.toCall > 0 && st.key !== 'preflop' || c.high > c.level ? ` ${choices(c, noRaise)}` : '');
       const did = moveOf(a, c.isRaise);
@@ -709,7 +778,7 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
         } else if (c.limpers === 0 && c.toCall > 0) {
           const range = EARLY.has(myPos) ? 'a tight range: pairs 77 and up, AQ and up, suited broadways' : LATE.has(myPos) || myPos === 'SB' ? 'a wide range: any pair, any ace, suited connectors, broadways' : 'a medium range: most pairs, AT and up, suited broadways and connectors';
           ask(st.i, a.line, `Nobody has entered and ${c.behind.length} ${c.behind.length === 1 ? 'player acts' : 'players act'} after you. Which hands open from ${myPos}, and to what size?`,
-            `${rec ? `${verbOf(rec, c, myPos)}. ${rec.why} ` : ''}Open ${range}. Raise to 2.5 to 3 BB (${2.5 * bb} to ${3 * bb}); do not limp.`);
+            rec && mine72 ? `${verbOf(rec, c, myPos)}. ${rec.why}` : `${rec ? `${verbOf(rec, c, myPos)}. ${rec.why} ` : ''}Open ${range}. Raise to 2.5 to 3 BB (${2.5 * bb} to ${3 * bb}); do not limp.`);
         } else {
           if (c.limpers > 0) tell(st.i, a.line, `${c.limpers} ${c.limpers === 1 ? 'player limps' : 'players limp'} before you. A limp shows a capped range: premium hands usually raise.`);
           ask(st.i, a.line, c.toCall === 0 ? 'Nobody raised. Do you check the option or raise?' : myPos === 'SB' ? `With ${yours}, do you complete, raise or fold?` : `With ${yours}, do you limp behind, raise or fold?`,
@@ -759,7 +828,7 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
           const toMe = Math.max(0, a.to - (c.put[me] ?? 0));
           const needMe = toMe / Math.max(1, c.potBefore + c.add + toMe);
           ask(st.i, a.line, `Which hands ${a.k === 'allin' ? 'go all-in' : 'bet this size'} on ${boardText(st.board)}?`,
-            `${a.k === 'allin' && c.firstBet ? 'An all-in over a raise is very strong: the best hands on this board, rarely a bluff.' : size > 1 ? 'An overbet is polarising: very strong hands or bluffs. Call with a hand that beats bluffs; fold weak pairs.' : size < 0.35 ? 'A small bet often wants a call: a strong hand, or a cheap bluff. Call with any pair; raise a strong hand.' : 'Value hands and draws.'} You need about ${pct(needMe)} to call.${is(a.who, /aggressive/) ? ` ${a.who} bets often, so call wider.` : is(a.who, /tight|calling station/) ? ` ${a.who} rarely bets without a hand: fold weak pairs.` : ''}`);
+            `${a.k === 'allin' && c.firstBet ? 'An all-in over a raise is very strong: the best hands on this board, rarely a bluff.' : size > 1 ? 'An overbet is polarising: very strong hands or bluffs. Call with a hand that beats bluffs; fold weak pairs.' : size < 0.35 ? 'A small bet often wants a call: a strong hand, or a cheap bluff. Call with any pair; raise a strong hand.' : 'Value hands and draws.'} You need about ${pct(needMe)} to call.${is(a.who, /aggressive/) ? ` ${a.who} bets often, so call wider.` : is(a.who, /tight|calling station/) ? ` ${a.who} rarely bets without a hand: fold weak pairs.` : ''}${bounty && bounty.win !== 'shown' && chaser(habits[a.who]) ? ` With the 7-2 bounty on, ${chaseWhy(a.who, habits[a.who])}: this can be a 7-2 bluff, so a pair that beats 7-2 can call.` : ''}`);
         }
       }
     }
@@ -776,7 +845,8 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
 /* ------------------------------- the critique ------------------------------- */
 
 /** One player's critique for the night. `cards` holds the player's own entries by hand number, with the clash mark. */
-export function critiqueFor(views: HandView[], me: string, cards: Record<number, { cards: Card[]; lvl: 'red' | 'blue' | null }>, blinds: { sb: number; bb: number }): PlayerCrit {
+export function critiqueFor(views: HandView[], me: string, cards: Record<number, { cards: Card[]; lvl: 'red' | 'blue' | null }>, blinds: { sb: number; bb: number }, opts: { bounty?: Bounty | null } = {}): PlayerCrit {
+  const bounty = opts.bounty && opts.bounty.amount > 0 ? opts.bounty : null;
   const habits: Record<string, Habit> = {};
   const out: HandCrit[] = [];
   let bluffsWon = 0;
@@ -786,12 +856,12 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
     const mineIn = Object.keys(p.posOf).includes(me) || p.streets.some((s) => s.acts.some((a) => a.who === me));
     const entry = cards[v.n];
     if (mineIn) {
-      const lines = commentate(p, blinds, habits);
+      const lines = commentate(p, blinds, habits, bounty);
       if (entry?.lvl === 'red') out.push({ n: v.n, status: 'invalid', verdict: { tone: 'info', label: 'Invalid hand' }, lines });
       else {
         tally.bluffed = false;
         const hole = entry?.cards?.length === 2 ? entry.cards : null;
-        const th = thinkHand(p, me, hole, habits, blinds, tally);
+        const th = thinkHand(p, me, hole, habits, blinds, tally, bounty);
         if (tally.bluffed && p.winners.includes(me)) bluffsWon++;
         // the hand's verdict: the worst grade of my actions (red, then blue, then green)
         const graded = Object.values(th.close).flatMap((x) => Object.values(x)).filter((x) => x.g && x.v);
@@ -801,6 +871,8 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
       }
     }
     learn(habits, p);
+    // a 7-2 shown at the table marks that player as a bounty hunter for the rest of the night
+    for (const x of v.shown) if (is72(x.cards, { win: 'shown', suited: true, amount: 0 })) (habits[x.p] ??= newHabit()).b72.push(v.n);
   }
   return { hands: out, bluffs: tally.bluffs, bluffsWon, bluffSize: tally.bluffs ? tally.bluffSum / tally.bluffs : 0, semis: tally.semis, valueBets: tally.valueBets };
 }

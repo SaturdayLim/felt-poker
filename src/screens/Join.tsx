@@ -22,7 +22,7 @@ import type { HelpKey } from '../lib/help';
 import type { Card, PlayerLook } from '../types';
 import { go } from '../router';
 import { SHOWDOWN_LOCK } from '../components/cardEntry';
-import { critiqueFor, type CritClose } from '../report/critique';
+import { bountyFromRules, critiqueFor, type CritClose } from '../report/critique';
 import type { HandView as LogView } from '../report/model';
 
 interface Meta { locked?: boolean; check?: string | null; updatedAt?: number; handCount?: number }
@@ -346,7 +346,7 @@ function ActionLog({ pub, me, stacks, now: sent, hands, blinds, onFlag, tablePub
     // the player's own entry, else the cards they showed at the table
     const own: Record<number, Card[]> = { ...Object.fromEntries(closed.flatMap((h) => { const x = h.shown.find((y) => y.name === me.name); return x ? [[h.n, x.cards]] : []; })), ...Object.fromEntries(Object.entries(loggedOf(me)).filter(([, c]) => c.length === 2)) };
     const cards = Object.fromEntries(Object.entries(own).filter(([, c]) => c.length === 2).map(([n, c]) => [Number(n), { cards: c, lvl: levelOf(me.why?.[n]) as 'red' | 'blue' | null }]));
-    return critiqueFor(logs, me.name, cards, { sb: blinds.sb, bb: blinds.bb });
+    return critiqueFor(logs, me.name, cards, { sb: blinds.sb, bb: blinds.bb }, { bounty: bountyFromRules(pub.rules) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pub.game.talk, me, hands, now?.n, blinds.sb, blinds.bb]);
   // a hand that arrives while the page is scrolled away from the newest raises a pill; a tap jumps up to it

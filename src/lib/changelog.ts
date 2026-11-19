@@ -1,5 +1,11 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.12.0', date: '19 Nov 2026', notes: [
+    'Gameplay critique: the 7-2 bounty. With 7-2 in your hand, advanced insights say what the bounty pays in that hand and play to the game rule. Revealed: get to a cheap showdown. Winning or Best hand: play it as a bluff, since a pot you take also takes the bounty.',
+    'Basic analysis flags a player who is likely to go for the bounty: an aggressive or loose player, or a player who showed 7-2 earlier that night. A 7 or a 2 on the flop is called out as a pair for a 7-2.',
+    'Facing a bet from that player, advanced insights say a pair that beats 7-2 can call.',
+    'Live commentary uses the same rules.',
+  ] },
   { version: '1.11.1', date: '19 Nov 2026', notes: [
     'Gameplay critique: bet sizes are graded against a range, not one number. Top pair on a wet board: a third to three quarters of the pot. Strong hands: a quarter of the pot or more on a dry board, about half on a wet board or the river.',
     'A size is flagged only when it misses the range by 1 BB or a tenth of the pot. Answers name the range, for example Bet about 22 (14 to 31).',

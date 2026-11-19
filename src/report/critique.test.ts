@@ -95,6 +95,21 @@ describe('gameplay critique', () => {
     expect(c.close![2][0].g).toBe('green');
     expect(c.close![2][0].v).toBe('Consistent story');
   });
+  it('grades a value bet size against a range, not a single number', () => {
+    // pot 41 before the flop bet; top pair on A-7-2 (A and 2 make a wheel draw, so wet): a third to 75% of the pot is fine
+    const at = (bet: number) => {
+      const v: HandView = { ...view, streets: [
+        { ...view.streets[0], segs: [[seg('BTN (Ann)', 0), seg(' raises to 20.')], [seg('BB (Bo)', 1), seg(' calls.')]] },
+        { ...view.streets[1], segs: [[seg('BB', 1), seg(' checks.')], [seg('BTN', 0), seg(` bets ${bet}.`)], [seg('BB', 1), seg(' folds.')]] },
+      ] };
+      return critiqueFor([v], 'Ann', { 1: { cards: ['Ah', 'Kd'], lvl: null } }, { sb: 1, bb: 2 }).hands[0].close![1][1];
+    };
+    expect(at(4).v).toBe('Bet a bit more');
+    expect(at(4).text).toMatch(/Aim for 14 to 31/);
+    expect(at(12).g).toBe('green');
+    expect(at(24).g).toBe('green');
+    expect(at(40).v).toBe('A smaller size does the job');
+  });
   it('facing an all-in, the only options are call or fold', () => {
     const c = critiqueFor([allin], 'Mike', { 3: { cards: ['As', '6s'], lvl: null } }, { sb: 1, bb: 2 }).hands[0];
     const call = c.close![3][3];

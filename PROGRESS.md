@@ -1,6 +1,12 @@
 # Nightcap: progress
 
-## Latest (19 Nov 2026): 1.11.0
+## Latest (19 Nov 2026): 1.11.1
+
+- Size grades (owner: tune sizes): `Rec.lo`/`Rec.hi` hold a range of good sizes (`sized`, `band` in `decidePost`). Value bands as pot shares: strong hands 25% (dry) / 45% (wet) / 40% (river) up to 75% or the pot; top pair and overpairs 25 to 60% dry, 33 to 75% wet, 33 to 66% river; weak pair 20 to 50%; semi-bluff 33 to 75%. A calling station raises only the top of a band by 10%. Raises: 2.5 to 4 times the bet; opens 2.2 to 4.5 BB; isolation 0.75 to 1.6 times 3 BB plus 1 BB per limper. Slack: a size must miss by max(1 BB, 10% of the pot). Bluffs are never size-graded.
+- Saturday data: "Bet a bit more" 50 to 33 (32 of them under 30% of the pot: real small value bets). "Raise a bit more" 15 to 7 (isolation raises under 75% of the standard size).
+- `outs()` returns 0 when the hand already holds a straight or better (was "a flush, with 46 cards that make a straight").
+
+## Earlier (19 Nov 2026): 1.11.0
 
 - Critique rewrite (owner): basic analysis = a commentator with no cards (`commentate`, src/report/critique.ts): notes on every action at the table and on each street's cards (`HandCrit.lines`, line -1 = the cards). Advanced = first person (`thinkHand`): one decision function (`decidePre`, `decidePost`) gives both the quiz answer and the grade (`closingFor`), so they agree. `Rec.ok` = other actions graded green; `Rec.altTo` = the size for an accepted raise. One walker (`walk`) keeps pot, blinds, straddle level, raises, limpers, all-ins and last street's bettor for both layers.
 - Rules fixed after an instructor pass over the Saturday data (Mike, Bel, Nat): board trips/quads text (`newCard`), story bet green (`Consistent story`), all-in = call or fold only (no re-raise in `choices`), SB completion, BB check option, isolation raise vs limpers with offsuit high cards, stab after a checked street, weak-pair raise = blue Call instead, straddle not a raise, size grades skipped on bluffs, suited marginal hands may call one raise in position.

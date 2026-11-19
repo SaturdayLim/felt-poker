@@ -1,5 +1,10 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.11.1', date: '19 Nov 2026', notes: [
+    'Gameplay critique: bet sizes are graded against a range, not one number. Top pair on a wet board: a third to three quarters of the pot. Strong hands: a quarter of the pot or more on a dry board, about half on a wet board or the river.',
+    'A size is flagged only when it misses the range by 1 BB or a tenth of the pot. Answers name the range, for example Bet about 22 (14 to 31).',
+    'Fixed: a hand that already holds a straight or better no longer counts cards that make a straight.',
+  ] },
   { version: '1.11.0', date: '19 Nov 2026', notes: [
     'Reports, player page: new order after Result by Seat. Hand Record (the grid), then Alternate Plays, then one Action Log with every hand you were dealt. Your Cards and Cards Shown are merged into the Action Log.',
     'Gameplay critique, basic analysis: a commentator with no cards. It says what each action at the table can mean: limps, isolation raises, 3-bets, c-bets, barrels, stabs, check-raises and all-ins, and what each board card changes.',

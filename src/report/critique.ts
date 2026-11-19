@@ -133,6 +133,8 @@ function handWord(s: Made, hole: Card[], board: Card[]): string {
 /** Cards still to come that give a straight or better the board alone does not make. */
 function outs(hole: Card[], board: Card[]): number {
   if (board.length < 3 || board.length >= 5) return 0;
+  // a straight or better already made has nothing left to draw to
+  if ((bestHand([...hole, ...board])?.category ?? 0) >= 4) return 0;
   const seen = new Set<Card>([...hole, ...board]);
   let n = 0;
   for (const c of DECK) {
@@ -429,7 +431,15 @@ function commentate(p: Parsed, blinds: { sb: number; bb: number }, habits: Recor
 
 type Move = 'raise' | 'call' | 'check' | 'fold';
 /** The recommended action at one decision. `ok` = other actions that are also fine (graded green). `why` = the reason. */
-interface Rec { k: Move; to?: number; ok?: Move[]; why: string; /** The size to aim for when the player takes the raise in `ok`. */ altTo?: number }
+interface Rec {
+  k: Move; to?: number; ok?: Move[]; why: string;
+  /** The range of good sizes for a raise (street totals). A size inside it is never graded. */
+  lo?: number; hi?: number;
+  /** The size to aim for when the player takes the raise in `ok`. */
+  altTo?: number;
+}
+/** A raise to about `to`, fine anywhere from `lo` to `hi`. */
+const sized = (to: number, lo: number, hi: number) => ({ to: Math.round(to), lo: Math.round(lo), hi: Math.max(Math.round(hi), Math.round(lo)) });
 const moveOf = (a: Act, isRaise: boolean): Move => (isRaise || a.k === 'straddle' ? 'raise' : a.k === 'call' || a.k === 'allin' ? 'call' : a.k === 'check' ? 'check' : 'fold');
 
 /** What one decision looks like from the player's seat. */
@@ -446,10 +456,10 @@ function decidePre(x: Spot): Rec {
     if (x.noRaise) return t.t === 0 || (t.t <= 1 && c.need <= 0.4) || (t.pair && t.hi >= 10 && c.need <= 0.35)
       ? { k: 'call', why: `${t.cls} is ${TIER_WORD[t.t]}, and the all-in leaves only call or fold. You need ${pct(c.need)}.` }
       : { k: 'fold', why: `${t.cls} is behind most all-in ranges, and you need ${pct(c.need)}.` };
-    if (t.t === 0) return { k: 'raise', to: Math.round((c.raises >= 2 ? 2.5 : 3) * c.high), ok: ['call'], why: `${t.cls} is ahead of almost every raising range. A re-raise builds the pot while you are ahead.` };
+    if (t.t === 0) return { k: 'raise', ...(c.raises >= 2 ? sized(2.5 * c.high, 2.2 * c.high, 3 * c.high) : sized(3 * c.high, 2.5 * c.high, 4 * c.high)), ok: ['call'], why: `${t.cls} is ahead of almost every raising range. A re-raise builds the pot while you are ahead.` };
     if (t.t === 1) return EARLY.has(x.raiserPos)
       ? { k: 'call', ok: ['raise'], why: `${t.cls} plays well against a strong early range, but a re-raise only gets called by better.` }
-      : { k: 'raise', to: 3 * c.high, ok: ['call'], why: `Against a wider raising range ${t.cls} is ahead.` };
+      : { k: 'raise', ...sized(3 * c.high, 2.5 * c.high, 4 * c.high), ok: ['call'], why: `Against a wider raising range ${t.cls} is ahead.` };
     if (pos === 'BB' && c.toCall <= 2 * L && t.t <= 3) return { k: 'call', why: `${t.cls} in the BB gets a good price: you need only ${pct(c.need)}.` };
     if (t.t === 2 && (t.pair || c.need <= 0.3)) return { k: 'call', why: `The price is ${pct(c.need)}, and ${t.pair ? 'a set' : 'a straight or flush'} can win a big pot.` };
     if (t.t === 3 && t.suited && (LATE.has(pos) || pos === 'BB') && c.raises === 1 && c.need <= 0.3) return { k: 'fold', ok: ['call'], why: `${t.cls} is behind a raising range, but in position a suited hand can call a single raise and hope for a flush or a straight.` };
@@ -458,7 +468,7 @@ function decidePre(x: Spot): Rec {
   if (c.limpers === 0 && c.toCall > 0) {
     // nobody has entered: open or fold
     const opens = EARLY.has(pos) ? t.t <= 1 : LATE.has(pos) || pos === 'SB' ? t.t <= 3 : t.t <= 2;
-    return opens ? { k: 'raise', to: 3 * L, why: `${t.cls} is good enough to open from ${pos}. Raise; do not limp.` } : { k: 'fold', why: `${t.cls} is too weak to open from ${pos}.` };
+    return opens ? { k: 'raise', ...sized(3 * L, 2.2 * L, 4.5 * L), why: `${t.cls} is good enough to open from ${pos}. Raise; do not limp.` } : { k: 'fold', why: `${t.cls} is too weak to open from ${pos}.` };
   }
   if (c.toCall === 0) return t.t <= 1 || (t.pair && t.hi >= 10)
     ? { k: 'raise', to: iso, ok: ['check'], why: `With ${t.cls} you are likely ahead of every limper, so build the pot now.` }
@@ -481,18 +491,22 @@ function decidePost(x: Spot): Rec {
   const { c, s, o } = x, river = c.st.key === 'river';
   const pot = c.potBefore, sz = (f: number) => Math.max(1, Math.round(pot * f));
   const value = s === 'monster' || s === 'strong';
+  /** A bet of about the middle of a pot share range. Against a calling station the top of the range is 10% higher. */
+  const up = x.station ? 0.1 : 0;
+  const band = (a: number, b: number) => sized(pot * ((a + b) / 2 + up), Math.max(1, pot * a), pot * (b + up));
+  const strongLo = river ? 0.4 : x.wet ? 0.45 : 0.25, strongHi = x.wet || river ? 1 : 0.75;
   if (c.toCall === 0) {
     if (value) return x.aggBehind && !x.inPos
-      ? { k: 'raise', to: sz(x.wet ? 0.66 : 0.5), ok: ['check'], why: `${cap(x.word)} beats most hands. Bet for value, or check to let the aggressive player bet for you.` }
-      : { k: 'raise', to: sz(x.wet ? 0.66 : 0.5), why: `${cap(x.word)} beats most hands. Bet for value: worse hands call.${x.station ? ' A calling station calls a bigger bet.' : ''}` };
+      ? { k: 'raise', ...band(strongLo, strongHi), ok: ['check'], why: `${cap(x.word)} beats most hands. Bet for value, or check to let the aggressive player bet for you.` }
+      : { k: 'raise', ...band(strongLo, strongHi), why: `${cap(x.word)} beats most hands. Bet for value: worse hands call.${x.station ? ' A calling station calls a bigger bet.' : ''}` };
     if (s === 'overpair' || s === 'top') return river
-      ? { k: 'raise', to: sz(0.5), ok: ['check'], why: 'Worse pairs call a medium bet. Check if the board turned scary.' }
-      : { k: 'raise', to: sz(x.wet ? 0.6 : 0.4), ok: x.multi ? ['check'] : [], why: x.wet ? 'The board is wet: charge the draws.' : 'The board is dry: a small bet gets calls from worse hands.' };
+      ? { k: 'raise', ...band(0.33, 0.66), ok: ['check'], why: 'Worse pairs call a medium bet. Check if the board turned scary.' }
+      : { k: 'raise', ...band(x.wet ? 0.33 : 0.25, x.wet ? 0.75 : 0.6), ok: x.multi ? ['check'] : [], why: x.wet ? 'The board is wet: charge the draws.' : 'The board is dry: a small bet gets calls from worse hands.' };
     if (s === 'weak') return river
       ? { k: 'check', ok: x.station ? ['raise'] : [], why: 'A weak pair wins some showdowns, but a bet gets called only by better hands.' }
-      : (x.wet && c.st.key === 'flop') || x.station ? { k: 'raise', to: sz(0.33), ok: ['check'], why: 'Bet small: it charges the draws, and weaker pairs call.' }
+      : (x.wet && c.st.key === 'flop') || x.station ? { k: 'raise', ...band(0.2, 0.5), ok: ['check'], why: 'Bet small: it charges the draws, and weaker pairs call.' }
       : { k: 'check', ok: ['raise'], why: 'A weak pair wants a small pot. Take the free card.' };
-    if (o >= 8 && !river) return { k: 'raise', to: sz(0.5), ok: ['check'], why: `A semi-bluff: it can win now, and your ${o} outs can win later. A check for a free card is fine too.` };
+    if (o >= 8 && !river) return { k: 'raise', ...band(0.33, 0.75), ok: ['check'], why: `A semi-bluff: it can win now, and your ${o} outs can win later. A check for a free card is fine too.` };
     // no pair and no strong draw: a bet is a bluff
     if (x.story) return { k: 'raise', to: sz(0.5), ok: ['check'], why: river
       ? `You bet the last street. A river bet keeps the story, but it is a pure bluff: it wins only when the caller folds.${x.station ? ' A calling station rarely folds, so giving up is fine too.' : ''}`
@@ -506,7 +520,7 @@ function decidePost(x: Spot): Rec {
   const eq = o / Math.max(1, 50 - c.st.board.length);
   if (value) return x.noRaise
     ? { k: 'call', why: `${cap(x.word)} beats most all-in ranges. A raise is not possible: call.` }
-    : { k: 'raise', to: 3 * c.high, ok: ['call'], why: `${cap(x.word)} beats most betting ranges. Raise to build the pot; a call to trap is fine too.` };
+    : { k: 'raise', ...sized(3 * c.high, 2.5 * c.high, 4 * c.high), ok: ['call'], why: `${cap(x.word)} beats most betting ranges. Raise to build the pot; a call to trap is fine too.` };
   if (s === 'overpair' || s === 'top') return { k: 'call', ok: !river && !x.noRaise ? ['raise'] : [], why: `${cap(x.word)} beats the bluffs and some value bets${c.need > 0.4 ? ', but fold to a second big bet' : ''}.` };
   if (s === 'weak') return c.need <= 0.25 ? { k: 'call', why: 'The price is small, and a weak pair beats a bluff.' } : { k: 'fold', why: `A weak pair beats only bluffs, and you need ${pct(c.need)}.` };
   if (o >= 4 && !river) return eq >= c.need * 0.8
@@ -529,7 +543,7 @@ function choices(c: Ctx, noRaise: boolean): string {
 /** The recommended action as the first words of an answer. */
 function verbOf(r: Rec, c: Ctx, pos: string): string {
   const pre = c.st.key === 'preflop';
-  if (r.k === 'raise') return `${pre ? (c.raises > 0 ? 'Re-raise' : 'Raise') : c.toCall > 0 ? 'Raise' : 'Bet'}${r.to ? ` ${pre || c.toCall > 0 ? 'to ' : ''}about ${r.to}` : ''}`;
+  if (r.k === 'raise') return `${pre ? (c.raises > 0 ? 'Re-raise' : 'Raise') : c.toCall > 0 ? 'Raise' : 'Bet'}${r.to ? ` ${pre || c.toCall > 0 ? 'to ' : ''}about ${r.to}${r.lo !== undefined && r.hi !== undefined && r.hi - r.lo >= 2 ? ` (${r.lo} to ${r.hi})` : ''}` : ''}`;
   if (r.k === 'call') return pre && c.raises === 0 ? (pos === 'SB' ? 'Complete the SB' : 'Limp behind') : 'Call';
   return r.k === 'check' ? 'Check' : 'Fold';
 }
@@ -550,13 +564,18 @@ function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec
   };
   if (rec) {
     const next = verbOf(rec, c, o.pos);
+    // the range of good sizes: the recommendation's own range, else 0.7 to 1.8 times its size
+    const lo = rec.lo ?? (rec.to ? rec.to * 0.7 : undefined), hi = rec.hi ?? (rec.to ? rec.to * 1.8 : undefined);
+    // a size must miss the range by 1 BB or a tenth of the pot (home bets are round numbers)
+    const slack = Math.max(o.bb, c.potBefore * 0.1);
+    const aim = rec.lo !== undefined && rec.hi !== undefined && rec.hi - rec.lo >= 2 ? `${rec.lo} to ${rec.hi}` : `about ${rec.to}`;
     if (rec.k === did) {
-      if (did === 'raise' && !o.bluff && rec.to && o.to && o.to / rec.to < 0.7 && rec.to - o.to >= o.bb) { g = 'blue'; v = `${word === 'bet' ? 'Bet' : 'Raise'} a bit more`; why = `Aim for about ${rec.to}: a bigger ${word} charges worse hands more and folds out more draws.`; }
-      else if (did === 'raise' && rec.to && o.to && o.to / rec.to > 1.8 && o.to - rec.to >= o.bb && !o.bluff) { g = 'blue'; v = 'A smaller size does the job'; why = `About ${rec.to} gets the same calls from worse hands and risks less.`; }
+      if (did === 'raise' && !o.bluff && lo !== undefined && o.to && o.to < lo && lo - o.to >= slack) { g = 'blue'; v = `${word === 'bet' ? 'Bet' : 'Raise'} a bit more`; why = `Aim for ${aim}: a bigger ${word} charges worse hands more and folds out more draws.`; }
+      else if (did === 'raise' && !o.bluff && hi !== undefined && o.to && o.to > hi && o.to - hi >= slack) { g = 'blue'; v = 'A smaller size does the job'; why = `${cap(aim)} gets the same calls from worse hands and risks less.`; }
       else if (o.bluff && x?.story) { g = 'green'; v = 'Consistent story'; why = `${rec.why}`; }
       else { g = 'green'; v = `Good ${word}`; why = o.bluff ? rec.why : did === 'raise' && rec.to ? `Good size too. ${often.raise}` : often[did]; }
-    } else if (rec.ok?.includes(did) && did === 'raise' && rec.altTo && o.to && o.to / rec.altTo < 0.7 && rec.altTo - o.to >= o.bb) {
-      g = 'blue'; v = 'Raise a bit more'; why = `A raise is fine, but aim for about ${rec.altTo}: a small raise gets called by every limper. ${next} is the main line: ${low(rec.why)}`;
+    } else if (rec.ok?.includes(did) && did === 'raise' && rec.altTo && o.to && o.to < rec.altTo * 0.75 && rec.altTo * 0.75 - o.to >= o.bb) {
+      g = 'blue'; v = 'Raise a bit more'; why = `A raise is fine, but aim for about ${rec.altTo} (${Math.round(rec.altTo * 0.75)} to ${Math.round(rec.altTo * 1.6)}): a small raise gets called by every limper. ${next} is the main line: ${low(rec.why)}`;
     } else if (rec.ok?.includes(did)) {
       g = 'green'; v = o.bluff && x?.story ? 'Consistent story' : 'Reasonable'; why = `${next} is the main line: ${low(rec.why)} Your ${word} works too.`;
     } else if (did === 'fold' && rec.k === 'check') {

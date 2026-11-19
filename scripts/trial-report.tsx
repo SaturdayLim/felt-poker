@@ -320,7 +320,7 @@ function QuizNote({ q, a }: { q: string; a: string }) {
   );
 }
 
-/** The verdict of one hand, under its row in Your Cards. */
+/** The verdict of one hand, under its row in the Action Log. */
 function CritVerdict({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
   const say = useSay();
   if (!hc?.verdict) return null;
@@ -343,11 +343,12 @@ function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
       </button>
       <div className="trial-grow" {...inertWhen(!open)}><div><div className="trial-log-body">
         {hc?.status === 'invalid' && <CritNotes on={on} notes={[{ tone: 'info', text: 'Invalid hand: your entry clashes with the board or a card shown at the table. The critique skips it.' }]} />}
-        {hc?.status === 'nocards' && <CritNotes on={on} notes={[{ tone: 'info', text: 'No cards entered for this hand. The comments read the action and the position only.' }]} />}
+        {hc?.status === 'nocards' && <CritNotes on={on && adv} notes={[{ tone: 'info', text: 'No cards entered for this hand. The insights read the action only, with no grades.' }]} />}
         {v.streets.map((st, si) => (
           <div key={st.street} className="trial-log-street">
             <div className="trial-log-head"><b>{st.street}</b>{st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}</div>
-            {/* advanced insights replace the short comments: the street's cards first, then the thought process under each line */}
+            {/* basic analysis (a commentator, no cards) or advanced insights (first person, your cards): the street's cards first, then each line */}
+            <CritNotes on={on && !adv} notes={hc?.lines[si]?.[-1]} />
             <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[-1]} />
             {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => (
               <Fragment key={i}>
@@ -463,15 +464,15 @@ function PlayerLock({ p, box, onOpen }: { p: TrialPlayer; box: LockBox; onOpen: 
 function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
   const s = p.s, st = s.style;
   const mine = m.awards.filter((a) => a.to.includes(p.id));
-  // Gameplay critique: only for a player who entered their own cards. It reads their entries and the public log.
+  // Gameplay critique: the basic analysis reads the public log only; the advanced insights add the player's own entries.
   const [critOn, setCritOn] = useState(false);
   const [advOn, setAdvOn] = useState(false);
   // Use jargon (owner, 16 Nov 2026): ticked by default, so the critique reads as written; unticked swaps terms for plain words
   const [jargonOn, setJargonOn] = useState(true);
   const crit = useMemo(() => {
-    if (!p.mine?.length || !p.logs?.length) return null;
+    if (!p.logs?.length) return null;
     const b = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/.exec(m.sub ?? '');
-    const cards = Object.fromEntries(p.mine.map((h) => [h.n, { cards: h.cards, lvl: h.lvl }]));
+    const cards = Object.fromEntries((p.mine ?? []).map((h) => [h.n, { cards: h.cards, lvl: h.lvl }]));
     return critiqueFor(p.logs, p.name, cards, { sb: b ? +b[1] : 1, bb: b ? +b[2] : 2 });
   }, [m.sub, p]);
   const critBy = (n: number) => crit?.hands.find((x) => x.n === n);
@@ -549,18 +550,26 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
         <FeltTable m={m} seats={(m.positions ?? Object.keys(p.byPos)).map((k) => ({ id: k, label: k, value: p.byPos[k] ?? 0, sub: `${p.byPosN[k] ?? 0}` }))} />
       </Section>
 
-      {p.mine.length > 0 && (
-        <Section title={`Your Cards (${p.mine.length})`} tip={['Your own record of your cards, apart from the cards shown at the table.', 'Only you see these, with your player code.', 'Shown = also shown at the table.', 'Each hand shows the chips won or lost and where the hand was decided.', 'Red ! = a card is on the board or in a card shown at the table.', "Blue ! = a card is also in another player's entry.", 'A hand with a red ! stays out of the hand record.']}>
+      <HandRecord p={p} />
+
+      <Section title="Alternate Plays" tip={['Hands where another line was usually better.', 'It uses only what was logged: your cards, your actions and your position.', 'A guide, not a verdict.']}>
+        {p.advice.length === 0
+          ? <span className="sat-small sat-muted">Nothing stands out in the hands logged.</span>
+          : <ul className="trial-notes">{p.advice.map((a, i) => <li key={i}><span><b>#{a.n}</b> <span className="trial-advice">{a.text}</span></span></li>)}</ul>}
+      </Section>
+
+      {p.logs.length > 0 && (
+        <Section title={`Action Log (${p.logs.length})`} tip={['Every hand you were dealt, in order. Tap a hand to open its actions, the cards shown and the result.', 'Your cards: your own entry, else the cards you showed at the table. Only you see your entries, with your player code.', 'Shown = also shown at the table.', 'Red ! = a card is on the board or in a card shown at the table. The hand stays out of the hand record and the critique.', "Blue ! = a card is also in another player's entry."]}>
           {crit && (
             <div className="trial-crit-head">
               <span className="trial-crit-switch">
                 <b>Gameplay critique</b>
                 <Tip title="Gameplay critique" lines={[
-                  'Comments on how you played each hand, under your cards and under each line of the action log.',
-                  'It uses only your own cards and what the whole table saw: the bets, the board, the positions.',
+                  'Basic analysis: a commentator reads every action at the table and says what it can mean. It uses no cards.',
+                  'Advanced insights: your own cards, the action you faced and your options at each decision, with a grade on each of your actions.',
+                  'Grades: green = good or reasonable, blue = give it more thought, red = do not do this.',
                   "A player's habits count only from the hands before.",
                   'It is a set of rules, not a solver. Use it to review the night.',
-                  'Hands with a red ! are skipped as invalid. Hands with a blue ! count as entered.',
                 ]} />
               </span>
               <Toggle on={critOn} onChange={setCritOn} label="Gameplay critique" />
@@ -573,9 +582,9 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
                 <span className="trial-addon">
                   <label><input type="checkbox" checked={advOn} onChange={(e) => setAdvOn(e.target.checked)} /><span>Advanced insights</span></label>
                   <Tip title="Advanced insights" lines={[
-                    'A thought process for each hand: the questions a strong player asks on each street.',
-                    'It reads the board texture, what each new card changes, and the habits of the other players so far.',
-                    'It replaces the short comments in the action log. Open one or two hands that matter to you.',
+                    'Your own view of each hand: your cards, the action you faced and the options open to you.',
+                    'Each of your actions gets a grade and a note on what it shows the table.',
+                    'It replaces the basic analysis in the action log. Hands with no cards entered get no grades.',
                   ]} />
                 </span>
                 <span className="trial-addon">
@@ -586,62 +595,46 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
                   ]} />
                 </span>
               </div>
-              <p className="sat-small trial-crit-sum">
-                {jargonOn
-                  ? <>{crit.valueBets} value {crit.valueBets === 1 ? 'bet' : 'bets'}, {crit.semis} {crit.semis === 1 ? 'semi-bluff' : 'semi-bluffs'}, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}</>
-                  : <>{crit.valueBets} {crit.valueBets === 1 ? 'bet' : 'bets'} that worse hands call, {crit.semis} {crit.semis === 1 ? 'bet' : 'bets'} with a hand that can still improve, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}</>}
-                {crit.bluffs > 0 ? ` (${crit.bluffsWon} won, average size ${Math.round(crit.bluffSize * 100)}% of the pot)` : ''}.
-                {' '}{crit.hands.filter((x) => x.verdict?.tone === 'warn').length} of {crit.hands.length} hands have a point to review.
-              </p>
+              {p.mine.length > 0 && (
+                <p className="sat-small trial-crit-sum">
+                  {jargonOn
+                    ? <>{crit.valueBets} value {crit.valueBets === 1 ? 'bet' : 'bets'}, {crit.semis} {crit.semis === 1 ? 'semi-bluff' : 'semi-bluffs'}, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}</>
+                    : <>{crit.valueBets} {crit.valueBets === 1 ? 'bet' : 'bets'} that worse hands call, {crit.semis} {crit.semis === 1 ? 'bet' : 'bets'} with a hand that can still improve, {crit.bluffs} {crit.bluffs === 1 ? 'bluff' : 'bluffs'}</>}
+                  {crit.bluffs > 0 ? ` (${crit.bluffsWon} won, average size ${Math.round(crit.bluffSize * 100)}% of the pot)` : ''}.
+                  {' '}{crit.hands.filter((x) => x.verdict?.tone === 'warn').length} of {crit.hands.filter((x) => x.status === 'cards').length} hands with cards have a point to review.
+                </p>
+              )}
             </div></div>
           )}
           <div className="sat-glass-2 felt-list">
-            {p.mine.map((h) => {
-              const v = p.logs.find((x) => x.n === h.n);
+            {p.logs.map((v) => {
+              const h = p.mine.find((x) => x.n === v.n), sh = p.shown.find((x) => x.n === v.n);
+              const cards = h?.cards ?? sh?.cards;
+              const won = h ? h.net > 0 : !!sh?.won;
               return (
-                <div key={h.n} className="trial-row-wrap">
-                  <div className={`felt-row trial-shown-row ${h.net > 0 ? 'is-won' : ''}`}>
-                    <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{h.n}</span>
-                    <Cards cards={h.cards} size="sm" />
-                    <span className="felt-row-main"><span className="felt-row-sub">{[h.rank, h.shownAtTable ? 'Shown' : ''].filter(Boolean).join(', ') || '-'}</span></span>
-                    {h.lvl && <span className={`trial-bang is-${h.lvl}`} role="img" aria-label={h.lvl === 'red' ? 'A card is on the board or in a card shown at the table' : "A card is also in another player's entry"}>!</span>}
-                    <b className={`sat-small ${h.net > 0 ? 'felt-up' : h.net < 0 ? 'felt-down' : 'sat-muted'}`}>{h.net > 0 ? 'Won' : h.net < 0 ? 'Lost' : 'Even'} {Math.abs(h.net)} ({h.street})</b>
+                <div key={v.n} className="trial-row-wrap">
+                  <div className={`felt-row trial-shown-row ${won ? 'is-won' : ''}`}>
+                    <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{v.n}</span>
+                    {cards ? <Cards cards={cards} size="sm" /> : null}
+                    <span className="felt-row-main"><span className="felt-row-sub">{(h ? [h.rank, h.shownAtTable ? 'Shown' : ''] : sh ? [sh.rank, 'Shown'] : ['No cards']).filter(Boolean).join(', ') || '-'}</span></span>
+                    {h?.lvl && <span className={`trial-bang is-${h.lvl}`} role="img" aria-label={h.lvl === 'red' ? 'A card is on the board or in a card shown at the table' : "A card is also in another player's entry"}>!</span>}
+                    {h ? <b className={`sat-small ${h.net > 0 ? 'felt-up' : h.net < 0 ? 'felt-down' : 'sat-muted'}`}>{h.net > 0 ? 'Won' : h.net < 0 ? 'Lost' : 'Even'} {Math.abs(h.net)} ({h.street})</b>
+                      : sh ? <b className={`sat-small ${sh.won ? 'felt-up' : 'sat-muted'}`}>{sh.won ? `${sh.split ? 'Split' : 'Won'}: ${sh.got}` : `Lost: ${sh.pot}`}</b> : null}
                   </div>
-                  <CritVerdict hc={critBy(h.n)} on={critOn} />
-                  {v && <LogDrop v={v} />}
+                  <CritVerdict hc={critBy(v.n)} on={critOn} />
+                  <LogDrop v={v} label={h || sh ? undefined : v.result} />
                 </div>
               );
             })}
           </div>
         </Section>
       )}
-
-      <HandRecord p={p} />
-
-      <Section title={`Cards Shown (${p.shown.length})`} tip={["Hands where the player's cards were entered at showdown.", 'In hand order.']}>
-        <div className="sat-glass-2 felt-list">
-          {p.shown.map((h) => {
-            const v = p.logs.find((x) => x.n === h.n);
-            return (
-              <div key={h.n} className="trial-row-wrap">
-                <div className={`felt-row trial-shown-row ${h.won ? 'is-won' : ''}`}>
-                  <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{h.n}</span>
-                  <Cards cards={h.cards} size="sm" />
-                  <span className="felt-row-main"><span className="felt-row-sub">{h.rank || '-'}</span></span>
-                  <b className={`sat-small ${h.won ? 'felt-up' : 'sat-muted'}`}>{h.won ? `${h.split ? 'Split' : 'Won'}: ${h.got}` : `Lost: ${h.pot}`}</b>
-                </div>
-                {v && <LogDrop v={v} />}
-              </div>
-            );
-          })}
-        </div>
-      </Section>
     </div>
     </CritCtx.Provider>
   );
 }
 
-/** The starting-hand grid and a short guide to how a hand could have gone differently. */
+/** The starting-hand grid: the pre-flop actions with each starting hand. */
 function HandRecord({ p }: { p: TrialPlayer }) {
   const [sel, setSel] = useState<string | null>(null);
   const range = p.range ?? {};
@@ -673,17 +666,6 @@ function HandRecord({ p }: { p: TrialPlayer }) {
         ))}
       </div></div>
       <p key={sel ?? ''} className="sat-small trial-swap" aria-live="polite">{sel ? (cur ? `${sel}: ${cur.fold} fold, ${cur.call} call or check, ${cur.raise} raise.` : `${sel}: never dealt.`) : 'Tap a square for the counts.'}</p>
-      <div className="sat-stack" style={gap(2)}>
-        <b className="sat-small">How a hand could have gone differently</b>
-        {p.advice.length === 0
-          ? <span className="sat-small sat-muted">Nothing stands out in the hands logged.</span>
-          : <ul className="trial-notes">{p.advice.map((a, i) => <li key={i}><span><b>#{a.n}</b> <span className="trial-advice">{a.text}</span></span></li>)}</ul>}
-      </div>
-      <div className="sat-glass-2 felt-list">
-        {logs.map((v) => (
-          <div key={v.n} className="trial-row-wrap"><LogDrop v={v} label={`#${v.n}: ${v.result}`} /></div>
-        ))}
-      </div>
     </Section>
   );
 }

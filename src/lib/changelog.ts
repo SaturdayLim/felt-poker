@@ -1,5 +1,12 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.11.0', date: '19 Nov 2026', notes: [
+    'Reports, player page: new order after Result by Seat. Hand Record (the grid), then Alternate Plays, then one Action Log with every hand you were dealt. Your Cards and Cards Shown are merged into the Action Log.',
+    'Gameplay critique, basic analysis: a commentator with no cards. It says what each action at the table can mean: limps, isolation raises, 3-bets, c-bets, barrels, stabs, check-raises and all-ins, and what each board card changes.',
+    'Advanced insights: your cards, the action you faced and your options at each decision. The answer and the grade now come from one decision, so they always agree.',
+    'Fixed: a card that makes three of a rank on the board now says every player has trips, not a pair. A second bet that keeps the story is green. Facing an all-in, the options are call or fold only.',
+    'Fixed: the SB can complete for half a blind, the BB is asked to check or raise, a stab after a round of checks is reasonable, and a straddle no longer counts as a raise.',
+  ] },
   { version: '1.10.2', date: '16 Nov 2026', notes: [
     'Reports, Compare: no section title or table tip. Each metric has a tip that says how its number is worked out and its target. Bold = the value closest to the target of balanced play (highest for Result, Won at SD and Pots won).',
   ] },

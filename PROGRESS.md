@@ -1,6 +1,15 @@
 # Nightcap: progress
 
-## Latest (16 Nov 2026): 1.10.1
+## Latest (19 Nov 2026): 1.11.0
+
+- Critique rewrite (owner): basic analysis = a commentator with no cards (`commentate`, src/report/critique.ts): notes on every action at the table and on each street's cards (`HandCrit.lines`, line -1 = the cards). Advanced = first person (`thinkHand`): one decision function (`decidePre`, `decidePost`) gives both the quiz answer and the grade (`closingFor`), so they agree. `Rec.ok` = other actions graded green; `Rec.altTo` = the size for an accepted raise. One walker (`walk`) keeps pot, blinds, straddle level, raises, limpers, all-ins and last street's bettor for both layers.
+- Rules fixed after an instructor pass over the Saturday data (Mike, Bel, Nat): board trips/quads text (`newCard`), story bet green (`Consistent story`), all-in = call or fold only (no re-raise in `choices`), SB completion, BB check option, isolation raise vs limpers with offsuit high cards, stab after a checked street, weak-pair raise = blue Call instead, straddle not a raise, size grades skipped on bluffs, suited marginal hands may call one raise in position.
+- Hand verdict = the worst closing grade. Summary counts value bets, semi-bluffs and bluffs from the advanced pass.
+- Report player page (scripts/trial-report.tsx): Result by Seat, Hand Record (grid only), Alternate Plays (`p.advice`), Action Log (every dealt hand: own entry, else shown cards, critique switch on top). Your Cards and Cards Shown removed. Critique runs for any player with logs (basic needs no cards).
+- Plain words: rules for isolation raise, barrel, stab, donk bet, block bet, flat call, 3-bet, kicker, quads, heads-up. trial/plain-check.ts: no term left.
+- Checked: 241 tests, build, local sample (trial/saturday-local.html via the trial-static preview) with the critique and Advanced insights on. Churchies hands from the screenshots are test fixtures only: no Churchies card data on disk. Join live commentary uses `close` and was not checked in a live room.
+
+## Earlier (16 Nov 2026): 1.10.1
 
 - Use jargon (owner): report add-on, ticked by default, applies to the short critique and Advanced insights (owner answers). `plainWords` (src/report/plain.ts) rewrites the finished text with ordered regex rules (longer phrases first), so ticked = text exactly as written. `useSay()` in scripts/trial-report.tsx applies it to notes, quiz questions and answers, closing comments and verdicts; the summary line has its own plain version.
 - Advanced insights and Use jargon are native checkboxes in `.trial-addons` (indented, small) under the Gameplay critique switch. Checked on the Saturday data: no term left in 1756 rewritten texts (trial/plain-check.ts).

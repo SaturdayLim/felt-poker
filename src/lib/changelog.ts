@@ -1,5 +1,13 @@
 /** Version history shown in Settings. Newest first. Add an entry and bump package.json "version" for each release. */
 export const CHANGELOG: { version: string; date: string; notes: string[] }[] = [
+  { version: '1.14.0', date: '20 Nov 2026', notes: [
+    'Gameplay critique: a recommended bet or raise never passes the chips a player has. With the stack known, the answer says All-in for that amount. An all-in is never graded as too small.',
+    'Gameplay critique: a check with a strong hand, followed by a raise or a call when a player bets, is graded green as a Good trap.',
+    'Reports, hand lists: each hand is its own card. A tap on the hand opens its action with every street open. Expand all opens every hand.',
+    'Reports, hand lists: a tap on a street closes or opens it. The street head shows its cards and the pot at its close.',
+    'Reports, Action Log: with the critique on, a coloured tag left of the cards grades the hand. Point at it, or tap it, for the reason.',
+    'Shorter grade names: Too passive, Smaller size, Fold here.',
+  ] },
   { version: '1.13.0', date: '20 Nov 2026', notes: [
     'Reports, player page: the action log colours only that player. Every other player reads as plain text.',
     'Reports, Compare: tap a metric name to sort the players by it, best first. Tap it again to turn the order over.',

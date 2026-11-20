@@ -836,7 +836,9 @@ export function Sheet({ open, onClose, title, sub, children, edge, head, action,
 let closeOpenTip: (() => void) | null = null;
 const hasPopover = typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
 
-export function Info({ title, children }: { title?: string; children: ReactNode }) {
+/** `trigger`: draw the button with this content and `className` instead of the i circle (a grade tag in the report).
+    `label` is then its accessible name. Hover (mouse) and tap open it the same way. */
+export function Info({ title, children, trigger, className, label }: { title?: string; children: ReactNode; trigger?: ReactNode; className?: string; label?: string }) {
   const wrap = useRef<HTMLSpanElement>(null);
   const body = useRef<HTMLSpanElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -915,10 +917,10 @@ export function Info({ title, children }: { title?: string; children: ReactNode 
   }, [show]);
   return (
     <span ref={wrap} className={`sat-tip ${open ? 'is-open' : ''}`} onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHover(true); }} onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHover(false); }}>
-      <button type="button" className="sat-tip-btn" aria-expanded={open} aria-label={title ? `About ${title.toLowerCase()}` : 'More information'}
+      <button type="button" className={trigger ? className : 'sat-tip-btn'} aria-expanded={open} aria-label={label ?? (title ? `About ${title.toLowerCase()}` : 'More information')}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
         {/* drawn, not typed: a letter i leans and sits right of centre in its circle */}
-        <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><circle cx="5" cy="2.3" r="0.95" fill="currentColor" /><path d="M5 4.5v3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" /></svg>
+        {trigger ?? <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><circle cx="5" cy="2.3" r="0.95" fill="currentColor" /><path d="M5 4.5v3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" /></svg>}
       </button>
       {mounted && createPortal(
         <span ref={(e) => { body.current = e; if (e && hasPopover && !e.matches(':popover-open')) e.showPopover(); }} {...(hasPopover ? { popover: 'manual' } : {})} className="sat-tip-body felt-tip-float" role="tooltip" style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}>{children}</span>,

@@ -1,6 +1,13 @@
 # Nightcap: progress
 
-## Latest (20 Nov 2026): 1.13.0
+## Latest (20 Nov 2026): 1.14.0
+
+- Critique stacks (owner): `HandView.stacks` (name to chips at hand start, exact only; new reports only). `stacksOf` adds the stack of any player who went all-in (total put in). `walk` tracks `spent`; `Spot.myMax/oppMax`; `fit()` caps every raise recommendation at the reachable street total (own chips, or the most the deepest other player can match), says All-in for N, or turns it into a call when no raise fits. `closingFor` never grades an all-in as too small.
+- Check-trap (owner): a check with a monster or strong hand is held in `traps`; a later call or raise of a bet with a strong hand regrades each held check green "Good trap".
+- Hand lists (owner): `HandCard` (whole-row hit button under the content; the tag sits above it), `HandBody` (streets as toggles, head = name, cards, closing pot from `streetPots`), `useHandList` (Expand all / Collapse all; `epoch` reopens every street). Rows keep the `.felt-list` row margin (`--sat-space-4`), which the old nested rows missed. "Action log" toggle label and arrow removed.
+- Grade tag (owner): `CritTag` replaces the verdict text line. `Info` takes `trigger`, `className`, `label` for a custom button. `HandCrit.verdict.why` and `CritClose.why` hold the reason. Labels shortened so a tag fits 118 px.
+
+## Earlier (20 Nov 2026): 1.13.0
 
 - Player log (owner): `LogDrop` takes `me`; only segments with that player's colour index keep `trial-pc` and colour. Game Log tab unchanged (every player coloured).
 - Compare (owner): metric names are sort buttons (`sortBy`, best first by the bold rule, players with no value last). Hold 300 ms on a name lifts the column, drag swaps it; columns glide (FLIP, 240 ms). Order lives in component state only: decided not to save it (a shared report has many viewers). "Seat order" resets.

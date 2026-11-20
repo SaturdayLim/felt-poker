@@ -177,6 +177,9 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - Report, player page: the action log colours only that player; the others are plain text (owner, 20 Nov 2026). The Game Log keeps every colour.
 - Report, Compare: a tap on a metric name sorts the players by it (again turns it over); a hold on a name lifts its column to drag. The order is for that view only, never saved; Seat order resets it (owner, 20 Nov 2026).
 - Report, Settings: house rules in three sections: Game (game, blinds, buy-in), Minimum Raise, 7-2 Bounty (owner, 20 Nov 2026).
+- Report hand lists (owner, 20 Nov 2026): each hand is its own card; a tap on the row opens its action with every street open; Expand all opens every hand. Each street head (name, cards, pot at its close) closes or opens that street. No Action log label or arrow.
+- Report critique tag (owner, 20 Nov 2026): with the critique on, the hand grade is a coloured tag left of the cards (green, blue, red); hover or tap shows the reason. It replaces the verdict text line.
+- Critique sizes (owner, 20 Nov 2026): a recommended bet or raise never passes the player's chips or what the deepest other player can match; an all-in is never graded as too small. A check with a strong hand that is later check-raised or check-called is a Good trap (green).
 
 ## Motion and structure review (standing checks, owner 10 Nov 2026)
 

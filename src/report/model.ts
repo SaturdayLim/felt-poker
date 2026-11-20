@@ -72,6 +72,9 @@ export interface LogStreet {
 export interface HandView {
   n: number; pot: number; button: string; streets: LogStreet[];
   shown: { p: string; cards: Card[]; rank: string }[]; result: string; note?: string;
+  /** Chips each player dealt in had at the start of the hand, by name. Exact stacks only (a range is left out).
+      The critique uses them so a recommended size never passes a stack. Reports before 1.14 have none. */
+  stacks?: Record<string, number>;
 }
 export interface TrialModel {
   game: string; date: string;
@@ -206,6 +209,7 @@ export function handView(g: Game, h: Game['hands'][number], name: (id: ID) => st
     : 'No winner recorded';
   return {
     n: h.n, pot: h.pot, button: L.button ? name(L.button) : '', streets, result, note: h.note,
+    stacks: Object.fromEntries(L.dealt.filter((p) => stacks[p] !== undefined).map((p) => [name(p), Math.round(stacks[p])])),
     shown: h.shown.filter((x) => x.cards.length).map((x) => ({ p: name(x.playerId), cards: x.cards, rank: h.board.length === 5 && x.cards.length === 2 ? bestHand([...x.cards, ...h.board])?.name ?? '' : '' })),
   };
 }

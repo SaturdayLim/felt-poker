@@ -20,14 +20,14 @@ export interface CritNote { tone: CritTone; text: string; a?: string; g?: CritGr
 export type CritGrade = 'green' | 'blue' | 'red';
 /** The closing comment on one of the player's own actions: a grade and its label (none when no cards were entered), then
     the takeaway: how the action compares with the recommended action, what it shows the table and what to represent next. */
-export interface CritClose { g?: CritGrade; v?: string; text: string }
+export interface CritClose { g?: CritGrade; v?: string; text: string; /** The comparison with the recommended action alone (the tag explanation in the hand list). */ why?: string }
 type Notes = Record<number, Record<number, CritNote[]>>;
 /** Comments for one hand, by street and line. Line -1 = notes on the street's cards. */
 export interface HandCrit {
   n: number;
   status: 'cards' | 'nocards' | 'invalid';
   /** The hand's verdict for the hand list: the worst grade of the player's own actions, with its label. */
-  verdict?: { tone: CritTone; label: string; g?: CritGrade };
+  verdict?: { tone: CritTone; label: string; g?: CritGrade; why?: string };
   /** Basic analysis: what each action can mean, for any player, without cards. */
   lines: Notes;
   /** Advanced insights: the first-person thought process at each of the player's decisions. */
@@ -54,7 +54,8 @@ const BOUNTY_PAYS: Record<Bounty['win'], string> = { shown: 'when the 7-2 is sho
 type Kind = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allin' | 'straddle';
 interface Act { who: string; pos: string; k: Kind; to: number; allin: boolean; line: number }
 interface Street { i: number; key: 'preflop' | 'flop' | 'turn' | 'river'; board: Card[]; acts: Act[] }
-interface Parsed { n: number; streets: Street[]; posOf: Record<string, string>; winners: string[] }
+/** `stack`: chips each player had at the start of the hand, by name (exact stacks only; a report from before 1.14 has none). */
+interface Parsed { n: number; streets: Street[]; posOf: Record<string, string>; winners: string[]; stack: Record<string, number> }
 
 const KEYS = ['preflop', 'flop', 'turn', 'river'] as const;
 const ORDER = ['SB', 'BB', 'UTG', 'UTG+1', 'MP', 'LJ', 'HJ', 'CO', 'BTN'];
@@ -100,7 +101,7 @@ export function parseView(v: HandView): Parsed {
     streets.push({ i, key, board: st.cards, acts });
   });
   const winners = /^(.+?) wins/.exec(v.result)?.[1]?.split(/, | and /).map((x) => x.replace(/ wins.*$/, '')) ?? [];
-  return { n: v.n, streets, posOf, winners };
+  return { n: v.n, streets, posOf, winners, stack: { ...(v.stacks ?? {}) } };
 }
 
 /* ------------------------------- hand strength ------------------------------- */
@@ -304,13 +305,17 @@ interface Ctx {
   allin: Set<string>; facingAllin: boolean;
   /** Chips each player has in on this street, before this action. */
   put: Record<string, number>;
+  /** Chips each player has in the whole hand, before this action. */
+  spent: Record<string, number>;
 }
 interface StreetStart { raiserPre: string | null; prevAgg: string | null; prevChecked: boolean; live: string[]; prevBoard: Card[] }
 
-function walk(p: Parsed, blinds: { sb: number; bb: number }, onStreet: (st: Street, s: StreetStart) => void, onAct: (c: Ctx) => void, onEnd?: (st: Street, live: string[]) => void) {
+/** Replays the hand action by action. Returns the chips each player put in over the whole hand. */
+function walk(p: Parsed, blinds: { sb: number; bb: number }, onStreet: (st: Street, s: StreetStart) => void, onAct: (c: Ctx) => void, onEnd?: (st: Street, live: string[], pot: number) => void): Record<string, number> {
   const { sb, bb } = blinds;
   const players = Object.keys(p.posOf);
   const folded = new Set<string>(), allin = new Set<string>();
+  const spent: Record<string, number> = {};
   let pot = 0, raiserPre: string | null = null, prevAgg: string | null = null, prevChecked = false, prevBoard: Card[] = [];
   for (const st of p.streets) {
     const SEQ = st.key === 'preflop' ? PRE_ORDER : ORDER;
@@ -319,8 +324,8 @@ function walk(p: Parsed, blinds: { sb: number; bb: number }, onStreet: (st: Stre
     let high = 0, level = 0, raises = 0, limpers = 0, firstBet: string | null = null, highBy: string | null = null, agg: string | null = null;
     if (st.key === 'preflop') {
       const sbN = players.find((x) => p.posOf[x] === 'SB'), bbN = players.find((x) => p.posOf[x] === 'BB');
-      if (sbN) put[sbN] = sb;
-      if (bbN) put[bbN] = bb;
+      if (sbN) put[sbN] = spent[sbN] = sb;
+      if (bbN) put[bbN] = spent[bbN] = bb;
       high = level = bb; pot = sb + bb; highBy = bbN ?? null;
     }
     onStreet(st, { raiserPre, prevAgg, prevChecked, live: order(players.filter((x) => !folded.has(x))), prevBoard });
@@ -339,7 +344,7 @@ function walk(p: Parsed, blinds: { sb: number; bb: number }, onStreet: (st: Stre
         prev, toCall, potBefore: pot, need: toCall / Math.max(1, pot + toCall), add,
         isRaise, raises, limpers, high, level, firstBet, raiserPre, highBy,
         live, behind: live.slice(live.indexOf(a.who) + 1),
-        checked, prevAgg, prevChecked, allin, facingAllin: toCall > 0 && !!highBy && allin.has(highBy), put,
+        checked, prevAgg, prevChecked, allin, facingAllin: toCall > 0 && !!highBy && allin.has(highBy), put, spent,
       });
       // the record moves on
       if (a.k === 'fold') folded.add(a.who);
@@ -354,12 +359,32 @@ function walk(p: Parsed, blinds: { sb: number; bb: number }, onStreet: (st: Stre
         if (st.key === 'preflop') raiserPre = a.who;
       }
       put[a.who] = prev + add;
+      spent[a.who] = (spent[a.who] ?? 0) + add;
       pot += add;
     });
-    onEnd?.(st, order(players.filter((x) => !folded.has(x))));
+    onEnd?.(st, order(players.filter((x) => !folded.has(x))), pot);
     if (st.key !== 'preflop') { prevAgg = agg; prevChecked = st.acts.length > 1 && st.acts.every((x) => x.k === 'check'); }
     prevBoard = st.board;
   }
+  return spent;
+}
+
+/** The pot at the close of each street, read back from the log (the street summary in the hand list). The last street
+    takes the hand's recorded pot. */
+export function streetPots(v: HandView, blinds: { sb: number; bb: number }): number[] {
+  const out: number[] = [];
+  walk(parseView(v), blinds, () => {}, () => {}, (st, _live, pot) => { out[st.i] = pot; });
+  if (out.length) out[out.length - 1] = v.pot || out[out.length - 1];
+  return out;
+}
+
+/** Chips each player had at the start of the hand: the recorded stacks, else the chips of a player who went all-in
+    (an all-in puts in the whole stack). A player with neither is unknown. */
+function stacksOf(p: Parsed, blinds: { sb: number; bb: number }): Record<string, number> {
+  const out = { ...p.stack };
+  const spent = walk(p, blinds, () => {}, () => {});
+  for (const st of p.streets) for (const a of st.acts) if (a.allin && out[a.who] === undefined) out[a.who] = spent[a.who] ?? 0;
+  return out;
 }
 
 /* ------------------------------- basic analysis: the commentator ------------------------------- */
@@ -465,6 +490,8 @@ interface Rec {
   lo?: number; hi?: number;
   /** The size to aim for when the player takes the raise in `ok`. */
   altTo?: number;
+  /** The size is the player's whole stack. */
+  allin?: boolean;
 }
 /** A raise to about `to`, fine anywhere from `lo` to `hi`. */
 const sized = (to: number, lo: number, hi: number) => ({ to: Math.round(to), lo: Math.round(lo), hi: Math.max(Math.round(hi), Math.round(lo)) });
@@ -477,6 +504,25 @@ interface Spot {
   noRaise: boolean; story: boolean; cbet: boolean; stab: boolean; wet: boolean; multi: boolean; raiserPos: string;
   /** The game's 7-2 bounty, its prize in this hand, whether I hold a paying 7-2, and whether the bet I face comes from a likely hunter. */
   bounty: Bounty | null; prize: number; mine72: boolean; huntBet: boolean;
+  /** The street total the player can reach (own chips), and the most any other live player can match, with that
+      player's name. Infinity = the stack is not known. */
+  myMax: number; oppMax: number; oppMaxBy: string;
+}
+/** A raise never goes past what the stacks allow: the player's own chips, or the most the deepest other player can
+    match (a bigger bet adds nothing). With no room for a raise, the answer is a call (or a check). */
+function fit(r: Rec, x: Spot): Rec {
+  const { c } = x, cap = Math.min(x.myMax, x.oppMax);
+  if (!Number.isFinite(cap)) return r;
+  const out: Rec = r.altTo !== undefined && r.altTo > cap ? { ...r, altTo: cap } : r;
+  if (out.k !== 'raise' || out.to === undefined) return out;
+  if (cap <= c.high) return { k: c.toCall > 0 ? 'call' : 'check', ok: (out.ok ?? []).filter((k) => k !== 'raise' && k !== 'call' && k !== 'check'),
+    why: `${out.why} ${x.myMax <= c.high ? 'Your stack covers only a call: no raise is possible.' : 'No other player can match a raise.'}` };
+  if (out.to <= cap && (out.hi ?? out.to) <= cap) return out;
+  const mine = x.myMax <= x.oppMax;
+  const to = Math.min(out.to, cap), lo = Math.min(out.lo ?? to, cap), hi = Math.min(out.hi ?? to, cap);
+  const allin = mine && to >= x.myMax;
+  const note = !mine ? ` ${x.oppMaxBy} can match only ${cap}: a bigger ${c.toCall > 0 ? 'raise' : 'bet'} adds nothing.` : allin ? ` Your stack sets the size: all-in for ${to}.` : '';
+  return { ...out, to, lo, hi, allin, why: `${out.why}${note}` };
 }
 function decidePre(x: Spot): Rec {
   if (x.mine72) return bountyPre(x);
@@ -598,15 +644,17 @@ const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
 const low = (t: string) => (/^([2-9TJQKA]{2}|[A-Z]{2})/.test(t) ? t : t[0].toLowerCase() + t.slice(1));
 
 /** The options at a price: a call, a re-raise (to about 3 times the bet) and a fold. No re-raise against an all-in. */
-function choices(c: Ctx, noRaise: boolean): string {
+function choices(c: Ctx, noRaise: boolean, x: Spot | null): string {
+  const cap = x ? Math.min(x.myMax, x.oppMax) : Infinity, rr = Math.min(3 * c.high, cap);
   return `Call ${c.toCall}: you see ${NEXT[c.st.key] ?? 'the next card'} at this price.`
-    + (noRaise ? '' : ` Re-raise to about ${3 * c.high}: you take the lead and fold out weaker hands, but you risk more when behind.`)
+    + (noRaise || cap <= c.high ? '' : ` Re-raise to ${x && rr >= x.myMax ? `all-in (${rr})` : `about ${rr}`}: you take the lead and fold out weaker hands, but you risk more when behind.`)
     + ` Fold: you save ${c.toCall} and give up the pot of ${c.potBefore}.`;
 }
 
 /** The recommended action as the first words of an answer. */
 function verbOf(r: Rec, c: Ctx, pos: string): string {
   const pre = c.st.key === 'preflop';
+  if (r.k === 'raise' && r.allin && r.to) return `All-in for ${r.to}`;
   if (r.k === 'raise') return `${pre ? (c.raises > 0 ? 'Re-raise' : 'Raise') : c.toCall > 0 ? 'Raise' : 'Bet'}${r.to ? ` ${pre || c.toCall > 0 ? 'to ' : ''}about ${r.to}${r.lo !== undefined && r.hi !== undefined && r.hi - r.lo >= 2 ? ` (${r.lo} to ${r.hi})` : ''}` : ''}`;
   if (r.k === 'call') return pre && c.raises === 0 ? (pos === 'SB' ? 'Complete the SB' : c.limpers ? 'Limp behind' : 'Limp') : 'Call';
   return r.k === 'check' ? 'Check' : 'Fold';
@@ -614,7 +662,7 @@ function verbOf(r: Rec, c: Ctx, pos: string): string {
 
 /** The closing comment on one action: the grade, then how it compares with the recommendation, what it shows and what
     the player can represent next. */
-function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec | null; bb: number; repr: string; bluff: boolean; pos: string }): CritClose {
+function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec | null; bb: number; repr: string; bluff: boolean; pos: string; allin: boolean }): CritClose {
   const { did, rec, c, x } = o;
   const pre = c.st.key === 'preflop', river = c.st.key === 'river';
   const word = did === 'raise' ? (pre || c.toCall > 0 ? 'raise' : 'bet') : did;
@@ -634,18 +682,19 @@ function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec
     const slack = Math.max(o.bb, c.potBefore * 0.1);
     const aim = rec.lo !== undefined && rec.hi !== undefined && rec.hi - rec.lo >= 2 ? `${rec.lo} to ${rec.hi}` : `about ${rec.to}`;
     if (rec.k === did) {
-      if (did === 'raise' && !o.bluff && lo !== undefined && o.to && o.to < lo && lo - o.to >= slack) { g = 'blue'; v = `${word === 'bet' ? 'Bet' : 'Raise'} a bit more`; why = `Aim for ${aim}: a bigger ${word} charges worse hands more and folds out more draws.`; }
-      else if (did === 'raise' && !o.bluff && hi !== undefined && o.to && o.to > hi && o.to - hi >= slack) { g = 'blue'; v = 'A smaller size does the job'; why = `${cap(aim)} gets the same calls from worse hands and risks less.`; }
+      // an all-in is the whole stack: it can never be bigger, so it is never graded as too small
+      if (did === 'raise' && !o.bluff && !o.allin && lo !== undefined && o.to && o.to < lo && lo - o.to >= slack) { g = 'blue'; v = `${word === 'bet' ? 'Bet' : 'Raise'} a bit more`; why = `Aim for ${aim}: a bigger ${word} charges worse hands more and folds out more draws.`; }
+      else if (did === 'raise' && !o.bluff && hi !== undefined && o.to && o.to > hi && o.to - hi >= slack) { g = 'blue'; v = 'Smaller size'; why = `${cap(aim)} gets the same calls from worse hands and risks less.`; }
       else if (o.bluff && x?.story) { g = 'green'; v = 'Consistent story'; why = `${rec.why}`; }
       else { g = 'green'; v = `Good ${word}`; why = o.bluff || x?.mine72 ? rec.why : did === 'raise' && rec.to ? `Good size too. ${often.raise}` : often[did]; }
-    } else if (rec.ok?.includes(did) && did === 'raise' && rec.altTo && o.to && o.to < rec.altTo * 0.75 && rec.altTo * 0.75 - o.to >= o.bb) {
+    } else if (rec.ok?.includes(did) && did === 'raise' && !o.allin && rec.altTo && o.to && o.to < rec.altTo * 0.75 && rec.altTo * 0.75 - o.to >= o.bb) {
       g = 'blue'; v = 'Raise a bit more'; why = `A raise is fine, but aim for about ${rec.altTo} (${Math.round(rec.altTo * 0.75)} to ${Math.round(rec.altTo * 1.6)}): a small raise gets called by every limper. ${next} is the main line: ${low(rec.why)}`;
     } else if (rec.ok?.includes(did)) {
       g = 'green'; v = o.bluff && x?.story ? 'Consistent story' : 'Reasonable'; why = `${next} is the main line: ${low(rec.why)} Your ${word} works too.`;
     } else if (did === 'fold' && rec.k === 'check') {
       g = 'blue'; v = 'Free check'; why = 'Check next time: a fold when a check is free gives the pot away.';
     } else if (rec.k === 'raise' && (did === 'call' || did === 'check')) {
-      g = 'blue'; v = 'Could go more aggressive'; why = `${next} next time. ${rec.why}`;
+      g = 'blue'; v = 'Too passive'; why = `${next} next time. ${rec.why}`;
     } else if (did === 'raise' && o.bluff) {
       g = risky ? 'red' : 'blue'; v = 'Risky bluff'; why = `${next} next time. ${risky ? `A bluff into ${x!.station ? 'a calling station' : 'several players'} rarely works. ` : ''}${rec.why}`;
     } else if (did === 'raise' && x?.s === 'weak') {
@@ -654,7 +703,7 @@ function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec
       g = 'green'; v = 'Reasonable'; why = `A ${rec.k} risks less here, but the ${word} keeps the lead.`;
     } else if (rec.k === 'fold') {
       if (pre && did === 'call' && c.raises === 0) { g = 'blue'; v = 'Fold more often'; why = `A limp costs little, but ${low(rec.why)}`; }
-      else if (did === 'raise') { g = 'red'; v = 'Fold here next time'; why = rec.why; }
+      else if (did === 'raise') { g = 'red'; v = 'Fold here'; why = rec.why; }
       else { g = c.need <= 0.2 ? 'blue' : 'red'; v = 'Loose call'; why = `Fold next time. ${rec.why}`; }
     } else if (did === 'fold') {
       g = 'blue'; v = 'Too tight'; why = `${next} next time. ${rec.why}`;
@@ -673,7 +722,7 @@ function closingFor(o: { did: Move; to: number; c: Ctx; x: Spot | null; rec: Rec
     : did === 'raise' ? 'Next street: keep the story. Bet again on a safe card; slow down when the card helps the callers.'
     : did === 'call' ? 'Next street: if a draw card comes, a bet from you represents the draw that hit.'
     : 'Next street: a bet after a check can represent a slowplay or the card that came.';
-  return { g, v, text: [why, shows, next].filter(Boolean).join(' ') };
+  return { g, v, why: why || undefined, text: [why, shows, next].filter(Boolean).join(' ') };
 }
 
 interface Tally { valueBets: number; semis: number; bluffs: number; bluffSum: number; bluffed: boolean }
@@ -696,6 +745,9 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
   const prize = bounty ? bounty.amount * Math.max(0, Object.keys(p.posOf).length - 1) : 0;
   const mine72 = !!hole && is72(hole, bounty);
   let toldBounty = false;
+  const stk = stacksOf(p, blinds);
+  /** My checks with a strong hand that wait for a bet: a check-raise or a check-call later makes each one a trap. */
+  const traps: { st: number; line: number; word: string }[] = [];
   walk(p, blinds, (st, s) => {
     imIn = s.live.includes(me);
     if (!imIn || st.board.length < 3) return;
@@ -755,6 +807,9 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
       const o = hole && st.board.length >= 3 && st.board.length < 5 ? outs(hole, st.board) : 0;
       const valueHand = s === 'monster' || s === 'strong' || s === 'overpair' || s === 'top';
       const noRaise = c.facingAllin || !others.some((x) => !c.allin.has(x));
+      // the street total each player can reach: chips on this street plus chips behind (unknown stack = no limit)
+      const room = (y: string) => (c.allin.has(y) ? c.put[y] ?? 0 : stk[y] === undefined ? Infinity : (c.put[y] ?? 0) + stk[y] - (c.spent[y] ?? 0));
+      const deep = others.map((y) => [y, room(y)] as const).sort((a2, b2) => b2[1] - a2[1])[0];
       const x: Spot | null = hole ? {
         c, me, pos: myPos, hole, s, o, word: s ? handWord(s, hole, st.board) : '', others,
         station: others.some((y) => is(y, /calling station/)), folder: others.some((y) => is(y, /folding to bets|tight/)) && !others.some((y) => is(y, /calling station/)),
@@ -762,10 +817,11 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
         story: st.key !== 'flop' && st.key !== 'preflop' && c.prevAgg === me, cbet: st.key === 'flop' && c.raiserPre === me && !c.firstBet,
         stab: c.prevChecked && c.toCall === 0, wet: !!tx?.wet, multi: others.length > 1, raiserPos: c.highBy ? p.posOf[c.highBy] ?? '' : '',
         bounty, prize, mine72, huntBet: !!bounty && bounty.win !== 'shown' && c.toCall > 0 && !!c.highBy && chaser(habits[c.highBy]),
+        myMax: room(me), oppMax: deep ? deep[1] : Infinity, oppMaxBy: deep ? label(deep[0]) : '',
       } : null;
       if (mine72 && !toldBounty) { toldBounty = true; tell(st.i, a.line, `You hold 7-2 with the bounty on. It pays ${prize} (${bounty!.amount} from each of ${Object.keys(p.posOf).length - 1} players) ${BOUNTY_PAYS[bounty!.win]}.`); }
-      const rec: Rec | null = x ? (st.key === 'preflop' ? decidePre(x) : decidePost(x)) : null;
-      const answer = (generic: string) => (rec ? `${verbOf(rec, c, myPos)}. ${rec.why}` : generic) + (c.toCall > 0 && st.key !== 'preflop' || c.high > c.level ? ` ${choices(c, noRaise)}` : '');
+      const rec: Rec | null = x ? fit(st.key === 'preflop' ? decidePre(x) : decidePost(x), x) : null;
+      const answer = (generic: string) => (rec ? `${verbOf(rec, c, myPos)}. ${rec.why}` : generic) + (c.toCall > 0 && st.key !== 'preflop' || c.high > c.level ? ` ${choices(c, noRaise, x)}` : '');
       const did = moveOf(a, c.isRaise);
       if (st.key === 'preflop') {
         if (a.k === 'straddle') return;
@@ -812,7 +868,15 @@ function thinkHand(p: Parsed, me: string, hole: Card[] | null, habits: Record<st
       }
       const top = [...st.board].sort((y, z) => rv(z) - rv(y))[0];
       const repr = top ? (rankCount(st.board, top[0]) >= 3 ? `trip ${PLURAL(top[0])} with a high kicker` : rankCount(st.board, top[0]) === 2 ? `trip ${PLURAL(top[0])}` : `top pair (${RANK_WORD(top[0])})`) : 'a strong hand';
-      (close[st.i] ??= {})[a.line] = closingFor({ did, to: a.to, c, x, rec, bb, repr, bluff, pos: myPos });
+      (close[st.i] ??= {})[a.line] = closingFor({ did, to: a.to, c, x, rec, bb, repr, bluff, pos: myPos, allin: a.allin });
+      // a check with a strong hand waits for a bet. When the bet comes and I raise or call it, every such check was a
+      // trap (a plan), not a missed bet: it gets a green grade.
+      const strongNow = s === 'monster' || s === 'strong';
+      if (x && strongNow && did === 'check' && st.key !== 'preflop') traps.push({ st: st.i, line: a.line, word: x.word });
+      else if (x && strongNow && c.toCall > 0 && c.highBy && (did === 'raise' || did === 'call') && traps.length) {
+        const why = `You checked ${traps[0].word} and let ${label(c.highBy)} bet. Your ${did === 'raise' ? (a.allin ? 'all-in' : 'raise') : 'call'} after the bet makes the check a trap, not a missed bet.`;
+        for (const tr of traps.splice(0)) close[tr.st][tr.line] = { g: 'green', v: 'Good trap', why, text: `${why} A check shows a weak or medium hand: here it hid a strong one.` };
+      }
     } else {
       // another player's action, read from my seat
       if (st.key === 'preflop' && a.k === 'check') {
@@ -857,7 +921,7 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
     const entry = cards[v.n];
     if (mineIn) {
       const lines = commentate(p, blinds, habits, bounty);
-      if (entry?.lvl === 'red') out.push({ n: v.n, status: 'invalid', verdict: { tone: 'info', label: 'Invalid hand' }, lines });
+      if (entry?.lvl === 'red') out.push({ n: v.n, status: 'invalid', verdict: { tone: 'info', label: 'Invalid hand', why: 'A card clashes with the board or a card shown at the table. The critique skips the hand.' }, lines });
       else {
         tally.bluffed = false;
         const hole = entry?.cards?.length === 2 ? entry.cards : null;
@@ -867,7 +931,7 @@ export function critiqueFor(views: HandView[], me: string, cards: Record<number,
         const graded = Object.values(th.close).flatMap((x) => Object.values(x)).filter((x) => x.g && x.v);
         const worst = graded.sort((x, y) => RANK_G[y.g!] - RANK_G[x.g!])[0];
         out.push({ n: v.n, status: hole ? 'cards' : 'nocards', lines, deep: th.deep, close: th.close,
-          verdict: worst ? { tone: worst.g === 'green' ? 'good' : 'warn', label: worst.v!, g: worst.g } : undefined });
+          verdict: worst ? { tone: worst.g === 'green' ? 'good' : 'warn', label: worst.v!, g: worst.g, why: worst.why } : undefined });
       }
     }
     learn(habits, p);

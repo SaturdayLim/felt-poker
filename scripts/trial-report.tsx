@@ -18,7 +18,7 @@ import '../src/saturday/css/saturday.css';
 import '../src/styles.css';
 import './trial-report.css';
 import { Cards, Icon, Info, Toggle } from '../src/components/ui';
-import { bountyFromRules, critiqueFor, type CritClose, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
+import { bountyFromRules, critiqueFor, streetPots, type CritClose, type CritNote, type HandCrit, type PlayerCrit } from '../src/report/critique';
 import { plainWords } from '../src/report/plain';
 import { BackToBack, CountBars } from '../src/components/charts';
 import { units } from '../src/lib/format';
@@ -343,58 +343,111 @@ function QuizNote({ q, a }: { q: string; a: string }) {
   );
 }
 
-/** The verdict of one hand, under its row in the Action Log. */
-function CritVerdict({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
+/** The grade of one hand: a coloured tag left of the cards. Hover (mouse) or a tap shows why. It grows in and out with
+    the critique switch. */
+function CritTag({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
   const say = useSay();
-  if (!hc?.verdict) return null;
+  const vd = hc?.verdict;
+  if (!vd) return null;
+  const tone = vd.g ?? vd.tone;
   return (
-    <div className={`trial-grow trial-crit ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><div>
-      <span className={`trial-crit-verdict is-${hc.verdict.g ?? hc.verdict.tone}`}>{say(hc.verdict.label)}{hc.status === 'invalid' ? ': a card clashes with the board or a card shown at the table. The hand is skipped.' : ''}</span>
-    </div></div>
+    <span className={`trial-tagwrap ${on ? 'is-on' : ''}`} {...inertWhen(!on)}><span>
+      <Info title={vd.label} label={`${say(vd.label)}. Show why`} className={`trial-grade is-${tone}`} trigger={<span className="trial-grade-pill">{say(vd.label)}</span>}>
+        <span className="felt-tip-line"><b>{say(vd.label)}</b></span>
+        {vd.why && <span className="felt-tip-line">{say(vd.why)}</span>}
+      </Info>
+    </span></span>
   );
 }
 
-/** One hand's action log: a dropdown with every action in time order, the cards shown and the result.
+/** The blinds of the game, from the image subtitle "(1/2 * S$0.10 Cash)". */
+const blindsOf = (m: TrialModel) => { const b = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/.exec(m.sub ?? ''); return { sb: b ? +b[1] : 1, bb: b ? +b[2] : 2 }; };
+
+/** One hand in a hand list: a card whose whole row opens the action (every street open). The row content is `row`;
+    the tag sits above the hit area so it can open its own tip. `epoch` changes with Expand all and Collapse all. */
+function HandCard({ v, me, open, onToggle, epoch, blinds, row, say }: {
+  v: HandView; me?: string; open: boolean; onToggle: () => void; epoch: number; blinds: { sb: number; bb: number }; row: ReactNode; say: string;
+}) {
+  return (
+    <div className={`sat-glass-2 trial-hcard ${open ? 'is-open' : ''}`}>
+      <div className="trial-hrow">
+        <button type="button" className="trial-hrow-hit" aria-expanded={open} aria-label={`Hand ${v.n}, ${say}. ${open ? 'Close' : 'Open'} the action`} onClick={onToggle} />
+        {row}
+      </div>
+      <div className="trial-grow trial-hcard-grow" {...inertWhen(!open)}><div>
+        <HandBody v={v} me={me} open={open} epoch={epoch} blinds={blinds} />
+      </div></div>
+    </div>
+  );
+}
+
+/** One hand's action, street by street. Each street head (name, cards, closing pot) opens or closes that street; a
+    closed street keeps only its head. A hand that opens shows every street.
     `me` (a player page): only that player's name and position keep their colour; every other player reads as plain text. */
-function LogDrop({ v, label, me }: { v: HandView; label?: ReactNode; me?: string }) {
-  const [open, setOpen] = useState(false);
+function HandBody({ v, me, open, epoch, blinds }: { v: HandView; me?: string; open: boolean; epoch: number; blinds: { sb: number; bb: number } }) {
   const { on, adv, crit } = useContext(CritCtx);
   const hc = crit?.hands.find((x) => x.n === v.n);
+  const pots = useMemo(() => streetPots(v, blinds), [v, blinds.sb, blinds.bb]);
+  // closed streets; every street opens again when the hand opens or Expand all runs
+  const [shut, setShut] = useState<Set<number>>(() => new Set());
+  useEffect(() => { if (open) setShut(new Set()); }, [open, epoch]);
+  const flip = (i: number) => setShut((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n; });
   // the player's colour index in this hand: the segment that names them ("BTN (Mike)", or the name alone)
   const myC = me === undefined ? undefined : v.streets.flatMap((st) => st.segs.flat()).find((sg) => sg.c !== undefined && (sg.t === me || sg.t.endsWith(` (${me})`)))?.c;
   const lit = (c: number | undefined) => c !== undefined && (me === undefined || c === myC);
   return (
-    <div className={`trial-log ${open ? 'is-open' : ''}`}>
-      <button type="button" className="trial-log-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span>{label ?? 'Action log'}</span><span className="trial-chev" aria-hidden="true"><Icon name="chevron" size={16} /></span>
-      </button>
-      <div className="trial-grow" {...inertWhen(!open)}><div><div className="trial-log-body">
-        {hc?.status === 'invalid' && <CritNotes on={on} notes={[{ tone: 'info', text: 'Invalid hand: your entry clashes with the board or a card shown at the table. The critique skips it.' }]} />}
-        {hc?.status === 'nocards' && <CritNotes on={on && adv} notes={[{ tone: 'info', text: 'No cards entered for this hand. The insights read the action only, with no grades.' }]} />}
-        {v.streets.map((st, si) => (
-          <div key={st.street} className="trial-log-street">
-            <div className="trial-log-head"><b>{st.street}</b>{st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}</div>
-            {/* basic analysis (a commentator, no cards) or advanced insights (first person, your cards): the street's cards first, then each line */}
-            <CritNotes on={on && !adv} notes={hc?.lines[si]?.[-1]} />
-            <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[-1]} />
-            {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => (
-              <Fragment key={i}>
-                <span className="trial-log-line">{l.map((sg, k) => (!lit(sg.c) ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c! % 8) + 1})` }}>{sg.t}</span>))}</span>
-                <CritNotes on={on && !adv} notes={hc?.lines[si]?.[i]} />
-                <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[i]} />
-                <CloseNote on={on && adv} c={hc?.close?.[si]?.[i]} />
-              </Fragment>
-            ))}
+    <div className="trial-hbody">
+      {hc?.status === 'invalid' && <CritNotes on={on} notes={[{ tone: 'info', text: 'Invalid hand: your entry clashes with the board or a card shown at the table. The critique skips it.' }]} />}
+      {hc?.status === 'nocards' && <CritNotes on={on && adv} notes={[{ tone: 'info', text: 'No cards entered for this hand. The insights read the action only, with no grades.' }]} />}
+      {v.streets.map((st, si) => {
+        const stOpen = !shut.has(si);
+        return (
+          <div key={st.street} className={`trial-st ${stOpen ? 'is-open' : ''}`}>
+            <button type="button" className="trial-st-head" aria-expanded={stOpen} onClick={() => flip(si)}>
+              <b>{st.street}</b>
+              {st.cards.length > 0 && <Cards cards={st.cards} size="sm" />}
+              {pots[si] !== undefined && <span className="trial-st-pot">Pot {pots[si]}</span>}
+              <span className="trial-chev" aria-hidden="true"><Icon name="chevron" size={14} /></span>
+            </button>
+            <div className="trial-grow" {...inertWhen(!stOpen)}><div><div className="trial-st-body">
+              {/* basic analysis (a commentator, no cards) or advanced insights (first person, your cards): the street's cards first, then each line */}
+              <CritNotes on={on && !adv} notes={hc?.lines[si]?.[-1]} />
+              <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[-1]} />
+              {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => (
+                <Fragment key={i}>
+                  <span className="trial-log-line">{l.map((sg, k) => (!lit(sg.c) ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c! % 8) + 1})` }}>{sg.t}</span>))}</span>
+                  <CritNotes on={on && !adv} notes={hc?.lines[si]?.[i]} />
+                  <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[i]} />
+                  <CloseNote on={on && adv} c={hc?.close?.[si]?.[i]} />
+                </Fragment>
+              ))}
+            </div></div></div>
           </div>
-        ))}
-        {v.shown.map((x) => (
-          <div key={x.p} className="trial-shown"><span>{x.p}</span><Cards cards={x.cards} size="sm" /><span className="sat-small sat-muted">{x.rank}</span></div>
-        ))}
-        <span className="sat-small"><b>{v.result}</b></span>
-        {v.note && <span className="sat-small sat-muted">{v.note}</span>}
-      </div></div></div>
+        );
+      })}
+      {v.shown.map((x) => (
+        <div key={x.p} className="trial-shown"><span>{x.p}</span><Cards cards={x.cards} size="sm" /><span className="sat-small sat-muted">{x.rank}</span></div>
+      ))}
+      <span className="sat-small"><b>{v.result}</b></span>
+      {v.note && <span className="sat-small sat-muted">{v.note}</span>}
     </div>
   );
+}
+
+/** Which hands of a list are open, with Expand all and Collapse all. */
+function useHandList(ns: number[]) {
+  const [open, setOpen] = useState<Set<number>>(() => new Set());
+  const [epoch, setEpoch] = useState(0);
+  const all = ns.length > 0 && ns.every((n) => open.has(n));
+  const toggle = (n: number) => setOpen((s) => { const x = new Set(s); if (x.has(n)) x.delete(n); else x.add(n); return x; });
+  const bar = (
+    <div className="trial-hands-bar">
+      <button type="button" className="trial-link-btn" aria-pressed={all} onClick={() => { setOpen(all ? new Set() : new Set(ns)); setEpoch((e) => e + 1); }}>
+        <span key={String(all)} className="trial-swap">{all ? 'Collapse all' : 'Expand all'}</span>
+      </button>
+    </div>
+  );
+  return { isOpen: (n: number) => open.has(n), toggle, epoch, bar };
 }
 
 /** The full game log: every hand in order, each opening to its action log. */
@@ -413,16 +466,21 @@ function LedgerLine({ r }: { r: TrialModel['ledger'][number] }) {
 function GameLog({ m }: { m: TrialModel }) {
   // events off the felt sit between the hands, as dashed rows with their ledger reference
   const events = (n: number) => (m.ledger ?? []).filter((r) => r.afterN === n);
+  const log = m.log ?? [];
+  const list = useHandList(log.map((v) => v.n));
+  const blinds = useMemo(() => blindsOf(m), [m]);
   return (
-    <Section title="Game Log" tip={['Every recorded hand in order.', 'Tap a hand to open its actions, the cards shown and the result.', 'Amounts are chips.']}>
-      <div className="sat-stack" style={gap(2)}>
+    <Section title="Game Log" tip={['Every recorded hand in order.', 'Tap a hand to open its actions, the cards shown and the result.', 'Tap a street to close or open it. A street shows its cards and the pot at its close.', 'Amounts are chips.']}>
+      {list.bar}
+      <div className="trial-hands">
         {events(0).map((r) => <div key={r.ref} className="trial-log-event"><LedgerLine r={r} /></div>)}
-        {(m.log ?? []).map((v) => (
+        {log.map((v) => (
           <Fragment key={v.n}>
-            <div className="trial-hand">
-              <div className="sat-split"><span><b>#{v.n}</b> <span className="sat-muted">{v.button ? `Button: ${v.button}` : ''}</span></span><b className="sat-num">{v.pot}</b></div>
-              <LogDrop v={v} label={v.result} />
-            </div>
+            <HandCard v={v} open={list.isOpen(v.n)} onToggle={() => list.toggle(v.n)} epoch={list.epoch} blinds={blinds} say={v.result} row={<>
+              <span className="trial-hrow-n">#{v.n}</span>
+              <span className="trial-hrow-main"><span className="trial-hrow-title">{v.result}</span>{v.button && <span className="trial-hrow-sub">Button: {v.button}</span>}</span>
+              <span className="trial-hrow-end"><b className="sat-num">{v.pot}</b></span>
+            </>} />
             {events(v.n).map((r) => <div key={r.ref} className="trial-log-event"><LedgerLine r={r} /></div>)}
           </Fragment>
         ))}
@@ -498,10 +556,11 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
   const [jargonOn, setJargonOn] = useState(true);
   const crit = useMemo(() => {
     if (!p.logs?.length) return null;
-    const b = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/.exec(m.sub ?? '');
     const cards = Object.fromEntries((p.mine ?? []).map((h) => [h.n, { cards: h.cards, lvl: h.lvl }]));
-    return critiqueFor(p.logs, p.name, cards, { sb: b ? +b[1] : 1, bb: b ? +b[2] : 2 }, { bounty: bountyFromRules(m.rules) });
+    return critiqueFor(p.logs, p.name, cards, blindsOf(m), { bounty: bountyFromRules(m.rules) });
   }, [m.sub, m.rules, p]);
+  const blinds = useMemo(() => blindsOf(m), [m]);
+  const list = useHandList((p.logs ?? []).map((v) => v.n));
   const critBy = (n: number) => crit?.hands.find((x) => x.n === n);
   const rate = (a: number, b: number) => (b < 5 ? 'NA' : `${Math.round((a / b) * 100)}%`);
   const lines: [string, string, string, string[]][] = [
@@ -586,7 +645,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
       </Section>
 
       {p.logs.length > 0 && (
-        <Section title={`Action Log (${p.logs.length})`} tip={['Every hand you were dealt, in order. Tap a hand to open its actions, the cards shown and the result.', 'Your cards: your own entry, else the cards you showed at the table. Only you see your entries, with your player code.', 'Shown = also shown at the table.', 'Red ! = a card is on the board or in a card shown at the table. The hand stays out of the hand record and the critique.', "Blue ! = a card is also in another player's entry."]}>
+        <Section title={`Action Log (${p.logs.length})`} tip={['Every hand you were dealt, in order. Tap a hand to open its actions, the cards shown and the result.', 'Tap a street to close or open it. A street shows its cards and the pot at its close.', 'With the critique on, a coloured tag grades the hand: green = good or reasonable, blue = give it more thought, red = do not do this. Tap or point at a tag for the reason.', 'Your cards: your own entry, else the cards you showed at the table. Only you see your entries, with your player code.', 'Shown = also shown at the table.', 'Red ! = a card is on the board or in a card shown at the table. The hand stays out of the hand record and the critique.', "Blue ! = a card is also in another player's entry."]}>
           {crit && (
             <div className="trial-crit-head">
               <span className="trial-crit-switch">
@@ -633,24 +692,26 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
               )}
             </div></div>
           )}
-          <div className="sat-glass-2 felt-list">
+          {list.bar}
+          <div className="trial-hands">
             {p.logs.map((v) => {
               const h = p.mine.find((x) => x.n === v.n), sh = p.shown.find((x) => x.n === v.n);
               const cards = h?.cards ?? sh?.cards;
               const won = h ? h.net > 0 : !!sh?.won;
+              const rank = (h ? [h.rank, h.shownAtTable ? 'Shown' : ''] : sh ? [sh.rank, 'Shown'] : ['No cards']).filter(Boolean).join(', ') || '-';
               return (
-                <div key={v.n} className="trial-row-wrap">
-                  <div className={`felt-row trial-shown-row ${won ? 'is-won' : ''}`}>
-                    <span className="sat-mono sat-small sat-muted" style={{ width: 28 }}>#{v.n}</span>
+                <HandCard key={v.n} v={v} me={p.name} open={list.isOpen(v.n)} onToggle={() => list.toggle(v.n)} epoch={list.epoch} blinds={blinds} say={rank} row={<>
+                  <span className="trial-hrow-n">#{v.n}</span>
+                  <CritTag hc={critBy(v.n)} on={critOn} />
+                  <span className={`trial-hrow-main ${won ? 'is-won' : ''}`}>
                     {cards ? <Cards cards={cards} size="sm" /> : null}
-                    <span className="felt-row-main"><span className="felt-row-sub">{(h ? [h.rank, h.shownAtTable ? 'Shown' : ''] : sh ? [sh.rank, 'Shown'] : ['No cards']).filter(Boolean).join(', ') || '-'}</span></span>
-                    {h?.lvl && <span className={`trial-bang is-${h.lvl}`} role="img" aria-label={h.lvl === 'red' ? 'A card is on the board or in a card shown at the table' : "A card is also in another player's entry"}>!</span>}
-                    {h ? <b className={`sat-small ${h.net > 0 ? 'felt-up' : h.net < 0 ? 'felt-down' : 'sat-muted'}`}>{h.net > 0 ? 'Won' : h.net < 0 ? 'Lost' : 'Even'} {Math.abs(h.net)} ({h.street})</b>
-                      : sh ? <b className={`sat-small ${sh.won ? 'felt-up' : 'sat-muted'}`}>{sh.won ? `${sh.split ? 'Split' : 'Won'}: ${sh.got}` : `Lost: ${sh.pot}`}</b> : null}
-                  </div>
-                  <CritVerdict hc={critBy(v.n)} on={critOn} />
-                  <LogDrop v={v} me={p.name} label={h || sh ? undefined : v.result} />
-                </div>
+                    <span className="trial-hrow-sub">{rank}</span>
+                    {!h && !sh && <span className="trial-hrow-sub">{v.result}</span>}
+                  </span>
+                  {h?.lvl && <span className={`trial-bang is-${h.lvl}`} role="img" aria-label={h.lvl === 'red' ? 'A card is on the board or in a card shown at the table' : "A card is also in another player's entry"}>!</span>}
+                  {h ? <span className="trial-hrow-end"><b className={`sat-small ${h.net > 0 ? 'felt-up' : h.net < 0 ? 'felt-down' : 'sat-muted'}`}>{h.net > 0 ? 'Won' : h.net < 0 ? 'Lost' : 'Even'} {Math.abs(h.net)}</b><span className="trial-hrow-sub">{h.street}</span></span>
+                    : sh ? <span className="trial-hrow-end"><b className={`sat-small ${sh.won ? 'felt-up' : 'sat-muted'}`}>{sh.won ? `${sh.split ? 'Split' : 'Won'}: ${sh.got}` : `Lost: ${sh.pot}`}</b></span> : null}
+                </>} />
               );
             })}
           </div>

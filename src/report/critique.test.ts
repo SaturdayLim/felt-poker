@@ -108,7 +108,7 @@ describe('gameplay critique', () => {
     expect(at(4).text).toMatch(/Aim for 14 to 31/);
     expect(at(12).g).toBe('green');
     expect(at(24).g).toBe('green');
-    expect(at(40).v).toBe('A smaller size does the job');
+    expect(at(40).v).toBe('Smaller size');
   });
   it('facing an all-in, the only options are call or fold', () => {
     const c = critiqueFor([allin], 'Mike', { 3: { cards: ['As', '6s'], lvl: null } }, { sb: 1, bb: 2 }).hands[0];
@@ -143,5 +143,34 @@ describe('gameplay critique', () => {
     const c = critiqueFor([earlier, later], 'Bo', {}, { sb: 1, bb: 2 }, { bounty: won });
     expect(textOf(c.hands[1].lines[0][0])).toMatch(/Ann showed 7-2 tonight \(hand #1\).*making a play for it/);
     expect(textOf(c.hands[0].lines[0][0])).not.toMatch(/7-2/);
+  });
+  it('never asks for a bigger raise than the stack: an all-in is never too small', () => {
+    // owner screenshot (20 Nov 2026): Mike checks a full house on the river, Clar bets 120, Mike is all-in for 171
+    const trap: HandView = {
+      n: 4, pot: 291, button: 'Ben', shown: [], result: 'Mike wins 291 (River)',
+      streets: [
+        { street: 'Pre-flop', cards: [], lines: [], segs: [[seg('BTN (Ben)', 0), seg(' folds.')], [seg('SB (Mike)', 1), seg(' calls.')], [seg('BB (Clar)', 2), seg(' checks.')]] },
+        { street: 'Flop', cards: ['9s', 'Td', '5c'], lines: [], segs: [[seg('SB', 1), seg(' and '), seg('BB', 2), seg(' check.')]] },
+        { street: 'Turn', cards: ['9s', 'Td', '5c', '5h'], lines: [], segs: [[seg('SB', 1), seg(' and '), seg('BB', 2), seg(' check.')]] },
+        { street: 'River', cards: ['9s', 'Td', '5c', '5h', '5d'], lines: [], segs: [[seg('SB', 1), seg(' checks.')], [seg('BB', 2), seg(' bets 120.')], [seg('SB', 1), seg(' is all-in for 171 for a takedown.')]] },
+      ],
+    };
+    const c = critiqueFor([trap], 'Mike', { 4: { cards: ['Ad', '9c'], lvl: null } }, { sb: 1, bb: 2 }).hands[0];
+    const allinClose = c.close![3][2];
+    expect(allinClose.v).not.toMatch(/a bit more/);
+    expect(allinClose.g).toBe('green');
+    // the river check that let Clar bet is a trap, not a missed bet
+    expect(c.close![3][0]).toMatchObject({ g: 'green', v: 'Good trap' });
+    expect(c.close![3][0].why).toMatch(/trap, not a missed bet/);
+    // no grade in the hand asks for more chips than the stack holds
+    expect(Object.values(c.close!).flatMap((x) => Object.values(x)).some((x) => /a bit more|300|480/.test(x.text))).toBe(false);
+  });
+  it('caps a recommended raise at the recorded stack', () => {
+    const c = critiqueFor([{ ...allin, stacks: { Des: 300, Mike: 100, Ben: 200, Clar: 200 } }], 'Mike', { 3: { cards: ['As', 'Qs'], lvl: null } }, { sb: 1, bb: 2 }).hands[0];
+    // the river raise: 3 times the bet is 120, but Mike has only 84 left for the street
+    const ask = c.deep![3][1].find((x) => x.tone === 'ask');
+    expect(ask?.a).toMatch(/All-in for 84/);
+    expect(ask?.a).not.toMatch(/120/);
+    expect(c.close![3][1].g).toBe('green');
   });
 });

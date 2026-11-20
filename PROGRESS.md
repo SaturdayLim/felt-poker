@@ -1,6 +1,13 @@
 # Nightcap: progress
 
-## Latest (19 Nov 2026): 1.12.0
+## Latest (20 Nov 2026): 1.13.0
+
+- Player log (owner): `LogDrop` takes `me`; only segments with that player's colour index keep `trial-pc` and colour. Game Log tab unchanged (every player coloured).
+- Compare (owner): metric names are sort buttons (`sortBy`, best first by the bold rule, players with no value last). Hold 300 ms on a name lifts the column, drag swaps it; columns glide (FLIP, 240 ms). Order lives in component state only: decided not to save it (a shared report has many viewers). "Seat order" resets.
+- Settings (owner, impeccable pass): three `Section`s: Game, Minimum Raise, 7-2 Bounty. Row names drop the section word ("Win"); tips from `HELP` by label (`TIP_OF`).
+- Known: Compare at 375 px already scrolls sideways by about 30 px (player name buttons are 44 px minimum). Detector flags the 3 px left border on critique notes (older).
+
+## Earlier (19 Nov 2026): 1.12.0
 
 - 7-2 bounty in the critique (owner): `Bounty`, `bountyFromRules` (reads the "7-2 win/hand/amount" rule rows of a report or live room), passed as `critiqueFor(..., { bounty })` from the report template and Join live commentary.
 - Prize in a hand = amount x (players dealt in - 1). Holding a paying 7-2 (`is72`): `bountyPre`/`bountyPost` replace the normal decision. Revealed = cheap showdown, call when the price is under the prize. Winning/Best hand = bluff, fold rate needed = bet / (pot + bet + prize); no bluff into a calling station or 3+ players.

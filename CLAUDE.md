@@ -174,6 +174,9 @@ Standing instructions from the user. They apply to every screen, report and tip.
 - A press on the tab that is already open (tab bar or view tab) scrolls the page to the top. A change of view tab always opens at the top (owner, 12 Nov 2026).
 - Join a game, camera on: "Scan the host QR to connect".
 - iPhone Home Screen app: the document is taller than the screen by the top inset (`html { min-height }` in src/styles.css). Without it iOS lays the page out short and the tab bar floats above the screen edge on short pages. Do not remove it.
+- Report, player page: the action log colours only that player; the others are plain text (owner, 20 Nov 2026). The Game Log keeps every colour.
+- Report, Compare: a tap on a metric name sorts the players by it (again turns it over); a hold on a name lifts its column to drag. The order is for that view only, never saved; Seat order resets it (owner, 20 Nov 2026).
+- Report, Settings: house rules in three sections: Game (game, blinds, buy-in), Minimum Raise, 7-2 Bounty (owner, 20 Nov 2026).
 
 ## Motion and structure review (standing checks, owner 10 Nov 2026)
 

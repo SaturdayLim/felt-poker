@@ -312,3 +312,20 @@
 .trial-log-event .felt-row { min-height: 0; }
 
 .trial-th-tip { display: inline-flex; align-items: center; gap: var(--sat-space-1); white-space: nowrap; }
+
+/* Compare: a tap on a metric sorts the players by it; a hold on a name lifts its column to drag (this page only) */
+.trial-compare-grow.is-on { grid-template-rows: 1fr; opacity: 1; }
+.trial-compare-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sat-space-3); padding-bottom: var(--sat-space-2); }
+.trial-link-btn { border: 0; background: none; font: inherit; font-size: var(--sat-fs-small); font-weight: 600; color: var(--sat-accent-text); min-height: 44px; padding: 0 var(--sat-space-2); cursor: pointer; }
+.trial-sort { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; font: inherit; color: inherit; padding: 0; min-height: 44px; cursor: pointer; white-space: nowrap; }
+.trial-sort-mark { display: none; transition: transform var(--sat-dur-fast) var(--sat-ease); }
+.trial-sort.is-on { color: var(--sat-text); font-weight: 600; }
+.trial-sort.is-on .trial-sort-mark { display: inline-flex; }
+.trial-sort.is-rev .trial-sort-mark { transform: rotate(180deg); }
+.trial-compare thead th { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.trial-compare th.is-lifted, .trial-compare td.is-lifted { background: var(--sat-glass-2); position: relative; z-index: 1; box-shadow: var(--felt-elev-2); }
+.trial-compare th.is-lifted .trial-th-btn { cursor: grabbing; }
+
+/* Settings: one section per rule group; the name and its tip left, the value right */
+.felt-row .trial-rule-name { flex: 0 0 auto; display: inline-flex; justify-content: flex-start; font-weight: 500; align-items: center; gap: var(--sat-space-2); white-space: nowrap; }
+.trial-rule-value { flex: 1 1 auto; min-width: 0; text-align: right; font-size: var(--sat-fs-small); font-variant-numeric: tabular-nums; }

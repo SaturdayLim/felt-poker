@@ -7,7 +7,7 @@
    - Host view: opened from the dev server with a backup (?src=...). Every player is open.
    - Shared report: one HTML file with the data inside (#felt-report). Game Summary and Compare are open to
      everyone; each player page opens only with that player's code (see trial-lock.ts). */
-import { Fragment, StrictMode, createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, StrictMode, createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CodeBoxes } from '../src/components/codeBoxes';
 import '../src/saturday/css/tokens.css';
@@ -26,6 +26,8 @@ import { RANKS } from '../src/lib/cards';
 import { AWARD_LIST, buildModel, type Award, type HandView, type TrialModel, type TrialPlayer } from '../src/report/model';
 import { ICON_DETAIL, ICON_GRID, ICON_STROKE, awardPaths } from '../src/report/awardIcons';
 import { unlock, type LockBox } from '../src/report/lock';
+import { haptic } from '../src/lib/haptics';
+import { HELP, type HelpKey } from '../src/lib/help';
 
 type View = 'summary' | 'players' | 'compare' | 'settings' | 'log';
 interface ReportFile { model: TrialModel; locks: Record<string, LockBox> }
@@ -266,14 +268,35 @@ function Summary({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
 }
 
 /** The settings page: the rules this game used. */
+/** The help tip of each house rule, by its label. */
+const TIP_OF: Record<string, HelpKey> = { 'Minimum raise': 'minRaise', '7-2 win': 'bountyWin', '7-2 hand': 'bountyHand', '7-2 amount': 'bountyAmount' };
+/** The house rules in three sections: the game itself, the minimum raise, and the 7-2 bounty. Each rule with a
+    definition carries its tip beside its name. */
 function Settings({ m }: { m: TrialModel }) {
+  type Rule = TrialModel['rules'][number];
+  const raise = m.rules.filter((r) => r.label === 'Minimum raise');
+  const bounty = m.rules.filter((r) => r.label.startsWith('7-2 '));
+  const game = m.rules.filter((r) => !raise.includes(r) && !bounty.includes(r));
+  // inside a titled section the section name is not repeated in each row ("7-2 win" reads "Win")
+  const short: Record<string, string> = { 'Minimum raise': 'Rule', '7-2 bounty': 'Bounty', '7-2 win': 'Win', '7-2 hand': 'Hand', '7-2 amount': 'Amount' };
+  const row = (r: Rule) => {
+    const k = TIP_OF[r.label], h = k ? HELP[k] : undefined;
+    const lines = h ? ([] as readonly unknown[]).concat(h.text).filter((l): l is string => typeof l === 'string') : [];
+    return (
+      <div key={r.label} className="felt-row trial-rule">
+        <span className="trial-rule-name">{short[r.label] ?? r.label}{h && <Tip title={h.title} lines={lines} />}</span>
+        <span className="trial-rule-value">{r.value}</span>
+      </div>
+    );
+  };
+  const part = (title: string, rules: Rule[]) => rules.length > 0 && (
+    <Section title={title}><div className="sat-glass-2 felt-list">{rules.map(row)}</div></Section>
+  );
   return (
     <div className="sat-stack" style={gap(4)}>
-      <Section title="House Rules" tip={['The rules this game used.', 'Set in New Game or the game settings.']}>
-        <div className="sat-glass-2 felt-list">
-          {m.rules.map((r) => <div key={r.label} className="felt-row"><span className="felt-row-main" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>{r.label}</span><span className="sat-small" style={{ textAlign: 'right', flex: '1 1 auto', minWidth: 0 }}>{r.value}</span></div>)}
-        </div>
-      </Section>
+      {part('Game', game)}
+      {part('Minimum Raise', raise)}
+      {part('7-2 Bounty', bounty)}
     </div>
   );
 }
@@ -331,11 +354,15 @@ function CritVerdict({ hc, on }: { hc: HandCrit | undefined; on: boolean }) {
   );
 }
 
-/** One hand's action log: a dropdown with every action in time order, the cards shown and the result. */
-function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
+/** One hand's action log: a dropdown with every action in time order, the cards shown and the result.
+    `me` (a player page): only that player's name and position keep their colour; every other player reads as plain text. */
+function LogDrop({ v, label, me }: { v: HandView; label?: ReactNode; me?: string }) {
   const [open, setOpen] = useState(false);
   const { on, adv, crit } = useContext(CritCtx);
   const hc = crit?.hands.find((x) => x.n === v.n);
+  // the player's colour index in this hand: the segment that names them ("BTN (Mike)", or the name alone)
+  const myC = me === undefined ? undefined : v.streets.flatMap((st) => st.segs.flat()).find((sg) => sg.c !== undefined && (sg.t === me || sg.t.endsWith(` (${me})`)))?.c;
+  const lit = (c: number | undefined) => c !== undefined && (me === undefined || c === myC);
   return (
     <div className={`trial-log ${open ? 'is-open' : ''}`}>
       <button type="button" className="trial-log-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -352,7 +379,7 @@ function LogDrop({ v, label }: { v: HandView; label?: ReactNode }) {
             <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[-1]} />
             {st.lines.length === 0 ? <span className="sat-small sat-muted">No action recorded.</span> : st.segs.map((l, i) => (
               <Fragment key={i}>
-                <span className="trial-log-line">{l.map((sg, k) => (sg.c === undefined ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c % 8) + 1})` }}>{sg.t}</span>))}</span>
+                <span className="trial-log-line">{l.map((sg, k) => (!lit(sg.c) ? sg.t : <span key={k} className="trial-pc" style={{ color: `var(--trial-t${(sg.c! % 8) + 1})` }}>{sg.t}</span>))}</span>
                 <CritNotes on={on && !adv} notes={hc?.lines[si]?.[i]} />
                 <CritNotes on={on && adv} notes={hc?.deep?.[si]?.[i]} />
                 <CloseNote on={on && adv} c={hc?.close?.[si]?.[i]} />
@@ -622,7 +649,7 @@ function PlayerView({ m, p }: { m: TrialModel; p: TrialPlayer }) {
                       : sh ? <b className={`sat-small ${sh.won ? 'felt-up' : 'sat-muted'}`}>{sh.won ? `${sh.split ? 'Split' : 'Won'}: ${sh.got}` : `Lost: ${sh.pot}`}</b> : null}
                   </div>
                   <CritVerdict hc={critBy(v.n)} on={critOn} />
-                  <LogDrop v={v} label={h || sh ? undefined : v.result} />
+                  <LogDrop v={v} me={p.name} label={h || sh ? undefined : v.result} />
                 </div>
               );
             })}
@@ -692,16 +719,125 @@ function Compare({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
   ];
   // the value closest to the target is bold (ties share it)
   const gapOf = (r: (typeof rows)[number], p: TrialPlayer) => { const x = r.v(p); return x === null ? null : r.target === 'high' ? -x : Math.abs(x - r.target); };
+  const seat = m.players.map((p) => p.id);
+  // the column order on this page only: a tap on a metric sorts it, a hold and drag on a name moves that player. Nothing is saved.
+  const [order, setOrder] = useState<string[]>(seat);
+  const [sort, setSort] = useState<{ label: string; dir: 1 | -1 } | null>(null);
+  const [lifted, setLifted] = useState<string | null>(null);
+  const players = order.map((id) => m.players.find((p) => p.id === id)!).filter(Boolean);
+  const moved = order.some((id, i) => id !== seat[i]);
+
+  // columns glide to their new place (FLIP): the left edge of each column before the change, then a slide from there
+  const tableRef = useRef<HTMLTableElement>(null);
+  const lefts = useRef<Record<string, number>>({});
+  const measure = () => {
+    const out: Record<string, number> = {};
+    tableRef.current?.querySelectorAll<HTMLElement>('thead [data-col]').forEach((th) => { out[th.dataset.col!] = th.getBoundingClientRect().left; });
+    lefts.current = out;
+  };
+  const reorder = (next: string[]) => { measure(); setOrder(next); };
+  useLayoutEffect(() => {
+    const t = tableRef.current;
+    if (!t || REDUCED()) return;
+    t.querySelectorAll<HTMLElement>('thead [data-col]').forEach((th) => {
+      const id = th.dataset.col!, was = lefts.current[id];
+      const dx = was === undefined ? 0 : was - th.getBoundingClientRect().left;
+      if (Math.abs(dx) < 1) return;
+      t.querySelectorAll<HTMLElement>(`[data-col="${id}"]`).forEach((el) => el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 240, easing: 'cubic-bezier(0.2, 0, 0, 1)' }));
+    });
+    lefts.current = {};
+  }, [order]);
+
+  /** A tap on a metric: best first (closest to the target, or highest). A second tap turns the order over. */
+  const sortBy = (r: (typeof rows)[number]) => {
+    const dir: 1 | -1 = sort?.label === r.label ? (sort.dir === 1 ? -1 : 1) : 1;
+    const key = (id: string) => { const g = gapOf(r, m.players.find((p) => p.id === id)!); return g === null ? Infinity : g; };
+    // players with too few chances (no value) stay at the end in both directions
+    const next = [...order].sort((a, b) => { const x = key(a), y = key(b); return x === Infinity || y === Infinity ? (x === y ? 0 : x === Infinity ? 1 : -1) : (x - y) * dir || seat.indexOf(a) - seat.indexOf(b); });
+    setSort({ label: r.label, dir });
+    reorder(next);
+  };
+
+  // hold a name for 300 ms to lift its column, then drag it left or right; a tap still opens the player
+  const drag = useRef<{ id: string; x: number; y: number; timer: number; on: boolean } | null>(null);
+  const headRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    const row = headRef.current;
+    // a lifted column owns the finger: the table does not scroll under it
+    const stop = (e: TouchEvent) => { if (drag.current?.on) e.preventDefault(); };
+    row?.addEventListener('touchmove', stop, { passive: false });
+    return () => row?.removeEventListener('touchmove', stop);
+  }, []);
+  const down = (id: string) => (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    const timer = window.setTimeout(() => {
+      if (!drag.current) return;
+      drag.current.on = true;
+      setLifted(id);
+      haptic();
+    }, 300);
+    try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* a pointer the page cannot capture */ }
+    drag.current = { id, x: e.clientX, y: e.clientY, timer, on: false };
+  };
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) { clearTimeout(d.timer); drag.current = null; } return; }
+    // the column under the finger takes the lifted player's place
+    const ths = [...(headRef.current?.querySelectorAll<HTMLElement>('[data-col]') ?? [])];
+    const over = ths.find((th) => { const b = th.getBoundingClientRect(); return e.clientX >= b.left && e.clientX < b.right; })?.dataset.col;
+    if (!over || over === d.id) return;
+    const next = order.filter((x) => x !== d.id);
+    next.splice(order.indexOf(over), 0, d.id);
+    setSort(null);
+    reorder(next);
+  };
+  const up = () => {
+    const d = drag.current;
+    if (!d) return;
+    clearTimeout(d.timer);
+    drag.current = null;
+    if (d.on) { setLifted(null); justDragged.current = true; setTimeout(() => { justDragged.current = false; }, 0); }
+  };
+  const justDragged = useRef(false);
+
   return (
-    <section className="sat-glass sat-card sat-stack" style={gap(3)}>
+    <section className="sat-glass sat-card sat-stack" style={gap(0)}>
+      {/* the reset shows only when the order differs from the seat order */}
+      <div className={`trial-grow trial-compare-grow ${moved ? 'is-on' : ''}`} {...inertWhen(!moved)}><div>
+        <div className="trial-compare-bar">
+          <span className="sat-small sat-muted">{sort ? `Sorted by ${sort.label}` : 'Your order'}</span>
+          <button type="button" className="trial-link-btn" onClick={() => { setSort(null); reorder(seat); }}>Seat order</button>
+        </div>
+      </div></div>
       <div className="trial-table-wrap">
-        <table className="trial-table">
-          <thead><tr><th />{m.players.map((p) => <th key={p.id}><button type="button" className="trial-th-btn" onClick={() => onPlayer(p.id)}><Dot m={m} id={p.id} />{p.name}</button></th>)}</tr></thead>
+        <table className="trial-table trial-compare" ref={tableRef}>
+          <thead><tr ref={headRef}><th />{players.map((p) => (
+            <th key={p.id} data-col={p.id} className={lifted === p.id ? 'is-lifted' : ''}>
+              <button type="button" className="trial-th-btn" data-press="none"
+                onPointerDown={down(p.id)} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onContextMenu={(e) => e.preventDefault()}
+                onClick={() => { if (!justDragged.current) onPlayer(p.id); }}
+                aria-label={`${p.name}. Tap to open, hold and drag to move`}><Dot m={m} id={p.id} />{p.name}</button>
+            </th>
+          ))}</tr></thead>
           <tbody>
             {rows.map((r) => {
-              const gaps = m.players.map((p) => gapOf(r, p)).filter((x): x is number => x !== null);
+              const gaps = players.map((p) => gapOf(r, p)).filter((x): x is number => x !== null);
               const best = gaps.length ? Math.min(...gaps) : null;
-              return <tr key={r.label}><th><span className="trial-th-tip">{r.label} <Tip title={r.label} lines={r.tip} /></span></th>{m.players.map((p) => { const t = r.fmt(p); const g = gapOf(r, p); return <td key={p.id} className={`${best !== null && g === best ? 'is-best' : ''} ${t === 'NA' ? 'is-few' : ''}`}>{t}</td>; })}</tr>;
+              const on = sort?.label === r.label;
+              return (
+                <tr key={r.label}>
+                  <th aria-sort={on ? (sort!.dir === 1 ? 'descending' : 'ascending') : undefined}>
+                    <span className="trial-th-tip">
+                      <button type="button" className={`trial-sort ${on ? 'is-on' : ''} ${on && sort!.dir === -1 ? 'is-rev' : ''}`} onClick={() => sortBy(r)} aria-label={`Sort by ${r.label}`}>
+                        {r.label}<span className="trial-sort-mark" aria-hidden="true"><Icon name="chevron" size={12} /></span>
+                      </button>
+                      <Tip title={r.label} lines={r.tip} />
+                    </span>
+                  </th>
+                  {players.map((p) => { const t = r.fmt(p); const g = gapOf(r, p); return <td key={p.id} data-col={p.id} className={`${best !== null && g === best ? 'is-best' : ''} ${t === 'NA' ? 'is-few' : ''} ${lifted === p.id ? 'is-lifted' : ''}`}>{t}</td>; })}
+                </tr>
+              );
             })}
           </tbody>
         </table>
@@ -709,6 +845,7 @@ function Compare({ m, onPlayer }: { m: TrialModel; onPlayer: (id: string) => voi
     </section>
   );
 }
+
 
 /* ------------------------------- graphics ------------------------------- */
 
